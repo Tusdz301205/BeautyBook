@@ -1,0 +1,49 @@
+# Secrets and local configuration
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.pub
+
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+**/.cache/
+**/.turbo/
+**/.nx/
+**/*.tsbuildinfo
+**/vite.config.*.timestamp-*
+
+# Local database backups must never be committed
+docs/db-backups/*
+!docs/db-backups/.gitignore
+!docs/db-backups/README.md
+
+# Runtime and editor files
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
+*.swo
+*.pid
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local AI/document tooling and external reference repositories.
+# These stay available on the developer machine but are not part of BeautyBook.
+.codex-docx-qa*/
+skills/
+tools/
+
+# Personal or generated office documents are not source code.
+docs/*.docx

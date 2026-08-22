@@ -1,0 +1,16 @@
+CREATE TYPE "LeaveStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+CREATE TABLE "staff_breaks" ("id" TEXT NOT NULL, "staff_id" TEXT NOT NULL, "day_of_week" SMALLINT NOT NULL, "start_time" TIME(6) NOT NULL, "end_time" TIME(6) NOT NULL, "is_active" BOOLEAN NOT NULL DEFAULT true, CONSTRAINT "staff_breaks_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "staff_leaves" ("id" TEXT NOT NULL, "staff_id" TEXT NOT NULL, "start_at" TIMESTAMP(3) NOT NULL, "end_at" TIMESTAMP(3) NOT NULL, "reason" TEXT, "status" "LeaveStatus" NOT NULL DEFAULT 'PENDING', "reviewed_by" TEXT, "review_note" TEXT, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMP(3) NOT NULL, CONSTRAINT "staff_leaves_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "branch_holidays" ("id" TEXT NOT NULL, "branch_id" TEXT NOT NULL, "date" DATE NOT NULL, "name" TEXT NOT NULL, "is_closed" BOOLEAN NOT NULL DEFAULT true, CONSTRAINT "branch_holidays_pkey" PRIMARY KEY ("id"));
+CREATE TABLE "special_working_days" ("id" TEXT NOT NULL, "branch_id" TEXT NOT NULL, "staff_id" TEXT, "date" DATE NOT NULL, "start_time" TIME(6) NOT NULL, "end_time" TIME(6) NOT NULL, CONSTRAINT "special_working_days_pkey" PRIMARY KEY ("id"));
+CREATE INDEX "staff_breaks_staff_id_day_of_week_idx" ON "staff_breaks"("staff_id", "day_of_week");
+CREATE INDEX "staff_leaves_staff_id_start_at_end_at_idx" ON "staff_leaves"("staff_id", "start_at", "end_at");
+CREATE INDEX "staff_leaves_status_idx" ON "staff_leaves"("status");
+CREATE UNIQUE INDEX "branch_holidays_branch_id_date_key" ON "branch_holidays"("branch_id", "date");
+CREATE INDEX "special_working_days_branch_id_date_idx" ON "special_working_days"("branch_id", "date");
+CREATE INDEX "special_working_days_staff_id_date_idx" ON "special_working_days"("staff_id", "date");
+ALTER TABLE "staff_breaks" ADD CONSTRAINT "staff_breaks_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "staff_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "staff_leaves" ADD CONSTRAINT "staff_leaves_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "staff_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "branch_holidays" ADD CONSTRAINT "branch_holidays_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "special_working_days" ADD CONSTRAINT "special_working_days_branch_id_fkey" FOREIGN KEY ("branch_id") REFERENCES "branches"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "special_working_days" ADD CONSTRAINT "special_working_days_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "staff_profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;

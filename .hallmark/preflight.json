@@ -1,0 +1,10 @@
+{
+  "date": "2026-07-18",
+  "framework": "Vite 5 + React 18 + Tailwind CSS 3",
+  "fonts": ["Fraunces", "Be Vietnam Pro", "IBM Plex Mono"],
+  "palette": "warm oat canvas + berry-pink anchor",
+  "motion": "CSS transitions; reduced-motion already present",
+  "preserve": ["all routes", "RBAC and scope guards", "booking scheduler interactions", "existing domain workflows"],
+  "macrostructures": ["Workbench", "Marquee Hero", "Long Document"],
+  "deletions": []
+}

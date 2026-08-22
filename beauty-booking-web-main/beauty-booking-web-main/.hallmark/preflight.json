@@ -1,0 +1,22 @@
+{
+  "scannedAt": "2026-07-26",
+  "framework": "React 18 + Vite 5",
+  "styling": "Tailwind CSS 3 with project CSS tokens",
+  "fonts": [
+    "Fraunces",
+    "Be Vietnam Pro",
+    "IBM Plex Mono"
+  ],
+  "tokens": "tokens.css",
+  "motionLibrary": null,
+  "motionPolicy": "motion-cut",
+  "spacingScale": "4pt",
+  "existingMacrostructure": "Ecosystem Index + Workbench",
+  "preserved": [
+    "Customer shell navigation and account chrome",
+    "Berry and warm-neutral OKLCH token system",
+    "Existing /customer/privacy route",
+    "Shared UI component ownership",
+    "Auth, RBAC and API client session behavior"
+  ]
+}

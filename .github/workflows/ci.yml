@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glowbook_ci?schema=public
+      JWT_SECRET: ci-access-secret-not-used-outside-tests-123456
+      JWT_REFRESH_SECRET: ci-refresh-secret-not-used-outside-tests-1234
+    defaults:
+      run:
+        working-directory: beauty-booking-api-main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: beauty-booking-api-main/package-lock.json
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx prisma generate
+      - run: npm test -- --runInBand
+      - run: npm run test:e2e -- --runInBand
+      - run: npm run openapi:generate
+      - run: git diff --exit-code -- docs/openapi.generated.json
+      - run: npm run build
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: beauty-booking-web-main/beauty-booking-web-main
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: beauty-booking-web-main/beauty-booking-web-main/package-lock.json
+      - run: npm ci
+      - run: npm run build

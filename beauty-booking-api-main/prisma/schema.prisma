@@ -1,0 +1,3542 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                       String                       @id @default(uuid())
+  email                    String                       @unique
+  phone                    String?                      @unique
+  passwordHash             String                       @map("password_hash")
+  fullName                 String                       @map("full_name")
+  address                  String?
+  avatarMediaId            String?                      @map("avatar_media_id")
+  gender                   Gender?
+  dateOfBirth              DateTime?                    @map("date_of_birth") @db.Date
+  isEmailVerified          Boolean                      @default(false) @map("is_email_verified")
+  isPhoneVerified          Boolean                      @default(false) @map("is_phone_verified")
+  isActive                 Boolean                      @default(true) @map("is_active")
+  lastLoginAt              DateTime?                    @map("last_login_at")
+  createdAt                DateTime                     @default(now()) @map("created_at")
+  updatedAt                DateTime                     @updatedAt @map("updated_at")
+  deletedAt                DateTime?                    @map("deleted_at")
+  changeRequestsRequested  AppointmentChangeRequest[]   @relation("ChangeRequestRequestedBy")
+  changeRequestsReviewed   AppointmentChangeRequest[]   @relation("ChangeRequestReviewedBy")
+  auditLogs                AuditLog[]
+  statusChanges            BookingStatusHistory[]       @relation("StatusChangedBy")
+  cancelledBookings        Booking[]                    @relation("BookingCancelledBy")
+  ownerProfile             BusinessOwnerProfile?
+  customerProfile          CustomerProfile?
+  deviceTokens             DeviceToken[]
+  uploadedMedia            MediaFile[]                  @relation("MediaUploader")
+  notifications            Notification[]
+  salonMemberships         SalonMember[]
+  staffProfile             StaffProfile?
+  userRolesGranted         UserRole[]                   @relation("UserRoleGrantor")
+  userRoles                UserRole[]
+  avatarMedia              MediaFile?                   @relation("UserAvatar", fields: [avatarMediaId], references: [id])
+  accountTokens            AccountToken[]
+  sessions                 UserSession[]
+  attendanceRecords        StaffAttendance[]            @relation("AttendanceUser")
+  attendanceAdjustments    StaffAttendance[]            @relation("AttendanceAdjustedBy")
+  attendanceExceptions     AttendanceExceptionRequest[] @relation("AttendanceExceptionRequester")
+  attendanceReviews        AttendanceExceptionRequest[] @relation("AttendanceExceptionReviewer")
+  attendanceAbsences       StaffAttendance[]            @relation("AttendanceAbsentMarker")
+  attendanceQrTokens       AttendanceQrToken[]          @relation("AttendanceQrTokenCreator")
+  attendanceQrUses         AttendanceQrUse[]            @relation("AttendanceQrUser")
+  attendanceEvents         AttendanceEvent[]            @relation("AttendanceEventActor")
+  trustActions             TrustAction[]                @relation("TrustActionActor")
+  businessReviewEvents     BusinessReviewEvent[]        @relation("BusinessReviewActor")
+  businessDocumentVersions BusinessDocumentVersion[]    @relation("BusinessDocumentVersionCreator")
+  documentReviewEvents     DocumentReviewEvent[]        @relation("DocumentReviewActor")
+  branchDocumentVersions   BranchDocumentVersion[]      @relation("BranchDocumentVersionCreator")
+  branchReviewEvents       BranchReviewEvent[]          @relation("BranchReviewActor")
+  branchReviewRequests     BranchReviewRequest[]        @relation("BranchReviewRequester")
+  branchReviewAssignments  BranchReviewRequest[]        @relation("BranchReviewReviewer")
+  staffScheduleVersions    StaffScheduleVersion[]       @relation("StaffScheduleVersionCreator")
+  scheduleChangeRequests   StaffScheduleChangeRequest[] @relation("ScheduleChangeRequester")
+  scheduleChangeReviews    StaffScheduleChangeRequest[] @relation("ScheduleChangeReviewer")
+  userPermissions          UserPermission[]
+  reviewReports            ReviewReport[]               @relation("ReviewReporter")
+
+  @@index([email])
+  @@index([phone])
+  @@map("users")
+}
+
+model AccountToken {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      AccountTokenType
+  tokenHash String           @unique @map("token_hash")
+  expiresAt DateTime         @map("expires_at")
+  usedAt    DateTime?        @map("used_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@map("account_tokens")
+}
+
+model UserSession {
+  id               String        @id @default(uuid())
+  userId           String        @map("user_id")
+  refreshTokenHash String?       @map("refresh_token_hash")
+  userAgent        String?       @map("user_agent")
+  ipAddress        String?       @map("ip_address")
+  workspace        AuthWorkspace @default(CUSTOMER)
+  businessId       String?       @map("business_id")
+  branchId         String?       @map("branch_id")
+  lastActiveAt     DateTime      @default(now()) @map("last_active_at")
+  expiresAt        DateTime      @map("expires_at")
+  revokedAt        DateTime?     @map("revoked_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([userId, workspace, businessId, branchId, revokedAt])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+model PlatformSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?  @map("updated_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+model StaffInvitation {
+  id             String           @id @default(uuid())
+  email          String
+  roleCode       RoleCode         @map("role_code")
+  businessId     String           @map("business_id")
+  branchId       String?          @map("branch_id")
+  staffProfileId String?          @map("staff_profile_id")
+  tokenHash      String           @unique @map("token_hash")
+  status         InvitationStatus @default(PENDING)
+  invitedBy      String           @map("invited_by")
+  expiresAt      DateTime         @map("expires_at")
+  acceptedAt     DateTime?        @map("accepted_at")
+  acceptedBy     String?          @map("accepted_by")
+  revokedAt      DateTime?        @map("revoked_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  staffProfile   StaffProfile?    @relation(fields: [staffProfileId], references: [id], onDelete: Restrict)
+
+  @@index([email, status])
+  @@index([businessId, branchId])
+  @@index([staffProfileId, status])
+  @@map("staff_invitations")
+}
+
+model Role {
+  id              String           @id @default(uuid())
+  code            RoleCode         @unique
+  name            String
+  createdAt       DateTime         @default(now()) @map("created_at")
+  level           RoleLevel        @default(CUSTOMER)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              String           @id @default(uuid())
+  code            String           @unique
+  description     String?
+  resource        String
+  action          String
+  scope           PermissionScope  @default(SELF)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@index([resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  permissionId String     @map("permission_id")
+  bundleCode   String?    @map("bundle_code")
+  grantedBy    String?    @map("granted_by")
+  grantedAt    DateTime   @default(now()) @map("granted_at")
+  expiresAt    DateTime?  @map("expires_at")
+  revokedAt    DateTime?  @map("revoked_at")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId, revokedAt, expiresAt])
+  @@index([permissionId])
+  @@map("user_permissions")
+}
+
+/// Junction table carrying the SCOPE of a role assignment.
+/// - businessId (== "tenant" trong plan): null = platform role
+/// - branchId: null when the role applies to all branches of the tenant
+/// - expiresAt: optional expiry (e.g. seasonal staff)
+/// - grantedBy: audit-friendly attribution
+model UserRole {
+  userId     String    @map("user_id")
+  roleId     String    @map("role_id")
+  branchId   String?   @map("branch_id")
+  businessId String?   @map("business_id")
+  expiresAt  DateTime? @map("expires_at")
+  grantedAt  DateTime  @default(now()) @map("granted_at")
+  grantedBy  String?   @map("granted_by")
+  id         String    @id @default(uuid())
+  branch     Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  grantor    User?     @relation("UserRoleGrantor", fields: [grantedBy], references: [id])
+  role       Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, businessId, branchId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([businessId])
+  @@index([branchId])
+  @@map("user_roles")
+}
+
+model CustomerProfile {
+  id                      String                   @id @default(uuid())
+  userId                  String                   @unique @map("user_id")
+  address                 String?
+  note                    String?
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  deletedAt               DateTime?                @map("deleted_at")
+  healthRecords           BookingHealthRecord[]
+  bookings                Booking[]
+  comments                BusinessComment[]
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerVouchers        CustomerVoucher[]
+  recurringPlans          RecurringBookingPlan[]
+  reviews                 Review[]
+  consents                SensitiveConsent[]
+  consultationSubmissions ConsultationSubmission[]
+  consentEvents           ConsentEvent[]
+  dataSubjectRequests     DataSubjectRequest[]
+  marketingPreference     MarketingPreference?
+  privacyExportPackages   PrivacyExportPackage[]
+  packagePurchases        PackagePurchase[]
+
+  @@map("customer_profiles")
+}
+
+/// Immutable contact snapshot for a guest or walk-in booking. A phone number
+/// here is contact data only; it never proves ownership of a registered User.
+model BookingContact {
+  id        String   @id @default(uuid())
+  bookingId String   @unique @map("booking_id")
+  fullName  String   @map("full_name")
+  phone     String?
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@map("booking_contacts")
+}
+
+model BusinessOwnerProfile {
+  id                 String     @id @default(uuid())
+  userId             String     @unique @map("user_id")
+  companyName        String?    @map("company_name")
+  taxCode            String?    @unique @map("tax_code")
+  identityCardNumber String?    @map("identity_card_number")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  deletedAt          DateTime?  @map("deleted_at")
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businesses         Business[]
+
+  @@map("business_owner_profiles")
+}
+
+model StaffProfile {
+  id                      String                       @id @default(uuid())
+  userId                  String?                      @unique @map("user_id")
+  branchId                String                       @map("branch_id")
+  fullName                String                       @map("full_name")
+  position                String?
+  bio                     String?
+  employeeCode            String?                      @map("employee_code")
+  experienceYears         Int?                         @map("experience_years")
+  publicVisible           Boolean                      @default(true) @map("public_visible")
+  isBookable              Boolean                      @default(false) @map("is_bookable")
+  emergencyContactName    String?                      @map("emergency_contact_name")
+  emergencyContactPhone   String?                      @map("emergency_contact_phone")
+  status                  StaffStatus                  @default(ACTIVE)
+  hiredAt                 DateTime?                    @map("hired_at") @db.Date
+  createdAt               DateTime                     @default(now()) @map("created_at")
+  updatedAt               DateTime                     @updatedAt @map("updated_at")
+  deletedAt               DateTime?                    @map("deleted_at")
+  changeRequests          AppointmentChangeRequest[]   @relation("ChangeRequestProposedStaff")
+  bookingServices         BookingService[]
+  reviewRatings           ReviewServiceRating[]
+  images                  StaffImage[]
+  branch                  Branch                       @relation(fields: [branchId], references: [id])
+  user                    User?                        @relation(fields: [userId], references: [id])
+  staffServices           StaffService[]
+  workingHours            StaffWorkingHour[]
+  breaks                  StaffBreak[]
+  leaves                  StaffLeave[]
+  specialDays             SpecialWorkingDay[]
+  attendances             StaffAttendance[]
+  attendanceExceptions    AttendanceExceptionRequest[]
+  attendanceQrUses        AttendanceQrUse[]
+  attendanceEvents        AttendanceEvent[]
+  recurringPlans          RecurringBookingPlan[]
+  branchAssignments       StaffBranchAssignment[]
+  scheduleVersions        StaffScheduleVersion[]
+  scheduleChangeRequests  StaffScheduleChangeRequest[]
+  availabilities          StaffAvailability[]
+  timesheets              Timesheet[]
+  compensationAssignments CompensationAssignment[]
+  compensationEntries     CompensationEntry[]
+  payRunItems             PayRunItem[]
+  invitations             StaffInvitation[]
+
+  @@unique([branchId, employeeCode])
+  @@index([branchId])
+  @@index([status])
+  @@index([branchId, status, isBookable, publicVisible])
+  @@map("staff_profiles")
+}
+
+model DeviceToken {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  token     String         @unique
+  platform  DevicePlatform
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model Province {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  code      String?    @unique
+  createdAt DateTime   @default(now()) @map("created_at")
+  districts District[]
+
+  @@map("provinces")
+}
+
+model District {
+  id         String   @id @default(uuid())
+  provinceId String   @map("province_id")
+  name       String
+  code       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  branches   Branch[]
+  province   Province @relation(fields: [provinceId], references: [id])
+
+  @@unique([provinceId, name])
+  @@index([provinceId])
+  @@map("districts")
+}
+
+model Business {
+  id                        String                       @id @default(uuid())
+  ownerId                   String                       @map("owner_id")
+  name                      String
+  slug                      String                       @unique
+  description               String?
+  contactEmail              String?                      @map("contact_email")
+  contactPhone              String?                      @map("contact_phone")
+  addressLine               String?                      @map("address_line")
+  legalRepresentative       String?                      @map("legal_representative")
+  legalDocuments            Json?                        @map("legal_documents")
+  onboardingData            Json?                        @map("onboarding_data")
+  onboardingStep            Int                          @default(1) @map("onboarding_step")
+  marketplacePreviewedAt    DateTime?                    @map("marketplace_previewed_at")
+  reviewNote                String?                      @map("review_note")
+  submittedAt               DateTime?                    @map("submitted_at")
+  reviewedAt                DateTime?                    @map("reviewed_at")
+  logoMediaId               String?                      @map("logo_media_id")
+  status                    BusinessStatus               @default(PENDING)
+  createdAt                 DateTime                     @default(now()) @map("created_at")
+  updatedAt                 DateTime                     @updatedAt @map("updated_at")
+  deletedAt                 DateTime?                    @map("deleted_at")
+  branches                  Branch[]
+  comments                  BusinessComment[]
+  images                    BusinessImage[]
+  logoMedia                 MediaFile?                   @relation("BusinessLogo", fields: [logoMediaId], references: [id])
+  owner                     BusinessOwnerProfile         @relation(fields: [ownerId], references: [id])
+  cancellationPolicy        CancellationPolicy?
+  promotionLinks            PromotionBusiness[]
+  members                   SalonMember[]
+  trustSnapshot             SalonTrustSnapshot?
+  userRoles                 UserRole[]
+  ownedPromotions           Promotion[]                  @relation("PromotionOwner")
+  vouchers                  Voucher[]
+  serviceCatalog            BusinessService[]
+  serviceCategories         ServiceCategory[]
+  bookingRestrictedAt       DateTime?                    @map("booking_restricted_at")
+  bookingRestrictionReason  String?                      @map("booking_restriction_reason")
+  trustActions              TrustAction[]
+  reviewEvents              BusinessReviewEvent[]
+  documents                 BusinessDocument[]
+  combos                    Combo[]
+  attendances               StaffAttendance[]
+  attendanceExceptions      AttendanceExceptionRequest[]
+  attendanceQrTokens        AttendanceQrToken[]
+  attendanceEvents          AttendanceEvent[]
+  consultationTemplates     ConsultationFormTemplate[]
+  consultationSubmissions   ConsultationSubmission[]
+  consultationConsentEvents ConsentEvent[]
+  sensitiveAccessEvents     SensitiveDataAccessEvent[]
+  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
+  branchReviewRequests      BranchReviewRequest[]
+  staffAvailabilities       StaffAvailability[]
+  timesheets                Timesheet[]
+  compensationRules         CompensationRule[]
+  compensationEntries       CompensationEntry[]
+  payRuns                   PayRun[]
+  paymentPolicies           PaymentPolicy[]
+  pricingSnapshots          PricingSnapshot[]
+  paymentPolicySnapshots    PaymentPolicySnapshot[]
+  paymentIntents            PaymentIntent[]
+  paymentTransactions       PaymentTransaction[]
+  financialLedgerEntries    FinancialLedgerEntry[]
+  platformFeeEntries        PlatformFeeEntry[]
+  platformFeeAdjustments    PlatformFeeAdjustment[]
+  platformStatements        PlatformStatement[]
+  treatmentPackages         TreatmentPackage[]
+  packagePurchases          PackagePurchase[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([name])
+  @@map("businesses")
+}
+
+model Branch {
+  id                        String                       @id @default(uuid())
+  businessId                String                       @map("business_id")
+  name                      String
+  publicName                String?                      @map("public_name")
+  description               String?
+  addressLine               String?                      @map("address_line")
+  districtId                String?                      @map("district_id")
+  ward                      String?
+  floor                     String?
+  directions                String?
+  latitude                  Decimal?                     @db.Decimal(9, 6)
+  longitude                 Decimal?                     @db.Decimal(9, 6)
+  phone                     String?
+  email                     String?
+  serviceMode               BranchServiceMode            @default(AT_LOCATION) @map("service_mode")
+  sameLegalEntity           Boolean                      @default(true) @map("same_legal_entity")
+  managerName               String?                      @map("manager_name")
+  scheduledOpeningDate      DateTime?                    @map("scheduled_opening_date") @db.Date
+  timezone                  String                       @default("Asia/Ho_Chi_Minh")
+  bookingStartDate          DateTime?                    @map("booking_start_date") @db.Date
+  serviceAreas              Json?                        @map("service_areas")
+  serviceRadiusKm           Int?                         @map("service_radius_km")
+  travelFee                 Decimal?                     @map("travel_fee") @db.Decimal(12, 2)
+  excludedServiceAreas      Json?                        @map("excluded_service_areas")
+  bookingConfirmationMode   BookingConfirmationMode      @default(MANUAL_CONFIRMATION) @map("booking_confirmation_mode")
+  staffAssignmentMode       StaffAssignmentMode          @default(AUTO_ASSIGN_IF_ANY_STAFF) @map("staff_assignment_mode")
+  pendingHoldMinutes        Int                          @default(30) @map("pending_hold_minutes")
+  status                    BranchStatus                 @default(PENDING)
+  reviewStatus              BranchReviewStatus           @default(DRAFT) @map("review_status")
+  operationalStatus         BranchOperationalStatus      @default(INACTIVE) @map("operational_status")
+  reviewNote                String?                      @map("review_note")
+  submittedAt               DateTime?                    @map("submitted_at")
+  reviewedAt                DateTime?                    @map("reviewed_at")
+  publishedAt               DateTime?                    @map("published_at")
+  createdAt                 DateTime                     @default(now()) @map("created_at")
+  updatedAt                 DateTime                     @updatedAt @map("updated_at")
+  deletedAt                 DateTime?                    @map("deleted_at")
+  bookings                  Booking[]
+  images                    BranchImage[]
+  workingHours              BranchWorkingHour[]
+  business                  Business                     @relation(fields: [businessId], references: [id])
+  district                  District?                    @relation(fields: [districtId], references: [id])
+  combos                    Combo[]
+  promotionLinks            PromotionBranch[]
+  recurringPlans            RecurringBookingPlan[]
+  salonMembers              SalonMember[]
+  services                  BranchServiceOffering[]
+  staff                     StaffProfile[]
+  userRoles                 UserRole[]
+  holidays                  BranchHoliday[]
+  specialDays               SpecialWorkingDay[]
+  attendances               StaffAttendance[]
+  attendanceExceptions      AttendanceExceptionRequest[]
+  attendanceQrTokens        AttendanceQrToken[]
+  attendanceEvents          AttendanceEvent[]
+  trustActions              TrustAction[]
+  consultationTemplates     ConsultationFormTemplate[]
+  consultationSubmissions   ConsultationSubmission[]
+  consultationConsentEvents ConsentEvent[]
+  sensitiveAccessEvents     SensitiveDataAccessEvent[]
+  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
+  onboardingProgress        BranchOnboardingProgress?
+  bookingPolicy             BranchBookingPolicy?
+  attendancePolicy          BranchAttendancePolicy?
+  documents                 BranchDocument[]
+  reviewRequests            BranchReviewRequest[]
+  reviewEvents              BranchReviewEvent[]
+  staffAssignments          StaffBranchAssignment[]
+  scheduleVersions          StaffScheduleVersion[]
+  scheduleChangeRequests    StaffScheduleChangeRequest[]
+  staffAvailabilities       StaffAvailability[]
+  timesheets                Timesheet[]
+  compensationRules         CompensationRule[]
+  compensationAssignments   CompensationAssignment[]
+  compensationEntries       CompensationEntry[]
+  paymentPolicies           PaymentPolicy[]
+  pricingSnapshots          PricingSnapshot[]
+  paymentPolicySnapshots    PaymentPolicySnapshot[]
+  paymentIntents            PaymentIntent[]
+  paymentTransactions       PaymentTransaction[]
+  financialLedgerEntries    FinancialLedgerEntry[]
+  platformFeeEntries        PlatformFeeEntry[]
+  platformFeeAdjustments    PlatformFeeAdjustment[]
+  treatmentPackages         TreatmentPackage[]
+  packagePurchases          PackagePurchase[]
+
+  @@index([businessId])
+  @@index([districtId])
+  @@index([status])
+  @@index([reviewStatus])
+  @@index([operationalStatus])
+  @@index([status, deletedAt, createdAt])
+  @@index([latitude, longitude])
+  @@map("branches")
+}
+
+model BranchWorkingHour {
+  id        String   @id @default(uuid())
+  branchId  String   @map("branch_id")
+  dayOfWeek Int      @map("day_of_week") @db.SmallInt
+  openTime  DateTime @map("open_time") @db.Time(6)
+  closeTime DateTime @map("close_time") @db.Time(6)
+  isClosed  Boolean  @default(false) @map("is_closed")
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@map("branch_working_hours")
+}
+
+model BranchOnboardingProgress {
+  id             String   @id @default(uuid())
+  branchId       String   @unique @map("branch_id")
+  currentStep    Int      @default(1) @map("current_step")
+  completedSteps Json     @default("[]") @map("completed_steps")
+  draftData      Json?    @map("draft_data")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("branch_onboarding_progress")
+}
+
+model BranchBookingPolicy {
+  id                   String    @id @default(uuid())
+  branchId             String    @unique @map("branch_id")
+  leadTimeMinutes      Int       @default(0) @map("lead_time_minutes")
+  bookingHorizonDays   Int       @default(90) @map("booking_horizon_days")
+  cancellationHours    Int       @default(24) @map("cancellation_hours")
+  rescheduleHours      Int       @default(12) @map("reschedule_hours")
+  noShowHandling       String?   @map("no_show_handling")
+  earlyCheckInMinutes  Int       @default(0) @map("early_check_in_minutes")
+  gracePeriodMinutes   Int       @default(10) @map("grace_period_minutes")
+  allowWalkIn          Boolean   @default(true) @map("allow_walk_in")
+  allowCounterBooking  Boolean   @default(true) @map("allow_counter_booking")
+  defaultBufferMinutes Int       @default(0) @map("default_buffer_minutes")
+  depositPolicy        Json?     @map("deposit_policy")
+  confirmedAt          DateTime? @map("confirmed_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  branch               Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("branch_booking_policies")
+}
+
+model BranchAttendancePolicy {
+  id                      String    @id @default(uuid())
+  branchId                String    @unique @map("branch_id")
+  useQr                   Boolean   @default(true) @map("use_qr")
+  qrBoardRoles            Json      @default("[\"BUSINESS_OWNER\",\"BRANCH_MANAGER\",\"RECEPTIONIST\"]") @map("qr_board_roles")
+  adjustmentReviewerRoles Json      @default("[\"BUSINESS_OWNER\",\"BRANCH_MANAGER\"]") @map("adjustment_reviewer_roles")
+  lateThresholdMinutes    Int       @default(10) @map("late_threshold_minutes")
+  earlyLeaveRule          String?   @map("early_leave_rule")
+  overtimeRule            String?   @map("overtime_rule")
+  missingPunchWorkflow    String?   @map("missing_punch_workflow")
+  confirmedAt             DateTime? @map("confirmed_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+  branch                  Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("branch_attendance_policies")
+}
+
+model StaffWorkingHour {
+  id        String       @id @default(uuid())
+  staffId   String       @map("staff_id")
+  dayOfWeek Int          @map("day_of_week") @db.SmallInt
+  startTime DateTime     @map("start_time") @db.Time(6)
+  endTime   DateTime     @map("end_time") @db.Time(6)
+  isOff     Boolean      @default(false) @map("is_off")
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, dayOfWeek])
+  @@map("staff_working_hours")
+}
+
+model StaffBreak {
+  id        String       @id @default(uuid())
+  staffId   String       @map("staff_id")
+  dayOfWeek Int          @map("day_of_week") @db.SmallInt
+  startTime DateTime     @map("start_time") @db.Time(6)
+  endTime   DateTime     @map("end_time") @db.Time(6)
+  isActive  Boolean      @default(true) @map("is_active")
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, dayOfWeek])
+  @@map("staff_breaks")
+}
+
+model StaffLeave {
+  id         String       @id @default(uuid())
+  staffId    String       @map("staff_id")
+  startAt    DateTime     @map("start_at")
+  endAt      DateTime     @map("end_at")
+  reason     String?
+  status     LeaveStatus  @default(PENDING)
+  reviewedBy String?      @map("reviewed_by")
+  reviewNote String?      @map("review_note")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, startAt, endAt])
+  @@index([status])
+  @@map("staff_leaves")
+}
+
+model BranchHoliday {
+  id       String   @id @default(uuid())
+  branchId String   @map("branch_id")
+  date     DateTime @db.Date
+  name     String
+  isClosed Boolean  @default(true) @map("is_closed")
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, date])
+  @@map("branch_holidays")
+}
+
+model SpecialWorkingDay {
+  id        String        @id @default(uuid())
+  branchId  String        @map("branch_id")
+  staffId   String?       @map("staff_id")
+  date      DateTime      @db.Date
+  startTime DateTime      @map("start_time") @db.Time(6)
+  endTime   DateTime      @map("end_time") @db.Time(6)
+  branch    Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff     StaffProfile? @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([branchId, date])
+  @@index([staffId, date])
+  @@map("special_working_days")
+}
+
+model StaffBranchAssignment {
+  id         String                @id @default(uuid())
+  staffId    String                @map("staff_id")
+  branchId   String                @map("branch_id")
+  startDate  DateTime              @map("start_date") @db.Date
+  endDate    DateTime?             @map("end_date") @db.Date
+  status     StaffAssignmentStatus @default(ACTIVE)
+  jobTitle   String?               @map("job_title")
+  isPrimary  Boolean               @default(false) @map("is_primary")
+  isBookable Boolean               @default(false) @map("is_bookable")
+  createdAt  DateTime              @default(now()) @map("created_at")
+  updatedAt  DateTime              @updatedAt @map("updated_at")
+  staff      StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branch     Branch                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, branchId, startDate])
+  @@index([branchId, status, startDate])
+  @@index([staffId, status, startDate])
+  @@map("staff_branch_assignments")
+}
+
+model StaffScheduleVersion {
+  id            String                 @id @default(uuid())
+  staffId       String                 @map("staff_id")
+  branchId      String                 @map("branch_id")
+  version       Int
+  effectiveFrom DateTime               @map("effective_from") @db.Date
+  effectiveTo   DateTime?              @map("effective_to") @db.Date
+  status        StaffScheduleStatus    @default(PUBLISHED)
+  note          String?
+  createdBy     String                 @map("created_by")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  staff         StaffProfile           @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branch        Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  creator       User                   @relation("StaffScheduleVersionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  segments      StaffScheduleSegment[]
+  attendances   StaffAttendance[]
+
+  @@unique([staffId, branchId, version])
+  @@index([staffId, branchId, effectiveFrom, effectiveTo])
+  @@map("staff_schedule_versions")
+}
+
+model StaffScheduleSegment {
+  id          String               @id @default(uuid())
+  versionId   String               @map("version_id")
+  dayOfWeek   Int                  @map("day_of_week") @db.SmallInt
+  startTime   DateTime             @map("start_time") @db.Time(6)
+  endTime     DateTime             @map("end_time") @db.Time(6)
+  sortOrder   Int                  @default(0) @map("sort_order")
+  segmentType ScheduleSegmentType  @default(SHIFT) @map("segment_type")
+  roleCode    RoleCode?            @map("role_code")
+  version     StaffScheduleVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, dayOfWeek, sortOrder])
+  @@index([versionId, dayOfWeek])
+  @@map("staff_schedule_segments")
+}
+
+model StaffScheduleChangeRequest {
+  id            String                     @id @default(uuid())
+  staffId       String                     @map("staff_id")
+  branchId      String                     @map("branch_id")
+  requestedBy   String                     @map("requested_by")
+  type          StaffScheduleChangeType
+  effectiveFrom DateTime                   @map("effective_from") @db.Date
+  effectiveTo   DateTime?                  @map("effective_to") @db.Date
+  proposedData  Json                       @map("proposed_data")
+  reason        String
+  status        StaffScheduleRequestStatus @default(PENDING)
+  reviewedBy    String?                    @map("reviewed_by")
+  reviewedAt    DateTime?                  @map("reviewed_at")
+  reviewNote    String?                    @map("review_note")
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime                   @updatedAt @map("updated_at")
+  staff         StaffProfile               @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branch        Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  requester     User                       @relation("ScheduleChangeRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  reviewer      User?                      @relation("ScheduleChangeReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+
+  @@index([staffId, status, createdAt])
+  @@index([branchId, status, createdAt])
+  @@map("staff_schedule_change_requests")
+}
+
+model MediaFile {
+  id                       String                    @id @default(uuid())
+  url                      String
+  storageKey               String?                   @unique @map("storage_key")
+  originalName             String?                   @map("original_name")
+  safeName                 String?                   @map("safe_name")
+  mimeType                 String?                   @map("mime_type")
+  extension                String?
+  fileType                 String?                   @map("file_type")
+  fileSize                 Int?                      @map("file_size")
+  uploadedBy               String?                   @map("uploaded_by")
+  businessId               String?                   @map("business_id")
+  branchId                 String?                   @map("branch_id")
+  entityType               String?                   @map("entity_type")
+  entityId                 String?                   @map("entity_id")
+  visibility               MediaVisibility           @default(PUBLIC)
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  branchImages             BranchImage[]
+  businessImages           BusinessImage[]
+  businessLogos            Business[]                @relation("BusinessLogo")
+  comboImages              ComboImage[]
+  uploader                 User?                     @relation("MediaUploader", fields: [uploadedBy], references: [id])
+  serviceImages            ServiceImage[]
+  staffImages              StaffImage[]
+  userAvatars              User[]                    @relation("UserAvatar")
+  businessDocumentVersions BusinessDocumentVersion[]
+  branchDocumentVersions   BranchDocumentVersion[]
+
+  @@index([uploadedBy])
+  @@index([businessId, branchId])
+  @@index([entityType, entityId])
+  @@map("media_files")
+}
+
+model BusinessImage {
+  id         String    @id @default(uuid())
+  businessId String    @map("business_id")
+  mediaId    String    @map("media_id")
+  isCover    Boolean   @default(false) @map("is_cover")
+  sortOrder  Int       @default(0) @map("sort_order")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  media      MediaFile @relation(fields: [mediaId], references: [id])
+
+  @@index([businessId])
+  @@map("business_images")
+}
+
+model BranchImage {
+  id        String    @id @default(uuid())
+  branchId  String    @map("branch_id")
+  mediaId   String    @map("media_id")
+  isCover   Boolean   @default(false) @map("is_cover")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  media     MediaFile @relation(fields: [mediaId], references: [id])
+
+  @@index([branchId])
+  @@map("branch_images")
+}
+
+model ServiceImage {
+  id        String                @id @default(uuid())
+  serviceId String                @map("service_id")
+  mediaId   String                @map("media_id")
+  sortOrder Int                   @default(0) @map("sort_order")
+  createdAt DateTime              @default(now()) @map("created_at")
+  media     MediaFile             @relation(fields: [mediaId], references: [id])
+  service   BranchServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@map("service_images")
+}
+
+model ComboImage {
+  id        String    @id @default(uuid())
+  comboId   String    @map("combo_id")
+  mediaId   String    @map("media_id")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  combo     Combo     @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  media     MediaFile @relation(fields: [mediaId], references: [id])
+
+  @@index([comboId])
+  @@map("combo_images")
+}
+
+model StaffImage {
+  id        String       @id @default(uuid())
+  staffId   String       @map("staff_id")
+  mediaId   String       @map("media_id")
+  sortOrder Int          @default(0) @map("sort_order")
+  createdAt DateTime     @default(now()) @map("created_at")
+  media     MediaFile    @relation(fields: [mediaId], references: [id])
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_images")
+}
+
+model ServiceCategory {
+  id               String                  @id @default(uuid())
+  businessId       String                  @map("business_id")
+  parentId         String?                 @map("parent_id")
+  name             String
+  slug             String
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  deletedAt        DateTime?               @map("deleted_at")
+  business         Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  parent           ServiceCategory?        @relation("CategoryTree", fields: [parentId], references: [id])
+  children         ServiceCategory[]       @relation("CategoryTree")
+  services         BranchServiceOffering[]
+  businessServices BusinessService[]
+
+  @@unique([businessId, slug])
+  @@index([businessId, deletedAt])
+  @@index([parentId])
+  @@map("service_categories")
+}
+
+/// Platform-owned taxonomy used only for normalization, search and analytics.
+/// It is never booked or sold directly by a salon.
+model CanonicalService {
+  id                     String                 @id @default(uuid())
+  code                   String                 @unique
+  slug                   String                 @unique
+  name                   String
+  description            String?
+  parentId               String?                @map("parent_id")
+  replacementCanonicalId String?                @map("replacement_canonical_id")
+  synonyms               String[]               @default([])
+  status                 CanonicalServiceStatus @default(ACTIVE)
+  createdAt              DateTime               @default(now()) @map("created_at")
+  updatedAt              DateTime               @updatedAt @map("updated_at")
+  parent                 CanonicalService?      @relation("CanonicalTree", fields: [parentId], references: [id])
+  children               CanonicalService[]     @relation("CanonicalTree")
+  replacement            CanonicalService?      @relation("CanonicalReplacement", fields: [replacementCanonicalId], references: [id])
+  replacedCanonicals     CanonicalService[]     @relation("CanonicalReplacement")
+  businessServices       BusinessService[]
+  bookingServices        BookingService[]
+
+  @@index([parentId])
+  @@index([replacementCanonicalId])
+  @@index([status, name])
+  @@map("canonical_services")
+}
+
+/// Business-level service definition. Existing branch offering rows remain the
+/// branch-level availability/override records referenced by booking history.
+model BusinessService {
+  id                  String                  @id @default(uuid())
+  businessId          String                  @map("business_id")
+  categoryId          String                  @map("category_id")
+  canonicalServiceId  String?                 @map("canonical_service_id")
+  name                String
+  description         String?
+  keywords            String[]                @default([])
+  mappingStatus       ServiceMappingStatus    @default(UNMAPPED) @map("mapping_status")
+  basePrice           Decimal                 @map("base_price") @db.Decimal(12, 2)
+  baseDurationMinutes Int                     @map("base_duration_minutes")
+  status              ServiceStatus           @default(ACTIVE)
+  createdAt           DateTime                @default(now()) @map("created_at")
+  updatedAt           DateTime                @updatedAt @map("updated_at")
+  deletedAt           DateTime?               @map("deleted_at")
+  business            Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category            ServiceCategory         @relation(fields: [categoryId], references: [id])
+  canonicalService    CanonicalService?       @relation(fields: [canonicalServiceId], references: [id], onDelete: Restrict)
+  branchServices      BranchServiceOffering[]
+  bookingServices     BookingService[]
+
+  @@index([businessId, status, deletedAt])
+  @@index([categoryId])
+  @@index([canonicalServiceId, mappingStatus])
+  @@map("business_services")
+}
+
+/// Concrete service sold by one exact branch. The underlying table remains
+/// `services` so every historical foreign key and ID is preserved.
+model BranchServiceOffering {
+  id                        String                          @id @default(uuid())
+  branchId                  String                          @map("branch_id")
+  businessServiceId         String                          @map("business_service_id")
+  categoryId                String                          @map("category_id")
+  name                      String
+  description               String?
+  price                     Decimal                         @db.Decimal(12, 2)
+  durationMinutes           Int                             @map("duration_minutes")
+  bookable                  Boolean                         @default(true)
+  status                    ServiceStatus                   @default(ACTIVE)
+  createdAt                 DateTime                        @default(now()) @map("created_at")
+  updatedAt                 DateTime                        @updatedAt @map("updated_at")
+  deletedAt                 DateTime?                       @map("deleted_at")
+  bookingServices           BookingService[]
+  comboServices             ComboService[]
+  promotionLinks            PromotionService[]
+  images                    ServiceImage[]
+  branch                    Branch                          @relation(fields: [branchId], references: [id])
+  businessService           BusinessService                 @relation(fields: [businessServiceId], references: [id])
+  category                  ServiceCategory                 @relation(fields: [categoryId], references: [id])
+  staffServices             StaffService[]
+  consultationRequirement   ServiceConsultationRequirement?
+  consultationSubmissions   ConsultationSubmission[]
+  consultationConsentEvents ConsentEvent[]
+  paymentPolicies           PaymentPolicy[]
+
+  @@unique([branchId, businessServiceId])
+  @@index([branchId])
+  @@index([businessServiceId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([branchId, status, deletedAt, createdAt])
+  @@index([price])
+  @@map("services")
+}
+
+model StaffService {
+  staffId   String                @map("staff_id")
+  serviceId String                @map("service_id")
+  createdAt DateTime              @default(now()) @map("created_at")
+  service   BranchServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff     StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([staffId, serviceId])
+  @@index([serviceId])
+  @@map("staff_services")
+}
+
+model Combo {
+  id                  String                   @id @default(uuid())
+  businessId          String                   @map("business_id")
+  branchId            String                   @map("branch_id")
+  name                String
+  description         String?
+  comboPrice          Decimal                  @map("combo_price") @db.Decimal(12, 2)
+  validFrom           DateTime?                @map("valid_from")
+  validTo             DateTime?                @map("valid_to")
+  maxUsage            Int?                     @map("max_usage")
+  usedCount           Int                      @default(0) @map("used_count")
+  status              ComboStatus              @default(ACTIVE)
+  pricingMode         ComboPricingMode         @default(FIXED_PRICE) @map("pricing_mode")
+  staffAssignmentMode ComboStaffAssignmentMode @default(SINGLE_PROVIDER) @map("staff_assignment_mode")
+  version             Int                      @default(1)
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
+  deletedAt           DateTime?                @map("deleted_at")
+  bookingServices     BookingService[]
+  images              ComboImage[]
+  comboServices       ComboService[]
+  business            Business                 @relation(fields: [businessId], references: [id])
+  branch              Branch                   @relation(fields: [branchId], references: [id])
+  promotionLinks      PromotionCombo[]
+  recurringPlans      RecurringBookingPlan[]
+
+  @@index([branchId])
+  @@index([businessId, status])
+  @@index([status])
+  @@map("combos")
+}
+
+model ComboService {
+  comboId           String                @map("combo_id")
+  serviceId         String                @map("service_id")
+  quantity          Int                   @default(1)
+  sortOrder         Int                   @default(0) @map("sort_order")
+  priceSnapshot     Decimal               @map("price_snapshot") @db.Decimal(12, 2)
+  durationSnapshot  Int                   @map("duration_snapshot")
+  transitionMinutes Int                   @default(0) @map("transition_minutes")
+  combo             Combo                 @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  service           BranchServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([comboId, serviceId])
+  @@index([serviceId])
+  @@index([comboId, sortOrder])
+  @@map("combo_services")
+}
+
+model Promotion {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  discountType      DiscountType        @map("discount_type")
+  discountValue     Decimal             @map("discount_value") @db.Decimal(12, 2)
+  startDate         DateTime            @map("start_date")
+  endDate           DateTime            @map("end_date")
+  status            PromotionStatus     @default(ACTIVE)
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  deletedAt         DateTime?           @map("deleted_at")
+  businessId        String?             @map("business_id")
+  createdByPlatform Boolean             @default(false) @map("created_by_platform")
+  branchLinks       PromotionBranch[]
+  businessLinks     PromotionBusiness[]
+  comboLinks        PromotionCombo[]
+  serviceLinks      PromotionService[]
+  businessOwner     Business?           @relation("PromotionOwner", fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([businessId])
+  @@map("promotions")
+}
+
+model PromotionBusiness {
+  promotionId String    @map("promotion_id")
+  businessId  String    @map("business_id")
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@id([promotionId, businessId])
+  @@index([businessId])
+  @@map("promotion_businesses")
+}
+
+model PromotionBranch {
+  promotionId String    @map("promotion_id")
+  branchId    String    @map("branch_id")
+  branch      Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@id([promotionId, branchId])
+  @@index([branchId])
+  @@map("promotion_branches")
+}
+
+model PromotionService {
+  promotionId String                @map("promotion_id")
+  serviceId   String                @map("service_id")
+  promotion   Promotion             @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  service     BranchServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([promotionId, serviceId])
+  @@index([serviceId])
+  @@map("promotion_services")
+}
+
+model PromotionCombo {
+  promotionId String    @map("promotion_id")
+  comboId     String    @map("combo_id")
+  combo       Combo     @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@id([promotionId, comboId])
+  @@index([comboId])
+  @@map("promotion_combos")
+}
+
+model Booking {
+  id                        String                      @id @default(uuid())
+  customerId                String                      @map("customer_id")
+  branchId                  String                      @map("branch_id")
+  recurringPlanId           String?                     @map("recurring_plan_id")
+  bookingCode               String                      @unique @map("booking_code")
+  appointmentDate           DateTime                    @map("appointment_date") @db.Date
+  appointmentStartTime      DateTime                    @map("appointment_start_time") @db.Time(6)
+  appointmentEndTime        DateTime                    @map("appointment_end_time") @db.Time(6)
+  status                    BookingStatus               @default(PENDING)
+  source                    BookingSource               @default(ONLINE_WEB)
+  pendingExpiresAt          DateTime?                   @map("pending_expires_at")
+  totalAmount               Decimal                     @map("total_amount") @db.Decimal(12, 2)
+  note                      String?
+  cancelReason              String?                     @map("cancel_reason")
+  cancelledAt               DateTime?                   @map("cancelled_at")
+  cancelledBy               String?                     @map("cancelled_by")
+  createdAt                 DateTime                    @default(now()) @map("created_at")
+  updatedAt                 DateTime                    @updatedAt @map("updated_at")
+  deletedAt                 DateTime?                   @map("deleted_at")
+  cancelledByType           CancelledByType?            @map("cancelled_by_type")
+  cancellationFeeAmount     Decimal?                    @map("cancellation_fee_amount") @db.Decimal(12, 2)
+  finalAmount               Decimal?                    @map("final_amount") @db.Decimal(12, 2)
+  voucherDiscountAmount     Decimal?                    @map("voucher_discount_amount") @db.Decimal(12, 2)
+  voucherId                 String?                     @map("voucher_id")
+  sensitiveDataConsent      Boolean                     @default(false) @map("sensitive_data_consent")
+  changeRequests            AppointmentChangeRequest[]
+  healthRecords             BookingHealthRecord[]
+  bookingServices           BookingService[]
+  statusHistory             BookingStatusHistory[]
+  branch                    Branch                      @relation(fields: [branchId], references: [id])
+  cancelledByUser           User?                       @relation("BookingCancelledBy", fields: [cancelledBy], references: [id])
+  customer                  CustomerProfile             @relation(fields: [customerId], references: [id])
+  recurringPlan             RecurringBookingPlan?       @relation(fields: [recurringPlanId], references: [id])
+  voucher                   Voucher?                    @relation(fields: [voucherId], references: [id])
+  notifications             Notification[]
+  payments                  Payment[]
+  review                    Review?
+  contact                   BookingContact?
+  consultationSubmissions   ConsultationSubmission[]
+  consultationConsentEvents ConsentEvent[]
+  sensitiveAccessEvents     SensitiveDataAccessEvent[]
+  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
+  pricingSnapshot           PricingSnapshot?
+  paymentPolicySnapshot     PaymentPolicySnapshot?
+  paymentIntents            PaymentIntent[]
+  paymentTransactions       PaymentTransaction[]
+  financialLedgerEntries    FinancialLedgerEntry[]
+  platformFeeEntry          PlatformFeeEntry?
+  packageEntitlements       PackageSessionEntitlement[]
+
+  @@index([customerId])
+  @@index([branchId])
+  @@index([appointmentDate])
+  @@index([status])
+  @@index([status, pendingExpiresAt])
+  @@map("bookings")
+}
+
+model BookingService {
+  id                  String                     @id @default(uuid())
+  bookingId           String                     @map("booking_id")
+  serviceId           String                     @map("service_id")
+  businessServiceId   String                     @map("business_service_id")
+  canonicalServiceId  String?                    @map("canonical_service_id")
+  comboId             String?                    @map("combo_id")
+  staffId             String?                    @map("staff_id")
+  priceAtBooking      Decimal                    @map("price_at_booking") @db.Decimal(12, 2)
+  durationMinutes     Int                        @map("duration_minutes")
+  serviceNameSnapshot String                     @map("service_name_snapshot")
+  sortOrder           Int                        @default(0) @map("sort_order")
+  status              BookingServiceStatus       @default(SCHEDULED)
+  itemStartAt         DateTime?                  @map("item_start_at")
+  itemEndAt           DateTime?                  @map("item_end_at")
+  transitionMinutes   Int                        @default(0) @map("transition_minutes")
+  comboVersion        Int?                       @map("combo_version")
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  booking             Booking                    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  combo               Combo?                     @relation(fields: [comboId], references: [id])
+  service             BranchServiceOffering      @relation(fields: [serviceId], references: [id])
+  businessService     BusinessService            @relation(fields: [businessServiceId], references: [id], onDelete: Restrict)
+  canonicalService    CanonicalService?          @relation(fields: [canonicalServiceId], references: [id], onDelete: Restrict)
+  staff               StaffProfile?              @relation(fields: [staffId], references: [id])
+  reviewRating        ReviewServiceRating?
+  compensationEntries CompensationEntry[]
+  refundAllocations   RefundAllocation[]
+  packageEntitlement  PackageSessionEntitlement?
+
+  @@index([bookingId])
+  @@index([serviceId])
+  @@index([businessServiceId])
+  @@index([canonicalServiceId])
+  @@index([staffId])
+  @@map("booking_services")
+}
+
+model BookingStatusHistory {
+  id            String        @id @default(uuid())
+  bookingId     String        @map("booking_id")
+  status        BookingStatus
+  changedBy     String?       @map("changed_by")
+  note          String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  booking       Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  changedByUser User?         @relation("StatusChangedBy", fields: [changedBy], references: [id])
+
+  @@index([bookingId])
+  @@map("booking_status_histories")
+}
+
+model RecurringBookingPlan {
+  id                     String              @id @default(uuid())
+  customerId             String              @map("customer_id")
+  branchId               String              @map("branch_id")
+  frequency              RecurrenceFrequency
+  serviceIds             Json                @map("service_ids")
+  comboId                String?             @map("combo_id")
+  staffId                String?             @map("staff_id")
+  staffMode              RecurringStaffMode  @default(ANY_AVAILABLE) @map("staff_mode")
+  preferredTime          String              @map("preferred_time")
+  occurrenceCount        Int                 @default(1) @map("occurrence_count")
+  createdOccurrenceCount Int                 @default(0) @map("created_occurrence_count")
+  failureReason          String?             @map("failure_reason")
+  dayOfWeek              Int?                @map("day_of_week")
+  dayOfMonth             Int?                @map("day_of_month")
+  startDate              DateTime            @map("start_date") @db.Date
+  endDate                DateTime?           @map("end_date") @db.Date
+  status                 RecurringPlanStatus @default(ACTIVE)
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+  deletedAt              DateTime?           @map("deleted_at")
+  bookings               Booking[]
+  branch                 Branch              @relation(fields: [branchId], references: [id])
+  customer               CustomerProfile     @relation(fields: [customerId], references: [id])
+  combo                  Combo?              @relation(fields: [comboId], references: [id])
+  staff                  StaffProfile?       @relation(fields: [staffId], references: [id])
+
+  @@index([customerId])
+  @@index([branchId, status])
+  @@map("recurring_booking_plans")
+}
+
+model Payment {
+  id             String                 @id @default(uuid())
+  bookingId      String                 @map("booking_id")
+  amount         Decimal                @db.Decimal(12, 2)
+  method         PaymentMethod
+  status         PaymentStatus          @default(PENDING)
+  transactionRef String?                @map("transaction_ref")
+  paidAt         DateTime?              @map("paid_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  booking        Booking                @relation(fields: [bookingId], references: [id])
+  refundRequests RefundRequest[]
+  transactions   PaymentTransaction[]
+  ledgerEntries  FinancialLedgerEntry[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("payments")
+}
+
+model RefundRequest {
+  id                      String                   @id @default(uuid())
+  paymentId               String                   @map("payment_id")
+  amount                  Decimal                  @db.Decimal(12, 2)
+  reason                  String
+  evidence                Json?
+  status                  RefundStatus             @default(PENDING)
+  requestedBy             String                   @map("requested_by")
+  reviewedBy              String?                  @map("reviewed_by")
+  reviewNote              String?                  @map("review_note")
+  reviewedAt              DateTime?                @map("reviewed_at")
+  processingStartedAt     DateTime?                @map("processing_started_at")
+  processedAt             DateTime?                @map("processed_at")
+  processedBy             String?                  @map("processed_by")
+  settlementReference     String?                  @unique @map("settlement_reference")
+  failureReason           String?                  @map("failure_reason")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+  payment                 Payment                  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  allocations             RefundAllocation[]
+  ledgerEntries           FinancialLedgerEntry[]
+  platformFeeAdjustments  PlatformFeeAdjustment[]
+  compensationAdjustments CompensationAdjustment[]
+
+  @@index([paymentId, status])
+  @@index([requestedBy])
+  @@map("refund_requests")
+}
+
+/// Immutable price evidence captured when a booking is created. Service prices
+/// may change later without rewriting this snapshot.
+model PricingSnapshot {
+  id             String   @id @default(uuid())
+  bookingId      String   @unique @map("booking_id")
+  businessId     String   @map("business_id")
+  branchId       String   @map("branch_id")
+  currency       String   @default("VND")
+  subtotalAmount Decimal  @map("subtotal_amount") @db.Decimal(12, 2)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  finalAmount    Decimal  @map("final_amount") @db.Decimal(12, 2)
+  items          Json
+  capturedAt     DateTime @default(now()) @map("captured_at")
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch         Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, capturedAt])
+  @@index([branchId, capturedAt])
+  @@map("pricing_snapshots")
+}
+
+model PaymentPolicy {
+  id                String                  @id @default(uuid())
+  businessId        String                  @map("business_id")
+  branchId          String?                 @map("branch_id")
+  serviceId         String?                 @map("service_id")
+  name              String
+  version           Int
+  status            PolicyVersionStatus     @default(ACTIVE)
+  depositType       DepositType             @default(NONE) @map("deposit_type")
+  depositValue      Decimal                 @default(0) @map("deposit_value") @db.Decimal(12, 2)
+  allowSplitPayment Boolean                 @default(true) @map("allow_split_payment")
+  allowInstallments Boolean                 @default(false) @map("allow_installments")
+  effectiveFrom     DateTime                @map("effective_from")
+  effectiveTo       DateTime?               @map("effective_to")
+  createdBy         String                  @map("created_by")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  business          Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch            Branch?                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  service           BranchServiceOffering?  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  snapshots         PaymentPolicySnapshot[]
+
+  @@unique([businessId, branchId, serviceId, version])
+  @@index([businessId, status, effectiveFrom, effectiveTo])
+  @@index([branchId, status])
+  @@map("payment_policies")
+}
+
+model PaymentPolicySnapshot {
+  id                String         @id @default(uuid())
+  bookingId         String         @unique @map("booking_id")
+  businessId        String         @map("business_id")
+  branchId          String         @map("branch_id")
+  paymentPolicyId   String?        @map("payment_policy_id")
+  policyVersion     Int?           @map("policy_version")
+  depositType       DepositType    @default(NONE) @map("deposit_type")
+  depositValue      Decimal        @default(0) @map("deposit_value") @db.Decimal(12, 2)
+  requiredAmount    Decimal        @default(0) @map("required_amount") @db.Decimal(12, 2)
+  allowSplitPayment Boolean        @default(true) @map("allow_split_payment")
+  allowInstallments Boolean        @default(false) @map("allow_installments")
+  capturedAt        DateTime       @default(now()) @map("captured_at")
+  booking           Booking        @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  business          Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch            Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  paymentPolicy     PaymentPolicy? @relation(fields: [paymentPolicyId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, capturedAt])
+  @@map("payment_policy_snapshots")
+}
+
+model PaymentIntent {
+  id                   String               @id @default(uuid())
+  bookingId            String?              @map("booking_id")
+  packagePurchaseId    String?              @map("package_purchase_id")
+  packageInstallmentId String?              @map("package_installment_id")
+  businessId           String               @map("business_id")
+  branchId             String               @map("branch_id")
+  amount               Decimal              @db.Decimal(12, 2)
+  currency             String               @default("VND")
+  method               PaymentMethod
+  provider             String
+  status               PaymentIntentStatus  @default(CREATED)
+  idempotencyKey       String               @unique @map("idempotency_key")
+  expiresAt            DateTime?            @map("expires_at")
+  metadata             Json?
+  createdBy            String               @map("created_by")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  booking              Booking?             @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  packagePurchase      PackagePurchase?     @relation(fields: [packagePurchaseId], references: [id], onDelete: Restrict)
+  packageInstallment   PackageInstallment?  @relation(fields: [packageInstallmentId], references: [id], onDelete: Restrict)
+  business             Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch               Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  transactions         PaymentTransaction[]
+
+  @@index([bookingId, status])
+  @@index([packagePurchaseId, status])
+  @@index([businessId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("payment_intents")
+}
+
+/// Append-only financial transaction. A verified row is never edited or
+/// deleted; corrections create a REVERSED row and a replacement transaction.
+model PaymentTransaction {
+  id                   String                   @id @default(uuid())
+  intentId             String?                  @map("intent_id")
+  paymentId            String?                  @map("payment_id")
+  bookingId            String?                  @map("booking_id")
+  packagePurchaseId    String?                  @map("package_purchase_id")
+  packageInstallmentId String?                  @map("package_installment_id")
+  businessId           String                   @map("business_id")
+  branchId             String                   @map("branch_id")
+  amount               Decimal                  @db.Decimal(12, 2)
+  currency             String                   @default("VND")
+  method               PaymentMethod
+  provider             String
+  status               PaymentTransactionStatus @default(PENDING)
+  transactionRef       String?                  @map("transaction_ref")
+  idempotencyKey       String                   @unique @map("idempotency_key")
+  providerEventId      String?                  @unique @map("provider_event_id")
+  evidence             Json?
+  verifiedBy           String?                  @map("verified_by")
+  verifiedAt           DateTime?                @map("verified_at")
+  reversalOfId         String?                  @unique @map("reversal_of_id")
+  failureReason        String?                  @map("failure_reason")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  intent               PaymentIntent?           @relation(fields: [intentId], references: [id], onDelete: SetNull)
+  payment              Payment?                 @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  booking              Booking?                 @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  packagePurchase      PackagePurchase?         @relation(fields: [packagePurchaseId], references: [id], onDelete: Restrict)
+  packageInstallment   PackageInstallment?      @relation(fields: [packageInstallmentId], references: [id], onDelete: Restrict)
+  business             Business                 @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch               Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  reversalOf           PaymentTransaction?      @relation("PaymentTransactionReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy           PaymentTransaction?      @relation("PaymentTransactionReversal")
+  ledgerEntries        FinancialLedgerEntry[]
+
+  @@index([bookingId, status])
+  @@index([packagePurchaseId, status])
+  @@index([businessId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("payment_transactions")
+}
+
+/// Accounting evidence. The migration installs a database trigger which
+/// rejects UPDATE/DELETE so corrections must be posted as new entries.
+model FinancialLedgerEntry {
+  id                   String              @id @default(uuid())
+  businessId           String              @map("business_id")
+  branchId             String              @map("branch_id")
+  bookingId            String?             @map("booking_id")
+  paymentId            String?             @map("payment_id")
+  paymentTransactionId String?             @map("payment_transaction_id")
+  refundId             String?             @map("refund_id")
+  type                 FinancialLedgerType
+  direction            LedgerDirection
+  amount               Decimal             @db.Decimal(12, 2)
+  currency             String              @default("VND")
+  sourceType           String              @map("source_type")
+  sourceId             String              @map("source_id")
+  idempotencyKey       String              @unique @map("idempotency_key")
+  actorId              String?             @map("actor_id")
+  correlationId        String?             @map("correlation_id")
+  metadata             Json?
+  occurredAt           DateTime            @default(now()) @map("occurred_at")
+  business             Business            @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch               Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking              Booking?            @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  payment              Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: Restrict)
+  refund               RefundRequest?      @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+  @@index([businessId, occurredAt])
+  @@index([branchId, occurredAt])
+  @@index([bookingId, occurredAt])
+  @@index([sourceType, sourceId])
+  @@map("financial_ledger_entries")
+}
+
+model RefundAllocation {
+  id               String          @id @default(uuid())
+  refundId         String          @map("refund_id")
+  bookingServiceId String?         @map("booking_service_id")
+  amount           Decimal         @db.Decimal(12, 2)
+  createdAt        DateTime        @default(now()) @map("created_at")
+  refund           RefundRequest   @relation(fields: [refundId], references: [id], onDelete: Cascade)
+  bookingService   BookingService? @relation(fields: [bookingServiceId], references: [id], onDelete: Restrict)
+
+  @@index([refundId])
+  @@index([bookingServiceId])
+  @@map("refund_allocations")
+}
+
+model PlatformFeeEntry {
+  id                  String                  @id @default(uuid())
+  businessId          String                  @map("business_id")
+  branchId            String                  @map("branch_id")
+  bookingId           String                  @unique @map("booking_id")
+  baseAmount          Decimal                 @map("base_amount") @db.Decimal(12, 2)
+  feeRate             Decimal                 @map("fee_rate") @db.Decimal(7, 4)
+  feeAmount           Decimal                 @map("fee_amount") @db.Decimal(12, 2)
+  currency            String                  @default("VND")
+  status              PlatformFeeStatus       @default(ACCRUED)
+  calculationSnapshot Json                    @map("calculation_snapshot")
+  createdAt           DateTime                @default(now()) @map("created_at")
+  business            Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch              Branch                  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking             Booking                 @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  adjustments         PlatformFeeAdjustment[]
+  statementLines      PlatformStatementLine[]
+
+  @@index([businessId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("platform_fee_entries")
+}
+
+model PlatformFeeAdjustment {
+  id             String                  @id @default(uuid())
+  platformFeeId  String                  @map("platform_fee_id")
+  businessId     String                  @map("business_id")
+  branchId       String                  @map("branch_id")
+  refundId       String?                 @map("refund_id")
+  amount         Decimal                 @db.Decimal(12, 2)
+  reason         String
+  createdAt      DateTime                @default(now()) @map("created_at")
+  platformFee    PlatformFeeEntry        @relation(fields: [platformFeeId], references: [id], onDelete: Restrict)
+  business       Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch         Branch                  @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  refund         RefundRequest?          @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  statementLines PlatformStatementLine[]
+
+  @@index([platformFeeId, createdAt])
+  @@index([businessId, createdAt])
+  @@map("platform_fee_adjustments")
+}
+
+model PlatformStatement {
+  id               String                  @id @default(uuid())
+  businessId       String                  @map("business_id")
+  periodStart      DateTime                @map("period_start") @db.Date
+  periodEnd        DateTime                @map("period_end") @db.Date
+  version          Int                     @default(1)
+  status           PlatformStatementStatus @default(DRAFT)
+  currency         String                  @default("VND")
+  grossFeeAmount   Decimal                 @default(0) @map("gross_fee_amount") @db.Decimal(12, 2)
+  adjustmentAmount Decimal                 @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
+  netAmount        Decimal                 @default(0) @map("net_amount") @db.Decimal(12, 2)
+  issuedAt         DateTime?               @map("issued_at")
+  paidAt           DateTime?               @map("paid_at")
+  lockedAt         DateTime?               @map("locked_at")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  business         Business                @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  lines            PlatformStatementLine[]
+
+  @@unique([businessId, periodStart, periodEnd, version])
+  @@index([businessId, status, periodStart])
+  @@map("platform_statements")
+}
+
+model PlatformStatementLine {
+  id              String                 @id @default(uuid())
+  statementId     String                 @map("statement_id")
+  platformFeeId   String?                @map("platform_fee_id")
+  feeAdjustmentId String?                @map("fee_adjustment_id")
+  lineType        StatementLineType      @map("line_type")
+  amount          Decimal                @db.Decimal(12, 2)
+  sourceSnapshot  Json                   @map("source_snapshot")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  statement       PlatformStatement      @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  platformFee     PlatformFeeEntry?      @relation(fields: [platformFeeId], references: [id], onDelete: Restrict)
+  feeAdjustment   PlatformFeeAdjustment? @relation(fields: [feeAdjustmentId], references: [id], onDelete: Restrict)
+
+  @@unique([statementId, platformFeeId, feeAdjustmentId])
+  @@index([statementId])
+  @@map("platform_statement_lines")
+}
+
+model TreatmentPackage {
+  id           String                 @id @default(uuid())
+  businessId   String                 @map("business_id")
+  branchId     String?                @map("branch_id")
+  name         String
+  description  String?
+  totalPrice   Decimal                @map("total_price") @db.Decimal(12, 2)
+  currency     String                 @default("VND")
+  sessionCount Int                    @map("session_count")
+  validityDays Int                    @default(365) @map("validity_days")
+  status       TreatmentPackageStatus @default(ACTIVE)
+  createdAt    DateTime               @default(now()) @map("created_at")
+  updatedAt    DateTime               @updatedAt @map("updated_at")
+  business     Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch       Branch?                @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  purchases    PackagePurchase[]
+
+  @@index([businessId, status])
+  @@index([branchId, status])
+  @@map("treatment_packages")
+}
+
+model PackagePurchase {
+  id                  String                      @id @default(uuid())
+  packageId           String                      @map("package_id")
+  customerId          String                      @map("customer_id")
+  businessId          String                      @map("business_id")
+  branchId            String?                     @map("branch_id")
+  totalAmount         Decimal                     @map("total_amount") @db.Decimal(12, 2)
+  paidAmount          Decimal                     @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  currency            String                      @default("VND")
+  status              PackagePurchaseStatus       @default(PENDING_PAYMENT)
+  pricingSnapshot     Json                        @map("pricing_snapshot")
+  purchasedAt         DateTime                    @default(now()) @map("purchased_at")
+  expiresAt           DateTime                    @map("expires_at")
+  package             TreatmentPackage            @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  customer            CustomerProfile             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business            Business                    @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch              Branch?                     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  installments        PackageInstallment[]
+  entitlements        PackageSessionEntitlement[]
+  paymentIntents      PaymentIntent[]
+  paymentTransactions PaymentTransaction[]
+
+  @@index([customerId, status])
+  @@index([businessId, status])
+  @@map("package_purchases")
+}
+
+model PackageInstallment {
+  id                  String                   @id @default(uuid())
+  purchaseId          String                   @map("purchase_id")
+  sequence            Int
+  dueAt               DateTime                 @map("due_at")
+  amount              Decimal                  @db.Decimal(12, 2)
+  status              PackageInstallmentStatus @default(DUE)
+  paymentIntentId     String?                  @map("payment_intent_id")
+  paidAt              DateTime?                @map("paid_at")
+  purchase            PackagePurchase          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  paymentIntents      PaymentIntent[]
+  paymentTransactions PaymentTransaction[]
+
+  @@unique([purchaseId, sequence])
+  @@index([status, dueAt])
+  @@map("package_installments")
+}
+
+model PackageSessionEntitlement {
+  id                       String                   @id @default(uuid())
+  purchaseId               String                   @map("purchase_id")
+  sequence                 Int
+  status                   PackageEntitlementStatus @default(AVAILABLE)
+  bookingId                String?                  @map("booking_id")
+  redeemedBookingServiceId String?                  @unique @map("redeemed_booking_service_id")
+  reservedAt               DateTime?                @map("reserved_at")
+  redeemedAt               DateTime?                @map("redeemed_at")
+  purchase                 PackagePurchase          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  booking                  Booking?                 @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  redeemedBookingService   BookingService?          @relation(fields: [redeemedBookingServiceId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseId, sequence])
+  @@index([purchaseId, status])
+  @@map("package_session_entitlements")
+}
+
+model Review {
+  id             String                @id @default(uuid())
+  bookingId      String                @unique @map("booking_id")
+  customerId     String                @map("customer_id")
+  overallRating  Int                   @map("overall_rating") @db.SmallInt
+  comment        String?
+  isAnonymous    Boolean               @default(false) @map("is_anonymous")
+  status         ReviewStatus          @default(PENDING)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  deletedAt      DateTime?             @map("deleted_at")
+  serviceRatings ReviewServiceRating[]
+  booking        Booking               @relation(fields: [bookingId], references: [id])
+  customer       CustomerProfile       @relation(fields: [customerId], references: [id])
+  reports        ReviewReport[]
+  businessReply  BusinessComment?
+
+  @@index([customerId])
+  @@index([status])
+  @@index([status, deletedAt, bookingId])
+  @@map("reviews")
+}
+
+model ReviewServiceRating {
+  id               String         @id @default(uuid())
+  reviewId         String         @map("review_id")
+  bookingServiceId String         @unique @map("booking_service_id")
+  staffId          String?        @map("staff_id")
+  rating           Int            @db.SmallInt
+  comment          String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  bookingService   BookingService @relation(fields: [bookingServiceId], references: [id])
+  review           Review         @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  staff            StaffProfile?  @relation(fields: [staffId], references: [id])
+
+  @@index([reviewId])
+  @@index([staffId])
+  @@map("review_service_ratings")
+}
+
+model BusinessComment {
+  id              String            @id @default(uuid())
+  businessId      String            @map("business_id")
+  customerId      String            @map("customer_id")
+  parentCommentId String?           @map("parent_comment_id")
+  reviewId        String?           @unique @map("review_id")
+  content         String
+  status          CommentStatus     @default(VISIBLE)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+  business        Business          @relation(fields: [businessId], references: [id])
+  customer        CustomerProfile   @relation(fields: [customerId], references: [id])
+  parent          BusinessComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id])
+  replies         BusinessComment[] @relation("CommentReplies")
+  review          Review?           @relation(fields: [reviewId], references: [id])
+
+  @@index([businessId])
+  @@index([parentCommentId])
+  @@map("business_comments")
+}
+
+model Notification {
+  id               String               @id @default(uuid())
+  userId           String               @map("user_id")
+  type             NotificationType
+  severity         NotificationSeverity @default(INFO)
+  title            String
+  body             String?
+  isRead           Boolean              @default(false) @map("is_read")
+  readAt           DateTime?            @map("read_at")
+  targetType       String?              @map("target_type")
+  targetId         String?              @map("target_id")
+  actionUrl        String?              @map("action_url")
+  metadata         Json?
+  relatedBookingId String?              @map("related_booking_id")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  relatedBooking   Booking?             @relation(fields: [relatedBookingId], references: [id])
+  user             User                 @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?     @map("user_id")
+  action     AuditAction
+  entityType String      @map("entity_type")
+  entityId   String?     @map("entity_id")
+  oldData    Json?       @map("old_data")
+  newData    Json?       @map("new_data")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  reason     String?
+  user       User?       @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@map("audit_logs")
+}
+
+model SalonMember {
+  id         String          @id @default(uuid())
+  userId     String          @map("user_id")
+  businessId String          @map("business_id")
+  branchId   String?         @map("branch_id")
+  role       SalonMemberRole
+  isActive   Boolean         @default(true) @map("is_active")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+  branch     Branch?         @relation(fields: [branchId], references: [id])
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+  @@index([branchId])
+  @@map("salon_members")
+}
+
+model CancellationPolicy {
+  id                     String   @id @default(uuid())
+  businessId             String   @unique @map("business_id")
+  freeCancelHours        Int      @default(2) @map("free_cancel_hours")
+  lateCancelFeePercent   Int      @default(50) @map("late_cancel_fee_percent")
+  noShowFeePercent       Int      @default(100) @map("no_show_fee_percent")
+  rescheduleAllowedHours Int      @default(1) @map("reschedule_allowed_hours")
+  notes                  String?
+  updatedBy              String?  @map("updated_by")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+  business               Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("cancellation_policies")
+}
+
+model Voucher {
+  id                  String            @id @default(uuid())
+  code                String            @unique
+  name                String
+  description         String?
+  discountType        DiscountType      @map("discount_type")
+  discountValue       Decimal           @map("discount_value") @db.Decimal(12, 2)
+  minOrderValue       Decimal           @default(0) @map("min_order_value") @db.Decimal(12, 2)
+  maxDiscount         Decimal?          @map("max_discount") @db.Decimal(12, 2)
+  totalQuantity       Int               @default(0) @map("total_quantity")
+  usedQuantity        Int               @default(0) @map("used_quantity")
+  startDate           DateTime          @map("start_date")
+  endDate             DateTime          @map("end_date")
+  status              VoucherStatus     @default(ACTIVE)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+  deletedAt           DateTime?         @map("deleted_at")
+  businessId          String?           @map("business_id")
+  scope               VoucherScope      @default(TENANT)
+  createdByPlatform   Boolean           @default(false) @map("created_by_platform")
+  audience            VoucherAudience   @default(ALL)
+  maxUsagePerCustomer Int               @default(1) @map("max_usage_per_customer")
+  autoIssue           Boolean           @default(false) @map("auto_issue")
+  bookings            Booking[]
+  customerVouchers    CustomerVoucher[]
+  business            Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([startDate, endDate])
+  @@index([businessId, scope])
+  @@map("vouchers")
+}
+
+model CustomerVoucher {
+  id            String          @id @default(uuid())
+  voucherId     String          @map("voucher_id")
+  customerId    String          @map("customer_id")
+  status        VoucherStatus   @default(ACTIVE)
+  acquiredAt    DateTime        @default(now()) @map("acquired_at")
+  usedAt        DateTime?       @map("used_at")
+  reservedAt    DateTime?       @map("reserved_at")
+  usedBookingId String?         @unique @map("used_booking_id")
+  expiresAt     DateTime?       @map("expires_at")
+  customer      CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  voucher       Voucher         @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, customerId])
+  @@index([customerId])
+  @@map("customer_vouchers")
+}
+
+model AppointmentChangeRequest {
+  id                String              @id @default(uuid())
+  bookingId         String              @map("booking_id")
+  requestedBy       String              @map("requested_by")
+  requestedByType   CancelledByType     @map("requested_by_type")
+  requestType       ChangeRequestType   @map("request_type")
+  proposedStartTime DateTime?           @map("proposed_start_time")
+  proposedEndTime   DateTime?           @map("proposed_end_time")
+  proposedStaffId   String?             @map("proposed_staff_id")
+  reason            String?
+  status            ChangeRequestStatus @default(PENDING)
+  reviewedBy        String?             @map("reviewed_by")
+  reviewedAt        DateTime?           @map("reviewed_at")
+  reviewNote        String?             @map("review_note")
+  expiresAt         DateTime            @map("expires_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  booking           Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  proposedStaff     StaffProfile?       @relation("ChangeRequestProposedStaff", fields: [proposedStaffId], references: [id])
+  requestedByUser   User                @relation("ChangeRequestRequestedBy", fields: [requestedBy], references: [id])
+  reviewer          User?               @relation("ChangeRequestReviewedBy", fields: [reviewedBy], references: [id])
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("appointment_change_requests")
+}
+
+model SalonTrustSnapshot {
+  id                    String   @id @default(uuid())
+  businessId            String   @unique @map("business_id")
+  totalBookings         Int      @default(0) @map("total_bookings")
+  cancellationRate      Float    @default(0) @map("cancellation_rate")
+  noShowRate            Float    @default(0) @map("no_show_rate")
+  avgRejectTimeMinutes  Float    @default(0) @map("avg_reject_time_minutes")
+  lateCancelBySalonRate Float    @default(0) @map("late_cancel_by_salon_rate")
+  trustScore            Float    @default(100) @map("trust_score")
+  alertLevel            String   @default("OK") @map("alert_level")
+  computedAt            DateTime @default(now()) @map("computed_at")
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("salon_trust_snapshots")
+}
+
+model TrustAction {
+  id                String          @id @default(uuid())
+  businessId        String          @map("business_id")
+  branchId          String?         @map("branch_id")
+  actorId           String          @map("actor_id")
+  action            TrustActionType
+  reason            String
+  internalNote      String?         @map("internal_note")
+  statusBefore      String?         @map("status_before")
+  statusAfter       String?         @map("status_after")
+  restoreOfActionId String?         @unique @map("restore_of_action_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  business          Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch            Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  actor             User            @relation("TrustActionActor", fields: [actorId], references: [id])
+  restoreOf         TrustAction?    @relation("TrustActionRestore", fields: [restoreOfActionId], references: [id], onDelete: SetNull)
+  restoredBy        TrustAction?    @relation("TrustActionRestore")
+
+  @@index([businessId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("trust_actions")
+}
+
+model BusinessReviewEvent {
+  id         String          @id @default(uuid())
+  businessId String          @map("business_id")
+  actorId    String?         @map("actor_id")
+  action     String
+  fromStatus BusinessStatus? @map("from_status")
+  toStatus   BusinessStatus  @map("to_status")
+  reason     String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  actor      User?           @relation("BusinessReviewActor", fields: [actorId], references: [id])
+
+  @@index([businessId, createdAt])
+  @@map("business_review_events")
+}
+
+model BusinessDocument {
+  id             String                    @id @default(uuid())
+  businessId     String                    @map("business_id")
+  documentType   BusinessDocumentType      @map("document_type")
+  documentNumber String?                   @map("document_number")
+  expiresAt      DateTime?                 @map("expires_at") @db.Date
+  status         BusinessDocumentStatus    @default(DRAFT)
+  currentVersion Int                       @default(1) @map("current_version")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+  updatedAt      DateTime                  @updatedAt @map("updated_at")
+  business       Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  versions       BusinessDocumentVersion[]
+  reviewEvents   DocumentReviewEvent[]
+
+  @@index([businessId, documentType, status])
+  @@map("business_documents")
+}
+
+model BusinessDocumentVersion {
+  id           String           @id @default(uuid())
+  documentId   String           @map("document_id")
+  version      Int
+  mediaId      String           @map("media_id")
+  documentName String           @map("document_name")
+  note         String?
+  createdBy    String           @map("created_by")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  document     BusinessDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  media        MediaFile        @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  creator      User             @relation("BusinessDocumentVersionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, version])
+  @@index([mediaId])
+  @@map("business_document_versions")
+}
+
+model BranchDocument {
+  id             String                  @id @default(uuid())
+  branchId       String                  @map("branch_id")
+  documentType   BranchDocumentType      @map("document_type")
+  documentNumber String?                 @map("document_number")
+  issuedAt       DateTime?               @map("issued_at") @db.Date
+  expiresAt      DateTime?               @map("expires_at") @db.Date
+  status         BranchDocumentStatus    @default(DRAFT)
+  currentVersion Int                     @default(1) @map("current_version")
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  branch         Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  versions       BranchDocumentVersion[]
+
+  @@index([branchId, documentType, status])
+  @@map("branch_documents")
+}
+
+model BranchDocumentVersion {
+  id           String         @id @default(uuid())
+  documentId   String         @map("document_id")
+  version      Int
+  mediaId      String         @map("media_id")
+  documentName String         @map("document_name")
+  note         String?
+  createdBy    String         @map("created_by")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  document     BranchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  media        MediaFile      @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  creator      User           @relation("BranchDocumentVersionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, version])
+  @@index([mediaId])
+  @@map("branch_document_versions")
+}
+
+model BranchReviewRequest {
+  id               String             @id @default(uuid())
+  branchId         String             @map("branch_id")
+  requestedBy      String             @map("requested_by")
+  status           BranchReviewStatus @default(PENDING_REVIEW)
+  profileSnapshot  Json               @map("profile_snapshot")
+  documentSnapshot Json?              @map("document_snapshot")
+  riskSnapshot     Json?              @map("risk_snapshot")
+  assignedTo       String?            @map("assigned_to")
+  dueAt            DateTime?          @map("due_at")
+  submittedAt      DateTime           @default(now()) @map("submitted_at")
+  resolvedAt       DateTime?          @map("resolved_at")
+  branch           Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  requester        User               @relation("BranchReviewRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  reviewer         User?              @relation("BranchReviewReviewer", fields: [assignedTo], references: [id], onDelete: SetNull)
+  business         Business?          @relation(fields: [businessId], references: [id])
+  businessId       String?
+
+  @@index([branchId, submittedAt])
+  @@index([status, submittedAt])
+  @@map("branch_review_requests")
+}
+
+model BranchReviewEvent {
+  id         String              @id @default(uuid())
+  branchId   String              @map("branch_id")
+  actorId    String?             @map("actor_id")
+  action     String
+  fromStatus BranchReviewStatus? @map("from_status")
+  toStatus   BranchReviewStatus  @map("to_status")
+  reason     String?
+  targetStep Int?                @map("target_step")
+  deadline   DateTime?           @map("deadline")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  branch     Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  actor      User?               @relation("BranchReviewActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([branchId, createdAt])
+  @@map("branch_review_events")
+}
+
+model DocumentReviewEvent {
+  id         String                  @id @default(uuid())
+  documentId String                  @map("document_id")
+  actorId    String?                 @map("actor_id")
+  action     DocumentReviewAction
+  fromStatus BusinessDocumentStatus? @map("from_status")
+  toStatus   BusinessDocumentStatus  @map("to_status")
+  reason     String?
+  createdAt  DateTime                @default(now()) @map("created_at")
+  document   BusinessDocument        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  actor      User?                   @relation("DocumentReviewActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, createdAt])
+  @@map("document_review_events")
+}
+
+model ReviewReport {
+  id         String   @id @default(uuid())
+  reviewId   String   @map("review_id")
+  reporterId String   @map("reporter_id")
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at")
+  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter   User     @relation("ReviewReporter", fields: [reporterId], references: [id])
+
+  @@unique([reviewId, reporterId])
+  @@index([reviewId, createdAt])
+  @@map("review_reports")
+}
+
+model StaffAttendance {
+  id                 String                       @id @default(uuid())
+  businessId         String                       @map("business_id")
+  branchId           String                       @map("branch_id")
+  staffId            String                       @map("staff_id")
+  userId             String?                      @map("user_id")
+  workDate           DateTime                     @map("work_date") @db.Date
+  scheduledStartTime DateTime                     @map("scheduled_start_time") @db.Time(6)
+  scheduledEndTime   DateTime                     @map("scheduled_end_time") @db.Time(6)
+  scheduleVersionId  String?                      @map("schedule_version_id")
+  scheduleSnapshot   Json?                        @map("schedule_snapshot")
+  checkInAt          DateTime?                    @map("check_in_at")
+  checkOutAt         DateTime?                    @map("check_out_at")
+  checkInMethod      AttendanceMethod?            @map("check_in_method")
+  checkOutMethod     AttendanceMethod?            @map("check_out_method")
+  status             AttendanceStatus             @default(NOT_CHECKED_IN)
+  lateMinutes        Int                          @default(0) @map("late_minutes")
+  earlyLeaveMinutes  Int                          @default(0) @map("early_leave_minutes")
+  overtimeMinutes    Int                          @default(0) @map("overtime_minutes")
+  note               String?
+  adjustedBy         String?                      @map("adjusted_by")
+  adjustedAt         DateTime?                    @map("adjusted_at")
+  adjustmentReason   String?                      @map("adjustment_reason")
+  absentMarkedBy     String?                      @map("absent_marked_by")
+  absentMarkedAt     DateTime?                    @map("absent_marked_at")
+  createdAt          DateTime                     @default(now()) @map("created_at")
+  updatedAt          DateTime                     @updatedAt @map("updated_at")
+  business           Business                     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch             Branch                       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff              StaffProfile                 @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  user               User?                        @relation("AttendanceUser", fields: [userId], references: [id])
+  adjuster           User?                        @relation("AttendanceAdjustedBy", fields: [adjustedBy], references: [id])
+  absentMarker       User?                        @relation("AttendanceAbsentMarker", fields: [absentMarkedBy], references: [id])
+  exceptionRequests  AttendanceExceptionRequest[]
+  events             AttendanceEvent[]
+  timesheet          Timesheet?
+  scheduleVersion    StaffScheduleVersion?        @relation(fields: [scheduleVersionId], references: [id], onDelete: SetNull)
+
+  @@unique([staffId, branchId, workDate])
+  @@index([businessId, workDate])
+  @@index([branchId, workDate, status])
+  @@index([scheduleVersionId])
+  @@map("staff_attendances")
+}
+
+model AttendanceExceptionRequest {
+  id           String                    @id @default(uuid())
+  attendanceId String?                   @map("attendance_id")
+  businessId   String                    @map("business_id")
+  branchId     String                    @map("branch_id")
+  staffId      String                    @map("staff_id")
+  requestedBy  String                    @map("requested_by")
+  type         AttendanceExceptionType
+  workDate     DateTime                  @map("work_date") @db.Date
+  proposedAt   DateTime                  @map("proposed_at")
+  reason       String
+  note         String?
+  status       AttendanceExceptionStatus @default(PENDING)
+  reviewedBy   String?                   @map("reviewed_by")
+  reviewedAt   DateTime?                 @map("reviewed_at")
+  reviewReason String?                   @map("review_reason")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+  attendance   StaffAttendance?          @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  business     Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch       Branch                    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff        StaffProfile              @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  requester    User                      @relation("AttendanceExceptionRequester", fields: [requestedBy], references: [id])
+  reviewer     User?                     @relation("AttendanceExceptionReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([branchId, status, createdAt])
+  @@index([staffId, createdAt])
+  @@map("attendance_exception_requests")
+}
+
+model AttendanceQrToken {
+  nonce      String              @id
+  businessId String              @map("business_id")
+  branchId   String              @map("branch_id")
+  purpose    AttendanceQrPurpose
+  issuedAt   DateTime            @map("issued_at")
+  expiresAt  DateTime            @map("expires_at")
+  createdBy  String              @map("created_by")
+  createdAt  DateTime            @default(now()) @map("created_at")
+  business   Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch     Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  creator    User                @relation("AttendanceQrTokenCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  uses       AttendanceQrUse[]
+
+  @@index([branchId, expiresAt])
+  @@map("attendance_qr_tokens")
+}
+
+model AttendanceQrUse {
+  id         String                @id @default(uuid())
+  qrNonce    String                @map("qr_nonce")
+  staffId    String                @map("staff_id")
+  userId     String                @map("user_id")
+  action     AttendanceQrUseAction
+  deviceHash String?               @map("device_hash")
+  redeemedAt DateTime              @default(now()) @map("redeemed_at")
+  token      AttendanceQrToken     @relation(fields: [qrNonce], references: [nonce], onDelete: Cascade)
+  staff      StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  user       User                  @relation("AttendanceQrUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([qrNonce, staffId, action])
+  @@index([staffId, redeemedAt])
+  @@map("attendance_qr_uses")
+}
+
+model AttendanceEvent {
+  id           String              @id @default(uuid())
+  attendanceId String?             @map("attendance_id")
+  businessId   String              @map("business_id")
+  branchId     String              @map("branch_id")
+  staffId      String              @map("staff_id")
+  actorId      String              @map("actor_id")
+  eventType    AttendanceEventType @map("event_type")
+  eventAt      DateTime            @default(now()) @map("event_at")
+  originalData Json?               @map("original_data")
+  newData      Json?               @map("new_data")
+  reason       String?
+  source       String
+  attendance   StaffAttendance?    @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff        StaffProfile        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  actor        User                @relation("AttendanceEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([staffId, eventAt])
+  @@index([branchId, eventAt])
+  @@map("attendance_events")
+}
+
+/// Availability describes when a staff member can work. It is intentionally
+/// separate from published schedule versions and attendance.
+model StaffAvailability {
+  id            String                  @id @default(uuid())
+  businessId    String                  @map("business_id")
+  branchId      String                  @map("branch_id")
+  staffId       String                  @map("staff_id")
+  dayOfWeek     Int                     @map("day_of_week") @db.SmallInt
+  startTime     DateTime                @map("start_time") @db.Time(6)
+  endTime       DateTime                @map("end_time") @db.Time(6)
+  effectiveFrom DateTime                @map("effective_from") @db.Date
+  effectiveTo   DateTime?               @map("effective_to") @db.Date
+  status        StaffAvailabilityStatus @default(ACTIVE)
+  createdBy     String                  @map("created_by")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+  business      Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch        Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff         StaffProfile            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, branchId, dayOfWeek, effectiveFrom, effectiveTo])
+  @@index([businessId, status])
+  @@map("staff_availabilities")
+}
+
+model Timesheet {
+  id                  String                @id @default(uuid())
+  attendanceId        String                @unique @map("attendance_id")
+  businessId          String                @map("business_id")
+  branchId            String                @map("branch_id")
+  staffId             String                @map("staff_id")
+  workDate            DateTime              @map("work_date") @db.Date
+  scheduledMinutes    Int                   @default(0) @map("scheduled_minutes")
+  actualWorkedMinutes Int                   @default(0) @map("actual_worked_minutes")
+  breakMinutes        Int                   @default(0) @map("break_minutes")
+  approvedPaidMinutes Int?                  @map("approved_paid_minutes")
+  approvedBreakdown   Json?                 @map("approved_breakdown")
+  status              TimesheetStatus       @default(RAW)
+  generatedAt         DateTime              @default(now()) @map("generated_at")
+  submittedAt         DateTime?             @map("submitted_at")
+  approvedAt          DateTime?             @map("approved_at")
+  approvedBy          String?               @map("approved_by")
+  lockedAt            DateTime?             @map("locked_at")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  attendance          StaffAttendance       @relation(fields: [attendanceId], references: [id], onDelete: Restrict)
+  business            Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch              Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  staff               StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  adjustments         TimesheetAdjustment[]
+  compensationEntries CompensationEntry[]
+  payRunItems         PayRunItem[]
+
+  @@unique([staffId, branchId, workDate])
+  @@index([businessId, workDate, status])
+  @@index([branchId, workDate, status])
+  @@map("timesheets")
+}
+
+model TimesheetAdjustment {
+  id           String                    @id @default(uuid())
+  timesheetId  String                    @map("timesheet_id")
+  proposedBy   String                    @map("proposed_by")
+  reason       String
+  oldData      Json                      @map("old_data")
+  newData      Json                      @map("new_data")
+  status       TimesheetAdjustmentStatus @default(PENDING)
+  reviewedBy   String?                   @map("reviewed_by")
+  reviewedAt   DateTime?                 @map("reviewed_at")
+  reviewReason String?                   @map("review_reason")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  timesheet    Timesheet                 @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
+
+  @@index([timesheetId, status, createdAt])
+  @@map("timesheet_adjustments")
+}
+
+model CompensationRule {
+  id               String                     @id @default(uuid())
+  businessId       String                     @map("business_id")
+  branchId         String?                    @map("branch_id")
+  name             String
+  type             CompensationRuleType
+  version          Int
+  status           PolicyVersionStatus        @default(ACTIVE)
+  calculationBasis CommissionCalculationBasis @default(APPROVED_PAID_TIME) @map("calculation_basis")
+  rate             Decimal?                   @db.Decimal(12, 4)
+  fixedAmount      Decimal?                   @map("fixed_amount") @db.Decimal(12, 2)
+  currency         String                     @default("VND")
+  effectiveFrom    DateTime                   @map("effective_from") @db.Date
+  effectiveTo      DateTime?                  @map("effective_to") @db.Date
+  createdBy        String                     @map("created_by")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  business         Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch           Branch?                    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  assignments      CompensationAssignment[]
+  entries          CompensationEntry[]
+
+  @@unique([businessId, branchId, name, version])
+  @@index([businessId, type, status, effectiveFrom, effectiveTo])
+  @@map("compensation_rules")
+}
+
+model CompensationAssignment {
+  id            String           @id @default(uuid())
+  ruleId        String           @map("rule_id")
+  staffId       String           @map("staff_id")
+  branchId      String           @map("branch_id")
+  roleCode      RoleCode?        @map("role_code")
+  effectiveFrom DateTime         @map("effective_from") @db.Date
+  effectiveTo   DateTime?        @map("effective_to") @db.Date
+  createdAt     DateTime         @default(now()) @map("created_at")
+  rule          CompensationRule @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  staff         StaffProfile     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branch        Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, staffId, branchId, roleCode, effectiveFrom])
+  @@index([staffId, branchId, effectiveFrom, effectiveTo])
+  @@map("compensation_assignments")
+}
+
+/// Append-only earnings ledger. Historical entries keep a complete rule and
+/// basis snapshot so later rule edits cannot change past compensation.
+model CompensationEntry {
+  id                    String                   @id @default(uuid())
+  businessId            String                   @map("business_id")
+  branchId              String                   @map("branch_id")
+  staffId               String                   @map("staff_id")
+  timesheetId           String?                  @map("timesheet_id")
+  bookingServiceId      String?                  @map("booking_service_id")
+  ruleId                String?                  @map("rule_id")
+  payRunItemId          String?                  @map("pay_run_item_id")
+  originalEntryId       String?                  @map("original_entry_id")
+  type                  CompensationEntryType
+  status                CompensationEntryStatus  @default(EARNED)
+  amount                Decimal                  @db.Decimal(12, 2)
+  currency              String                   @default("VND")
+  calculationBasis      String                   @map("calculation_basis")
+  calculationSnapshot   Json                     @map("calculation_snapshot")
+  sourceType            String                   @map("source_type")
+  sourceId              String                   @map("source_id")
+  dedupeKey             String                   @unique @map("dedupe_key")
+  earnedAt              DateTime                 @map("earned_at")
+  createdAt             DateTime                 @default(now()) @map("created_at")
+  business              Business                 @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch                Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  staff                 StaffProfile             @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  timesheet             Timesheet?               @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
+  bookingService        BookingService?          @relation(fields: [bookingServiceId], references: [id], onDelete: Restrict)
+  rule                  CompensationRule?        @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  payRunItem            PayRunItem?              @relation(fields: [payRunItemId], references: [id], onDelete: Restrict)
+  originalEntry         CompensationEntry?       @relation("CompensationEntryReversal", fields: [originalEntryId], references: [id], onDelete: Restrict)
+  reversingEntries      CompensationEntry[]      @relation("CompensationEntryReversal")
+  adjustmentsAsOriginal CompensationAdjustment[] @relation("CompensationAdjustmentOriginal")
+  adjustmentsAsResult   CompensationAdjustment[] @relation("CompensationAdjustmentResult")
+
+  @@index([staffId, earnedAt, status])
+  @@index([businessId, earnedAt, type])
+  @@index([branchId, earnedAt])
+  @@index([sourceType, sourceId])
+  @@map("compensation_entries")
+}
+
+model CompensationAdjustment {
+  id               String            @id @default(uuid())
+  originalEntryId  String            @map("original_entry_id")
+  resultingEntryId String            @unique @map("resulting_entry_id")
+  refundId         String?           @map("refund_id")
+  reason           String
+  actorId          String            @map("actor_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  originalEntry    CompensationEntry @relation("CompensationAdjustmentOriginal", fields: [originalEntryId], references: [id], onDelete: Restrict)
+  resultingEntry   CompensationEntry @relation("CompensationAdjustmentResult", fields: [resultingEntryId], references: [id], onDelete: Restrict)
+  refund           RefundRequest?    @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+  @@index([originalEntryId, createdAt])
+  @@map("compensation_adjustments")
+}
+
+model PayRun {
+  id               String       @id @default(uuid())
+  businessId       String       @map("business_id")
+  periodStart      DateTime     @map("period_start") @db.Date
+  periodEnd        DateTime     @map("period_end") @db.Date
+  status           PayRunStatus @default(DRAFT)
+  currency         String       @default("VND")
+  grossAmount      Decimal      @default(0) @map("gross_amount") @db.Decimal(12, 2)
+  adjustmentAmount Decimal      @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
+  deductionAmount  Decimal      @default(0) @map("deduction_amount") @db.Decimal(12, 2)
+  netAmount        Decimal      @default(0) @map("net_amount") @db.Decimal(12, 2)
+  approvedBy       String?      @map("approved_by")
+  approvedAt       DateTime?    @map("approved_at")
+  lockedAt         DateTime?    @map("locked_at")
+  markedPaidAt     DateTime?    @map("marked_paid_at")
+  markedPaidBy     String?      @map("marked_paid_by")
+  exportReference  String?      @map("export_reference")
+  createdBy        String       @map("created_by")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  business         Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  items            PayRunItem[]
+
+  @@unique([businessId, periodStart, periodEnd])
+  @@index([businessId, status, periodStart])
+  @@map("pay_runs")
+}
+
+model PayRunItem {
+  id                  String              @id @default(uuid())
+  payRunId            String              @map("pay_run_id")
+  staffId             String              @map("staff_id")
+  timesheetId         String?             @map("timesheet_id")
+  grossAmount         Decimal             @default(0) @map("gross_amount") @db.Decimal(12, 2)
+  adjustmentAmount    Decimal             @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
+  deductionAmount     Decimal             @default(0) @map("deduction_amount") @db.Decimal(12, 2)
+  netAmount           Decimal             @default(0) @map("net_amount") @db.Decimal(12, 2)
+  status              PayRunStatus        @default(DRAFT)
+  externalReference   String?             @map("external_reference")
+  payRun              PayRun              @relation(fields: [payRunId], references: [id], onDelete: Cascade)
+  staff               StaffProfile        @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  timesheet           Timesheet?          @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
+  compensationEntries CompensationEntry[]
+
+  @@unique([payRunId, staffId])
+  @@index([staffId, status])
+  @@map("pay_run_items")
+}
+
+model SensitiveConsent {
+  id            String                @id @default(uuid())
+  customerId    String                @map("customer_id")
+  scope         ConsentScope
+  granted       Boolean               @default(true)
+  grantedAt     DateTime              @default(now()) @map("granted_at")
+  revokedAt     DateTime?             @map("revoked_at")
+  policyVersion String                @default("pdpa-vn-91/2025") @map("policy_version")
+  ip            String?
+  healthRecords BookingHealthRecord[]
+  customer      CustomerProfile       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, scope])
+  @@index([customerId])
+  @@map("sensitive_consents")
+}
+
+model BookingHealthRecord {
+  id             String             @id @default(uuid())
+  bookingId      String             @map("booking_id")
+  customerId     String             @map("customer_id")
+  consentId      String             @map("consent_id")
+  field          SensitiveDataField
+  /// free-form JSON payload — never returned verbatim to non-privileged callers
+  payload        Json
+  createdAt      DateTime           @default(now()) @map("created_at")
+  /// who last read this record (last access log row)
+  lastAccessedAt DateTime?          @map("last_accessed_at")
+  lastAccessedBy String?            @map("last_accessed_by")
+  booking        Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  consent        SensitiveConsent   @relation(fields: [consentId], references: [id])
+  customer       CustomerProfile    @relation(fields: [customerId], references: [id])
+
+  @@unique([bookingId, field])
+  @@index([customerId])
+  @@index([consentId])
+  @@map("booking_health_records")
+}
+
+model HealthRecordAccessLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  recordId   String?  @map("record_id")
+  bookingId  String?  @map("booking_id")
+  customerId String?  @map("customer_id")
+  businessId String?  @map("business_id")
+  branchId   String?  @map("branch_id")
+  consentId  String?  @map("consent_id")
+  purpose    String
+  action     String
+  result     String
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([recordId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([businessId, branchId, createdAt])
+  @@map("health_record_access_logs")
+}
+
+model ConsultationFormTemplate {
+  id           String                           @id @default(uuid())
+  businessId   String                           @map("business_id")
+  branchId     String?                          @map("branch_id")
+  name         String
+  description  String?
+  status       ConsultationTemplateStatus       @default(DRAFT)
+  createdBy    String                           @map("created_by")
+  createdAt    DateTime                         @default(now()) @map("created_at")
+  updatedAt    DateTime                         @updatedAt @map("updated_at")
+  versions     ConsultationFormVersion[]
+  requirements ServiceConsultationRequirement[]
+  business     Business                         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch       Branch?                          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status])
+  @@index([branchId, status])
+  @@map("consultation_form_templates")
+}
+
+model ConsultationFormVersion {
+  id                   String                   @id @default(uuid())
+  templateId           String                   @map("template_id")
+  version              Int
+  noticeVersion        String                   @map("notice_version")
+  noticeHash           String                   @map("notice_hash")
+  noticeContent        String                   @map("notice_content")
+  purpose              String
+  recipientDescription String                   @map("recipient_description")
+  retentionDays        Int                      @default(365) @map("retention_days")
+  publishedAt          DateTime?                @map("published_at")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  template             ConsultationFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  fields               ConsultationFormField[]
+  submissions          ConsultationSubmission[]
+
+  @@unique([templateId, version])
+  @@index([templateId, publishedAt])
+  @@map("consultation_form_versions")
+}
+
+model ConsultationFormField {
+  id            String                  @id @default(uuid())
+  versionId     String                  @map("version_id")
+  fieldKey      String                  @map("field_key")
+  label         String
+  description   String?
+  fieldType     ConsultationFieldType   @map("field_type")
+  dataCategory  SensitiveDataField?     @map("data_category")
+  required      Boolean                 @default(false)
+  options       Json?
+  sortOrder     Int                     @default(0) @map("sort_order")
+  maxLength     Int?                    @map("max_length")
+  version       ConsultationFormVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  answers       SensitiveAnswer[]
+  consentEvents ConsentEvent[]
+
+  @@unique([versionId, fieldKey])
+  @@index([versionId, sortOrder])
+  @@map("consultation_form_fields")
+}
+
+model ServiceConsultationRequirement {
+  id         String                       @id @default(uuid())
+  serviceId  String                       @unique @map("service_id")
+  templateId String                       @map("template_id")
+  required   Boolean                      @default(true)
+  timing     ConsultationCompletionTiming @default(BEFORE_APPOINTMENT)
+  createdAt  DateTime                     @default(now()) @map("created_at")
+  updatedAt  DateTime                     @updatedAt @map("updated_at")
+  template   ConsultationFormTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  service    BranchServiceOffering        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("service_consultation_requirements")
+}
+
+model ConsultationSubmission {
+  id              String                       @id @default(uuid())
+  customerId      String                       @map("customer_id")
+  businessId      String                       @map("business_id")
+  branchId        String                       @map("branch_id")
+  bookingId       String                       @map("booking_id")
+  serviceId       String                       @map("service_id")
+  versionId       String                       @map("version_id")
+  status          ConsultationSubmissionStatus @default(DRAFT)
+  requiresReview  Boolean                      @default(false) @map("requires_review")
+  submittedAt     DateTime?                    @map("submitted_at")
+  retentionUntil  DateTime                     @map("retention_until")
+  legalHoldReason String?                      @map("legal_hold_reason")
+  createdAt       DateTime                     @default(now()) @map("created_at")
+  updatedAt       DateTime                     @updatedAt @map("updated_at")
+  version         ConsultationFormVersion      @relation(fields: [versionId], references: [id])
+  answers         SensitiveAnswer[]
+  consentEvents   ConsentEvent[]
+  accessEvents    SensitiveDataAccessEvent[]
+  customer        CustomerProfile              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business        Business                     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch          Branch                       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking         Booking                      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  service         BranchServiceOffering        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, serviceId])
+  @@index([customerId, createdAt])
+  @@index([businessId, branchId, status])
+  @@index([retentionUntil, legalHoldReason])
+  @@map("consultation_submissions")
+}
+
+model SensitiveAnswer {
+  id                String                     @id @default(uuid())
+  submissionId      String                     @map("submission_id")
+  fieldId           String                     @map("field_id")
+  dataCategory      SensitiveDataField?        @map("data_category")
+  valueType         SensitiveAnswerValueType   @map("value_type")
+  valueCiphertext   String                     @map("value_ciphertext")
+  encryptionIv      String                     @map("encryption_iv")
+  authenticationTag String                     @map("authentication_tag")
+  keyVersion        String                     @map("key_version")
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  submission        ConsultationSubmission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field             ConsultationFormField      @relation(fields: [fieldId], references: [id])
+  accessEvents      SensitiveDataAccessEvent[]
+
+  @@unique([submissionId, fieldId])
+  @@index([dataCategory])
+  @@map("sensitive_answers")
+}
+
+model ConsentEvent {
+  id              String                 @id @default(uuid())
+  customerId      String                 @map("customer_id")
+  businessId      String                 @map("business_id")
+  branchId        String                 @map("branch_id")
+  bookingId       String                 @map("booking_id")
+  serviceId       String                 @map("service_id")
+  submissionId    String                 @map("submission_id")
+  fieldId         String?                @map("field_id")
+  dataCategory    SensitiveDataField?    @map("data_category")
+  action          ConsentEventAction
+  purpose         String
+  recipientType   ConsentRecipientType   @map("recipient_type")
+  recipientId     String?                @map("recipient_id")
+  assignedStaffId String?                @map("assigned_staff_id")
+  noticeVersion   String                 @map("notice_version")
+  noticeHash      String                 @map("notice_hash")
+  expiresAt       DateTime               @map("expires_at")
+  revokeOfEventId String?                @unique @map("revoke_of_event_id")
+  ipAddress       String?                @map("ip_address")
+  userAgent       String?                @map("user_agent")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  submission      ConsultationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  field           ConsultationFormField? @relation(fields: [fieldId], references: [id])
+  revokeOf        ConsentEvent?          @relation("ConsentEventRevocation", fields: [revokeOfEventId], references: [id], onDelete: SetNull)
+  revokedBy       ConsentEvent?          @relation("ConsentEventRevocation")
+  customer        CustomerProfile        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business        Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch          Branch                 @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking         Booking                @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  service         BranchServiceOffering  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@index([bookingId, serviceId, createdAt])
+  @@index([businessId, branchId, createdAt])
+  @@index([submissionId, action])
+  @@map("consent_events")
+}
+
+model SensitiveDataAccessEvent {
+  id                String                    @id @default(uuid())
+  submissionId      String                    @map("submission_id")
+  answerId          String?                   @map("answer_id")
+  actorId           String                    @map("actor_id")
+  actorRole         String                    @map("actor_role")
+  businessId        String                    @map("business_id")
+  branchId          String                    @map("branch_id")
+  bookingId         String                    @map("booking_id")
+  purpose           String
+  result            SensitiveAccessResult
+  breakGlassGrantId String?                   @map("break_glass_grant_id")
+  ipAddress         String?                   @map("ip_address")
+  userAgent         String?                   @map("user_agent")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  submission        ConsultationSubmission    @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  answer            SensitiveAnswer?          @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  business          Business                  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch            Branch                    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking           Booking                   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  breakGlassGrant   SensitiveBreakGlassGrant? @relation(fields: [breakGlassGrantId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([businessId, branchId, createdAt])
+  @@map("sensitive_data_access_events")
+}
+
+model SensitiveBreakGlassGrant {
+  id           String                     @id @default(uuid())
+  actorId      String                     @map("actor_id")
+  businessId   String                     @map("business_id")
+  branchId     String                     @map("branch_id")
+  bookingId    String                     @map("booking_id")
+  reason       String
+  explanation  String
+  grantedBy    String?                    @map("granted_by")
+  expiresAt    DateTime                   @map("expires_at")
+  revokedAt    DateTime?                  @map("revoked_at")
+  createdAt    DateTime                   @default(now()) @map("created_at")
+  business     Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch       Branch                     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking      Booking                    @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  accessEvents SensitiveDataAccessEvent[]
+
+  @@index([actorId, bookingId, expiresAt])
+  @@index([businessId, branchId, createdAt])
+  @@map("sensitive_break_glass_grants")
+}
+
+model DataSubjectRequest {
+  id                 String                   @id @default(uuid())
+  customerId         String                   @map("customer_id")
+  type               DataSubjectRequestType
+  status             DataSubjectRequestStatus @default(RECEIVED)
+  reason             String?
+  identityVerifiedAt DateTime?                @map("identity_verified_at")
+  legalHoldReason    String?                  @map("legal_hold_reason")
+  resolution         String?
+  deadlineAt         DateTime                 @map("deadline_at")
+  completedAt        DateTime?                @map("completed_at")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  customer           CustomerProfile          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  exportPackage      PrivacyExportPackage?
+
+  @@index([customerId, createdAt])
+  @@index([status, deadlineAt])
+  @@map("data_subject_requests")
+}
+
+model MarketingPreference {
+  id                     String          @id @default(uuid())
+  customerId             String          @unique @map("customer_id")
+  emailMarketing         Boolean         @default(false) @map("email_marketing")
+  smsMarketing           Boolean         @default(false) @map("sms_marketing")
+  pushMarketing          Boolean         @default(false) @map("push_marketing")
+  personalizedPromotions Boolean         @default(false) @map("personalized_promotions")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  customer               CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("marketing_preferences")
+}
+
+model PrivacyExportPackage {
+  id                String             @id @default(uuid())
+  customerId        String             @map("customer_id")
+  requestId         String             @unique @map("request_id")
+  downloadTokenHash String             @unique @map("download_token_hash")
+  payloadCiphertext String             @map("payload_ciphertext")
+  encryptionIv      String             @map("encryption_iv")
+  authenticationTag String             @map("authentication_tag")
+  keyVersion        String             @map("key_version")
+  expiresAt         DateTime           @map("expires_at")
+  downloadedAt      DateTime?          @map("downloaded_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  customer          CustomerProfile    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  request           DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@index([expiresAt])
+  @@map("privacy_export_packages")
+}
+
+enum RoleLevel {
+  PLATFORM
+  TENANT
+  BRANCH
+  CUSTOMER
+}
+
+enum AccountTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum AuthWorkspace {
+  CUSTOMER
+  SALON
+  PLATFORM
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum TenantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum PermissionScope {
+  PLATFORM
+  TENANT
+  BRANCH
+  SELF
+  PUBLIC
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum BookingLifecycleStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum RoleCode {
+  PLATFORM_ADMIN
+  BUSINESS_OWNER
+  BRANCH_MANAGER
+  RECEPTIONIST
+  STAFF
+  CUSTOMER
+  GUEST
+}
+
+enum CanonicalServiceStatus {
+  ACTIVE
+  DEPRECATED
+  MERGED
+}
+
+enum ServiceMappingStatus {
+  MAPPED
+  UNMAPPED
+  SUGGESTED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+enum BusinessStatus {
+  DRAFT
+  PENDING
+  PENDING_REVIEW
+  NEED_MORE_INFO
+  APPROVED
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum BranchStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum BranchReviewStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  NEED_MORE_INFO
+  APPROVED
+  REJECTED
+}
+
+enum BranchOperationalStatus {
+  INACTIVE
+  READY_TO_PUBLISH
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  CLOSED
+  ARCHIVED
+}
+
+enum BranchServiceMode {
+  AT_LOCATION
+  MOBILE
+  BOTH
+}
+
+enum BranchDocumentType {
+  OPERATING_LICENSE
+  LOCATION_DOCUMENT
+  SERVICE_LICENSE
+  FIRE_SAFETY
+  OTHER
+}
+
+enum BranchDocumentStatus {
+  DRAFT
+  SUBMITTED
+  NEED_MORE_INFO
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum StaffAssignmentStatus {
+  ACTIVE
+  INACTIVE
+  ENDED
+}
+
+enum StaffScheduleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ScheduleSegmentType {
+  SHIFT
+  BREAK
+}
+
+enum StaffAvailabilityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffScheduleChangeType {
+  RECURRING_SCHEDULE
+  SINGLE_DAY
+  LEAVE
+}
+
+enum StaffScheduleRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum StaffStatus {
+  PROFILE_ONLY
+  INVITED
+  ACTIVE
+  LOCKED
+  INACTIVE
+  ON_LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ComboStatus {
+  ACTIVE
+  INACTIVE
+  PAUSED
+  EXPIRED
+}
+
+enum ComboPricingMode {
+  FIXED_PRICE
+}
+
+enum ComboStaffAssignmentMode {
+  SINGLE_PROVIDER
+  PER_SERVICE_PROVIDER
+}
+
+enum BookingServiceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  SKIPPED
+}
+
+enum BusinessDocumentType {
+  BUSINESS_LICENSE
+  OWNER_ID_CARD
+  TAX_DOCUMENT
+  OTHER
+}
+
+enum BusinessDocumentStatus {
+  DRAFT
+  SUBMITTED
+  NEED_MORE_INFO
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum DocumentReviewAction {
+  SUBMIT
+  APPROVE
+  REQUEST_INFO
+  REJECT
+  ARCHIVE
+}
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PromotionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  REJECTED
+  EXPIRED
+}
+
+enum BookingConfirmationMode {
+  MANUAL_CONFIRMATION
+  AUTO_CONFIRMATION
+}
+
+enum StaffAssignmentMode {
+  CUSTOMER_SELECTS_STAFF
+  AUTO_ASSIGN_IF_ANY_STAFF
+  MANUAL_ASSIGN_BY_RECEPTIONIST
+}
+
+enum BookingSource {
+  ONLINE_WEB
+  ONLINE_APP
+  WALK_IN
+  PHONE
+  STAFF_CREATED
+  ADMIN_CREATED
+}
+
+enum RecurrenceFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum RecurringPlanStatus {
+  CREATING
+  ACTIVE
+  PAUSED
+  FAILED
+  CANCELLED
+  COMPLETED
+}
+
+enum RecurringStaffMode {
+  SAME_STAFF
+  ANY_AVAILABLE
+}
+
+enum PaymentMethod {
+  CASH
+  MOCK_ONLINE
+  BANK_TRANSFER
+  MOMO
+  VNPAY
+  ZALOPAY
+  CREDIT_CARD
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSING
+  REFUNDED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PolicyVersionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum DepositType {
+  NONE
+  FIXED
+  PERCENTAGE
+  FULL_PREPAYMENT
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  PENDING
+  REQUIRES_ACTION
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  REVERSED
+}
+
+enum FinancialLedgerType {
+  SERVICE_CHARGE
+  PACKAGE_CHARGE
+  PROMOTION
+  VOUCHER
+  PAYMENT_RECEIVED
+  REFUND
+  REVERSAL
+  ADJUSTMENT
+  PLATFORM_FEE
+  PLATFORM_FEE_ADJUSTMENT
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PlatformFeeStatus {
+  ACCRUED
+  STATEMENTED
+  ADJUSTED
+}
+
+enum PlatformStatementStatus {
+  DRAFT
+  REVIEW
+  ISSUED
+  PAID
+  OVERDUE
+}
+
+enum StatementLineType {
+  FEE
+  ADJUSTMENT
+}
+
+enum TreatmentPackageStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum PackagePurchaseStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum PackageInstallmentStatus {
+  DUE
+  PENDING
+  PAID
+  FAILED
+  WAIVED
+}
+
+enum PackageEntitlementStatus {
+  AVAILABLE
+  RESERVED
+  REDEEMED
+  RELEASED
+  EXPIRED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REPORTED
+  HIDDEN
+}
+
+enum CommentStatus {
+  VISIBLE
+  HIDDEN
+  DELETED
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+  PROMOTION
+  SYSTEM
+  PAYMENT
+  BOOKING_RESCHEDULE_REQUEST
+  BOOKING_RESCHEDULE_APPROVED
+  BOOKING_RESCHEDULE_REJECTED
+  BOOKING_PAYMENT_RECEIVED
+  BOOKING_COMPLETED
+  REVIEW_REMINDER
+  SALON_VIOLATION_ALERT
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  CRITICAL
+}
+
+enum VoucherAudience {
+  ALL
+  NEW_CUSTOMER
+  RETURNING_CUSTOMER
+  BIRTHDAY
+  VIP
+  SELECTED
+}
+
+enum AuditAction {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  STATUS_CHANGE
+  CANCEL
+  FORCE_CANCEL
+  REFUND
+  ESCALATION
+  POLICY_OVERRIDE
+}
+
+enum TrustActionType {
+  WARNING_SENT
+  EXPLANATION_REQUESTED
+  MONITORING_STARTED
+  BOOKING_RESTRICTED
+  SUSPENDED
+  RESTORED
+  NOTE_ADDED
+}
+
+enum AttendanceMethod {
+  QR
+  MANUAL_EXCEPTION
+  MANUAL_ADJUSTMENT
+}
+
+enum AttendanceStatus {
+  NOT_CHECKED_IN
+  CHECKED_IN
+  CHECKED_OUT
+  LATE
+  LEFT_EARLY
+  ABSENT
+  MISSING_CHECKOUT
+  MANUALLY_ADJUSTED
+}
+
+enum AttendanceExceptionType {
+  CHECK_IN
+  CHECK_OUT
+  ADJUST_TIME
+}
+
+enum AttendanceExceptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceQrPurpose {
+  CHECK_IN
+  CHECK_OUT
+  BOTH
+}
+
+enum AttendanceQrUseAction {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum AttendanceEventType {
+  CHECK_IN
+  BREAK_START
+  BREAK_END
+  CHECK_OUT
+  ADJUSTMENT_REQUESTED
+  ADJUSTMENT_APPROVED
+  ADJUSTMENT_REJECTED
+  MANUAL_ADJUSTMENT
+  MARKED_ABSENT
+  ABSENCE_RESTORED
+}
+
+enum TimesheetStatus {
+  RAW
+  SUBMITTED
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+enum TimesheetAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CompensationRuleType {
+  HOURLY_WAGE
+  FIXED_COMPONENT
+  SERVICE_COMMISSION
+  PRODUCT_COMMISSION
+  BONUS
+  ALLOWANCE
+  DEDUCTION
+}
+
+enum CommissionCalculationBasis {
+  APPROVED_PAID_TIME
+  SERVICE_AMOUNT
+  AFTER_DISCOUNT
+  AFTER_VOUCHER
+  AFTER_REFUND
+  FIXED
+}
+
+enum CompensationEntryType {
+  HOURLY_WAGE
+  FIXED_COMPONENT
+  SERVICE_COMMISSION
+  PRODUCT_COMMISSION
+  BONUS
+  ALLOWANCE
+  ADJUSTMENT
+  DEDUCTION
+}
+
+enum CompensationEntryStatus {
+  EARNED
+  INCLUDED_IN_PAY_RUN
+  LOCKED
+  REVERSED
+}
+
+enum PayRunStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  LOCKED
+  EXPORTED
+  MARKED_PAID
+}
+
+enum SalonMemberRole {
+  OWNER
+  MANAGER
+  RECEPTIONIST
+}
+
+enum CancelledByType {
+  CUSTOMER
+  SALON
+  ADMIN
+  SYSTEM
+}
+
+enum ChangeRequestType {
+  RESCHEDULE
+  STAFF_CHANGE
+  CANCEL
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum VoucherStatus {
+  ACTIVE
+  RESERVED
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum VoucherScope {
+  PLATFORM
+  TENANT
+  CUSTOMER
+  COMPENSATION
+  CAMPAIGN
+}
+
+enum ConsentScope {
+  SKIN_CONDITION
+  ALLERGY
+  MEDICATION
+  PREGNANCY
+  GENERAL_HEALTH
+}
+
+enum ConsultationTemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ConsultationFieldType {
+  TEXT
+  TEXTAREA
+  BOOLEAN
+  SINGLE_SELECT
+  MULTI_SELECT
+  DATE
+}
+
+enum ConsultationCompletionTiming {
+  BEFORE_APPOINTMENT
+  AT_CHECK_IN
+  BEFORE_SERVICE
+}
+
+enum ConsultationSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  REVOKED
+}
+
+enum SensitiveAnswerValueType {
+  TEXT
+  BOOLEAN
+  STRING_LIST
+  DATE
+}
+
+enum ConsentEventAction {
+  GRANTED
+  REVOKED
+}
+
+enum ConsentRecipientType {
+  ASSIGNED_STAFF
+  BRANCH_SPECIALIST
+}
+
+enum SensitiveAccessResult {
+  GRANTED
+  DENIED
+  REDACTED
+}
+
+enum DataSubjectRequestType {
+  EXPORT
+  RECTIFICATION
+  ERASURE
+  RESTRICT_PROCESSING
+  OBJECT_PROCESSING
+  DELETE_ACCOUNT
+}
+
+enum DataSubjectRequestStatus {
+  RECEIVED
+  IDENTITY_VERIFICATION
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum SensitiveDataField {
+  SKIN_CONDITION
+  ALLERGY
+  MEDICATION
+  PREGNANCY
+  GENERAL_HEALTH
+  OTHER
+}
