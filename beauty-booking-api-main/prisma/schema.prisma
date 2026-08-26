@@ -33,6 +33,7 @@ model User {
   deviceTokens             DeviceToken[]
   uploadedMedia            MediaFile[]                  @relation("MediaUploader")
   notifications            Notification[]
+  notificationOutboxes     NotificationOutbox[]
   salonMemberships         SalonMember[]
   staffProfile             StaffProfile?
   userRolesGranted         UserRole[]                   @relation("UserRoleGrantor")
@@ -224,17 +225,17 @@ model UserRole {
 }
 
 model CustomerProfile {
-  id                      String                   @id @default(uuid())
-  userId                  String                   @unique @map("user_id")
+  id                      String                      @id @default(uuid())
+  userId                  String                      @unique @map("user_id")
   address                 String?
   note                    String?
-  createdAt               DateTime                 @default(now()) @map("created_at")
-  updatedAt               DateTime                 @updatedAt @map("updated_at")
-  deletedAt               DateTime?                @map("deleted_at")
+  createdAt               DateTime                    @default(now()) @map("created_at")
+  updatedAt               DateTime                    @updatedAt @map("updated_at")
+  deletedAt               DateTime?                   @map("deleted_at")
   healthRecords           BookingHealthRecord[]
   bookings                Booking[]
   comments                BusinessComment[]
-  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                    User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   customerVouchers        CustomerVoucher[]
   recurringPlans          RecurringBookingPlan[]
   reviews                 Review[]
@@ -245,6 +246,8 @@ model CustomerProfile {
   marketingPreference     MarketingPreference?
   privacyExportPackages   PrivacyExportPackage[]
   packagePurchases        PackagePurchase[]
+  savedServices           CustomerSavedService[]
+  invoiceRequests         InvoiceInformationRequest[]
 
   @@map("customer_profiles")
 }
@@ -435,6 +438,8 @@ model Business {
   platformStatements        PlatformStatement[]
   treatmentPackages         TreatmentPackage[]
   packagePurchases          PackagePurchase[]
+  invoiceRequests           InvoiceInformationRequest[]
+  voucherScopes             VoucherBranchScope[]
 
   @@index([ownerId])
   @@index([status])
@@ -528,6 +533,8 @@ model Branch {
   platformFeeAdjustments    PlatformFeeAdjustment[]
   treatmentPackages         TreatmentPackage[]
   packagePurchases          PackagePurchase[]
+  invoiceRequests           InvoiceInformationRequest[]
+  voucherBranchScopes       VoucherBranchScope[]
 
   @@index([businessId])
   @@index([districtId])
@@ -578,6 +585,8 @@ model BranchBookingPolicy {
   allowWalkIn          Boolean   @default(true) @map("allow_walk_in")
   allowCounterBooking  Boolean   @default(true) @map("allow_counter_booking")
   defaultBufferMinutes Int       @default(0) @map("default_buffer_minutes")
+  overbookingEnabled   Boolean   @default(false) @map("overbooking_enabled")
+  maxOverbookedSlots   Int       @default(0) @map("max_overbooked_slots")
   depositPolicy        Json?     @map("deposit_policy")
   confirmedAt          DateTime? @map("confirmed_at")
   createdAt            DateTime  @default(now()) @map("created_at")
@@ -585,6 +594,22 @@ model BranchBookingPolicy {
   branch               Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@map("branch_booking_policies")
+}
+
+model OverbookingOverride {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique @map("booking_id")
+  branchId    String   @map("branch_id")
+  actorId     String   @map("actor_id")
+  reason      String
+  policyLimit Int      @map("policy_limit")
+  startAt     DateTime @map("start_at")
+  endAt       DateTime @map("end_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([branchId, startAt, endAt])
+  @@map("overbooking_overrides")
 }
 
 model BranchAttendancePolicy {
@@ -968,6 +993,8 @@ model BranchServiceOffering {
   consultationSubmissions   ConsultationSubmission[]
   consultationConsentEvents ConsentEvent[]
   paymentPolicies           PaymentPolicy[]
+  savedByCustomers          CustomerSavedService[]
+  voucherScopes             VoucherServiceScope[]
 
   @@unique([branchId, businessServiceId])
   @@index([branchId])
@@ -1016,6 +1043,7 @@ model Combo {
   branch              Branch                   @relation(fields: [branchId], references: [id])
   promotionLinks      PromotionCombo[]
   recurringPlans      RecurringBookingPlan[]
+  voucherScopes       VoucherComboScope[]
 
   @@index([branchId])
   @@index([businessId, status])
@@ -1041,24 +1069,30 @@ model ComboService {
 }
 
 model Promotion {
-  id                String              @id @default(uuid())
-  name              String
-  description       String?
-  discountType      DiscountType        @map("discount_type")
-  discountValue     Decimal             @map("discount_value") @db.Decimal(12, 2)
-  startDate         DateTime            @map("start_date")
-  endDate           DateTime            @map("end_date")
-  status            PromotionStatus     @default(ACTIVE)
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
-  deletedAt         DateTime?           @map("deleted_at")
-  businessId        String?             @map("business_id")
-  createdByPlatform Boolean             @default(false) @map("created_by_platform")
-  branchLinks       PromotionBranch[]
-  businessLinks     PromotionBusiness[]
-  comboLinks        PromotionCombo[]
-  serviceLinks      PromotionService[]
-  businessOwner     Business?           @relation("PromotionOwner", fields: [businessId], references: [id], onDelete: Cascade)
+  id                  String              @id @default(uuid())
+  name                String
+  description         String?
+  discountType        DiscountType        @map("discount_type")
+  discountValue       Decimal             @map("discount_value") @db.Decimal(12, 2)
+  startDate           DateTime            @map("start_date")
+  endDate             DateTime            @map("end_date")
+  status              PromotionStatus     @default(ACTIVE)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+  deletedAt           DateTime?           @map("deleted_at")
+  businessId          String?             @map("business_id")
+  createdByPlatform   Boolean             @default(false) @map("created_by_platform")
+  audience            VoucherAudience     @default(ALL)
+  totalQuantity       Int?                @map("total_quantity")
+  maxUsagePerCustomer Int                 @default(1) @map("max_usage_per_customer")
+  autoApply           Boolean             @default(true) @map("auto_apply")
+  stackingAllowed     Boolean             @default(false) @map("stacking_allowed")
+  version             Int                 @default(1)
+  branchLinks         PromotionBranch[]
+  businessLinks       PromotionBusiness[]
+  comboLinks          PromotionCombo[]
+  serviceLinks        PromotionService[]
+  businessOwner       Business?           @relation("PromotionOwner", fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([startDate, endDate])
@@ -1146,6 +1180,7 @@ model Booking {
   recurringPlan             RecurringBookingPlan?       @relation(fields: [recurringPlanId], references: [id])
   voucher                   Voucher?                    @relation(fields: [voucherId], references: [id])
   notifications             Notification[]
+  notificationOutboxes      NotificationOutbox[]
   payments                  Payment[]
   review                    Review?
   contact                   BookingContact?
@@ -1160,6 +1195,8 @@ model Booking {
   financialLedgerEntries    FinancialLedgerEntry[]
   platformFeeEntry          PlatformFeeEntry?
   packageEntitlements       PackageSessionEntitlement[]
+  overbookingOverride       OverbookingOverride?
+  invoiceRequests           InvoiceInformationRequest[]
 
   @@index([customerId])
   @@index([branchId])
@@ -1177,6 +1214,7 @@ model BookingService {
   canonicalServiceId  String?                    @map("canonical_service_id")
   comboId             String?                    @map("combo_id")
   staffId             String?                    @map("staff_id")
+  variantId           String?                    @map("variant_id")
   priceAtBooking      Decimal                    @map("price_at_booking") @db.Decimal(12, 2)
   durationMinutes     Int                        @map("duration_minutes")
   serviceNameSnapshot String                     @map("service_name_snapshot")
@@ -1186,7 +1224,10 @@ model BookingService {
   itemEndAt           DateTime?                  @map("item_end_at")
   transitionMinutes   Int                        @default(0) @map("transition_minutes")
   comboVersion        Int?                       @map("combo_version")
+  revision            Int                        @default(1)
+  skippedReason       String?                    @map("skipped_reason")
   createdAt           DateTime                   @default(now()) @map("created_at")
+  updatedAt           DateTime                   @updatedAt @map("updated_at")
   booking             Booking                    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   combo               Combo?                     @relation(fields: [comboId], references: [id])
   service             BranchServiceOffering      @relation(fields: [serviceId], references: [id])
@@ -1745,10 +1786,44 @@ model Notification {
   createdAt        DateTime             @default(now()) @map("created_at")
   relatedBooking   Booking?             @relation(fields: [relatedBookingId], references: [id])
   user             User                 @relation(fields: [userId], references: [id])
+  outbox           NotificationOutbox?
 
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+}
+
+/// Transactional hand-off between a committed business operation and the
+/// in-app notification projection. The unique dedupe key makes worker retries
+/// safe and keeps critical impact notifications from being lost or duplicated.
+model NotificationOutbox {
+  id               String                   @id @default(uuid())
+  userId           String                   @map("user_id")
+  type             NotificationType
+  severity         NotificationSeverity     @default(INFO)
+  title            String
+  body             String?
+  targetType       String?                  @map("target_type")
+  targetId         String?                  @map("target_id")
+  actionUrl        String?                  @map("action_url")
+  metadata         Json?
+  relatedBookingId String?                  @map("related_booking_id")
+  dedupeKey        String                   @unique @map("dedupe_key")
+  status           NotificationOutboxStatus @default(PENDING)
+  attempts         Int                      @default(0)
+  availableAt      DateTime                 @default(now()) @map("available_at")
+  lastError        String?                  @map("last_error")
+  sentAt           DateTime?                @map("sent_at")
+  notificationId   String?                  @unique @map("notification_id")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  relatedBooking   Booking?                 @relation(fields: [relatedBookingId], references: [id], onDelete: Restrict)
+  notification     Notification?            @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt])
+  @@index([userId, createdAt])
+  @@map("notification_outbox")
 }
 
 model AuditLog {
@@ -1806,31 +1881,35 @@ model CancellationPolicy {
 }
 
 model Voucher {
-  id                  String            @id @default(uuid())
-  code                String            @unique
+  id                  String                @id @default(uuid())
+  code                String                @unique
   name                String
   description         String?
-  discountType        DiscountType      @map("discount_type")
-  discountValue       Decimal           @map("discount_value") @db.Decimal(12, 2)
-  minOrderValue       Decimal           @default(0) @map("min_order_value") @db.Decimal(12, 2)
-  maxDiscount         Decimal?          @map("max_discount") @db.Decimal(12, 2)
-  totalQuantity       Int               @default(0) @map("total_quantity")
-  usedQuantity        Int               @default(0) @map("used_quantity")
-  startDate           DateTime          @map("start_date")
-  endDate             DateTime          @map("end_date")
-  status              VoucherStatus     @default(ACTIVE)
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @updatedAt @map("updated_at")
-  deletedAt           DateTime?         @map("deleted_at")
-  businessId          String?           @map("business_id")
-  scope               VoucherScope      @default(TENANT)
-  createdByPlatform   Boolean           @default(false) @map("created_by_platform")
-  audience            VoucherAudience   @default(ALL)
-  maxUsagePerCustomer Int               @default(1) @map("max_usage_per_customer")
-  autoIssue           Boolean           @default(false) @map("auto_issue")
+  discountType        DiscountType          @map("discount_type")
+  discountValue       Decimal               @map("discount_value") @db.Decimal(12, 2)
+  minOrderValue       Decimal               @default(0) @map("min_order_value") @db.Decimal(12, 2)
+  maxDiscount         Decimal?              @map("max_discount") @db.Decimal(12, 2)
+  totalQuantity       Int                   @default(0) @map("total_quantity")
+  usedQuantity        Int                   @default(0) @map("used_quantity")
+  startDate           DateTime              @map("start_date")
+  endDate             DateTime              @map("end_date")
+  status              VoucherStatus         @default(ACTIVE)
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  deletedAt           DateTime?             @map("deleted_at")
+  businessId          String?               @map("business_id")
+  scope               VoucherScope          @default(TENANT)
+  createdByPlatform   Boolean               @default(false) @map("created_by_platform")
+  audience            VoucherAudience       @default(ALL)
+  maxUsagePerCustomer Int                   @default(1) @map("max_usage_per_customer")
+  autoIssue           Boolean               @default(false) @map("auto_issue")
+  version             Int                   @default(1)
   bookings            Booking[]
   customerVouchers    CustomerVoucher[]
-  business            Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business            Business?             @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branchScopes        VoucherBranchScope[]
+  serviceScopes       VoucherServiceScope[]
+  comboScopes         VoucherComboScope[]
 
   @@index([status])
   @@index([startDate, endDate])
@@ -2746,6 +2825,615 @@ model DataSubjectRequest {
   @@map("data_subject_requests")
 }
 
+// ================================================================
+// Production business completion: pricing, operations and commerce
+// These records are append-only evidence or versioned configuration.
+// Parent foreign keys are enforced in the additive SQL migration.
+// ================================================================
+
+model BranchStateTransition {
+  id                    String   @id @default(uuid())
+  branchId              String   @map("branch_id")
+  actorId               String   @map("actor_id")
+  fromStatus            String   @map("from_status")
+  toStatus              String   @map("to_status")
+  fromReviewStatus      String   @map("from_review_status")
+  toReviewStatus        String   @map("to_review_status")
+  fromOperationalStatus String   @map("from_operational_status")
+  toOperationalStatus   String   @map("to_operational_status")
+  reason                String
+  version               Int
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@unique([branchId, version])
+  @@index([branchId, createdAt])
+  @@map("branch_state_transitions")
+}
+
+model PriceAdjustment {
+  id            String                @id @default(uuid())
+  bookingId     String?               @map("booking_id")
+  branchId      String                @map("branch_id")
+  customerId    String?               @map("customer_id")
+  type          PriceAdjustmentType
+  sourceId      String?               @map("source_id")
+  sourceVersion Int?                  @map("source_version")
+  label         String
+  amount        Decimal               @db.Decimal(12, 2)
+  allocation    Json?
+  ruleSnapshot  Json                  @map("rule_snapshot")
+  status        PriceAdjustmentStatus @default(RESERVED)
+  reservedAt    DateTime              @default(now()) @map("reserved_at")
+  appliedAt     DateTime?             @map("applied_at")
+  releasedAt    DateTime?             @map("released_at")
+  reversedAt    DateTime?             @map("reversed_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
+
+  @@index([bookingId, status])
+  @@index([branchId, createdAt])
+  @@index([sourceId, status])
+  @@map("price_adjustments")
+}
+
+model PromotionRedemption {
+  id           String           @id @default(uuid())
+  promotionId  String           @map("promotion_id")
+  bookingId    String           @map("booking_id")
+  customerId   String           @map("customer_id")
+  branchId     String           @map("branch_id")
+  amount       Decimal          @db.Decimal(12, 2)
+  status       RedemptionStatus @default(RESERVED)
+  ruleSnapshot Json             @map("rule_snapshot")
+  reservedAt   DateTime         @default(now()) @map("reserved_at")
+  appliedAt    DateTime?        @map("applied_at")
+  releasedAt   DateTime?        @map("released_at")
+  reversedAt   DateTime?        @map("reversed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@unique([promotionId, bookingId])
+  @@index([promotionId, status])
+  @@index([customerId, createdAt])
+  @@map("promotion_redemptions")
+}
+
+model VoucherRedemption {
+  id                String           @id @default(uuid())
+  voucherId         String           @map("voucher_id")
+  customerVoucherId String?          @map("customer_voucher_id")
+  customerId        String           @map("customer_id")
+  bookingId         String           @map("booking_id")
+  branchId          String           @map("branch_id")
+  amount            Decimal          @db.Decimal(12, 2)
+  status            RedemptionStatus @default(RESERVED)
+  ruleSnapshot      Json             @map("rule_snapshot")
+  reservedAt        DateTime         @default(now()) @map("reserved_at")
+  appliedAt         DateTime?        @map("applied_at")
+  releasedAt        DateTime?        @map("released_at")
+  reversedAt        DateTime?        @map("reversed_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  @@unique([voucherId, bookingId])
+  @@index([voucherId, customerId, status])
+  @@index([bookingId, status])
+  @@map("voucher_redemptions")
+}
+
+model ServiceVariant {
+  id                   String           @id @default(uuid())
+  serviceId            String           @map("service_id")
+  code                 String
+  name                 String
+  description          String?
+  priceType            ServicePriceType @default(FIXED) @map("price_type")
+  price                Decimal?         @db.Decimal(12, 2)
+  maxPrice             Decimal?         @map("max_price") @db.Decimal(12, 2)
+  durationMinutes      Int?             @map("duration_minutes")
+  maxDurationMinutes   Int?             @map("max_duration_minutes")
+  bufferBeforeMinutes  Int              @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes   Int              @default(0) @map("buffer_after_minutes")
+  consultationRequired Boolean          @default(false) @map("consultation_required")
+  eligibilityRules     Json?            @map("eligibility_rules")
+  status               ServiceStatus    @default(ACTIVE)
+  version              Int              @default(1)
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+  deletedAt            DateTime?        @map("deleted_at")
+
+  @@unique([serviceId, code])
+  @@index([serviceId, status, deletedAt])
+  @@map("service_variants")
+}
+
+model ServicePriceRule {
+  id              String       @id @default(uuid())
+  serviceId       String       @map("service_id")
+  variantId       String?      @map("variant_id")
+  name            String
+  priority        Int          @default(100)
+  adjustmentType  DiscountType @map("adjustment_type")
+  adjustmentValue Decimal      @map("adjustment_value") @db.Decimal(12, 2)
+  conditions      Json
+  active          Boolean      @default(true)
+  validFrom       DateTime?    @map("valid_from")
+  validTo         DateTime?    @map("valid_to")
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([serviceId, active, priority])
+  @@map("service_price_rules")
+}
+
+model ServiceDependency {
+  id                String                @id @default(uuid())
+  serviceId         String                @map("service_id")
+  requiredServiceId String                @map("required_service_id")
+  dependencyType    ServiceDependencyType @map("dependency_type")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  @@unique([serviceId, requiredServiceId, dependencyType])
+  @@map("service_dependencies")
+}
+
+model BookingServiceAdjustment {
+  id               String            @id @default(uuid())
+  bookingServiceId String            @map("booking_service_id")
+  bookingId        String            @map("booking_id")
+  actorId          String            @map("actor_id")
+  action           BookingItemAction
+  reason           String
+  beforeSnapshot   Json              @map("before_snapshot")
+  afterSnapshot    Json              @map("after_snapshot")
+  amountDelta      Decimal           @default(0) @map("amount_delta") @db.Decimal(12, 2)
+  version          Int
+  createdAt        DateTime          @default(now()) @map("created_at")
+
+  @@unique([bookingServiceId, version])
+  @@index([bookingId, createdAt])
+  @@map("booking_service_adjustments")
+}
+
+model OperationalImpactCase {
+  id          String            @id @default(uuid())
+  businessId  String            @map("business_id")
+  branchId    String?           @map("branch_id")
+  subjectType ImpactSubjectType @map("subject_type")
+  subjectId   String            @map("subject_id")
+  action      ImpactAction
+  status      ImpactCaseStatus  @default(OPEN)
+  reason      String
+  ownerId     String            @map("owner_id")
+  deadlineAt  DateTime          @map("deadline_at")
+  createdBy   String            @map("created_by")
+  completedAt DateTime?         @map("completed_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([businessId, status, deadlineAt])
+  @@index([subjectType, subjectId, status])
+  @@map("operational_impact_cases")
+}
+
+model OperationalImpactItem {
+  id                  String            @id @default(uuid())
+  caseId              String            @map("case_id")
+  bookingId           String            @map("booking_id")
+  resolution          ImpactResolution?
+  status              ImpactItemStatus  @default(PENDING)
+  replacementStaffId  String?           @map("replacement_staff_id")
+  replacementBranchId String?           @map("replacement_branch_id")
+  proposedStartAt     DateTime?         @map("proposed_start_at")
+  reason              String?
+  resolvedBy          String?           @map("resolved_by")
+  resolvedAt          DateTime?         @map("resolved_at")
+  financialSnapshot   Json?             @map("financial_snapshot")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  @@unique([caseId, bookingId])
+  @@index([caseId, status])
+  @@index([bookingId])
+  @@map("operational_impact_items")
+}
+
+model WaitlistEntry {
+  id             String         @id @default(uuid())
+  customerId     String         @map("customer_id")
+  businessId     String         @map("business_id")
+  branchId       String         @map("branch_id")
+  serviceId      String         @map("service_id")
+  staffId        String?        @map("staff_id")
+  windowStart    DateTime       @map("window_start")
+  windowEnd      DateTime       @map("window_end")
+  status         WaitlistStatus @default(WAITING)
+  offeredStartAt DateTime?      @map("offered_start_at")
+  offerExpiresAt DateTime?      @map("offer_expires_at")
+  offerTokenHash String?        @unique @map("offer_token_hash")
+  offerSlotKey   String?        @unique @map("offer_slot_key")
+  bookingId      String?        @unique @map("booking_id")
+  acceptedAt     DateTime?      @map("accepted_at")
+  cancelledAt    DateTime?      @map("cancelled_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([branchId, serviceId, status, createdAt])
+  @@index([customerId, status])
+  @@index([offerExpiresAt, status])
+  @@map("waitlist_entries")
+}
+
+model ReviewModerationEvent {
+  id             String                 @id @default(uuid())
+  reviewId       String                 @map("review_id")
+  actorId        String                 @map("actor_id")
+  action         ReviewModerationAction
+  fromStatus     ReviewStatus           @map("from_status")
+  toStatus       ReviewStatus           @map("to_status")
+  reasonCode     String                 @map("reason_code")
+  reason         String
+  reportCategory String?                @map("report_category")
+  severity       String?
+  createdAt      DateTime               @default(now()) @map("created_at")
+
+  @@index([reviewId, createdAt])
+  @@map("review_moderation_events")
+}
+
+model ReviewAppeal {
+  id          String             @id @default(uuid())
+  reviewId    String             @map("review_id")
+  appellantId String             @map("appellant_id")
+  reason      String
+  status      ReviewAppealStatus @default(PENDING)
+  reviewedBy  String?            @map("reviewed_by")
+  resolution  String?
+  reviewedAt  DateTime?          @map("reviewed_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  @@index([reviewId, status])
+  @@index([appellantId, createdAt])
+  @@map("review_appeals")
+}
+
+model LoyaltyRule {
+  id                      String    @id @default(uuid())
+  businessId              String    @map("business_id")
+  branchId                String?   @map("branch_id")
+  version                 Int
+  earnPointsPerAmount     Int       @map("earn_points_per_amount")
+  earnAmountUnit          Decimal   @map("earn_amount_unit") @db.Decimal(12, 2)
+  redemptionValuePerPoint Decimal   @map("redemption_value_per_point") @db.Decimal(12, 2)
+  expiresAfterDays        Int?      @map("expires_after_days")
+  active                  Boolean   @default(true)
+  validFrom               DateTime  @map("valid_from")
+  validTo                 DateTime? @map("valid_to")
+  createdBy               String    @map("created_by")
+  createdAt               DateTime  @default(now()) @map("created_at")
+
+  @@unique([businessId, branchId, version])
+  @@index([businessId, active, validFrom])
+  @@map("loyalty_rules")
+}
+
+model LoyaltyAccount {
+  id         String   @id @default(uuid())
+  businessId String   @map("business_id")
+  customerId String   @map("customer_id")
+  balance    Int      @default(0)
+  version    Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, customerId])
+  @@index([customerId, updatedAt])
+  @@map("loyalty_accounts")
+}
+
+model LoyaltyTransaction {
+  id              String                 @id @default(uuid())
+  accountId       String                 @map("account_id")
+  businessId      String                 @map("business_id")
+  customerId      String                 @map("customer_id")
+  bookingId       String?                @map("booking_id")
+  refundRequestId String?                @map("refund_request_id")
+  type            LoyaltyTransactionType
+  points          Int
+  balanceAfter    Int                    @map("balance_after")
+  idempotencyKey  String                 @unique @map("idempotency_key")
+  ruleSnapshot    Json?                  @map("rule_snapshot")
+  expiresAt       DateTime?              @map("expires_at")
+  reversalOfId    String?                @map("reversal_of_id")
+  reason          String?
+  createdBy       String?                @map("created_by")
+  createdAt       DateTime               @default(now()) @map("created_at")
+
+  @@index([accountId, createdAt])
+  @@index([businessId, customerId, createdAt])
+  @@index([expiresAt, type])
+  @@map("loyalty_transactions")
+}
+
+model Invoice {
+  id                 String                     @id @default(uuid())
+  businessId         String                     @map("business_id")
+  branchId           String                     @map("branch_id")
+  bookingId          String?                    @map("booking_id")
+  paymentId          String?                    @map("payment_id")
+  invoiceNumber      String                     @map("invoice_number")
+  status             InvoiceStatus              @default(DRAFT)
+  currency           String                     @default("VND")
+  subtotalAmount     Decimal                    @map("subtotal_amount") @db.Decimal(12, 2)
+  discountAmount     Decimal                    @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount          Decimal                    @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount        Decimal                    @map("total_amount") @db.Decimal(12, 2)
+  taxInclusive       Boolean                    @default(true) @map("tax_inclusive")
+  taxRate            Decimal                    @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  buyerSnapshot      Json?                      @map("buyer_snapshot")
+  sellerSnapshot     Json                       @map("seller_snapshot")
+  version            Int                        @default(1)
+  replacesInvoiceId  String?                    @unique @map("replaces_invoice_id")
+  issuedAt           DateTime?                  @map("issued_at")
+  cancelledAt        DateTime?                  @map("cancelled_at")
+  createdBy          String                     @map("created_by")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+  replacesInvoice    Invoice?                   @relation("InvoiceReplacement", fields: [replacesInvoiceId], references: [id], onDelete: Restrict)
+  replacement        Invoice?                   @relation("InvoiceReplacement")
+  informationRequest InvoiceInformationRequest?
+
+  @@unique([businessId, invoiceNumber])
+  @@index([branchId, status, createdAt])
+  @@index([bookingId])
+  @@map("invoices")
+}
+
+model InvoiceInformationRequest {
+  id             String               @id @default(uuid())
+  bookingId      String               @map("booking_id")
+  customerId     String               @map("customer_id")
+  businessId     String               @map("business_id")
+  branchId       String               @map("branch_id")
+  invoiceId      String?              @unique @map("invoice_id")
+  status         InvoiceRequestStatus @default(PENDING)
+  buyerSnapshot  Json                 @map("buyer_snapshot")
+  customerNote   String?              @map("customer_note")
+  resolutionNote String?              @map("resolution_note")
+  resolvedBy     String?              @map("resolved_by")
+  resolvedAt     DateTime?            @map("resolved_at")
+  openKey        String?              @unique @map("open_key")
+  idempotencyKey String               @unique @map("idempotency_key")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  booking        Booking              @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  customer       CustomerProfile      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business       Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch         Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  invoice        Invoice?             @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, createdAt])
+  @@index([businessId, status, createdAt])
+  @@index([branchId, status, createdAt])
+  @@map("invoice_information_requests")
+}
+
+model InvoiceLine {
+  id               String   @id @default(uuid())
+  invoiceId        String   @map("invoice_id")
+  bookingServiceId String?  @map("booking_service_id")
+  description      String
+  quantity         Int      @default(1)
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(12, 2)
+  discountAmount   Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  taxRate          Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount        Decimal  @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  lineTotal        Decimal  @map("line_total") @db.Decimal(12, 2)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+model InvoiceEvent {
+  id        String   @id @default(uuid())
+  invoiceId String   @map("invoice_id")
+  actorId   String   @map("actor_id")
+  action    String
+  reason    String?
+  snapshot  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([invoiceId, createdAt])
+  @@map("invoice_events")
+}
+
+model CashShift {
+  id                     String          @id @default(uuid())
+  branchId               String          @map("branch_id")
+  openedBy               String          @map("opened_by")
+  closedBy               String?         @map("closed_by")
+  approvedBy             String?         @map("approved_by")
+  status                 CashShiftStatus @default(OPEN)
+  openKey                String?         @unique @map("open_key")
+  openingBalance         Decimal         @map("opening_balance") @db.Decimal(12, 2)
+  expectedClosingBalance Decimal?        @map("expected_closing_balance") @db.Decimal(12, 2)
+  actualClosingBalance   Decimal?        @map("actual_closing_balance") @db.Decimal(12, 2)
+  varianceAmount         Decimal?        @map("variance_amount") @db.Decimal(12, 2)
+  varianceReason         String?         @map("variance_reason")
+  openedAt               DateTime        @default(now()) @map("opened_at")
+  closedAt               DateTime?       @map("closed_at")
+  approvedAt             DateTime?       @map("approved_at")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+
+  @@index([branchId, status, openedAt])
+  @@map("cash_shifts")
+}
+
+model CashMovement {
+  id              String           @id @default(uuid())
+  cashShiftId     String           @map("cash_shift_id")
+  branchId        String           @map("branch_id")
+  paymentId       String?          @map("payment_id")
+  refundRequestId String?          @map("refund_request_id")
+  type            CashMovementType
+  amount          Decimal          @db.Decimal(12, 2)
+  reason          String
+  actorId         String           @map("actor_id")
+  idempotencyKey  String           @unique @map("idempotency_key")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  @@index([cashShiftId, createdAt])
+  @@index([branchId, createdAt])
+  @@map("cash_movements")
+}
+
+model OwnershipTransfer {
+  id                     String                  @id @default(uuid())
+  businessId             String                  @map("business_id")
+  oldOwnerId             String                  @map("old_owner_id")
+  newOwnerUserId         String                  @map("new_owner_user_id")
+  status                 OwnershipTransferStatus @default(DRAFT)
+  effectiveAt            DateTime                @map("effective_at")
+  reason                 String
+  scopeSnapshot          Json                    @map("scope_snapshot")
+  settlementAgreement    Json?                   @map("settlement_agreement")
+  impactSnapshot         Json?                   @map("impact_snapshot")
+  legalEntityVersionId   String?                 @map("legal_entity_version_id")
+  payoutAccountVersionId String?                 @map("payout_account_version_id")
+  requestedBy            String                  @map("requested_by")
+  acceptedByNewOwnerAt   DateTime?               @map("accepted_by_new_owner_at")
+  approvedBy             String?                 @map("approved_by")
+  approvedAt             DateTime?               @map("approved_at")
+  completedAt            DateTime?               @map("completed_at")
+  failureReason          String?                 @map("failure_reason")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+
+  @@index([businessId, status, effectiveAt])
+  @@index([newOwnerUserId, status])
+  @@map("ownership_transfers")
+}
+
+model OwnershipHistory {
+  id         String    @id @default(uuid())
+  businessId String    @map("business_id")
+  ownerId    String    @map("owner_id")
+  transferId String?   @map("transfer_id")
+  validFrom  DateTime  @map("valid_from")
+  validTo    DateTime? @map("valid_to")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([businessId, validFrom])
+  @@map("ownership_history")
+}
+
+model LegalEntityVersion {
+  id                 String    @id @default(uuid())
+  businessId         String    @map("business_id")
+  version            Int
+  legalName          String    @map("legal_name")
+  taxCode            String?   @map("tax_code")
+  registrationNumber String?   @map("registration_number")
+  representativeName String?   @map("representative_name")
+  verificationStatus String    @default("PENDING") @map("verification_status")
+  isActive           Boolean   @default(false) @map("is_active")
+  validFrom          DateTime  @map("valid_from")
+  validTo            DateTime? @map("valid_to")
+  createdBy          String    @map("created_by")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@unique([businessId, version])
+  @@index([businessId, validFrom])
+  @@map("legal_entity_versions")
+}
+
+model PayoutAccountVersion {
+  id                      String    @id @default(uuid())
+  businessId              String    @map("business_id")
+  version                 Int
+  bankName                String    @map("bank_name")
+  accountHolder           String    @map("account_holder")
+  accountNumberCiphertext String    @map("account_number_ciphertext")
+  accountNumberIv         String    @map("account_number_iv")
+  authenticationTag       String    @map("authentication_tag")
+  keyVersion              String    @map("key_version")
+  maskedAccountNumber     String    @map("masked_account_number")
+  verificationStatus      String    @default("PENDING") @map("verification_status")
+  isActive                Boolean   @default(false) @map("is_active")
+  validFrom               DateTime  @map("valid_from")
+  validTo                 DateTime? @map("valid_to")
+  createdBy               String    @map("created_by")
+  createdAt               DateTime  @default(now()) @map("created_at")
+
+  @@unique([businessId, version])
+  @@index([businessId, validFrom])
+  @@map("payout_account_versions")
+}
+
+model CustomerSavedService {
+  id                      String                @id @default(uuid())
+  customerId              String                @map("customer_id")
+  branchServiceOfferingId String                @map("branch_service_offering_id")
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+  customer                CustomerProfile       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  offering                BranchServiceOffering @relation(fields: [branchServiceOfferingId], references: [id], onDelete: Restrict)
+
+  @@unique([customerId, branchServiceOfferingId])
+  @@index([customerId, createdAt])
+  @@map("customer_saved_services")
+}
+
+model VoucherBranchScope {
+  voucherId  String    @map("voucher_id")
+  branchId   String    @map("branch_id")
+  voucher    Voucher   @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  business   Business? @relation(fields: [businessId], references: [id])
+  businessId String?
+
+  @@id([voucherId, branchId])
+  @@index([branchId])
+  @@map("voucher_branch_scopes")
+}
+
+model VoucherServiceScope {
+  voucherId String                @map("voucher_id")
+  serviceId String                @map("service_id")
+  voucher   Voucher               @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  service   BranchServiceOffering @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+
+  @@id([voucherId, serviceId])
+  @@index([serviceId])
+  @@map("voucher_service_scopes")
+}
+
+model VoucherComboScope {
+  voucherId String  @map("voucher_id")
+  comboId   String  @map("combo_id")
+  voucher   Voucher @relation(fields: [voucherId], references: [id], onDelete: Restrict)
+  combo     Combo   @relation(fields: [comboId], references: [id], onDelete: Restrict)
+
+  @@id([voucherId, comboId])
+  @@index([comboId])
+  @@map("voucher_combo_scopes")
+}
+
+model CustomerBusinessSegment {
+  id         String   @id @default(uuid())
+  businessId String   @map("business_id")
+  customerId String   @map("customer_id")
+  segment    String
+  assignedBy String?  @map("assigned_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, customerId, segment])
+  @@index([businessId, segment])
+  @@map("customer_business_segments")
+}
+
 model MarketingPreference {
   id                     String          @id @default(uuid())
   customerId             String          @unique @map("customer_id")
@@ -2778,6 +3466,168 @@ model PrivacyExportPackage {
   @@index([customerId, createdAt])
   @@index([expiresAt])
   @@map("privacy_export_packages")
+}
+
+enum PriceAdjustmentType {
+  PROMOTION
+  VOUCHER
+  LOYALTY
+  PACKAGE
+  MANUAL
+  SURCHARGE
+  REFUND
+}
+
+enum PriceAdjustmentStatus {
+  RESERVED
+  APPLIED
+  RELEASED
+  REVERSED
+}
+
+enum RedemptionStatus {
+  RESERVED
+  APPLIED
+  RELEASED
+  REVERSED
+}
+
+enum ServicePriceType {
+  FIXED
+  FROM
+  RANGE
+  QUOTE
+}
+
+enum ServiceDependencyType {
+  REQUIRED
+  ADD_ON
+  INCOMPATIBLE
+}
+
+enum BookingItemAction {
+  ADD
+  REMOVE
+  REASSIGN
+  RESIZE
+  START
+  COMPLETE
+  SKIP
+  REPRICE
+}
+
+enum ImpactSubjectType {
+  STAFF
+  BRANCH
+  BUSINESS
+  SCHEDULE
+}
+
+enum ImpactAction {
+  OFFBOARD
+  PAUSE
+  SUSPEND
+  CLOSE
+  SCHEDULE_CHANGE
+  TRANSFER
+}
+
+enum ImpactCaseStatus {
+  OPEN
+  IN_PROGRESS
+  READY_TO_COMPLETE
+  COMPLETED
+  CANCELLED
+}
+
+enum ImpactResolution {
+  REASSIGN
+  RESCHEDULE
+  TRANSFER_BRANCH
+  CANCEL_REFUND
+  APPROVED_EXCEPTION
+}
+
+enum ImpactItemStatus {
+  PENDING
+  PROCESSING
+  RESOLVED
+  FAILED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ReviewModerationAction {
+  REPORT
+  QUARANTINE
+  APPROVE
+  HIDE
+  RESTORE
+  APPEAL_SUBMITTED
+  APPEAL_APPROVED
+  APPEAL_REJECTED
+}
+
+enum ReviewAppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  REVERSE
+  REFUND_ADJUSTMENT
+  MANUAL_ADJUSTMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+  ADJUSTED
+}
+
+enum InvoiceRequestStatus {
+  PENDING
+  FULFILLED
+  REJECTED
+  CANCELLED
+}
+
+enum CashShiftStatus {
+  OPEN
+  PENDING_APPROVAL
+  CLOSED
+}
+
+enum CashMovementType {
+  PAYMENT
+  REFUND
+  MANUAL_IN
+  MANUAL_OUT
+}
+
+enum OwnershipTransferStatus {
+  DRAFT
+  PENDING_NEW_OWNER_ACCEPTANCE
+  UNDER_REVIEW
+  NEED_MORE_INFO
+  APPROVED
+  SCHEDULED
+  EXECUTING
+  COMPLETED
+  REJECTED
+  CANCELLED
+  EXECUTION_FAILED
 }
 
 enum RoleLevel {
@@ -3266,6 +4116,13 @@ enum NotificationSeverity {
   SUCCESS
   WARNING
   CRITICAL
+}
+
+enum NotificationOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
 }
 
 enum VoucherAudience {

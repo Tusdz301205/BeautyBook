@@ -255,7 +255,6 @@ export class StaffController {
       effectiveFrom: string;
       effectiveTo?: string | null;
       note?: string;
-      acknowledgeImpact?: boolean;
       acknowledgeOutOfHours?: boolean;
       segments: Array<{
         dayOfWeek: number;
@@ -417,12 +416,12 @@ export class StaffController {
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'StaffProfile' })
   async deactivate(
     @Param('id') id: string,
-    @Body() body: { reason: string; acknowledgeFutureBookings?: boolean },
+    @Body() body: { reason: string },
     @CurrentUser() user: AuthUser,
   ) {
     const branchId = await this.staffService.getBranchIdByStaff(id);
     await assertBranchAccess(this.prisma, user, branchId);
-    return this.staffService.deactivate(id, body);
+    return this.staffService.deactivate(id, body, user.id);
   }
 
   @Get(':id/offboarding-impact')

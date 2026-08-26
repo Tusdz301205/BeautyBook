@@ -210,10 +210,12 @@ describe('BranchesService branch lifecycle', () => {
       $transaction: jest.fn((callback) => callback(tx)),
     };
 
-    const result = await new BranchesService(prisma as any, settings as any).publish('branch-1', 'owner-1');
+    const branchState = { transition: jest.fn().mockResolvedValue({
+      transitioned: true,
+      branch: { id: 'branch-1', status: 'ACTIVE', reviewStatus: 'APPROVED', operationalStatus: 'ACTIVE' },
+    }) };
+    const result = await new BranchesService(prisma as any, settings as any, branchState as any).publish('branch-1', 'owner-1');
     expect(result).toMatchObject({ operationalStatus: 'ACTIVE' });
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: 'ACTIVE', operationalStatus: 'ACTIVE' }),
-    }));
+    expect(branchState.transition).toHaveBeenCalledWith('branch-1', 'PUBLISH', 'owner-1', expect.any(String));
   });
 });

@@ -34,6 +34,7 @@ import {
   SaveBranchOnboardingDto,
   UpdateBranchDto,
 } from './dto/branch.dto';
+import { BranchStateService, BranchTransitionAction } from './branch-state.service';
 
 @Controller('branches')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -41,6 +42,7 @@ import {
 export class BranchesController {
   constructor(
     private readonly branchesService: BranchesService,
+    private readonly branchStateService: BranchStateService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -258,6 +260,19 @@ export class BranchesController {
   ) {
     await assertBranchAccess(this.prisma, user, id);
     return this.branchesService.publish(id, user.id);
+  }
+
+  @Post(':id/transition')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @RequirePermission('branch:status:platform', 'branch:update:tenant', 'branch:update:branch')
+  @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Branch' })
+  async transition(
+    @Param('id') id: string,
+    @Body() body: { action: BranchTransitionAction; reason: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    await assertBranchAccess(this.prisma, user, id);
+    return this.branchStateService.transition(id, body.action, user.id, body.reason);
   }
 
   /**

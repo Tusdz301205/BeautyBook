@@ -60,6 +60,7 @@ describe('StaffService schedule versioning', () => {
           },
         ]),
       },
+      branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'business-1' }) },
       booking: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn((callback) => callback(tx)),
     };
@@ -103,7 +104,7 @@ describe('StaffService schedule versioning', () => {
     }, owner as any)).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  test('never lets a self-managed staff override an impacted future booking', async () => {
+  test('never lets even a manager acknowledgement bypass an impacted future booking', async () => {
     const prisma = {
       staffProfile: {
         findFirst: jest.fn().mockResolvedValue({
@@ -122,6 +123,7 @@ describe('StaffService schedule versioning', () => {
           },
         ]),
       },
+      branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'business-1' }) },
       booking: {
         findMany: jest.fn().mockResolvedValue([
           {
@@ -134,6 +136,11 @@ describe('StaffService schedule versioning', () => {
           },
         ]),
       },
+      operationalImpactCase: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'impact-1' }),
+      },
+      operationalImpactItem: { createMany: jest.fn().mockResolvedValue({ count: 1 }) },
     };
     const service = new StaffService(prisma as any, {} as any);
 
@@ -142,7 +149,11 @@ describe('StaffService schedule versioning', () => {
       effectiveFrom: '2026-08-01',
       acknowledgeImpact: true,
       segments: [{ dayOfWeek: 2, startTime: '09:00', endTime: '17:00' }],
-    }, selfManager as any)).rejects.toBeInstanceOf(ConflictException);
+    } as any, owner as any)).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.operationalImpactCase.create).toHaveBeenCalled();
+    expect(prisma.operationalImpactItem.createMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: [expect.objectContaining({ bookingId: 'booking-1' })],
+    }));
   });
 
   test('creates a staff change request without mutating the schedule', async () => {

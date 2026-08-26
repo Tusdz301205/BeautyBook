@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import {
@@ -7,6 +7,7 @@ import {
 } from '../common/utils/multi-tenancy';
 import { can } from '../common/utils/policy';
 import { isPlatformRole } from '../common/utils/scope-helpers';
+import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 
 @Injectable()
 export class PromotionsService {
@@ -66,6 +67,7 @@ export class PromotionsService {
             service: { select: { id: true, name: true } },
           },
         },
+        comboLinks: { include: { combo: { select: { id: true, name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -91,6 +93,13 @@ export class PromotionsService {
         id: sl.service.id,
         name: sl.service.name,
       })),
+      combos: p.comboLinks.map((link) => ({ id: link.combo.id, name: link.combo.name })),
+      audience: p.audience,
+      totalQuantity: p.totalQuantity,
+      maxUsagePerCustomer: p.maxUsagePerCustomer,
+      autoApply: p.autoApply,
+      stackingAllowed: p.stackingAllowed,
+      version: p.version,
     }));
   }
 
@@ -107,6 +116,12 @@ export class PromotionsService {
     businessIds?: string[];
     branchIds?: string[];
     serviceIds?: string[];
+    comboIds?: string[];
+    audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
+    totalQuantity?: number;
+    maxUsagePerCustomer?: number;
+    autoApply?: boolean;
+    stackingAllowed?: boolean;
   }, ownerBusinessId: string | null, createdByPlatform: boolean, user: AuthUser) {
     const platformActor = isPlatformRole(user);
     if (platformActor !== createdByPlatform) {
@@ -116,6 +131,7 @@ export class PromotionsService {
       ...(data.businessIds ?? []),
       ...(data.branchIds ?? []),
       ...(data.serviceIds ?? []),
+      ...(data.comboIds ?? []),
     ];
     if (platformActor) {
       if (ownerBusinessId || tenantTargets.length > 0) {
@@ -126,7 +142,7 @@ export class PromotionsService {
         throw new BadRequestException('Campaign doanh nghiệp phải có businessId sở hữu');
       }
       this.assertTenantTargets(ownerBusinessId, data.businessIds ?? []);
-      await this.validateTargets(ownerBusinessId, data.branchIds ?? [], data.serviceIds ?? []);
+      await this.validateTargets(ownerBusinessId, data.branchIds ?? [], data.serviceIds ?? [], data.comboIds ?? []);
     }
     const startDate = new Date(data.startDate);
     const endDate = new Date(data.endDate);
@@ -147,6 +163,11 @@ export class PromotionsService {
         endDate,
         businessId: ownerBusinessId,
         createdByPlatform,
+        audience: data.audience ?? 'ALL',
+        totalQuantity: data.totalQuantity ?? null,
+        maxUsagePerCustomer: data.maxUsagePerCustomer ?? 1,
+        autoApply: data.autoApply ?? true,
+        stackingAllowed: data.stackingAllowed ?? false,
         businessLinks: data.businessIds?.length
           ? {
               createMany: {
@@ -167,6 +188,9 @@ export class PromotionsService {
                 data: data.serviceIds.map((id) => ({ serviceId: id })),
               },
             }
+          : undefined,
+        comboLinks: data.comboIds?.length
+          ? { createMany: { data: data.comboIds.map((comboId) => ({ comboId })) } }
           : undefined,
       },
       include: {
@@ -190,13 +214,21 @@ export class PromotionsService {
       startDate?: string;
       endDate?: string;
       status?: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+      audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
+      totalQuantity?: number;
+      maxUsagePerCustomer?: number;
+      autoApply?: boolean;
+      stackingAllowed?: boolean;
+      branchIds?: string[];
+      serviceIds?: string[];
+      comboIds?: string[];
     },
     user: AuthUser,
   ) {
     await this.assertOwnership(id, user);
     const current = await this.prisma.promotion.findUnique({
       where: { id },
-      select: { startDate: true, endDate: true, discountType: true },
+      select: { startDate: true, endDate: true, discountType: true, businessId: true, createdByPlatform: true },
     });
     if (!current) throw new NotFoundException('Khuyến mãi không tồn tại');
     const startDate = data.startDate ? new Date(data.startDate) : current.startDate;
@@ -206,18 +238,73 @@ export class PromotionsService {
         ((data.discountType ?? current.discountType) === 'PERCENTAGE' && data.discountValue > 100)) {
       throw new BadRequestException('Giảm theo phần trăm không được vượt quá 100');
     }
-    return this.prisma.promotion.update({
-      where: { id },
-      data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.discountType !== undefined && { discountType: data.discountType }),
-        ...(data.discountValue !== undefined && { discountValue: data.discountValue as any }),
-        ...(data.startDate !== undefined && { startDate: new Date(data.startDate) }),
-        ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
-        ...(data.status !== undefined && { status: data.status }),
-      },
-    });
+    if (data.totalQuantity !== undefined && (!Number.isInteger(data.totalQuantity) || data.totalQuantity < 1)) {
+      throw new BadRequestException('Tổng lượt khuyến mãi phải là số nguyên dương');
+    }
+    if (data.maxUsagePerCustomer !== undefined && (!Number.isInteger(data.maxUsagePerCustomer) || data.maxUsagePerCustomer < 1)) {
+      throw new BadRequestException('Giới hạn mỗi khách phải là số nguyên dương');
+    }
+    const scopesChanged = data.branchIds !== undefined || data.serviceIds !== undefined || data.comboIds !== undefined;
+    if (scopesChanged) {
+      if (current.createdByPlatform || !current.businessId) {
+        if ((data.branchIds?.length ?? 0) + (data.serviceIds?.length ?? 0) + (data.comboIds?.length ?? 0) > 0) {
+          throw new ForbiddenException('Campaign platform khong duoc gan pham vi van hanh doanh nghiep');
+        }
+      } else {
+        await this.validateTargets(current.businessId, data.branchIds ?? [], data.serviceIds ?? [], data.comboIds ?? []);
+      }
+    }
+    return withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM promotions WHERE id = ${id} FOR UPDATE`;
+      const [activeCount, perCustomer] = await Promise.all([
+        tx.promotionRedemption.count({ where: { promotionId: id, status: { in: ['RESERVED', 'APPLIED'] } } }),
+        tx.promotionRedemption.groupBy({
+          by: ['customerId'],
+          where: { promotionId: id, status: { in: ['RESERVED', 'APPLIED'] } },
+          _count: { _all: true },
+        }),
+      ]);
+      if (data.totalQuantity !== undefined && data.totalQuantity < activeCount) {
+        throw new ConflictException(`Không thể giảm quota dưới ${activeCount} lượt đã reserve/sử dụng`);
+      }
+      const highestCustomerUsage = perCustomer.reduce((max, row) => Math.max(max, row._count._all), 0);
+      if (data.maxUsagePerCustomer !== undefined && data.maxUsagePerCustomer < highestCustomerUsage) {
+        throw new ConflictException(`Không thể giảm giới hạn mỗi khách dưới ${highestCustomerUsage} lượt đã reserve/sử dụng`);
+      }
+      const updated = await tx.promotion.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.discountType !== undefined && { discountType: data.discountType }),
+          ...(data.discountValue !== undefined && { discountValue: data.discountValue as any }),
+          ...(data.startDate !== undefined && { startDate: new Date(data.startDate) }),
+          ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
+          ...(data.status !== undefined && { status: data.status }),
+          ...(data.audience !== undefined && { audience: data.audience }),
+          ...(data.totalQuantity !== undefined && { totalQuantity: data.totalQuantity }),
+          ...(data.maxUsagePerCustomer !== undefined && { maxUsagePerCustomer: data.maxUsagePerCustomer }),
+          ...(data.autoApply !== undefined && { autoApply: data.autoApply }),
+          ...(data.stackingAllowed !== undefined && { stackingAllowed: data.stackingAllowed }),
+          version: { increment: 1 },
+        },
+      });
+      if (scopesChanged) {
+        if (data.branchIds !== undefined) {
+          await tx.promotionBranch.deleteMany({ where: { promotionId: id } });
+          if (data.branchIds.length) await tx.promotionBranch.createMany({ data: data.branchIds.map((branchId) => ({ promotionId: id, branchId })) });
+        }
+        if (data.serviceIds !== undefined) {
+          await tx.promotionService.deleteMany({ where: { promotionId: id } });
+          if (data.serviceIds.length) await tx.promotionService.createMany({ data: data.serviceIds.map((serviceId) => ({ promotionId: id, serviceId })) });
+        }
+        if (data.comboIds !== undefined) {
+          await tx.promotionCombo.deleteMany({ where: { promotionId: id } });
+          if (data.comboIds.length) await tx.promotionCombo.createMany({ data: data.comboIds.map((comboId) => ({ promotionId: id, comboId })) });
+        }
+      }
+      return updated;
+    }, { conflictMessage: 'Khuyến mãi vừa thay đổi hoặc có lượt sử dụng mới' });
   }
 
   /**
@@ -295,12 +382,13 @@ export class PromotionsService {
     throw new ForbiddenException('Không có quyền sửa campaign này');
   }
 
-  private async validateTargets(businessId: string, branchIds: string[], serviceIds: string[]) {
-    const [branchCount, serviceCount] = await Promise.all([
+  private async validateTargets(businessId: string, branchIds: string[], serviceIds: string[], comboIds: string[] = []) {
+    const [branchCount, serviceCount, comboCount] = await Promise.all([
       this.prisma.branch.count({ where: { id: { in: branchIds }, businessId } }),
       this.prisma.branchServiceOffering.count({ where: { id: { in: serviceIds }, branch: { businessId } } }),
+      this.prisma.combo.count({ where: { id: { in: comboIds }, businessId } }),
     ]);
-    if (branchCount !== branchIds.length || serviceCount !== serviceIds.length) {
+    if (branchCount !== branchIds.length || serviceCount !== serviceIds.length || comboCount !== comboIds.length) {
       throw new ForbiddenException('Campaign chứa branch/service ngoài tenant');
     }
   }

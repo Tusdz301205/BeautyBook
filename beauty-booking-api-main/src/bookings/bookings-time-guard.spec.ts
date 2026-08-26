@@ -29,17 +29,20 @@ function serviceFor(existing: Record<string, unknown>) {
       updateMany,
     },
     bookingStatusHistory: { create: historyCreate },
-    customerVoucher: { updateMany: jest.fn() },
+    voucherRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    promotionRedemption: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    priceAdjustment: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   };
   prisma.$transaction = jest.fn(async (operation: (tx: unknown) => Promise<unknown>) =>
     operation(prisma),
   );
   const mail = { sendBookingConfirmation: jest.fn(), sendBookingCancellation: jest.fn() };
   const gateway = { notifyBookingUpdated: jest.fn() };
+  const loyalty = { earnForBooking: jest.fn(), reverseRedemptionForBooking: jest.fn() };
   return {
-    service: new BookingsService(prisma as never, mail as never, gateway as never),
+    service: new BookingsService(prisma as never, mail as never, gateway as never, {} as never, {} as never, loyalty as never),
     updateMany,
-    customerVoucherUpdateMany: prisma.customerVoucher.updateMany,
+    voucherRedemptionUpdateMany: prisma.voucherRedemption.updateMany,
     prisma,
   };
 }
@@ -91,8 +94,8 @@ describe('BookingsService time transition guard', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  test('confirmation commits a reserved voucher as used in the same transaction', async () => {
-    const { service, customerVoucherUpdateMany } = serviceFor({
+  test('confirmation commits a reserved voucher redemption in the same transaction', async () => {
+    const { service, voucherRedemptionUpdateMany } = serviceFor({
       id: 'booking-1', status: 'PENDING',
       appointmentDate: dateValue('2099-07-20'),
       appointmentStartTime: timeValue(9), appointmentEndTime: timeValue(10),
@@ -109,13 +112,12 @@ describe('BookingsService time transition guard', () => {
       ['RECEPTIONIST'],
     );
 
-    expect(customerVoucherUpdateMany).toHaveBeenCalledWith({
+    expect(voucherRedemptionUpdateMany).toHaveBeenCalledWith({
       where: {
-        usedBookingId: 'booking-1',
-        voucherId: 'voucher-1',
+        bookingId: 'booking-1',
         status: 'RESERVED',
       },
-      data: { status: 'USED', usedAt: expect.any(Date) },
+      data: { status: 'APPLIED', appliedAt: expect.any(Date) },
     });
   });
 

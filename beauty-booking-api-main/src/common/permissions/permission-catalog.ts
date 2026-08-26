@@ -500,6 +500,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> =
       'booking:check_in:branch', 'booking:complete:branch',
       'booking:reschedule:branch',
       'booking:read_internal_note:branch',
+      'payment:read:branch', 'payment:create:branch',
       'branch_service_offering:status:branch',
       'staff_service:assign:branch',
       'review:moderate:branch', 'review:report:branch',

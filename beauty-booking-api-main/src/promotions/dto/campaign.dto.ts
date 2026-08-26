@@ -10,6 +10,12 @@ export class CreatePromotionDto {
   @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) businessIds?: string[];
   @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) branchIds?: string[];
   @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) serviceIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) comboIds?: string[];
+  @IsOptional() @IsIn(['ALL', 'NEW_CUSTOMER', 'RETURNING_CUSTOMER', 'BIRTHDAY', 'VIP', 'SELECTED']) audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
+  @IsOptional() @IsInt() @Min(1) totalQuantity?: number;
+  @IsOptional() @IsInt() @Min(1) maxUsagePerCustomer?: number;
+  @IsOptional() @IsBoolean() autoApply?: boolean;
+  @IsOptional() @IsBoolean() stackingAllowed?: boolean;
 }
 
 export class UpdatePromotionDto {
@@ -20,6 +26,14 @@ export class UpdatePromotionDto {
   @IsOptional() @IsISO8601() startDate?: string;
   @IsOptional() @IsISO8601() endDate?: string;
   @IsOptional() @IsIn(['ACTIVE', 'INACTIVE', 'EXPIRED']) status?: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+  @IsOptional() @IsIn(['ALL', 'NEW_CUSTOMER', 'RETURNING_CUSTOMER', 'BIRTHDAY', 'VIP', 'SELECTED']) audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
+  @IsOptional() @IsInt() @Min(1) totalQuantity?: number;
+  @IsOptional() @IsInt() @Min(1) maxUsagePerCustomer?: number;
+  @IsOptional() @IsBoolean() autoApply?: boolean;
+  @IsOptional() @IsBoolean() stackingAllowed?: boolean;
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) branchIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) serviceIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) comboIds?: string[];
 }
 
 export class CreateVoucherDto {
@@ -37,6 +51,10 @@ export class CreateVoucherDto {
   @IsOptional() @IsIn(['PLATFORM', 'TENANT', 'CUSTOMER', 'COMPENSATION', 'CAMPAIGN']) scope?: 'PLATFORM' | 'TENANT' | 'CUSTOMER' | 'COMPENSATION' | 'CAMPAIGN';
   @IsOptional() @IsIn(['ALL', 'NEW_CUSTOMER', 'RETURNING_CUSTOMER', 'BIRTHDAY', 'VIP', 'SELECTED']) audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
   @IsOptional() @IsBoolean() autoIssue?: boolean;
+  @IsOptional() @IsInt() @Min(1) maxUsagePerCustomer?: number;
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) branchIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) serviceIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) comboIds?: string[];
 }
 
 export class UpdateVoucherDto {
@@ -47,4 +65,8 @@ export class UpdateVoucherDto {
   @IsOptional() @IsIn(['ACTIVE', 'EXPIRED', 'REVOKED']) status?: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   @IsOptional() @IsIn(['ALL', 'NEW_CUSTOMER', 'RETURNING_CUSTOMER', 'BIRTHDAY', 'VIP', 'SELECTED']) audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
   @IsOptional() @IsBoolean() autoIssue?: boolean;
+  @IsOptional() @IsInt() @Min(1) maxUsagePerCustomer?: number;
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) branchIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) serviceIds?: string[];
+  @IsOptional() @IsArray() @ArrayUnique() @IsUUID('4', { each: true }) comboIds?: string[];
 }

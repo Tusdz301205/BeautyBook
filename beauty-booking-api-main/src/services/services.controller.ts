@@ -285,6 +285,72 @@ export class ServicesController {
     return this.servicesService.findAllForMarketing();
   }
 
+  @Get(':id/variants')
+  @Public()
+  listVariants(@Param('id') id: string) {
+    return this.servicesService.listVariants(id, true);
+  }
+
+  @Post(':id/variants')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:pricing:tenant')
+  @Audited({ action: AuditAction.CREATE, entityType: 'ServiceVariant' })
+  async createVariant(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
+    await assertBranchAccess(this.prisma, user, offering.branchId);
+    return this.servicesService.createVariant(id, body);
+  }
+
+  @Patch('variants/:variantId')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:pricing:tenant')
+  @Audited({ action: AuditAction.UPDATE, entityType: 'ServiceVariant', idParam: 'variantId' })
+  async updateVariant(
+    @Param('variantId') variantId: string,
+    @Body() body: any,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const variant = await this.prisma.serviceVariant.findUniqueOrThrow({
+      where: { id: variantId },
+      select: { serviceId: true },
+    });
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id: variant.serviceId }, select: { branchId: true } });
+    await assertBranchAccess(this.prisma, user, offering.branchId);
+    return this.servicesService.updateVariant(variantId, body);
+  }
+
+  @Post(':id/dependencies')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business_service:update:tenant')
+  @Audited({ action: AuditAction.CREATE, entityType: 'ServiceDependency' })
+  async addDependency(
+    @Param('id') id: string,
+    @Body() body: { requiredServiceId: string; dependencyType: 'REQUIRED' | 'ADD_ON' | 'INCOMPATIBLE' },
+    @CurrentUser() user: AuthUser,
+  ) {
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
+    await assertBranchAccess(this.prisma, user, offering.branchId);
+    return this.servicesService.addDependency(id, body.requiredServiceId, body.dependencyType);
+  }
+
+  @Post(':id/price-rules')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:pricing:tenant')
+  @Audited({ action: AuditAction.CREATE, entityType: 'ServicePriceRule' })
+  async createPriceRule(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
+    await assertBranchAccess(this.prisma, user, offering.branchId);
+    return this.servicesService.createPriceRule(id, body);
+  }
+
   @Get(':id')
   @Public()
   findOne(@Param('id') id: string) {

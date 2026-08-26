@@ -25,7 +25,7 @@ export class ReviewsService {
 
     const where: any = {
       deletedAt: null,
-      status: { in: ['APPROVED', 'REPORTED'] },
+      status: 'APPROVED',
       booking: {
         branch: { businessId },
       },
@@ -124,7 +124,7 @@ export class ReviewsService {
       where.booking = { ...where.booking, branchId: filters.branchId };
     }
 
-    return this.prisma.review.findMany({
+    const reviews = await this.prisma.review.findMany({
       where,
       include: {
         customer: {
@@ -152,6 +152,23 @@ export class ReviewsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    if (!reviews.length) return reviews;
+    const reviewIds = reviews.map((review) => review.id);
+    const [appeals, moderationEvents] = await Promise.all([
+      this.prisma.reviewAppeal.findMany({
+        where: { reviewId: { in: reviewIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.reviewModerationEvent.findMany({
+        where: { reviewId: { in: reviewIds } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    return reviews.map((review) => ({
+      ...review,
+      appeals: appeals.filter((appeal) => appeal.reviewId === review.id),
+      moderationEvents: moderationEvents.filter((event) => event.reviewId === review.id),
+    }));
   }
 
   /**
@@ -159,7 +176,7 @@ export class ReviewsService {
    */
   async findByStaff(staffId: string) {
     const ratings = await this.prisma.reviewServiceRating.findMany({
-      where: { staffId, review: { status: { in: ['APPROVED', 'REPORTED'] }, deletedAt: null } },
+      where: { staffId, review: { status: 'APPROVED', deletedAt: null } },
       include: {
         review: {
           select: {
@@ -203,7 +220,7 @@ export class ReviewsService {
     const ratings = await this.prisma.reviewServiceRating.findMany({
       where: {
         bookingService: { serviceId },
-        review: { status: { in: ['APPROVED', 'REPORTED'] }, deletedAt: null },
+        review: { status: 'APPROVED', deletedAt: null },
       },
       select: {
         rating: true, comment: true, createdAt: true,
@@ -317,17 +334,61 @@ export class ReviewsService {
     });
   }
 
-  async report(reviewId: string, reporterId: string, reason: string) {
+  async report(reviewId: string, reporterId: string, input: { reason: string; category?: string; severity?: string }) {
+    const reason = input.reason;
     if (!reason?.trim()) throw new BadRequestException('Lý do báo cáo là bắt buộc');
-    const review = await this.prisma.review.findUnique({ where: { id: reviewId }, select: { id: true, status: true } });
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: {
+        id: true, status: true, customer: { select: { userId: true } },
+        booking: { select: { branch: { select: { businessId: true } } } },
+      },
+    });
     if (!review) throw new NotFoundException('Đánh giá không tồn tại');
+    const duplicate = await this.prisma.reviewReport.findUnique({
+      where: { reviewId_reporterId: { reviewId, reporterId } },
+      select: { id: true },
+    });
+    if (duplicate) throw new BadRequestException('Bạn đã báo cáo đánh giá này');
+    const severity = (input.severity || 'MEDIUM').toUpperCase();
+    const category = (input.category || 'OTHER').toUpperCase();
+    const quarantine = ['HIGH', 'CRITICAL'].includes(severity) || ['PII', 'THREAT', 'HATE', 'SEXUAL'].includes(category);
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.reviewReport.create({ data: { reviewId, reporterId, reason: reason.trim() } });
       const reportCount = await tx.reviewReport.count({ where: { reviewId } });
       if (review.status !== 'HIDDEN') {
-        await tx.review.update({ where: { id: reviewId }, data: { status: 'REPORTED' } });
+        await tx.review.update({ where: { id: reviewId }, data: { status: quarantine ? 'HIDDEN' : 'REPORTED' } });
       }
-      return { reportCount, status: review.status === 'HIDDEN' ? 'HIDDEN' : 'REPORTED' };
+      const nextStatus = review.status === 'HIDDEN' ? 'HIDDEN' : quarantine ? 'HIDDEN' : 'REPORTED';
+      await tx.reviewModerationEvent.create({
+        data: {
+          reviewId,
+          actorId: reporterId,
+          action: quarantine ? 'QUARANTINE' : 'REPORT',
+          fromStatus: review.status,
+          toStatus: nextStatus,
+          reasonCode: category,
+          reason: reason.trim(),
+          reportCategory: category,
+          severity,
+        },
+      });
+      const memberIds = await tx.salonMember.findMany({
+        where: { businessId: review.booking.branch.businessId, isActive: true, deletedAt: null },
+        select: { userId: true },
+      });
+      const recipients = [...new Set([review.customer.userId, ...memberIds.map((member) => member.userId)])];
+      if (recipients.length) await tx.notification.createMany({ data: recipients.map((userId) => ({
+        userId,
+        type: 'SYSTEM',
+        severity: quarantine ? 'WARNING' : 'INFO',
+        title: quarantine ? 'Đánh giá tạm ẩn để kiểm duyệt' : 'Đánh giá đã được báo cáo',
+        body: `Phân loại: ${category} — mức độ: ${severity}`,
+        targetType: 'REVIEW',
+        targetId: reviewId,
+        actionUrl: '/reviews',
+      })) });
+      return { reportCount, status: nextStatus, quarantined: quarantine };
     });
     await auditLog(this.prisma, {
       userId: reporterId, action: 'STATUS_CHANGE', entityType: 'Review', entityId: reviewId,
@@ -385,19 +446,90 @@ export class ReviewsService {
   /**
    * Moderate review — ẩn/duyệt (Owner hoặc Admin).
    */
-  async moderate(reviewId: string, status: 'APPROVED' | 'HIDDEN', user: AuthUser) {
+  async moderate(
+    reviewId: string,
+    status: 'APPROVED' | 'HIDDEN',
+    reasonCode: string,
+    reason: string,
+    user: AuthUser,
+  ) {
+    if (!reasonCode?.trim() || !reason?.trim()) throw new BadRequestException('Mã lý do và nội dung quyết định là bắt buộc');
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      select: { id: true, booking: { select: { branch: { select: { id: true, businessId: true } } } } },
+      select: { id: true, status: true, customer: { select: { userId: true } }, booking: { select: { branch: { select: { id: true, businessId: true } } } } },
     });
     if (!review) throw new NotFoundException('Đánh giá không tồn tại');
     if (!can(user, 'review:moderate:platform')) {
       throw new ForbiddenException('Không có quyền kiểm duyệt đánh giá này');
     }
 
-    return this.prisma.review.update({
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.review.update({ where: { id: reviewId }, data: { status } });
+      await tx.reviewModerationEvent.create({ data: {
+        reviewId,
+        actorId: user.id,
+        action: status === 'APPROVED' ? (review.status === 'HIDDEN' ? 'RESTORE' : 'APPROVE') : 'HIDE',
+        fromStatus: review.status,
+        toStatus: status,
+        reasonCode: reasonCode.trim(),
+        reason: reason.trim(),
+      } });
+      await tx.notification.create({ data: {
+        userId: review.customer.userId,
+        type: 'SYSTEM',
+        severity: status === 'HIDDEN' ? 'WARNING' : 'INFO',
+        title: status === 'HIDDEN' ? 'Đánh giá đã bị ẩn' : 'Đánh giá đã được hiển thị',
+        body: reason.trim(),
+        targetType: 'REVIEW',
+        targetId: reviewId,
+        actionUrl: '/customer/reviews',
+      } });
+      return updated;
+    });
+  }
+
+  async appeal(reviewId: string, appellantId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Lý do khiếu nại là bắt buộc');
+    const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
-      data: { status },
+      select: { id: true, status: true, customer: { select: { userId: true } }, booking: { select: { branch: { select: { businessId: true } } } } },
+    });
+    if (!review) throw new NotFoundException('Đánh giá không tồn tại');
+    const businessAccess = await this.prisma.userRole.findFirst({
+      where: { userId: appellantId, businessId: review.booking.branch.businessId, role: { code: { in: ['BUSINESS_OWNER', 'BRANCH_MANAGER'] } } },
+      select: { id: true },
+    });
+    if (review.customer.userId !== appellantId && !businessAccess) throw new ForbiddenException('Không có quyền khiếu nại đánh giá này');
+    const pending = await this.prisma.reviewAppeal.findFirst({ where: { reviewId, status: 'PENDING' }, select: { id: true } });
+    if (pending) throw new BadRequestException('Đánh giá đã có khiếu nại đang chờ xử lý');
+    return this.prisma.$transaction(async (tx) => {
+      const appeal = await tx.reviewAppeal.create({ data: { reviewId, appellantId, reason: reason.trim() } });
+      await tx.reviewModerationEvent.create({ data: {
+        reviewId, actorId: appellantId, action: 'APPEAL_SUBMITTED',
+        fromStatus: review.status, toStatus: review.status,
+        reasonCode: 'APPEAL', reason: reason.trim(),
+      } });
+      return appeal;
+    });
+  }
+
+  async resolveAppeal(appealId: string, approve: boolean, resolution: string, user: AuthUser) {
+    if (!resolution?.trim()) throw new BadRequestException('Kết luận khiếu nại là bắt buộc');
+    if (!can(user, 'review:moderate:platform')) throw new ForbiddenException('Không có quyền xử lý khiếu nại');
+    return this.prisma.$transaction(async (tx) => {
+      const appeal = await tx.reviewAppeal.findUnique({ where: { id: appealId } });
+      if (!appeal || appeal.status !== 'PENDING') throw new BadRequestException('Khiếu nại không còn chờ xử lý');
+      const review = await tx.review.findUniqueOrThrow({ where: { id: appeal.reviewId } });
+      const nextStatus = approve ? 'APPROVED' : review.status;
+      if (approve) await tx.review.update({ where: { id: review.id }, data: { status: 'APPROVED' } });
+      const updated = await tx.reviewAppeal.update({ where: { id: appealId }, data: {
+        status: approve ? 'APPROVED' : 'REJECTED', reviewedBy: user.id, resolution: resolution.trim(), reviewedAt: new Date(),
+      } });
+      await tx.reviewModerationEvent.create({ data: {
+        reviewId: review.id, actorId: user.id, action: approve ? 'APPEAL_APPROVED' : 'APPEAL_REJECTED',
+        fromStatus: review.status, toStatus: nextStatus, reasonCode: 'APPEAL_DECISION', reason: resolution.trim(),
+      } });
+      return updated;
     });
   }
 }

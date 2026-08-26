@@ -9,9 +9,12 @@ import { VouchersService } from './vouchers.service';
 import { SchedulerModule } from '../scheduler/scheduler.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { PendingBookingsCron } from './pending-bookings.cron';
+import { PromotionsModule } from '../promotions/promotions.module';
+import { BookingItemsService } from './booking-items.service';
+import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [SchedulerModule, PaymentsModule],
+  imports: [SchedulerModule, PaymentsModule, PromotionsModule, LoyaltyModule],
   controllers: [BookingsController, HealthRecordsController],
   providers: [
     BookingsService,
@@ -20,6 +23,7 @@ import { PendingBookingsCron } from './pending-bookings.cron';
     ChangeRequestsService,
     VouchersService,
     PendingBookingsCron,
+    BookingItemsService,
   ],
   exports: [
     BookingsService,
@@ -27,6 +31,7 @@ import { PendingBookingsCron } from './pending-bookings.cron';
     HealthRecordsService,
     ChangeRequestsService,
     VouchersService,
+    BookingItemsService,
   ],
 })
 export class BookingsModule {}

@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { combineAppointmentDateTime } from '../common/utils/booking-datetime';
 import { auditLog } from '../common/utils/audit';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
+import { BranchStateService } from '../branches/branch-state.service';
 
 interface TrustMetrics {
   totalBookings: number;
@@ -31,6 +32,7 @@ export class TrustSnapshotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: PlatformSettingsService,
+    private readonly branchState: BranchStateService,
   ) {}
 
   async computeForBusiness(businessId: string): Promise<TrustMetrics> {
@@ -225,36 +227,25 @@ export class TrustSnapshotService {
 
     const statusBefore = branch?.status ?? business.status;
     let statusAfter: string = statusBefore;
+    if (branch && ['BOOKING_RESTRICTED', 'SUSPENDED', 'RESTORED'].includes(params.action)) {
+      const action = params.action === 'BOOKING_RESTRICTED' ? 'PAUSE' : params.action === 'SUSPENDED' ? 'SUSPEND' : 'RESTORE';
+      const result = await this.branchState.transition(branch.id, action, params.actorId, params.reason);
+      if (!result.transitioned || !('branch' in result)) {
+        throw new ConflictException(`Cần xử lý toàn bộ lịch bị ảnh hưởng trước${'impactCase' in result ? ` (case ${result.impactCase?.id})` : ''}`);
+      }
+      statusAfter = result.branch.status;
+    }
     await this.prisma.$transaction(async (tx) => {
       if (params.action === 'BOOKING_RESTRICTED') {
-        if (branch) await tx.branch.update({ where: { id: branch.id }, data: { status: 'INACTIVE', reviewNote: params.reason.trim(), reviewedAt: new Date() } });
-        else await tx.business.update({ where: { id: business.id }, data: { bookingRestrictedAt: new Date(), bookingRestrictionReason: params.reason.trim() } });
+        if (!branch) await tx.business.update({ where: { id: business.id }, data: { bookingRestrictedAt: new Date(), bookingRestrictionReason: params.reason.trim() } });
         statusAfter = 'BOOKING_RESTRICTED';
       } else if (params.action === 'SUSPENDED') {
-        if (branch) {
-          await tx.branch.update({ where: { id: branch.id }, data: { status: 'INACTIVE' } });
-          statusAfter = 'INACTIVE';
-        } else {
+        if (!branch) {
           await tx.business.update({ where: { id: business.id }, data: { status: 'SUSPENDED', bookingRestrictedAt: new Date(), bookingRestrictionReason: params.reason.trim() } });
           statusAfter = 'SUSPENDED';
         }
       } else if (params.action === 'RESTORED') {
-        if (branch) {
-          const restoredStatus = ['ACTIVE', 'INACTIVE', 'PENDING'].includes(
-            restoreTarget?.statusBefore ?? '',
-          )
-            ? restoreTarget!.statusBefore
-            : 'INACTIVE';
-          await tx.branch.update({
-            where: { id: branch.id },
-            data: {
-              status: restoredStatus as any,
-              reviewNote: null,
-              reviewedAt: new Date(),
-            },
-          });
-          statusAfter = restoredStatus!;
-        } else {
+        if (!branch) {
           const restoredStatus =
             restoreTarget?.action === 'SUSPENDED' &&
             restoreTarget.statusBefore &&

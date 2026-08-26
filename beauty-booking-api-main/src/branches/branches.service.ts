@@ -11,12 +11,14 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { ALL_TENANTS, resolveBranchIdsForUser, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { bookableStaffWhere, professionalTitle, staffRating } from '../staff/bookable-staff';
+import { BranchStateService } from './branch-state.service';
 
 @Injectable()
 export class BranchesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: PlatformSettingsService,
+    private readonly branchState: BranchStateService,
   ) {}
 
   /**
@@ -50,6 +52,8 @@ export class BranchesService {
       deletedAt: null,
       ...(includeNonPublic ? {} : {
         status: 'ACTIVE',
+        reviewStatus: 'APPROVED',
+        operationalStatus: 'ACTIVE',
         business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
         services: { some: { status: 'ACTIVE', deletedAt: null } },
         staff: { some: bookableStaffWhere({ publicOnly: true, requireSchedule: true }) },
@@ -956,19 +960,12 @@ export class BranchesService {
       email: branch.email,
       submittedAt: new Date().toISOString(),
     };
+    const state = await this.branchState.transition(id, 'SUBMIT', actorId, 'Gửi hồ sơ chi nhánh để xét duyệt');
+    if (!state.transitioned) throw new ConflictException('Không thể gửi hồ sơ khi còn lịch bị ảnh hưởng chưa xử lý');
     return this.prisma.$transaction(async (tx) => {
       const fromStatus = branch.reviewStatus;
       const now = new Date();
-      const updated = await tx.branch.update({
-        where: { id },
-        data: {
-          reviewStatus: 'PENDING_REVIEW',
-          operationalStatus: 'INACTIVE',
-          status: 'PENDING',
-          submittedAt: now,
-          reviewNote: null,
-        },
-      });
+      const updated = await tx.branch.update({ where: { id }, data: { submittedAt: now, reviewNote: null } });
       await tx.branchReviewRequest.create({
         data: {
           branchId: id,
@@ -1048,22 +1045,17 @@ export class BranchesService {
     if (decision !== 'APPROVE' && !reason?.trim()) {
       throw new BadRequestException('Cần ghi rõ lý do và nội dung cần bổ sung');
     }
+    if (!actorId) throw new ForbiddenException('Không xác định được người xét duyệt');
     const nextStatus = decision === 'APPROVE'
       ? 'APPROVED'
       : decision === 'REQUEST_INFO'
         ? 'NEED_MORE_INFO'
         : 'REJECTED';
+    const transitionAction = decision === 'APPROVE' ? 'APPROVE' : decision === 'REQUEST_INFO' ? 'REQUEST_INFO' : 'REJECT';
+    const state = await this.branchState.transition(id, transitionAction, actorId, reason?.trim() || `Platform ${decision.toLowerCase()} hồ sơ chi nhánh`);
+    if (!state.transitioned || !('branch' in state)) throw new ConflictException('Không thể đổi trạng thái chi nhánh khi còn lịch bị ảnh hưởng chưa xử lý');
     const reviewed = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.branch.update({
-        where: { id },
-        data: {
-          reviewStatus: nextStatus,
-          operationalStatus: 'INACTIVE',
-          status: nextStatus === 'APPROVED' ? 'INACTIVE' : 'PENDING',
-          reviewNote: reason?.trim() || null,
-          reviewedAt: new Date(),
-        },
-      });
+      const updated = state.branch!;
       if (branch.reviewRequests[0]) {
         await tx.branchReviewRequest.update({
           where: { id: branch.reviewRequests[0].id },
@@ -1098,15 +1090,6 @@ export class BranchesService {
       });
       return updated;
     });
-    if (decision === 'APPROVE') {
-      const readiness = await this.getReadiness(id);
-      if (readiness.ready) {
-        return this.prisma.branch.update({
-          where: { id },
-          data: { operationalStatus: 'READY_TO_PUBLISH' },
-        });
-      }
-    }
     return reviewed;
   }
 
@@ -1121,27 +1104,8 @@ export class BranchesService {
         reasons: readiness.reasons,
       });
     }
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.branch.update({
-        where: { id },
-        data: {
-          status: 'ACTIVE',
-          operationalStatus: 'ACTIVE',
-          publishedAt: new Date(),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          userId: actorId,
-          action: 'STATUS_CHANGE',
-          entityType: 'Branch',
-          entityId: id,
-          oldData: { operationalStatus: readiness.operationalStatus },
-          newData: { operationalStatus: 'ACTIVE' },
-          reason: 'Owner bật nhận đặt lịch sau khi checklist đạt yêu cầu',
-        },
-      });
-      return updated;
-    });
+    const state = await this.branchState.transition(id, 'PUBLISH', actorId, 'Owner bật nhận đặt lịch sau khi checklist đạt yêu cầu');
+    if (!state.transitioned || !('branch' in state)) throw new ConflictException('Không thể đăng chi nhánh');
+    return state.branch;
   }
 }

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { ALL_TENANTS, assertBusinessAccess, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
 import { isPlatformRole } from '../common/utils/scope-helpers';
+import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 
 @Injectable()
 export class VouchersAdminService {
@@ -14,6 +15,7 @@ export class VouchersAdminService {
       select: { id: true },
     });
     if (!profile) return [];
+    await this.issueAutomaticVouchers(profile.id);
 
     const assignments = await this.prisma.customerVoucher.findMany({
       where: { customerId: profile.id },
@@ -76,6 +78,9 @@ export class VouchersAdminService {
       where,
       include: {
         _count: { select: { customerVouchers: true, bookings: true } },
+        branchScopes: { include: { branch: { select: { id: true, name: true } } } },
+        serviceScopes: { include: { service: { select: { id: true, name: true } } } },
+        comboScopes: { include: { combo: { select: { id: true, name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -99,6 +104,11 @@ export class VouchersAdminService {
       usedInBookings: v._count.bookings,
       audience: v.audience,
       autoIssue: v.autoIssue,
+      maxUsagePerCustomer: v.maxUsagePerCustomer,
+      branches: v.branchScopes.map((scope) => scope.branch),
+      services: v.serviceScopes.map((scope) => scope.service),
+      combos: v.comboScopes.map((scope) => scope.combo),
+      version: v.version,
     }));
   }
 
@@ -119,6 +129,10 @@ export class VouchersAdminService {
       scope?: 'PLATFORM' | 'TENANT' | 'CUSTOMER' | 'COMPENSATION' | 'CAMPAIGN';
       audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
       autoIssue?: boolean;
+      maxUsagePerCustomer?: number;
+      branchIds?: string[];
+      serviceIds?: string[];
+      comboIds?: string[];
     }, businessId: string | null, createdByPlatform: boolean, user: AuthUser) {
     const platformActor = isPlatformRole(user);
     if (platformActor !== createdByPlatform) {
@@ -156,8 +170,19 @@ export class VouchersAdminService {
       throw new BadRequestException(`Mã voucher "${data.code}" đã tồn tại`);
     }
 
-    return this.prisma.voucher.create({
-      data: {
+    if (businessId) {
+      const [branchCount, serviceCount, comboCount] = await Promise.all([
+        this.prisma.branch.count({ where: { id: { in: data.branchIds ?? [] }, businessId } }),
+        this.prisma.branchServiceOffering.count({ where: { id: { in: data.serviceIds ?? [] }, branch: { businessId } } }),
+        this.prisma.combo.count({ where: { id: { in: data.comboIds ?? [] }, businessId } }),
+      ]);
+      if (branchCount !== (data.branchIds?.length ?? 0) || serviceCount !== (data.serviceIds?.length ?? 0) || comboCount !== (data.comboIds?.length ?? 0)) {
+        throw new ForbiddenException('Phạm vi voucher chứa dữ liệu ngoài doanh nghiệp');
+      }
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const voucher = await tx.voucher.create({
+        data: {
         code,
         name: data.name,
         description: data.description ?? null,
@@ -173,7 +198,13 @@ export class VouchersAdminService {
         scope: (createdByPlatform ? (data.scope ?? 'PLATFORM') : (data.scope ?? 'TENANT')) as any,
         audience: data.audience ?? 'ALL',
         autoIssue: data.autoIssue ?? false,
+        maxUsagePerCustomer: data.maxUsagePerCustomer ?? 1,
       },
+    });
+      if (data.branchIds?.length) await tx.voucherBranchScope.createMany({ data: data.branchIds.map((branchId) => ({ voucherId: voucher.id, branchId })) });
+      if (data.serviceIds?.length) await tx.voucherServiceScope.createMany({ data: data.serviceIds.map((serviceId) => ({ voucherId: voucher.id, serviceId })) });
+      if (data.comboIds?.length) await tx.voucherComboScope.createMany({ data: data.comboIds.map((comboId) => ({ voucherId: voucher.id, comboId })) });
+      return voucher;
     });
   }
 
@@ -190,33 +221,78 @@ export class VouchersAdminService {
       status?: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
       audience?: 'ALL' | 'NEW_CUSTOMER' | 'RETURNING_CUSTOMER' | 'BIRTHDAY' | 'VIP' | 'SELECTED';
       autoIssue?: boolean;
+      maxUsagePerCustomer?: number;
+      branchIds?: string[];
+      serviceIds?: string[];
+      comboIds?: string[];
     },
     user: AuthUser,
   ) {
     await this.assertOwnership(id, user);
-    const current = await this.prisma.voucher.findUnique({
-      where: { id },
-      select: { usedQuantity: true, startDate: true },
-    });
-    if (!current) throw new NotFoundException('Voucher không tồn tại');
-    if (data.totalQuantity !== undefined && data.totalQuantity < current.usedQuantity) {
-      throw new BadRequestException('Số lượng tổng không thể nhỏ hơn số lượt đã dùng');
-    }
-    if (data.endDate && new Date(data.endDate) <= current.startDate) {
-      throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu');
-    }
-    return this.prisma.voucher.update({
-      where: { id },
-      data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.totalQuantity !== undefined && { totalQuantity: data.totalQuantity }),
-        ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
-        ...(data.status !== undefined && { status: data.status }),
-        ...(data.audience !== undefined && { audience: data.audience }),
-        ...(data.autoIssue !== undefined && { autoIssue: data.autoIssue }),
-      },
-    });
+    return withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM vouchers WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.voucher.findUnique({ where: { id }, select: { usedQuantity: true, startDate: true, businessId: true } });
+      if (!current) throw new NotFoundException('Voucher không tồn tại');
+      const scopesChanged = data.branchIds !== undefined || data.serviceIds !== undefined || data.comboIds !== undefined;
+      if (scopesChanged) {
+        if (!current.businessId) {
+          if ((data.branchIds?.length ?? 0) + (data.serviceIds?.length ?? 0) + (data.comboIds?.length ?? 0) > 0) {
+            throw new ForbiddenException('Voucher platform khong duoc gan pham vi van hanh doanh nghiep');
+          }
+        } else {
+          const [branchCount, serviceCount, comboCount] = await Promise.all([
+            tx.branch.count({ where: { id: { in: data.branchIds ?? [] }, businessId: current.businessId } }),
+            tx.branchServiceOffering.count({ where: { id: { in: data.serviceIds ?? [] }, branch: { businessId: current.businessId } } }),
+            tx.combo.count({ where: { id: { in: data.comboIds ?? [] }, businessId: current.businessId } }),
+          ]);
+          if (branchCount !== (data.branchIds?.length ?? 0) || serviceCount !== (data.serviceIds?.length ?? 0) || comboCount !== (data.comboIds?.length ?? 0)) {
+            throw new ForbiddenException('Pham vi voucher chua du lieu ngoai doanh nghiep');
+          }
+        }
+      }
+      const usage = await tx.voucherRedemption.groupBy({
+        by: ['customerId'], where: { voucherId: id, status: { in: ['RESERVED', 'APPLIED'] } }, _count: { _all: true },
+      });
+      const reservedOrApplied = usage.reduce((sum, row) => sum + row._count._all, 0);
+      if (data.totalQuantity !== undefined && data.totalQuantity < Math.max(current.usedQuantity, reservedOrApplied)) {
+        throw new ConflictException('Số lượng tổng không thể nhỏ hơn số lượt đã reserve/sử dụng');
+      }
+      if (data.maxUsagePerCustomer !== undefined && usage.some((row) => row._count._all > data.maxUsagePerCustomer!)) {
+        throw new ConflictException('Giới hạn mới thấp hơn số lượt một khách đã reserve/sử dụng');
+      }
+      if (data.endDate && new Date(data.endDate) <= current.startDate) {
+        throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu');
+      }
+      const updated = await tx.voucher.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.totalQuantity !== undefined && { totalQuantity: data.totalQuantity }),
+          ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
+          ...(data.status !== undefined && { status: data.status }),
+          ...(data.audience !== undefined && { audience: data.audience }),
+          ...(data.autoIssue !== undefined && { autoIssue: data.autoIssue }),
+          ...(data.maxUsagePerCustomer !== undefined && { maxUsagePerCustomer: data.maxUsagePerCustomer }),
+          version: { increment: 1 },
+        },
+      });
+      if (scopesChanged) {
+        if (data.branchIds !== undefined) {
+          await tx.voucherBranchScope.deleteMany({ where: { voucherId: id } });
+          if (data.branchIds.length) await tx.voucherBranchScope.createMany({ data: data.branchIds.map((branchId) => ({ voucherId: id, branchId })) });
+        }
+        if (data.serviceIds !== undefined) {
+          await tx.voucherServiceScope.deleteMany({ where: { voucherId: id } });
+          if (data.serviceIds.length) await tx.voucherServiceScope.createMany({ data: data.serviceIds.map((serviceId) => ({ voucherId: id, serviceId })) });
+        }
+        if (data.comboIds !== undefined) {
+          await tx.voucherComboScope.deleteMany({ where: { voucherId: id } });
+          if (data.comboIds.length) await tx.voucherComboScope.createMany({ data: data.comboIds.map((comboId) => ({ voucherId: id, comboId })) });
+        }
+      }
+      return updated;
+    }, { conflictMessage: 'Voucher vừa thay đổi hoặc có lượt sử dụng mới' });
   }
 
   /**
@@ -280,12 +356,14 @@ export class VouchersAdminService {
       throw new BadRequestException('Khách hàng đã có voucher này');
     }
 
-    return this.prisma.customerVoucher.create({
-      data: {
-        voucherId,
-        customerId,
-        expiresAt: voucher.endDate,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (voucher.audience === 'SELECTED' && voucher.businessId) {
+        await tx.customerBusinessSegment.upsert({
+          where: { businessId_customerId_segment: { businessId: voucher.businessId, customerId, segment: 'SELECTED' } },
+          create: { businessId: voucher.businessId, customerId, segment: 'SELECTED', assignedBy: user.id }, update: { assignedBy: user.id },
+        });
+      }
+      return tx.customerVoucher.create({ data: { voucherId, customerId, expiresAt: voucher.endDate } });
     });
   }
 
@@ -298,6 +376,49 @@ export class VouchersAdminService {
       where: { id },
       data: { deletedAt: new Date(), status: 'REVOKED' },
     });
+  }
+
+  private async issueAutomaticVouchers(customerId: string) {
+    const now = new Date();
+    const customer = await this.prisma.customerProfile.findUnique({
+      where: { id: customerId },
+      select: {
+        user: { select: { dateOfBirth: true } },
+        bookings: { where: { deletedAt: null }, select: { status: true, branch: { select: { businessId: true } } } },
+      },
+    });
+    if (!customer) return;
+    const segments = await this.prisma.customerBusinessSegment.findMany({
+      where: { customerId }, select: { businessId: true, segment: true },
+    });
+    const relatedBusinessIds = new Set([
+      ...customer.bookings.map((booking) => booking.branch.businessId),
+      ...segments.map((segment) => segment.businessId),
+    ]);
+    const completedByBusiness = new Set(customer.bookings.filter((booking) => booking.status === 'COMPLETED').map((booking) => booking.branch.businessId));
+    const vouchers = await this.prisma.voucher.findMany({
+      where: {
+        autoIssue: true, status: 'ACTIVE', deletedAt: null, startDate: { lte: now }, endDate: { gte: now },
+        OR: [{ createdByPlatform: true }, { businessId: { in: [...relatedBusinessIds] } }],
+      },
+    });
+    for (const voucher of vouchers) {
+      const businessId = voucher.businessId;
+      const hasSegment = (segment: string) => Boolean(businessId && segments.some((row) => row.businessId === businessId && row.segment === segment));
+      const eligible = voucher.audience === 'ALL'
+        || (voucher.audience === 'NEW_CUSTOMER' && (!businessId || !completedByBusiness.has(businessId)))
+        || (voucher.audience === 'RETURNING_CUSTOMER' && Boolean(businessId && completedByBusiness.has(businessId)))
+        || (voucher.audience === 'VIP' && hasSegment('VIP'))
+        || (voucher.audience === 'SELECTED' && hasSegment('SELECTED'))
+        || (voucher.audience === 'BIRTHDAY' && Boolean(customer.user.dateOfBirth
+          && customer.user.dateOfBirth.getUTCMonth() === now.getUTCMonth()
+          && customer.user.dateOfBirth.getUTCDate() === now.getUTCDate()));
+      if (!eligible) continue;
+      await this.prisma.customerVoucher.upsert({
+        where: { voucherId_customerId: { voucherId: voucher.id, customerId } },
+        create: { voucherId: voucher.id, customerId, expiresAt: voucher.endDate }, update: {},
+      });
+    }
   }
 
   private async assertExists(id: string) {

@@ -49,6 +49,8 @@ import { isPlatformRole } from '../common/utils/scope-helpers';
 import { AuditAction } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
 import { randomUUID } from 'crypto';
+import { BookingItemsService } from './booking-items.service';
+import { applyServicePriceRules } from '../services/service-price-rules';
 
 /**
  * Routes that previously allowed the legacy role `ADMIN` keep that
@@ -67,6 +69,7 @@ export class BookingsController {
     private readonly changeRequestsService: ChangeRequestsService,
     private readonly vouchersService: VouchersService,
     private readonly paymentsService: PaymentsService,
+    private readonly bookingItemsService: BookingItemsService,
   ) {}
 
   private customerBookingView(booking: any) {
@@ -195,6 +198,10 @@ export class BookingsController {
     await this.bookingsAccess.assertCustomerCreate(user, body.branchId);
     const customerOnly = user.roles.includes('CUSTOMER') &&
       !user.roles.some((role) => ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role));
+    const mayOverbook = user.roles.some((role) => ['BUSINESS_OWNER', 'BRANCH_MANAGER'].includes(role));
+    if (body.controlledOverbooking && !mayOverbook) {
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp hoặc quản lý chi nhánh được phép overbooking có kiểm soát');
+    }
     let customerId = body.customerId;
     if (customerOnly) {
       const profile = await this.prisma.customerProfile.findUnique({
@@ -229,6 +236,10 @@ export class BookingsController {
       guestContact: body.guestName
         ? { fullName: body.guestName.trim(), phone: body.guestPhone?.trim() || null }
         : undefined,
+      controlledOverbooking: body.controlledOverbooking === true && mayOverbook,
+      overbookingReason: body.controlledOverbooking === true && mayOverbook
+        ? body.overbookingReason?.trim()
+        : undefined,
     });
     return customerOnly ? this.customerBookingView(booking) : booking;
   }
@@ -241,19 +252,46 @@ export class BookingsController {
     @Body('serviceIds') serviceIds: string[],
     @Body('branchId') branchId: string,
     @Body('comboId') comboId: string | undefined,
+    @Body('loyaltyPoints') loyaltyPoints: number | undefined,
+    @Body('variantSelections') variantSelections: Record<string, string> | undefined,
+    @Body('appointmentDate') appointmentDate: string | undefined,
     @CurrentUser() user: AuthUser,
   ) {
     if ((!serviceIds || serviceIds.length === 0) && !comboId) throw new BadRequestException('Chọn dịch vụ hoặc combo');
+    const customer = await this.prisma.customerProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!customer) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
     if (comboId) {
       const combo = await this.prisma.combo.findFirst({
         where: { id: comboId, branchId, status: 'ACTIVE', deletedAt: null },
       });
       if (!combo) throw new BadRequestException('Combo không hợp lệ');
       const subtotal = Number(combo.comboPrice);
-      if (!voucherCode) return { subtotal, voucherDiscount: 0, finalAmount: subtotal, voucherApplied: false };
-      const customer = await this.prisma.customerProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
-      if (!customer) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
-      return this.vouchersService.preview({ customerId: customer.id, branchId, voucherCode, subtotal });
+      const comboItems = await this.prisma.comboService.findMany({
+        where: { comboId },
+        select: { serviceId: true, priceSnapshot: true, quantity: true },
+      });
+      const comboBase = comboItems.reduce((sum, item) => sum + Number(item.priceSnapshot) * item.quantity, 0) || subtotal;
+      let allocated = 0;
+      const lineItems = comboItems.map((item, index) => {
+        const amount = index === comboItems.length - 1
+          ? subtotal - allocated
+          : Math.round(subtotal * Number(item.priceSnapshot) * item.quantity / comboBase);
+        allocated += amount;
+        return { serviceId: item.serviceId, amount };
+      });
+      return this.vouchersService.preview({
+        customerId: customer.id,
+        branchId,
+        voucherCode: voucherCode ?? '',
+        subtotal,
+        comboId,
+        serviceIds: comboItems.map((item) => item.serviceId),
+        lineItems,
+        loyaltyPoints,
+      });
     }
     const services = await this.prisma.branchServiceOffering.findMany({
       where: {
@@ -266,25 +304,49 @@ export class BookingsController {
     if (services.length !== new Set(serviceIds).size) {
       throw new BadRequestException('Dịch vụ không hợp lệ hoặc không thuộc chi nhánh');
     }
-    const subtotal = services.reduce((s, sv) => s + Number(sv.price), 0);
-    if (!voucherCode) {
-      return {
-        subtotal,
-        voucherDiscount: 0,
-        finalAmount: subtotal,
-        voucherApplied: false,
-      };
+    const variantIds = Object.values(variantSelections ?? {});
+    const variants = variantIds.length
+      ? await this.prisma.serviceVariant.findMany({
+          where: { id: { in: variantIds }, serviceId: { in: serviceIds }, status: 'ACTIVE', deletedAt: null },
+        })
+      : [];
+    if (variants.length !== new Set(variantIds).size) throw new BadRequestException('Biến thể dịch vụ không hợp lệ');
+    const variantsByService = new Map(variants.map((variant) => [variant.serviceId, variant]));
+    for (const [serviceId, variantId] of Object.entries(variantSelections ?? {})) {
+      const variant = variantsByService.get(serviceId);
+      if (!variant || variant.id !== variantId) throw new BadRequestException('Biến thể không thuộc dịch vụ đã chọn');
+      if (variant.priceType === 'QUOTE' || variant.consultationRequired) {
+        throw new BadRequestException('Lựa chọn này cần tư vấn trước khi đặt trực tuyến');
+      }
     }
-    const customer = await this.prisma.customerProfile.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
+    const pricingAt = appointmentDate ? new Date(appointmentDate) : new Date();
+    if (!Number.isFinite(pricingAt.getTime())) throw new BadRequestException('appointmentDate không hợp lệ');
+    const rules = await this.prisma.servicePriceRule.findMany({
+      where: {
+        serviceId: { in: serviceIds }, active: true,
+        OR: [{ validFrom: null }, { validFrom: { lte: pricingAt } }],
+        AND: [{ OR: [{ validTo: null }, { validTo: { gte: pricingAt } }] }],
+      },
     });
-    if (!customer) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
+    const lineItems = services.map((service) => {
+      const variant = variantsByService.get(service.id);
+      const amount = applyServicePriceRules({
+        basePrice: Number(variant?.price ?? service.price),
+        at: pricingAt,
+        variantId: variant?.id,
+        rules: rules.filter((rule) => rule.serviceId === service.id),
+      }).amount;
+      return { serviceId: service.id, amount };
+    });
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
     return this.vouchersService.preview({
       customerId: customer.id,
       branchId,
-      voucherCode,
+      voucherCode: voucherCode ?? '',
       subtotal,
+      serviceIds,
+      lineItems,
+      loyaltyPoints,
     });
   }
 
@@ -610,15 +672,22 @@ export class BookingsController {
     @Query('staffId') staffId: string,
     @Query('serviceIds') serviceIds: string,
     @Query('date') date: string,
+    @Query('variantSelections') rawVariantSelections?: string,
   ) {
     if (!branchId || !serviceIds || !date) {
       throw new BadRequestException('branchId, serviceIds, date are required');
+    }
+    let variantSelections: Record<string, string> = {};
+    if (rawVariantSelections) {
+      try { variantSelections = JSON.parse(rawVariantSelections); }
+      catch { throw new BadRequestException('variantSelections không hợp lệ'); }
     }
     return this.bookingsService.getAvailableSlots({
       branchId,
       staffId: staffId || null,
       serviceIds: serviceIds.split(',').filter(Boolean),
       date,
+      variantSelections,
     });
   }
 
@@ -988,6 +1057,53 @@ export class BookingsController {
   ) {
     await this.bookingsAccess.assertWrite(user, id);
     return this.bookingsService.assignStaff(id, body.staffId);
+  }
+
+  @Post(':id/items')
+  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
+  @RequirePermission('booking:update:branch', 'booking:update:tenant')
+  @Audited({ action: AuditAction.UPDATE, entityType: 'BookingService' })
+  async addBookingItem(
+    @Param('id') id: string,
+    @Body() body: {
+      serviceId: string;
+      variantId?: string;
+      staffId?: string;
+      reason: string;
+      durationMinutes?: number;
+      price?: number;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.bookingsAccess.assertWrite(user, id);
+    return this.bookingItemsService.add(id, user.id, body);
+  }
+
+  @Patch(':id/items/:itemId')
+  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
+  @RequirePermission('booking:update:branch', 'booking:update:tenant', 'booking:complete:branch')
+  @Audited({ action: AuditAction.UPDATE, entityType: 'BookingService', idParam: 'itemId' })
+  async updateBookingItem(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() body: {
+      action: 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';
+      reason: string;
+      expectedRevision: number;
+      staffId?: string;
+      durationMinutes?: number;
+      price?: number;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.bookingsAccess.assertWrite(user, id);
+    const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
+      ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role),
+    );
+    if (staffOnly && !['START', 'COMPLETE'].includes(body.action)) {
+      throw new ForbiddenException('Nhân viên chỉ có thể bắt đầu hoặc hoàn thành dịch vụ được giao');
+    }
+    return this.bookingItemsService.update(id, itemId, user.id, body);
   }
 
   // ============= CHANGE REQUESTS =============

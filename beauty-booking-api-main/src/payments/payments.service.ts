@@ -35,6 +35,8 @@ import type {
   ReservePackageSessionDto,
   TransitionPlatformStatementDto,
 } from './dto/payments.dto';
+import { FinanceService } from '../finance/finance.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
 export class PaymentsService {
@@ -43,6 +45,8 @@ export class PaymentsService {
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly providerRegistry?: PaymentProviderRegistry,
     @Optional() private readonly workforce?: WorkforceService,
+    @Optional() private readonly finance?: FinanceService,
+    @Optional() private readonly loyalty?: LoyaltyService,
   ) {}
 
   private providers() {
@@ -293,6 +297,15 @@ export class PaymentsService {
             data: { status: verified ? 'SUCCEEDED' : 'PENDING' },
           });
           if (verified) {
+            if (method === 'CASH' && this.finance) {
+              await this.finance.recordCashPayment(tx, {
+                branchId: booking.branchId,
+                paymentId: legacyPayment.id,
+                amount,
+                actorId: user.id,
+                sourceId: transaction.id,
+              });
+            }
             await this.postPaymentLedger(tx, transaction.id, user.id);
             await this.ensurePlatformFee(tx, bookingId);
           }
@@ -550,6 +563,23 @@ export class PaymentsService {
           await this.ensurePlatformFeeAdjustment(tx, refundId);
           if (this.workforce) {
             await this.workforce.recordRefundAdjustments(refundId, tx);
+          }
+          if (refund.payment.method === 'CASH' && this.finance) {
+            await this.finance.recordCashRefund(tx, {
+              branchId: refund.payment.booking.branchId,
+              refundRequestId: refundId,
+              amount: Number(refund.amount),
+              actorId: user.id,
+            });
+          }
+          if (this.loyalty) {
+            await this.loyalty.adjustForRefund(
+              refund.payment.bookingId,
+              refundId,
+              Number(refund.amount),
+              user.id,
+              tx,
+            );
           }
           return tx.refundRequest.findUniqueOrThrow({
             where: { id: refundId },
@@ -1610,6 +1640,14 @@ export class PaymentsService {
         },
       });
       if (verified) {
+        if (method === 'CASH' && this.finance) {
+          await this.finance.recordCashPayment(tx, {
+            branchId,
+            amount: Number(installment.amount),
+            actorId: user.id,
+            sourceId: transaction.id,
+          });
+        }
         await this.postPaymentLedger(tx, transaction.id, user.id);
         await this.recalculatePackagePurchase(tx, installment.purchaseId);
       }

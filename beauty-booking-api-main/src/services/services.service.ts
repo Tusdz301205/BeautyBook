@@ -85,6 +85,15 @@ export class ServicesService {
         : {}),
     });
 
+    const variants = services.length
+      ? await this.prisma.serviceVariant.findMany({
+          where: { serviceId: { in: services.map((service) => service.id) }, deletedAt: null, ...(publicOnly ? { status: 'ACTIVE' } : {}) },
+          orderBy: [{ serviceId: 'asc' }, { createdAt: 'asc' }],
+        })
+      : [];
+    const variantsByService = new Map<string, typeof variants>();
+    for (const variant of variants) variantsByService.set(variant.serviceId, [...(variantsByService.get(variant.serviceId) ?? []), variant]);
+
     return services.map((service) => ({
       id: service.id,
       branchId: service.branchId,
@@ -93,6 +102,8 @@ export class ServicesService {
       name: service.businessService.name || service.name,
       description: service.description,
       price: Number(service.price),
+      priceDisplay: this.priceDisplay(variantsByService.get(service.id) ?? [], Number(service.price)),
+      variants: (variantsByService.get(service.id) ?? []).map((variant) => this.serializeVariant(variant)),
       duration: service.durationMinutes,
       durationMinutes: service.durationMinutes,
       category: service.category,
@@ -268,9 +279,16 @@ export class ServicesService {
         },
       },
     });
-    if (!service || !publicOnly) return service;
+    if (!service) return service;
+    const variants = await this.prisma.serviceVariant.findMany({
+      where: { serviceId: service.id, deletedAt: null, ...(publicOnly ? { status: 'ACTIVE' } : {}) },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!publicOnly) return { ...service, variants: variants.map((variant) => this.serializeVariant(variant)) };
     return {
       ...service,
+      priceDisplay: this.priceDisplay(variants, Number(service.price)),
+      variants: variants.map((variant) => this.serializeVariant(variant)),
       name: service.businessService.name,
       canonicalService: service.businessService.canonicalService,
       staffServices: service.staffServices.map(({ staff, ...assignment }) => {
@@ -875,6 +893,142 @@ export class ServicesService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+  }
+
+  async listVariants(serviceId: string, publicOnly = false) {
+    const variants = await this.prisma.serviceVariant.findMany({
+      where: { serviceId, deletedAt: null, ...(publicOnly ? { status: 'ACTIVE' } : {}) },
+      orderBy: { createdAt: 'asc' },
+    });
+    return variants.map((variant) => this.serializeVariant(variant));
+  }
+
+  async createVariant(serviceId: string, data: {
+    code: string; name: string; description?: string;
+    priceType?: 'FIXED' | 'FROM' | 'RANGE' | 'QUOTE';
+    price?: number; maxPrice?: number; durationMinutes?: number; maxDurationMinutes?: number;
+    bufferBeforeMinutes?: number; bufferAfterMinutes?: number;
+    consultationRequired?: boolean; eligibilityRules?: Record<string, unknown>;
+  }) {
+    const service = await this.prisma.branchServiceOffering.findFirst({ where: { id: serviceId, deletedAt: null } });
+    if (!service) throw new NotFoundException('Dịch vụ không tồn tại');
+    this.validateVariant(data);
+    return this.prisma.serviceVariant.create({ data: {
+      serviceId,
+      code: data.code.trim(),
+      name: data.name.trim(),
+      description: data.description?.trim(),
+      priceType: data.priceType ?? 'FIXED',
+      price: data.priceType === 'QUOTE' ? null : data.price,
+      maxPrice: data.maxPrice,
+      durationMinutes: data.durationMinutes,
+      maxDurationMinutes: data.maxDurationMinutes,
+      bufferBeforeMinutes: data.bufferBeforeMinutes ?? 0,
+      bufferAfterMinutes: data.bufferAfterMinutes ?? 0,
+      consultationRequired: Boolean(data.consultationRequired),
+      eligibilityRules: data.eligibilityRules as Prisma.InputJsonValue | undefined,
+    } });
+  }
+
+  async updateVariant(variantId: string, data: {
+    name?: string; description?: string; priceType?: 'FIXED' | 'FROM' | 'RANGE' | 'QUOTE';
+    price?: number | null; maxPrice?: number | null; durationMinutes?: number; maxDurationMinutes?: number | null;
+    bufferBeforeMinutes?: number; bufferAfterMinutes?: number; consultationRequired?: boolean;
+    eligibilityRules?: Record<string, unknown>; status?: CatalogStatus;
+  }) {
+    const current = await this.prisma.serviceVariant.findUnique({ where: { id: variantId } });
+    if (!current || current.deletedAt) throw new NotFoundException('Biến thể không tồn tại');
+    this.validateVariant({
+      priceType: data.priceType ?? current.priceType,
+      price: data.price === undefined ? Number(current.price) : data.price ?? undefined,
+      maxPrice: data.maxPrice === undefined ? Number(current.maxPrice) : data.maxPrice ?? undefined,
+      durationMinutes: data.durationMinutes ?? current.durationMinutes ?? undefined,
+      maxDurationMinutes: data.maxDurationMinutes === undefined ? current.maxDurationMinutes ?? undefined : data.maxDurationMinutes ?? undefined,
+      bufferBeforeMinutes: data.bufferBeforeMinutes ?? current.bufferBeforeMinutes,
+      bufferAfterMinutes: data.bufferAfterMinutes ?? current.bufferAfterMinutes,
+    });
+    return this.prisma.serviceVariant.update({ where: { id: variantId }, data: {
+      ...data,
+      name: data.name?.trim(),
+      description: data.description?.trim(),
+      eligibilityRules: data.eligibilityRules as Prisma.InputJsonValue | undefined,
+      version: { increment: 1 },
+    } });
+  }
+
+  async addDependency(serviceId: string, requiredServiceId: string, dependencyType: 'REQUIRED' | 'ADD_ON' | 'INCOMPATIBLE') {
+    if (serviceId === requiredServiceId) throw new BadRequestException('Dịch vụ không thể phụ thuộc vào chính nó');
+    const services = await this.prisma.branchServiceOffering.findMany({
+      where: { id: { in: [serviceId, requiredServiceId] }, deletedAt: null },
+      select: { id: true, branchId: true },
+    });
+    if (services.length !== 2 || services[0].branchId !== services[1].branchId) throw new BadRequestException('Hai dịch vụ phải thuộc cùng chi nhánh');
+    return this.prisma.serviceDependency.upsert({
+      where: { serviceId_requiredServiceId_dependencyType: { serviceId, requiredServiceId, dependencyType } },
+      update: {},
+      create: { serviceId, requiredServiceId, dependencyType },
+    });
+  }
+
+  async createPriceRule(serviceId: string, data: {
+    variantId?: string; name: string; priority?: number;
+    adjustmentType: 'PERCENTAGE' | 'FIXED_AMOUNT'; adjustmentValue: number;
+    conditions: Record<string, unknown>; validFrom?: string; validTo?: string;
+  }) {
+    if (!data.name?.trim() || !Number.isFinite(data.adjustmentValue)) throw new BadRequestException('Quy tắc giá không hợp lệ');
+    if (data.variantId) {
+      const variant = await this.prisma.serviceVariant.findFirst({ where: { id: data.variantId, serviceId, deletedAt: null } });
+      if (!variant) throw new BadRequestException('Biến thể không thuộc dịch vụ');
+    }
+    return this.prisma.servicePriceRule.create({ data: {
+      serviceId,
+      variantId: data.variantId,
+      name: data.name.trim(),
+      priority: data.priority ?? 100,
+      adjustmentType: data.adjustmentType,
+      adjustmentValue: data.adjustmentValue,
+      conditions: data.conditions as Prisma.InputJsonValue,
+      validFrom: data.validFrom ? new Date(data.validFrom) : null,
+      validTo: data.validTo ? new Date(data.validTo) : null,
+    } });
+  }
+
+  private validateVariant(data: {
+    priceType?: string; price?: number; maxPrice?: number;
+    durationMinutes?: number; maxDurationMinutes?: number;
+    bufferBeforeMinutes?: number; bufferAfterMinutes?: number;
+  }) {
+    const priceType = data.priceType ?? 'FIXED';
+    if (priceType !== 'QUOTE' && (!Number.isFinite(data.price) || Number(data.price) < 0)) throw new BadRequestException('Giá biến thể không hợp lệ');
+    if (priceType === 'RANGE' && (!Number.isFinite(data.maxPrice) || Number(data.maxPrice) < Number(data.price))) throw new BadRequestException('Khoảng giá không hợp lệ');
+    if (data.durationMinutes !== undefined && (!Number.isInteger(data.durationMinutes) || data.durationMinutes <= 0)) throw new BadRequestException('Thời lượng không hợp lệ');
+    if (data.maxDurationMinutes !== undefined && data.durationMinutes !== undefined && data.maxDurationMinutes < data.durationMinutes) throw new BadRequestException('Khoảng thời lượng không hợp lệ');
+    if (Number(data.bufferBeforeMinutes ?? 0) < 0 || Number(data.bufferAfterMinutes ?? 0) < 0) throw new BadRequestException('Buffer không được âm');
+  }
+
+  private serializeVariant(variant: any) {
+    return {
+      ...variant,
+      price: variant.price === null ? null : Number(variant.price),
+      maxPrice: variant.maxPrice === null ? null : Number(variant.maxPrice),
+      priceDisplay: variant.priceType === 'QUOTE'
+        ? 'Cần tư vấn'
+        : variant.priceType === 'FROM'
+          ? `Từ ${Number(variant.price).toLocaleString('vi-VN')}đ`
+          : variant.priceType === 'RANGE'
+            ? `${Number(variant.price).toLocaleString('vi-VN')}đ – ${Number(variant.maxPrice).toLocaleString('vi-VN')}đ`
+            : `${Number(variant.price).toLocaleString('vi-VN')}đ`,
+    };
+  }
+
+  private priceDisplay(variants: any[], fallback: number) {
+    if (!variants.length) return `${fallback.toLocaleString('vi-VN')}đ`;
+    if (variants.some((variant) => variant.priceType === 'QUOTE')) return 'Có lựa chọn cần tư vấn';
+    const prices = variants.flatMap((variant) => [variant.price, variant.maxPrice]).filter((value) => value !== null).map(Number);
+    if (!prices.length) return 'Cần tư vấn';
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return min === max ? `${min.toLocaleString('vi-VN')}đ` : `Từ ${min.toLocaleString('vi-VN')}đ – ${max.toLocaleString('vi-VN')}đ`;
   }
 
   private normalizeKeywords(values?: string[]) {

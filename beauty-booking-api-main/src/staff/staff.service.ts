@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
@@ -544,7 +545,7 @@ export class StaffService {
     };
   }
 
-  async deactivate(id: string, input: { reason: string; acknowledgeFutureBookings?: boolean }) {
+  async deactivate(id: string, input: { reason: string }, actorId: string) {
     const staff = await this.prisma.staffProfile.findUnique({
       where: { id },
       select: {
@@ -558,12 +559,33 @@ export class StaffService {
 
     if (!input.reason?.trim()) throw new BadRequestException('Lý do ngừng làm việc là bắt buộc');
     const impact = await this.offboardingImpact(id);
-    if (impact.requiresReassignment && !input.acknowledgeFutureBookings) {
-      throw new BadRequestException({
-        message: 'Nhân sự còn lịch hẹn tương lai; cần xử lý hoặc xác nhận kế hoạch phân công lại',
-        code: 'FUTURE_BOOKINGS_REQUIRE_ACTION',
-        impact,
+    if (impact.requiresReassignment) {
+      const completed = await this.prisma.operationalImpactCase.findFirst({
+        where: { subjectType: 'STAFF', subjectId: id, action: 'OFFBOARD', status: 'COMPLETED' },
+        orderBy: { completedAt: 'desc' },
+        select: { id: true },
       });
+      if (!completed) {
+        const existing = await this.prisma.operationalImpactCase.findFirst({
+          where: { subjectType: 'STAFF', subjectId: id, action: 'OFFBOARD', status: { in: ['OPEN', 'IN_PROGRESS', 'READY_TO_COMPLETE'] } },
+        });
+        const impactCase = existing ?? await this.prisma.operationalImpactCase.create({ data: {
+          businessId: staff.branch.businessId,
+          branchId: staff.branchId,
+          subjectType: 'STAFF',
+          subjectId: id,
+          action: 'OFFBOARD',
+          reason: input.reason.trim(),
+          ownerId: actorId,
+          createdBy: actorId,
+          deadlineAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        } });
+        if (!existing) await this.prisma.operationalImpactItem.createMany({
+          data: impact.bookings.map((booking) => ({ caseId: impactCase.id, bookingId: booking.id })),
+          skipDuplicates: true,
+        });
+        return { deactivated: false, requiresImpactResolution: true, impactCase, impact };
+      }
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -604,7 +626,7 @@ export class StaffService {
       }
       return profile;
     });
-    return { ...updated, impact, reason: input.reason.trim() };
+    return { ...updated, deactivated: true, impact, reason: input.reason.trim() };
   }
 
   // ============================================================
@@ -789,7 +811,6 @@ export class StaffService {
       effectiveFrom: string;
       effectiveTo?: string | null;
       note?: string;
-      acknowledgeImpact?: boolean;
       acknowledgeOutOfHours?: boolean;
       segments: Array<{
         dayOfWeek: number;
@@ -822,6 +843,11 @@ export class StaffService {
       select: { id: true, userId: true, branchId: true },
     });
     if (!staff) throw new BadRequestException('Nhân viên chưa được phân công vào chi nhánh này');
+    const targetBranch = await this.prisma.branch.findUnique({
+      where: { id: input.branchId },
+      select: { businessId: true },
+    });
+    if (!targetBranch) throw new BadRequestException('Chi nhánh không tồn tại');
     const staffOnly =
       actor.roles.includes('STAFF') &&
       !actor.roles.some((role) => ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN'].includes(role));
@@ -861,13 +887,47 @@ export class StaffService {
       effectiveTo,
       input.segments,
     );
-    if (impacted.length && (staffOnly || !input.acknowledgeImpact)) {
-      throw new ConflictException({
-        message: 'Lịch mới ảnh hưởng booking tương lai. Hệ thống không tự hủy hoặc phân công lại.',
-        code: 'BOOKING_IMPACT',
-        count: impacted.length,
-        bookings: impacted,
+    if (impacted.length) {
+      const scheduleKey = createHash('sha256').update(JSON.stringify({
+        staffId,
+        branchId: input.branchId,
+        effectiveFrom: input.effectiveFrom,
+        effectiveTo: input.effectiveTo ?? null,
+        segments: [...input.segments].sort((left, right) => left.dayOfWeek - right.dayOfWeek || left.startTime.localeCompare(right.startTime)),
+        bookingIds: impacted.map((booking) => booking.id).sort(),
+      })).digest('hex');
+      const subjectId = `${staffId}:${scheduleKey}`;
+      const completed = await this.prisma.operationalImpactCase.findFirst({
+        where: { subjectType: 'SCHEDULE', subjectId, action: 'SCHEDULE_CHANGE', status: 'COMPLETED' },
+        select: { id: true },
       });
+      if (!completed) {
+        const existing = await this.prisma.operationalImpactCase.findFirst({
+          where: { subjectType: 'SCHEDULE', subjectId, action: 'SCHEDULE_CHANGE', status: { in: ['OPEN', 'IN_PROGRESS', 'READY_TO_COMPLETE'] } },
+        });
+        const impactCase = existing ?? await this.prisma.operationalImpactCase.create({ data: {
+          businessId: targetBranch.businessId,
+          branchId: input.branchId,
+          subjectType: 'SCHEDULE',
+          subjectId,
+          action: 'SCHEDULE_CHANGE',
+          reason: input.note?.trim() || 'Thay đổi lịch làm việc ảnh hưởng booking tương lai',
+          ownerId: actor.id,
+          createdBy: actor.id,
+          deadlineAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        } });
+        if (!existing) await this.prisma.operationalImpactItem.createMany({
+          data: impacted.map((booking) => ({ caseId: impactCase.id, bookingId: booking.id })),
+          skipDuplicates: true,
+        });
+        throw new ConflictException({
+          message: 'Lịch mới ảnh hưởng booking tương lai. Hãy xử lý từng booking trong Trung tâm vận hành.',
+          code: 'BOOKING_IMPACT_WORKFLOW',
+          impactCaseId: impactCase.id,
+          count: impacted.length,
+          bookings: impacted,
+        });
+      }
     }
     return this.prisma.$transaction(async (tx) => {
       const latest = await tx.staffScheduleVersion.findFirst({
@@ -1014,7 +1074,6 @@ export class StaffService {
           effectiveTo: request.effectiveTo?.toISOString().slice(0, 10),
           segments: proposed.segments ?? [],
           note: `Duyệt yêu cầu ${request.id}: ${request.reason}`,
-          acknowledgeImpact: false,
           acknowledgeOutOfHours: false,
         },
         actor,

@@ -16,7 +16,6 @@ import {
   validateStaffForService,
   BLOCKING_BOOKING_STATUSES,
 } from './bookings.validation';
-import { applyVoucher } from '../common/utils/voucher';
 import {
   resolveCancellationPolicy,
   resolveRescheduleCutoffHours,
@@ -37,6 +36,9 @@ import {
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { PaymentsService } from '../payments/payments.service';
+import { PricingEngineService } from '../promotions/pricing-engine.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
+import { applyServicePriceRules } from '../services/service-price-rules';
 
 @Injectable()
 export class BookingsService {
@@ -45,6 +47,8 @@ export class BookingsService {
     private readonly mailService: MailService,
     private readonly schedulerGateway: SchedulerGateway,
     private readonly platformSettings: PlatformSettingsService,
+    private readonly pricingEngine: PricingEngineService,
+    private readonly loyalty: LoyaltyService,
     @Optional() private readonly payments?: PaymentsService,
   ) {}
 
@@ -406,9 +410,7 @@ export class BookingsService {
         finalAmount: true,
         voucherId: true,
         bookingServices: {
-          where: { comboId: { not: null } },
-          select: { comboId: true },
-          take: 1,
+          select: { comboId: true, status: true },
         },
         paymentTransactions: {
           select: { amount: true, status: true },
@@ -428,6 +430,13 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+
+    if (
+      mappedStatus === 'COMPLETED' &&
+      existing.bookingServices.some((item) => !['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(item.status))
+    ) {
+      throw new ConflictException('Chỉ có thể hoàn thành lịch khi mọi dịch vụ đã hoàn thành, bỏ qua hoặc hủy');
+    }
 
     if (
       mappedStatus === 'COMPLETED' &&
@@ -547,14 +556,19 @@ export class BookingsService {
           },
         });
 
-        if (mappedStatus === 'CONFIRMED' && existing.voucherId) {
-          await tx.customerVoucher.updateMany({
-            where: {
-              usedBookingId: id,
-              voucherId: existing.voucherId,
-              status: 'RESERVED',
-            },
-            data: { status: 'USED', usedAt: new Date() },
+        if (mappedStatus === 'CONFIRMED') {
+          const appliedAt = new Date();
+          await tx.voucherRedemption.updateMany({
+            where: { bookingId: id, status: 'RESERVED' },
+            data: { status: 'APPLIED', appliedAt },
+          });
+          await tx.promotionRedemption.updateMany({
+            where: { bookingId: id, status: 'RESERVED' },
+            data: { status: 'APPLIED', appliedAt },
+          });
+          await tx.priceAdjustment.updateMany({
+            where: { bookingId: id, status: 'RESERVED' },
+            data: { status: 'APPLIED', appliedAt },
           });
         }
 
@@ -663,6 +677,9 @@ export class BookingsService {
     if (mappedStatus === 'COMPLETED' && this.payments) {
       await this.prisma.$transaction((tx) => this.payments!.ensurePlatformFee(tx, id));
     }
+    if (mappedStatus === 'COMPLETED') {
+      await this.loyalty.earnForBooking(id, changedBy ?? undefined);
+    }
     this.schedulerGateway.notifyBookingUpdated(updatedBooking);
     return updatedBooking;
   }
@@ -685,6 +702,7 @@ export class BookingsService {
     customerId: string;
     branchId: string;
     serviceIds?: string[];
+    variantSelections?: Record<string, string>;
     comboId?: string;
     recurringPlanId?: string;
     appointmentDate: string;
@@ -692,8 +710,11 @@ export class BookingsService {
     createdBy?: string;
     staffId?: string;
     voucherCode?: string;
+    loyaltyPoints?: number;
     guestContact?: { fullName: string; phone?: string | null; email?: string | null };
     source?: 'ONLINE_WEB' | 'ONLINE_APP' | 'WALK_IN' | 'PHONE' | 'STAFF_CREATED' | 'ADMIN_CREATED';
+    controlledOverbooking?: boolean;
+    overbookingReason?: string;
   }) {
     await this.expirePendingHolds(data.branchId);
     const statusChangedBy = data.createdBy ?? (await this.prisma.customerProfile.findUnique({
@@ -752,25 +773,80 @@ export class BookingsService {
     }
 
     const servicesById = new Map(services.map((service) => [service.id, service]));
+    const selectedVariantIds = Object.values(data.variantSelections ?? {});
+    const selectedVariants = selectedVariantIds.length
+      ? await this.prisma.serviceVariant.findMany({
+          where: { id: { in: selectedVariantIds }, status: 'ACTIVE', deletedAt: null },
+        })
+      : [];
+    if (selectedVariants.length !== new Set(selectedVariantIds).size) {
+      throw new BadRequestException('Biến thể dịch vụ không hợp lệ');
+    }
+    const variantsByService = new Map(selectedVariants.map((variant) => [variant.serviceId, variant]));
+    const dependencies = await this.prisma.serviceDependency.findMany({
+      where: { serviceId: { in: resolvedServiceIds }, dependencyType: { in: ['REQUIRED', 'INCOMPATIBLE'] } },
+    });
+    for (const dependency of dependencies) {
+      const included = resolvedServiceIds.includes(dependency.requiredServiceId);
+      if (dependency.dependencyType === 'REQUIRED' && !included) {
+        throw new BadRequestException('Lựa chọn dịch vụ còn thiếu dịch vụ bắt buộc đi kèm');
+      }
+      if (dependency.dependencyType === 'INCOMPATIBLE' && included) {
+        throw new BadRequestException('Hai dịch vụ đã chọn không thể thực hiện trong cùng một lịch');
+      }
+    }
+    const customerIdentity = selectedVariants.some((variant) => variant.eligibilityRules)
+      ? await this.prisma.customerProfile.findUnique({
+          where: { id: data.customerId },
+          select: { user: { select: { gender: true, dateOfBirth: true } } },
+        })
+      : null;
+    for (const [serviceId, variantId] of Object.entries(data.variantSelections ?? {})) {
+      const variant = variantsByService.get(serviceId);
+      if (!servicesById.has(serviceId) || !variant || variant.id !== variantId) {
+        throw new BadRequestException('Biến thể không thuộc dịch vụ đã chọn');
+      }
+      if ((variant.consultationRequired || variant.priceType === 'QUOTE') && ['ONLINE_WEB', 'ONLINE_APP'].includes(data.source ?? 'ONLINE_WEB')) {
+        throw new ConflictException('Dịch vụ này cần được cơ sở tư vấn và báo giá trước khi đặt trực tuyến');
+      }
+      const eligibility = (variant.eligibilityRules && typeof variant.eligibilityRules === 'object'
+        ? variant.eligibilityRules
+        : {}) as Record<string, unknown>;
+      const allowedGenders = Array.isArray(eligibility.allowedGenders) ? eligibility.allowedGenders.map(String) : [];
+      if (allowedGenders.length && (!customerIdentity?.user.gender || !allowedGenders.includes(customerIdentity.user.gender))) {
+        throw new ConflictException('Thông tin giới tính hiện tại không đáp ứng điều kiện của biến thể dịch vụ');
+      }
+      if (eligibility.minAge !== undefined || eligibility.maxAge !== undefined) {
+        const birthday = customerIdentity?.user.dateOfBirth;
+        if (!birthday) throw new ConflictException('Vui lòng cập nhật ngày sinh để kiểm tra điều kiện độ tuổi');
+        const age = Math.floor((Date.now() - birthday.getTime()) / 31_556_952_000);
+        if (eligibility.minAge !== undefined && age < Number(eligibility.minAge)) throw new ConflictException('Khách hàng chưa đủ độ tuổi cho dịch vụ');
+        if (eligibility.maxAge !== undefined && age > Number(eligibility.maxAge)) throw new ConflictException('Khách hàng vượt độ tuổi áp dụng của dịch vụ');
+      }
+    }
     const plannedItems = combo
       ? combo.comboServices.flatMap((item) =>
           Array.from({ length: item.quantity }, (_, quantityIndex) => ({
             service: servicesById.get(item.serviceId)!,
+            variant: variantsByService.get(item.serviceId) ?? null,
             transitionMinutes: quantityIndex === item.quantity - 1 ? item.transitionMinutes : 0,
             sortOrder: item.sortOrder + quantityIndex / Math.max(1, item.quantity),
-            priceSnapshot: Number(item.priceSnapshot),
+            priceSnapshot: Number(variantsByService.get(item.serviceId)?.price ?? item.priceSnapshot),
           })),
         )
       : resolvedServiceIds.map((serviceId, index) => ({
           service: servicesById.get(serviceId)!,
+          variant: variantsByService.get(serviceId) ?? null,
           transitionMinutes: 0,
           sortOrder: index,
-          priceSnapshot: Number(servicesById.get(serviceId)!.price),
+          priceSnapshot: Number(variantsByService.get(serviceId)?.price ?? servicesById.get(serviceId)!.price),
         }));
 
     // 2. Tính duration + validate
     const totalDuration = plannedItems.reduce(
-      (sum, item) => sum + Number(item.service.durationMinutes || 0) + item.transitionMinutes,
+      (sum, item) => sum + Number(item.variant?.bufferBeforeMinutes ?? 0) +
+        Number(item.variant?.durationMinutes ?? item.service.durationMinutes ?? 0) +
+        Number(item.variant?.bufferAfterMinutes ?? 0) + item.transitionMinutes,
       0,
     );
     assertValidDuration(totalDuration);
@@ -802,20 +878,61 @@ export class BookingsService {
     );
     let timelineCursor = appointmentStartTime.getTime();
     const timeline = plannedItems.map((item, index) => {
+      timelineCursor += Number(item.variant?.bufferBeforeMinutes ?? 0) * 60_000;
       const itemStartAt = new Date(timelineCursor);
-      const itemEndAt = new Date(itemStartAt.getTime() + item.service.durationMinutes * 60_000);
-      timelineCursor = itemEndAt.getTime() + item.transitionMinutes * 60_000;
+      const itemDuration = Number(item.variant?.durationMinutes ?? item.service.durationMinutes);
+      const itemEndAt = new Date(itemStartAt.getTime() + itemDuration * 60_000);
+      timelineCursor = itemEndAt.getTime() +
+        (Number(item.variant?.bufferAfterMinutes ?? 0) + item.transitionMinutes) * 60_000;
       return { ...item, sortOrder: index, itemStartAt, itemEndAt };
     });
+
+    const servicePriceRules = await this.prisma.servicePriceRule.findMany({
+      where: {
+        serviceId: { in: resolvedServiceIds },
+        active: true,
+        OR: [{ validFrom: null }, { validFrom: { lte: appointmentStartTime } }],
+        AND: [{ OR: [{ validTo: null }, { validTo: { gte: appointmentStartTime } }] }],
+      },
+      orderBy: { priority: 'asc' },
+    });
+    for (const item of timeline) {
+      const priced = applyServicePriceRules({
+        basePrice: item.priceSnapshot,
+        at: item.itemStartAt,
+        variantId: item.variant?.id,
+        staffId: data.staffId,
+        rules: servicePriceRules.filter((rule) => rule.serviceId === item.service.id),
+      });
+      item.priceSnapshot = priced.amount;
+      (item as typeof item & { appliedPriceRules: Array<Record<string, unknown>> }).appliedPriceRules = priced.applied;
+    }
 
     const branch = await this.prisma.branch.findFirst({
       where: {
         id: data.branchId, status: 'ACTIVE', deletedAt: null,
         business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
       },
-      select: { id: true, businessId: true, bookingConfirmationMode: true, staffAssignmentMode: true, pendingHoldMinutes: true },
+      select: {
+        id: true,
+        businessId: true,
+        bookingConfirmationMode: true,
+        staffAssignmentMode: true,
+        pendingHoldMinutes: true,
+        bookingPolicy: { select: { overbookingEnabled: true, maxOverbookedSlots: true } },
+      },
     });
     if (!branch) throw new BadRequestException('Chi nhánh không hoạt động');
+    const overbookingRequested = data.controlledOverbooking === true;
+    if (overbookingRequested && data.staffId) {
+      throw new BadRequestException('Overbooking không được dùng để bỏ qua xung đột cứng của nhân viên đã chọn');
+    }
+    if (overbookingRequested && (!branch.bookingPolicy?.overbookingEnabled || (branch.bookingPolicy.maxOverbookedSlots ?? 0) < 1)) {
+      throw new ConflictException('Chi nhánh chưa bật chính sách overbooking có kiểm soát');
+    }
+    if (overbookingRequested && !data.overbookingReason?.trim()) {
+      throw new BadRequestException('Overbooking bắt buộc phải có lý do');
+    }
     const closedHoliday = await this.prisma.branchHoliday.findFirst({
       where: {
         branchId: data.branchId,
@@ -827,20 +944,36 @@ export class BookingsService {
     if (closedHoliday) throw new BadRequestException('Chi nhánh đóng cửa trong ngày đã chọn');
 
     // 4. Tính giá snapshot (KHÔNG tham chiếu services.price sau này)
-    const originalSubtotal = combo
-      ? plannedItems.reduce((sum, item) => sum + item.priceSnapshot, 0)
-      : services.reduce((sum, s) => sum + Number(s.price) * (quantities.get(s.id) ?? 1), 0);
+    const originalSubtotal = timeline.reduce((sum, item) => sum + item.priceSnapshot, 0);
     const subtotal = combo ? Number(combo.comboPrice) : originalSubtotal;
-    let voucherInfo: Awaited<ReturnType<typeof applyVoucher>> | null = null;
-    if (data.voucherCode) {
-      voucherInfo = await applyVoucher(this.prisma, {
-        customerId: data.customerId,
-        voucherCode: data.voucherCode,
-        branchId: data.branchId,
-        subtotal,
-      });
-    }
-    const finalTotal = voucherInfo ? voucherInfo.finalAmount : subtotal;
+    let allocatedSubtotal = 0;
+    const pricingLineItems = timeline.map((item, index) => {
+      const amount = combo
+        ? (index === timeline.length - 1
+            ? subtotal - allocatedSubtotal
+            : Math.round(subtotal * item.priceSnapshot / (originalSubtotal || subtotal || 1)))
+        : item.priceSnapshot;
+      allocatedSubtotal += amount;
+      return { serviceId: item.service.id, amount };
+    });
+    const pricingQuote = await this.pricingEngine.quote({
+      customerId: data.customerId,
+      branchId: data.branchId,
+      serviceIds: resolvedServiceIds,
+      lineItems: pricingLineItems,
+      comboId: data.comboId,
+      subtotal,
+      voucherCode: data.voucherCode,
+      at: now,
+    });
+    const voucherInfo = pricingQuote.voucher;
+    const loyaltyQuote = await this.loyalty.previewRedemption(
+      data.customerId,
+      data.branchId,
+      data.loyaltyPoints ?? 0,
+      pricingQuote.finalAmount,
+    );
+    const finalTotal = Math.max(0, pricingQuote.finalAmount - loyaltyQuote.discount);
 
     // 5. Resolve every eligible candidate before entering the serializable
     // transaction. The final free candidate is selected again inside it.
@@ -893,8 +1026,10 @@ export class BookingsService {
       }
     }
     const perServiceMode = combo?.staffAssignmentMode === 'PER_SERVICE_PROVIDER';
-    if ((!perServiceMode && eligibleStaffIds.length === 0) ||
-        (perServiceMode && timeline.some((item) => !(eligibleByItem.get(item.sortOrder)?.length)))) {
+    const capacityMissing = (!perServiceMode && eligibleStaffIds.length === 0) ||
+      (perServiceMode && timeline.some((item) => !(eligibleByItem.get(item.sortOrder)?.length)));
+    const isControlledOverflow = capacityMissing && overbookingRequested;
+    if (capacityMissing && !overbookingRequested) {
       throw new ConflictException(
         data.staffId
           ? 'Nhân viên này không còn khả dụng trong khung giờ đã chọn.'
@@ -908,7 +1043,7 @@ export class BookingsService {
       async (tx) => {
         // Pick a concrete eligible staff and reserve that staff in the same
         // serializable transaction. PENDING is a blocking status.
-        const assignedStaffIds: string[] = [];
+        const assignedStaffIds: Array<string | null> = [];
         const reserveCandidate = async (
           candidates: string[],
           startAt: Date,
@@ -939,7 +1074,22 @@ export class BookingsService {
           }
           return null;
         };
-        if (perServiceMode) {
+        if (isControlledOverflow) {
+          await tx.$queryRaw`SELECT id FROM branches WHERE id = ${data.branchId} FOR UPDATE`;
+          const currentOverrides = await tx.overbookingOverride.count({
+            where: {
+              branchId: data.branchId,
+              startAt: { lt: storedAppointment.appointmentEndTime },
+              endAt: { gt: storedAppointment.appointmentStartTime },
+              booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] }, deletedAt: null },
+            },
+          });
+          const policyLimit = branch.bookingPolicy?.maxOverbookedSlots ?? 0;
+          if (currentOverrides >= policyLimit) {
+            throw new ConflictException(`Đã đạt giới hạn ${policyLimit} lịch overbooking trong khung giờ này`);
+          }
+          timeline.forEach((item) => { assignedStaffIds[item.sortOrder] = null; });
+        } else if (perServiceMode) {
           for (const item of timeline) {
             const assigned = await reserveCandidate(
               eligibleByItem.get(item.sortOrder) ?? [],
@@ -957,7 +1107,7 @@ export class BookingsService {
           );
           if (assigned) timeline.forEach((item) => { assignedStaffIds[item.sortOrder] = assigned; });
         }
-        if (assignedStaffIds.length !== timeline.length || assignedStaffIds.some((id) => !id)) {
+        if (!isControlledOverflow && (assignedStaffIds.length !== timeline.length || assignedStaffIds.some((id) => !id))) {
           throw new ConflictException(
             'Khung giờ này vừa được người khác đặt. Vui lòng chọn giờ khác.',
           );
@@ -1015,6 +1165,51 @@ export class BookingsService {
           } as any,
         });
 
+        if (isControlledOverflow) {
+          await tx.overbookingOverride.create({
+            data: {
+              bookingId: createdBase.id,
+              branchId: data.branchId,
+              actorId: statusChangedBy,
+              reason: data.overbookingReason!.trim(),
+              policyLimit: branch.bookingPolicy!.maxOverbookedSlots,
+              startAt: storedAppointment.appointmentStartTime,
+              endAt: storedAppointment.appointmentEndTime,
+            },
+          });
+          await tx.auditLog.create({
+            data: {
+              userId: statusChangedBy,
+              action: 'CREATE',
+              entityType: 'OverbookingOverride',
+              entityId: createdBase.id,
+              newData: {
+                branchId: data.branchId,
+                reason: data.overbookingReason!.trim(),
+                policyLimit: branch.bookingPolicy!.maxOverbookedSlots,
+              },
+            },
+          });
+        }
+
+        await this.pricingEngine.reserve(tx, createdBase.id, {
+          customerId: data.customerId,
+          branchId: data.branchId,
+          quote: pricingQuote,
+          applied: initialStatus === 'CONFIRMED',
+        });
+        if (loyaltyQuote.points > 0 && loyaltyQuote.rule) {
+          await this.loyalty.redeemInTransaction(tx, {
+            businessId: loyaltyQuote.businessId,
+            customerId: data.customerId,
+            bookingId: createdBase.id,
+            points: loyaltyQuote.points,
+            discount: loyaltyQuote.discount,
+            actorId: statusChangedBy,
+            rule: loyaltyQuote.rule,
+          });
+        }
+
         // Keep dependent writes sequential on the transaction client. This
         // avoids queuing concurrent pg queries while a database slot guard is
         // rejecting another request for the same staff member.
@@ -1032,14 +1227,15 @@ export class BookingsService {
           data: timeline.map((item) => ({
             bookingId: createdBase.id,
             serviceId: item.service.id,
+            variantId: item.variant?.id,
             businessServiceId: item.service.businessServiceId,
             canonicalServiceId: item.service.businessService.canonicalServiceId,
             comboId: combo?.id,
             priceAtBooking: combo
               ? item.priceSnapshot / Math.max(1, originalSubtotal) * subtotal
-              : item.service.price,
-            durationMinutes: item.service.durationMinutes,
-            serviceNameSnapshot: item.service.name,
+              : item.priceSnapshot,
+            durationMinutes: item.variant?.durationMinutes ?? item.service.durationMinutes,
+            serviceNameSnapshot: item.variant ? `${item.service.name} — ${item.variant.name}` : item.service.name,
             sortOrder: item.sortOrder,
             status: 'SCHEDULED',
             itemStartAt: item.itemStartAt,
@@ -1055,14 +1251,19 @@ export class BookingsService {
             businessId: branch.businessId,
             branchId: data.branchId,
             subtotal,
-            discount: Number(voucherInfo?.discountAmount ?? 0),
+            discount: pricingQuote.discountAmount + loyaltyQuote.discount,
             total: finalTotal,
             serviceIds: timeline.map((item) => item.service.id),
             items: timeline.map((item) => ({
               serviceId: item.service.id,
               serviceName: item.service.name,
               unitPrice: Number(item.priceSnapshot),
-              durationMinutes: item.service.durationMinutes,
+              durationMinutes: item.variant?.durationMinutes ?? item.service.durationMinutes,
+              variantId: item.variant?.id ?? null,
+              variantVersion: item.variant?.version ?? null,
+              bufferBeforeMinutes: item.variant?.bufferBeforeMinutes ?? 0,
+              bufferAfterMinutes: item.variant?.bufferAfterMinutes ?? 0,
+              appliedPriceRules: (item as typeof item & { appliedPriceRules?: Array<Record<string, unknown>> }).appliedPriceRules ?? [],
               comboId: combo?.id ?? null,
               comboVersion: combo?.version ?? null,
             })),
@@ -1078,42 +1279,6 @@ export class BookingsService {
               : 'Tạo mới',
           },
         });
-
-        // Đánh dấu voucher đã dùng — update CÓ ĐIỀU KIỆN bên trong transaction
-        // để chống oversell: nếu voucher hết lượt hoặc customerVoucher đã bị
-        // dùng bởi request song song, updateMany trả count = 0 → rollback.
-        if (voucherInfo) {
-          const voucherState = initialStatus === 'CONFIRMED' ? 'USED' : 'RESERVED';
-          const cvUpdated = await tx.customerVoucher.updateMany({
-            where: {
-              voucherId: voucherInfo.voucherId,
-              customerId: data.customerId,
-              status: 'ACTIVE',
-            },
-            data: {
-              status: voucherState,
-              reservedAt: new Date(),
-              usedAt: voucherState === 'USED' ? new Date() : null,
-              usedBookingId: createdBase.id,
-            },
-          });
-          if (cvUpdated.count === 0) {
-            throw new ConflictException(
-              'Voucher của bạn đã được sử dụng — vui lòng thử lại',
-            );
-          }
-          const vUpdated = await tx.$executeRaw`
-            UPDATE vouchers
-            SET used_quantity = used_quantity + 1
-            WHERE id = ${voucherInfo.voucherId}
-              AND used_quantity < total_quantity
-              AND status = 'ACTIVE'`;
-          if (vUpdated === 0) {
-            throw new ConflictException(
-              'Voucher đã hết lượt sử dụng — vui lòng thử lại',
-            );
-          }
-        }
 
         if (combo) {
           const comboUpdated = await tx.$executeRaw`
@@ -1136,6 +1301,7 @@ export class BookingsService {
         customer: { include: { user: { select: { id: true, fullName: true, email: true, phone: true, avatarMediaId: true } } } },
         branch: { include: { business: true } },
         bookingServices: { include: { service: true, staff: true } },
+        overbookingOverride: true,
       },
     });
     if (!booking) {
@@ -1206,26 +1372,26 @@ export class BookingsService {
     comboId?: string | null,
   ) {
     if (voucherId) {
-      const released = await tx.customerVoucher.updateMany({
-        where: {
-          usedBookingId: bookingId,
-          voucherId,
-          status: { in: ['RESERVED', 'USED'] },
-        },
-        data: {
-          status: 'ACTIVE',
-          reservedAt: null,
-          usedAt: null,
-          usedBookingId: null,
-        },
+      const released = await tx.voucherRedemption.updateMany({
+        where: { bookingId, voucherId, status: { in: ['RESERVED', 'APPLIED'] } },
+        data: { status: 'RELEASED', releasedAt: new Date() },
       });
-      if (released.count === 1) {
+      if (released.count > 0) {
         await tx.voucher.updateMany({
           where: { id: voucherId, usedQuantity: { gt: 0 } },
           data: { usedQuantity: { decrement: 1 } },
         });
       }
     }
+    await tx.promotionRedemption.updateMany({
+      where: { bookingId, status: { in: ['RESERVED', 'APPLIED'] } },
+      data: { status: 'RELEASED', releasedAt: new Date() },
+    });
+    await tx.priceAdjustment.updateMany({
+      where: { bookingId, status: { in: ['RESERVED', 'APPLIED'] } },
+      data: { status: 'RELEASED', releasedAt: new Date() },
+    });
+    await this.loyalty.reverseRedemptionForBooking(tx, bookingId);
     if (comboId) {
       await tx.combo.updateMany({
         where: { id: comboId, usedCount: { gt: 0 } },
@@ -1485,6 +1651,7 @@ export class BookingsService {
         customer: { include: { user: { select: { id: true, fullName: true, email: true, phone: true, avatarMediaId: true } } } },
         branch: { select: { id: true, name: true, business: { select: { id: true, name: true } } } },
         bookingServices: { include: { service: true, staff: { include: { user: { select: { id: true, fullName: true } } } } } },
+        overbookingOverride: true,
       },
       orderBy: [{ appointmentDate: 'asc' }, { appointmentStartTime: 'asc' }],
     });
@@ -1522,6 +1689,7 @@ export class BookingsService {
     staffId: string | null;
     serviceIds: string[];
     date: string; // ISO date YYYY-MM-DD
+    variantSelections?: Record<string, string>;
   }) {
     await this.expirePendingHolds(params.branchId);
     const SLOT_STEP_MIN = 30;
@@ -1543,10 +1711,23 @@ export class BookingsService {
     if (services.length !== new Set(params.serviceIds).size) {
       throw new BadRequestException('Dịch vụ này hiện không nhận đặt lịch tại chi nhánh đã chọn.');
     }
-    const totalDuration = services.reduce(
-      (sum, s) => sum + Number(s.durationMinutes || 0),
-      0,
-    );
+    const selectedVariantIds = Object.values(params.variantSelections ?? {});
+    const variants = selectedVariantIds.length
+      ? await this.prisma.serviceVariant.findMany({
+          where: { id: { in: selectedVariantIds }, serviceId: { in: params.serviceIds }, status: 'ACTIVE', deletedAt: null },
+        })
+      : [];
+    if (variants.length !== new Set(selectedVariantIds).size) throw new BadRequestException('Biến thể dịch vụ không hợp lệ');
+    const variantsByService = new Map(variants.map((variant) => [variant.serviceId, variant]));
+    const totalDuration = services.reduce((sum, service) => {
+      const variant = variantsByService.get(service.id);
+      if (variant && (variant.priceType === 'QUOTE' || variant.consultationRequired)) {
+        throw new BadRequestException('Lựa chọn này cần tư vấn trước khi đặt trực tuyến');
+      }
+      return sum + Number(variant?.bufferBeforeMinutes ?? 0) +
+        Number(variant?.durationMinutes ?? service.durationMinutes ?? 0) +
+        Number(variant?.bufferAfterMinutes ?? 0);
+    }, 0);
     if (totalDuration <= 0) {
       throw new BadRequestException('Tổng thời lượng dịch vụ phải > 0');
     }

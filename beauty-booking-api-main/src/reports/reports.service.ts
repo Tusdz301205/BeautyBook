@@ -55,7 +55,7 @@ export class ReportsService {
           where: this.serviceFilter(scope),
           select: {
             bookingServices: {
-              select: { id: true },
+              select: { id: true, booking: { select: { status: true } } },
             },
           },
         },
@@ -63,13 +63,14 @@ export class ReportsService {
     });
 
     return categories
-      .map((cat) => ({
-        name: cat.name,
-        value: cat.services.reduce(
-          (sum, svc) => sum + svc.bookingServices.length,
-          0,
-        ),
-      }))
+      .map((cat) => {
+        const rows = cat.services.flatMap((service) => service.bookingServices);
+        const bookedCount = rows.length;
+        const completedCount = rows.filter((row) => row.booking.status === 'COMPLETED').length;
+        const cancelledCount = rows.filter((row) => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(row.booking.status)).length;
+        const noShowCount = rows.filter((row) => row.booking.status === 'NO_SHOW').length;
+        return { name: cat.name, value: bookedCount, bookedCount, completedCount, cancelledCount, noShowCount };
+      })
       .sort((a, b) => b.value - a.value);
   }
 
@@ -82,16 +83,23 @@ export class ReportsService {
       select: {
         name: true,
         bookingServices: {
-          select: { id: true },
+          select: { id: true, booking: { select: { status: true } } },
         },
       },
     });
 
     return services
-      .map((svc) => ({
-        name: svc.name,
-        value: svc.bookingServices.length,
-      }))
+      .map((svc) => {
+        const bookedCount = svc.bookingServices.length;
+        return {
+          name: svc.name,
+          value: bookedCount,
+          bookedCount,
+          completedCount: svc.bookingServices.filter((row) => row.booking.status === 'COMPLETED').length,
+          cancelledCount: svc.bookingServices.filter((row) => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(row.booking.status)).length,
+          noShowCount: svc.bookingServices.filter((row) => row.booking.status === 'NO_SHOW').length,
+        };
+      })
       .sort((a, b) => b.value - a.value)
       .slice(0, 5); // Top 5
   }
@@ -179,7 +187,12 @@ export class ReportsService {
         bookingServices: {
           include: {
             booking: {
-              select: { status: true, totalAmount: true },
+              select: {
+                status: true, totalAmount: true, finalAmount: true,
+                bookingServices: { select: { priceAtBooking: true } },
+                paymentTransactions: { select: { status: true, amount: true } },
+                payments: { select: { amount: true, status: true, transactions: { select: { id: true } }, refundRequests: { where: { status: 'REFUNDED' }, select: { amount: true } } } },
+              },
             },
           },
         },
@@ -194,10 +207,14 @@ export class ReportsService {
         return {
           name: s.user?.fullName || s.fullName,
           bookings: s.bookingServices.length,
-          revenue: completedServices.reduce(
-            (sum, bs) => sum + Number(bs.priceAtBooking),
-            0,
-          ),
+          revenue: completedServices.reduce((sum, bs) => {
+            const verified = bs.booking.paymentTransactions.filter((row) => row.status === 'VERIFIED').reduce((value, row) => value + Number(row.amount), 0);
+            const reversed = bs.booking.paymentTransactions.filter((row) => row.status === 'REVERSED').reduce((value, row) => value + Number(row.amount), 0);
+            const legacy = bs.booking.payments.filter((payment) => payment.transactions.length === 0 && ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(payment.status)).reduce((value, payment) => value + Number(payment.amount), 0);
+            const refunded = bs.booking.payments.flatMap((payment) => payment.refundRequests).reduce((value, refund) => value + Number(refund.amount), 0);
+            const itemSubtotal = bs.booking.bookingServices.reduce((value, item) => value + Number(item.priceAtBooking), 0) || 1;
+            return sum + Math.max(0, verified - reversed + legacy - refunded) * Number(bs.priceAtBooking) / itemSubtotal;
+          }, 0),
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
@@ -252,6 +269,14 @@ export class ReportsService {
     }
     const previousTo = new Date(from.getTime() - 1);
     const previousFrom = new Date(previousTo.getTime() - rangeDays * 86400000 + 1);
+    const broadFrom = new Date(from);
+    broadFrom.setUTCDate(broadFrom.getUTCDate() - 1);
+    const broadTo = new Date(to);
+    broadTo.setUTCDate(broadTo.getUTCDate() + 1);
+    const previousBroadFrom = new Date(previousFrom);
+    previousBroadFrom.setUTCDate(previousBroadFrom.getUTCDate() - 1);
+    const previousBroadTo = new Date(previousTo);
+    previousBroadTo.setUTCDate(previousBroadTo.getUTCDate() + 1);
     const scopedBranchFilter = {
       ...this.branchFilter(query.scope),
       ...(query.branchId ? { id: query.branchId } : {}),
@@ -268,19 +293,24 @@ export class ReportsService {
     };
     const [
       branches,
-      bookings,
-      previousBookings,
-      payments,
-      previousPayments,
-      attendance,
-      pendingAdjustments,
-      reviews,
+      rawBookings,
+      rawPreviousBookings,
+      rawPayments,
+      rawPreviousPayments,
+      rawTransactions,
+      rawPreviousTransactions,
+      rawRefunds,
+      rawPreviousRefunds,
+      rawAttendance,
+      rawPendingAdjustments,
+      rawReviews,
     ] = await Promise.all([
       this.prisma.branch.findMany({
         where: { deletedAt: null, ...scopedBranchFilter },
         select: {
           id: true,
           name: true,
+          timezone: true,
           _count: {
             select: {
               staff: { where: { status: 'ACTIVE', deletedAt: null } },
@@ -290,13 +320,22 @@ export class ReportsService {
         orderBy: { name: 'asc' },
       }),
       this.prisma.booking.findMany({
-        where: bookingWhere,
+        where: { ...bookingWhere, appointmentDate: { gte: broadFrom, lte: broadTo } },
         select: {
           id: true,
           branchId: true,
           appointmentDate: true,
           status: true,
           voucherDiscountAmount: true,
+          paymentTransactions: { select: { amount: true, status: true } },
+          payments: {
+            select: {
+              amount: true,
+              status: true,
+              transactions: { select: { id: true } },
+              refundRequests: { where: { status: 'REFUNDED' }, select: { amount: true } },
+            },
+          },
           bookingServices: {
             select: {
               priceAtBooking: true,
@@ -308,9 +347,10 @@ export class ReportsService {
         },
       }),
         this.prisma.booking.findMany({
-          where: previousBookingWhere,
+          where: { ...previousBookingWhere, appointmentDate: { gte: previousBroadFrom, lte: previousBroadTo } },
           select: {
             id: true,
+            branchId: true,
             status: true,
             appointmentDate: true,
             voucherDiscountAmount: true,
@@ -319,8 +359,9 @@ export class ReportsService {
       this.prisma.payment.findMany({
         where: {
           status: { in: ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'] },
-          paidAt: { gte: from, lte: to },
+          paidAt: { gte: broadFrom, lte: broadTo },
           booking: { branch: scopedBranchFilter },
+          transactions: { none: {} },
         },
         select: {
           id: true,
@@ -337,29 +378,44 @@ export class ReportsService {
       this.prisma.payment.findMany({
         where: {
           status: { in: ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'] },
-          paidAt: { gte: previousFrom, lte: previousTo },
+          paidAt: { gte: previousBroadFrom, lte: previousBroadTo },
           booking: { branch: scopedBranchFilter },
+          transactions: { none: {} },
         },
           select: {
             amount: true,
             paidAt: true,
-            refundRequests: {
-              where: { status: 'REFUNDED' },
-              select: { amount: true },
-          },
+            booking: { select: { branchId: true } },
         },
       }),
+      this.prisma.paymentTransaction.findMany({
+        where: { branch: scopedBranchFilter, status: { in: ['VERIFIED', 'REVERSED'] }, OR: [{ verifiedAt: { gte: broadFrom, lte: broadTo } }, { verifiedAt: null, createdAt: { gte: broadFrom, lte: broadTo } }] },
+        select: { id: true, bookingId: true, branchId: true, amount: true, status: true, verifiedAt: true, createdAt: true },
+      }),
+      this.prisma.paymentTransaction.findMany({
+        where: { branch: scopedBranchFilter, status: { in: ['VERIFIED', 'REVERSED'] }, OR: [{ verifiedAt: { gte: previousBroadFrom, lte: previousBroadTo } }, { verifiedAt: null, createdAt: { gte: previousBroadFrom, lte: previousBroadTo } }] },
+        select: { bookingId: true, branchId: true, amount: true, status: true, verifiedAt: true, createdAt: true },
+      }),
+      this.prisma.refundRequest.findMany({
+        where: { status: 'REFUNDED', processedAt: { gte: broadFrom, lte: broadTo }, payment: { booking: { branch: scopedBranchFilter } } },
+        select: { id: true, amount: true, processedAt: true, payment: { select: { bookingId: true, booking: { select: { branchId: true } } } } },
+      }),
+      this.prisma.refundRequest.findMany({
+        where: { status: 'REFUNDED', processedAt: { gte: previousBroadFrom, lte: previousBroadTo }, payment: { booking: { branch: scopedBranchFilter } } },
+        select: { id: true, amount: true, processedAt: true, payment: { select: { bookingId: true, booking: { select: { branchId: true } } } } },
+      }),
       this.prisma.staffAttendance.findMany({
-        where: { branch: scopedBranchFilter, workDate: { gte: from, lte: to } },
+        where: { branch: scopedBranchFilter, workDate: { gte: broadFrom, lte: broadTo } },
         select: { branchId: true, workDate: true, status: true },
       }),
-      this.prisma.attendanceExceptionRequest.count({
-        where: { branch: scopedBranchFilter, status: 'PENDING', workDate: { gte: from, lte: to } },
+      this.prisma.attendanceExceptionRequest.findMany({
+        where: { branch: scopedBranchFilter, status: 'PENDING', workDate: { gte: broadFrom, lte: broadTo } },
+        select: { id: true, branchId: true, workDate: true },
       }),
       this.prisma.review.findMany({
         where: {
           deletedAt: null,
-          createdAt: { gte: from, lte: to },
+          createdAt: { gte: broadFrom, lte: broadTo },
           booking: { branch: scopedBranchFilter },
         },
         select: {
@@ -367,21 +423,65 @@ export class ReportsService {
           overallRating: true,
           status: true,
           createdAt: true,
+          booking: { select: { branchId: true } },
         },
       }),
     ]);
-    const previousGross = previousPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const previousRefund = previousPayments.reduce(
-      (sum, payment) => sum + payment.refundRequests.reduce((refundSum, refund) => refundSum + Number(refund.amount), 0),
-      0,
+    const rawDiscountAdjustments = await this.prisma.priceAdjustment.findMany({
+      where: {
+        branchId: { in: branches.map((branch) => branch.id) },
+        status: 'APPLIED',
+        type: { in: ['PROMOTION', 'VOUCHER', 'LOYALTY', 'PACKAGE'] },
+        bookingId: { not: null },
+      },
+      select: { bookingId: true, amount: true },
+    });
+    const fromKey = from.toISOString().slice(0, 10);
+    const toKey = to.toISOString().slice(0, 10);
+    const previousFromKey = previousFrom.toISOString().slice(0, 10);
+    const previousToKey = previousTo.toISOString().slice(0, 10);
+    const timezoneByBranch = new Map(
+      branches.map((branch) => [branch.id, branch.timezone || 'Asia/Ho_Chi_Minh']),
     );
-    const previousNet = previousGross - previousRefund;
-    const gross = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const refund = payments.reduce(
-      (sum, payment) => sum + payment.refundRequests.reduce((refundSum, item) => refundSum + Number(item.amount), 0),
-      0,
-    );
-    const net = gross - refund;
+    const localDate = (instant: Date, branchId: string) => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezoneByBranch.get(branchId) ?? 'Asia/Ho_Chi_Minh',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(instant);
+      const value = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+      return `${value('year')}-${value('month')}-${value('day')}`;
+    };
+    const inRange = (instant: Date | null, branchId: string, start: string, end: string) => {
+      if (!instant) return false;
+      const date = localDate(instant, branchId);
+      return date >= start && date <= end;
+    };
+    const bookings = rawBookings.filter((row) => inRange(row.appointmentDate, row.branchId, fromKey, toKey));
+    const previousBookings = rawPreviousBookings.filter((row) => inRange(row.appointmentDate, row.branchId, previousFromKey, previousToKey));
+    const payments = rawPayments.filter((row) => inRange(row.paidAt, row.booking.branchId, fromKey, toKey));
+    const previousPayments = rawPreviousPayments.filter((row) => inRange(row.paidAt, row.booking.branchId, previousFromKey, previousToKey));
+    const transactions = rawTransactions.filter((row) => inRange(row.verifiedAt ?? row.createdAt, row.branchId, fromKey, toKey));
+    const previousTransactions = rawPreviousTransactions.filter((row) => inRange(row.verifiedAt ?? row.createdAt, row.branchId, previousFromKey, previousToKey));
+    const refunds = rawRefunds.filter((row) => inRange(row.processedAt, row.payment.booking.branchId, fromKey, toKey));
+    const previousRefunds = rawPreviousRefunds.filter((row) => inRange(row.processedAt, row.payment.booking.branchId, previousFromKey, previousToKey));
+    const attendance = rawAttendance.filter((row) => inRange(row.workDate, row.branchId, fromKey, toKey));
+    const pendingAdjustments = rawPendingAdjustments.filter((row) => inRange(row.workDate, row.branchId, fromKey, toKey)).length;
+    const reviews = rawReviews.filter((row) => inRange(row.createdAt, row.booking.branchId, fromKey, toKey));
+    const discountByBooking = new Map<string, number>();
+    for (const adjustment of rawDiscountAdjustments) {
+      if (!adjustment.bookingId || Number(adjustment.amount) >= 0) continue;
+      discountByBooking.set(adjustment.bookingId, (discountByBooking.get(adjustment.bookingId) ?? 0) + Math.abs(Number(adjustment.amount)));
+    }
+    const previousGross = previousPayments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+      + previousTransactions.filter((transaction) => transaction.status === 'VERIFIED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    const previousRefund = previousRefunds.reduce((sum, row) => sum + Number(row.amount), 0);
+    const previousReversal = previousTransactions.filter((transaction) => transaction.status === 'REVERSED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    const previousNet = previousGross - previousRefund - previousReversal;
+    const gross = payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+      + transactions.filter((transaction) => transaction.status === 'VERIFIED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    const refund = refunds.reduce((sum, row) => sum + Number(row.amount), 0);
+    const reversal = transactions.filter((transaction) => transaction.status === 'REVERSED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    const net = gross - refund - reversal;
     const compare = (current: number, previous: number) => ({
       current,
       previous,
@@ -392,27 +492,54 @@ export class ReportsService {
     const revenueByDay = new Map<string, { gross: number; refund: number }>();
     for (const payment of payments) {
       if (!payment.paidAt) continue;
-      const key = payment.paidAt.toISOString().slice(0, 10);
+      const key = localDate(payment.paidAt, payment.booking.branchId);
       const row = revenueByDay.get(key) ?? { gross: 0, refund: 0 };
       row.gross += Number(payment.amount);
-      row.refund += payment.refundRequests.reduce((sum, item) => sum + Number(item.amount), 0);
       revenueByDay.set(key, row);
     }
-      const discountByDay = new Map<string, number>();
+    for (const transaction of transactions) {
+      const instant = transaction.verifiedAt ?? transaction.createdAt;
+      const key = localDate(instant, transaction.branchId);
+      const row = revenueByDay.get(key) ?? { gross: 0, refund: 0 };
+      if (transaction.status === 'VERIFIED') row.gross += Number(transaction.amount);
+      else row.refund += Number(transaction.amount);
+      revenueByDay.set(key, row);
+    }
+    for (const item of refunds) {
+      if (!item.processedAt) continue;
+      const key = localDate(item.processedAt, item.payment.booking.branchId);
+      const row = revenueByDay.get(key) ?? { gross: 0, refund: 0 };
+      row.refund += Number(item.amount);
+      revenueByDay.set(key, row);
+    }
+    const discountByDay = new Map<string, number>();
     for (const booking of bookings) {
-      const key = booking.appointmentDate.toISOString().slice(0, 10);
-        discountByDay.set(key, (discountByDay.get(key) ?? 0) + Number(booking.voucherDiscountAmount ?? 0));
-      }
-      const previousRevenueByDay = new Map<string, { gross: number; refund: number }>();
-      for (const payment of previousPayments) {
-        if (!payment.paidAt) continue;
-        const key = payment.paidAt.toISOString().slice(0, 10);
-        const row = previousRevenueByDay.get(key) ?? { gross: 0, refund: 0 };
-        row.gross += Number(payment.amount);
-        row.refund += payment.refundRequests.reduce((sum, item) => sum + Number(item.amount), 0);
-        previousRevenueByDay.set(key, row);
-      }
-      const revenueSeries = Array.from({ length: rangeDays }, (_, index) => {
+      const key = localDate(booking.appointmentDate, booking.branchId);
+      discountByDay.set(key, (discountByDay.get(key) ?? 0) + (discountByBooking.get(booking.id) ?? 0));
+    }
+    const previousRevenueByDay = new Map<string, { gross: number; refund: number }>();
+    for (const payment of previousPayments) {
+      if (!payment.paidAt) continue;
+      const key = localDate(payment.paidAt, payment.booking.branchId);
+      const row = previousRevenueByDay.get(key) ?? { gross: 0, refund: 0 };
+      row.gross += Number(payment.amount);
+      previousRevenueByDay.set(key, row);
+    }
+    for (const transaction of previousTransactions) {
+      const key = localDate(transaction.verifiedAt ?? transaction.createdAt, transaction.branchId);
+      const row = previousRevenueByDay.get(key) ?? { gross: 0, refund: 0 };
+      if (transaction.status === 'VERIFIED') row.gross += Number(transaction.amount);
+      else row.refund += Number(transaction.amount);
+      previousRevenueByDay.set(key, row);
+    }
+    for (const item of previousRefunds) {
+      if (!item.processedAt) continue;
+      const key = localDate(item.processedAt, item.payment.booking.branchId);
+      const row = previousRevenueByDay.get(key) ?? { gross: 0, refund: 0 };
+      row.refund += Number(item.amount);
+      previousRevenueByDay.set(key, row);
+    }
+    const revenueSeries = Array.from({ length: rangeDays }, (_, index) => {
         const date = new Date(from.getTime() + index * 86400000).toISOString().slice(0, 10);
         const previousDate = new Date(previousFrom.getTime() + index * 86400000).toISOString().slice(0, 10);
         const row = revenueByDay.get(date) ?? { gross: 0, refund: 0 };
@@ -426,8 +553,8 @@ export class ReportsService {
           netRevenue: row.gross - row.refund,
           previousNetRevenue: previousRow.gross - previousRow.refund,
         };
-      });
-      const bookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+    });
+    const bookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
     const bookingStatus = bookingStatuses.map((status) => ({
       status,
       count: bookings.filter((booking) => booking.status === status).length,
@@ -435,11 +562,12 @@ export class ReportsService {
     const branchComparison = branches.map((branch) => {
       const branchBookings = bookings.filter((booking) => booking.branchId === branch.id);
       const branchPayments = payments.filter((payment) => payment.booking.branchId === branch.id);
-      const branchGross = branchPayments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-      const branchRefund = branchPayments.reduce(
-        (sum, payment) => sum + payment.refundRequests.reduce((refundSum, item) => refundSum + Number(item.amount), 0),
-        0,
-      );
+      const branchTransactions = transactions.filter((transaction) => transaction.branchId === branch.id);
+      const branchRefunds = refunds.filter((item) => item.payment.booking.branchId === branch.id);
+      const branchGross = branchPayments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+        + branchTransactions.filter((transaction) => transaction.status === 'VERIFIED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+      const branchRefund = branchRefunds.reduce((sum, item) => sum + Number(item.amount), 0)
+        + branchTransactions.filter((transaction) => transaction.status === 'REVERSED').reduce((sum, transaction) => sum + Number(transaction.amount), 0);
       return {
         branchId: branch.id,
         branchName: branch.name,
@@ -451,9 +579,21 @@ export class ReportsService {
     });
     const serviceMap = new Map<string, { id: string; name: string; bookings: number; revenue: number }>();
     const comboMap = new Map<string, { id: string; name: string; bookings: number; revenue: number }>();
+    const netByBooking = new Map<string, number>();
     for (const booking of bookings) {
+      const transactionNet = booking.paymentTransactions.reduce(
+        (sum, row) => sum + (row.status === 'VERIFIED' ? Number(row.amount) : row.status === 'REVERSED' ? -Number(row.amount) : 0),
+        0,
+      );
+      const legacyNet = booking.payments
+        .filter((payment) => payment.transactions.length === 0 && ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(payment.status))
+        .reduce((sum, payment) => sum + Number(payment.amount) - payment.refundRequests.reduce((refundSum, item) => refundSum + Number(item.amount), 0), 0);
+      netByBooking.set(booking.id, transactionNet + legacyNet);
+      const itemSubtotal = booking.bookingServices.reduce((sum, item) => sum + Number(item.priceAtBooking), 0) || 1;
+      const recognizedForBooking = booking.status === 'COMPLETED' ? Math.max(0, netByBooking.get(booking.id) ?? 0) : 0;
       for (const item of booking.bookingServices) {
         const price = Number(item.priceAtBooking);
+        const recognizedItemRevenue = recognizedForBooking * price / itemSubtotal;
         const service = serviceMap.get(item.service.id) ?? {
           id: item.service.id,
           name: item.service.name,
@@ -461,7 +601,7 @@ export class ReportsService {
           revenue: 0,
         };
         service.bookings += 1;
-        service.revenue += price;
+        service.revenue += recognizedItemRevenue;
         serviceMap.set(item.service.id, service);
         if (item.combo) {
           const combo = comboMap.get(item.combo.id) ?? {
@@ -471,7 +611,7 @@ export class ReportsService {
             revenue: 0,
           };
           combo.bookings += 1;
-          combo.revenue += price;
+          combo.revenue += recognizedItemRevenue;
           comboMap.set(item.combo.id, combo);
         }
       }
@@ -481,14 +621,14 @@ export class ReportsService {
       status,
       count: attendance.filter((row) => row.status === status).length,
     }));
+    const approvedReviews = reviews.filter((review) => review.status === 'APPROVED');
     const ratingDistribution = [1, 2, 3, 4, 5].map((rating) => ({
       rating,
-      count: reviews.filter((review) => review.overallRating === rating).length,
+      count: approvedReviews.filter((review) => review.overallRating === rating).length,
     }));
-      const approvedReviews = reviews.filter((review) => review.status === 'APPROVED');
-      const reviewTrend = Array.from({ length: rangeDays }, (_, index) => {
+    const reviewTrend = Array.from({ length: rangeDays }, (_, index) => {
         const date = new Date(from.getTime() + index * 86400000).toISOString().slice(0, 10);
-        const rows = approvedReviews.filter((review) => review.createdAt.toISOString().slice(0, 10) === date);
+        const rows = approvedReviews.filter((review) => localDate(review.createdAt, review.booking.branchId) === date);
         return {
           date,
           count: rows.length,
@@ -532,6 +672,152 @@ export class ReportsService {
           },
       },
       pendingAdjustments,
+    };
+  }
+
+  async getFinancialSummary(scope: ReportScope, fromDate: string, toDate: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate) || !/^\d{4}-\d{2}-\d{2}$/.test(toDate) || fromDate > toDate) {
+      throw new BadRequestException('Khoảng ngày không hợp lệ');
+    }
+    const branches = await this.prisma.branch.findMany({
+      where: { deletedAt: null, ...this.branchFilter(scope) },
+      select: { id: true, name: true, timezone: true },
+    });
+    const branchIds = branches.map((branch) => branch.id);
+    const timezoneByBranch = new Map(branches.map((branch) => [branch.id, branch.timezone || 'Asia/Ho_Chi_Minh']));
+    const broadFrom = new Date(`${fromDate}T00:00:00.000Z`);
+    broadFrom.setUTCDate(broadFrom.getUTCDate() - 1);
+    const broadTo = new Date(`${toDate}T23:59:59.999Z`);
+    broadTo.setUTCDate(broadTo.getUTCDate() + 1);
+    const localDate = (instant: Date, branchId: string) => {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezoneByBranch.get(branchId) ?? 'Asia/Ho_Chi_Minh',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(instant);
+      const value = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+      return `${value('year')}-${value('month')}-${value('day')}`;
+    };
+    const inPeriod = (instant: Date | null, branchId: string) => Boolean(
+      instant && localDate(instant, branchId) >= fromDate && localDate(instant, branchId) <= toDate,
+    );
+    const [bookings, transactions, legacyPayments, refunds, adjustments] = await Promise.all([
+      this.prisma.booking.findMany({
+        where: { branchId: { in: branchIds }, deletedAt: null, appointmentDate: { gte: broadFrom, lte: broadTo } },
+        select: {
+          id: true, branchId: true, status: true, appointmentDate: true, finalAmount: true, totalAmount: true,
+          cancellationFeeAmount: true,
+          bookingServices: { select: { id: true, status: true, priceAtBooking: true } },
+          paymentTransactions: { select: { id: true, amount: true, status: true, reversalOfId: true } },
+          payments: {
+            select: {
+              id: true, amount: true, status: true,
+              transactions: { select: { id: true } },
+              refundRequests: { where: { status: 'REFUNDED' }, select: { id: true, amount: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.paymentTransaction.findMany({
+        where: {
+          branchId: { in: branchIds },
+          status: { in: ['VERIFIED', 'REVERSED'] },
+          OR: [
+            { verifiedAt: { gte: broadFrom, lte: broadTo } },
+            { verifiedAt: null, createdAt: { gte: broadFrom, lte: broadTo } },
+          ],
+        },
+        select: { id: true, bookingId: true, branchId: true, amount: true, status: true, verifiedAt: true, createdAt: true, reversalOfId: true },
+      }),
+      this.prisma.payment.findMany({
+        where: {
+          booking: { branchId: { in: branchIds } },
+          status: { in: ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'] },
+          paidAt: { gte: broadFrom, lte: broadTo },
+          transactions: { none: {} },
+        },
+        select: { id: true, bookingId: true, amount: true, paidAt: true, booking: { select: { branchId: true } } },
+      }),
+      this.prisma.refundRequest.findMany({
+        where: {
+          status: 'REFUNDED', processedAt: { gte: broadFrom, lte: broadTo },
+          payment: { booking: { branchId: { in: branchIds } } },
+        },
+        select: { id: true, amount: true, processedAt: true, payment: { select: { bookingId: true, booking: { select: { branchId: true } } } } },
+      }),
+      this.prisma.priceAdjustment.findMany({
+        where: { branchId: { in: branchIds }, status: 'APPLIED', appliedAt: { gte: broadFrom, lte: broadTo } },
+        select: { id: true, bookingId: true, branchId: true, type: true, amount: true, appliedAt: true },
+      }),
+    ]);
+    const scopedBookings = bookings.filter((booking) => inPeriod(booking.appointmentDate, booking.branchId));
+    const scopedTransactions = transactions.filter((transaction) => inPeriod(transaction.verifiedAt ?? transaction.createdAt, transaction.branchId));
+    const scopedLegacy = legacyPayments.filter((payment) => inPeriod(payment.paidAt, payment.booking.branchId));
+    const scopedRefunds = refunds.filter((refund) => inPeriod(refund.processedAt, refund.payment.booking.branchId));
+    const scopedAdjustments = adjustments.filter((adjustment) => inPeriod(adjustment.appliedAt, adjustment.branchId));
+    const verified = scopedTransactions.filter((row) => row.status === 'VERIFIED');
+    const reversed = scopedTransactions.filter((row) => row.status === 'REVERSED');
+    const grossCollected = verified.reduce((sum, row) => sum + Number(row.amount), 0) +
+      scopedLegacy.reduce((sum, row) => sum + Number(row.amount), 0);
+    const reversalAmount = reversed.reduce((sum, row) => sum + Number(row.amount), 0);
+    const refundAmount = scopedRefunds.reduce((sum, row) => sum + Number(row.amount), 0) + reversalAmount;
+    const netCollected = grossCollected - refundAmount;
+    const lifetimeNetByBooking = new Map<string, number>();
+    for (const booking of scopedBookings) {
+      const verifiedAmount = booking.paymentTransactions.filter((row) => row.status === 'VERIFIED').reduce((sum, row) => sum + Number(row.amount), 0);
+      const reversedAmount = booking.paymentTransactions.filter((row) => row.status === 'REVERSED').reduce((sum, row) => sum + Number(row.amount), 0);
+      const legacyAmount = booking.payments.filter((payment) => payment.transactions.length === 0 && ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(payment.status)).reduce((sum, payment) => sum + Number(payment.amount), 0);
+      const legacyRefund = booking.payments.flatMap((payment) => payment.refundRequests).reduce((sum, refund) => sum + Number(refund.amount), 0);
+      lifetimeNetByBooking.set(booking.id, verifiedAmount - reversedAmount + legacyAmount - legacyRefund);
+    }
+    const recognizedServiceRevenue = scopedBookings
+      .filter((booking) => booking.status === 'COMPLETED')
+      .reduce((sum, booking) => sum + Math.max(0, Math.min(Number(booking.finalAmount ?? booking.totalAmount), lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
+    const outstandingAmount = scopedBookings
+      .filter((booking) => !['CANCELLED', 'REJECTED', 'EXPIRED'].includes(booking.status))
+      .reduce((sum, booking) => sum + Math.max(0, Number(booking.finalAmount ?? booking.totalAmount) - (lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
+    const discountAmount = Math.abs(scopedAdjustments
+      .filter((adjustment) => ['PROMOTION', 'VOUCHER', 'LOYALTY', 'PACKAGE'].includes(adjustment.type) && Number(adjustment.amount) < 0)
+      .reduce((sum, adjustment) => sum + Number(adjustment.amount), 0));
+    const completedCount = scopedBookings.filter((booking) => booking.status === 'COMPLETED').length;
+    const cancelledCount = scopedBookings.filter((booking) => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(booking.status)).length;
+    const noShowCount = scopedBookings.filter((booking) => booking.status === 'NO_SHOW').length;
+    const cancellationFeeCollected = scopedBookings
+      .filter((booking) => booking.status === 'CANCELLED' && Number(booking.cancellationFeeAmount ?? 0) > 0)
+      .reduce((sum, booking) => sum + Math.max(0, Math.min(Number(booking.cancellationFeeAmount), lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
+    const noShowFeeCollected = scopedBookings
+      .filter((booking) => booking.status === 'NO_SHOW' && Number(booking.cancellationFeeAmount ?? 0) > 0)
+      .reduce((sum, booking) => sum + Math.max(0, Math.min(Number(booking.cancellationFeeAmount), lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
+    return {
+      definitions: {
+        bookedCount: 'Tất cả lịch được tạo trong kỳ theo ngày hẹn tại múi giờ chi nhánh.',
+        grossCollected: 'Tiền từ giao dịch đã xác minh; không phải giá niêm yết hoặc giá snapshot.',
+        netCollected: 'grossCollected trừ refund/reversal thực tế phát sinh trong kỳ.',
+        recognizedServiceRevenue: 'Tiền đã thu ròng được ghi nhận cho lịch hoàn thành, không vượt giá cuối cùng.',
+        outstandingAmount: 'Giá cuối cùng còn thiếu trên các lịch không bị hủy/từ chối/hết hạn.',
+        cancellationFeeCollected: 'Phần phí hủy thực sự được bảo đảm bởi tiền đã thu ròng; không dùng phí chỉ mới được tính.',
+        noShowFeeCollected: 'Phần phí no-show thực sự được bảo đảm bởi tiền đã thu ròng; không dùng phí chỉ mới được tính.',
+      },
+      from: fromDate,
+      to: toDate,
+      branchCount: branches.length,
+      bookedCount: scopedBookings.length,
+      completedCount,
+      cancelledCount,
+      noShowCount,
+      grossCollected,
+      refundAmount,
+      netCollected,
+      recognizedServiceRevenue,
+      discountAmount,
+      outstandingAmount,
+      cancellationFeeCollected,
+      noShowFeeCollected,
+      drillDown: {
+        bookingIds: scopedBookings.map((booking) => booking.id),
+        paymentTransactionIds: verified.map((transaction) => transaction.id),
+        refundIds: scopedRefunds.map((refund) => refund.id),
+        adjustmentIds: scopedAdjustments.map((adjustment) => adjustment.id),
+      },
     };
   }
 

@@ -88,7 +88,7 @@ export class PromotionsController {
       throw new BadRequestException('name, discountType, startDate, endDate là bắt buộc');
     }
     if (isPlatformRole(user) && (
-      body.businessIds?.length || body.branchIds?.length || body.serviceIds?.length
+      body.businessIds?.length || body.branchIds?.length || body.serviceIds?.length || body.comboIds?.length
     )) {
       throw new ForbiddenException('Platform không được tạo campaign vận hành cho doanh nghiệp');
     }
@@ -108,6 +108,11 @@ export class PromotionsController {
       });
       if (!service) throw new BadRequestException('Dịch vụ không tồn tại');
       await assertBranchAccess(this.prisma, user, service.branchId);
+    }
+    for (const comboId of body.comboIds ?? []) {
+      const combo = await this.prisma.combo.findUnique({ where: { id: comboId }, select: { businessId: true } });
+      if (!combo) throw new BadRequestException('Combo không tồn tại');
+      await assertBusinessAccess(this.prisma, user, combo.businessId);
     }
     const ownerBusinessId = isPlatformRole(user) ? null : body.businessIds?.[0];
     if (!isPlatformRole(user) && !ownerBusinessId) {

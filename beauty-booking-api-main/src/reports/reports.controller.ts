@@ -73,6 +73,25 @@ export class ReportsController {
     );
   }
 
+  @Get('financial-summary')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @RequirePermission('report:revenue:platform', 'report:revenue:tenant', 'report:revenue:branch')
+  async getFinancialSummary(
+    @CurrentUser() user: AuthUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    if (!from || !to) throw new BadRequestException('from và to là bắt buộc');
+    if (branchId) await assertBranchAccess(this.prisma, user, branchId);
+    const scope = await this.scopeFor(user);
+    return this.reportsService.getFinancialSummary(
+      branchId ? { ...scope, branchIds: [branchId] } : scope,
+      from,
+      to,
+    );
+  }
+
   @Get('categories')
   @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
   @RequirePermission('report:overview:platform', 'report:overview:tenant', 'report:overview:branch')

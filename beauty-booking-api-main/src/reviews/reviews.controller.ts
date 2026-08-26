@@ -150,10 +150,10 @@ export class ReviewsController {
   @Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewReport' })
   report(
     @Param('id') id: string,
-    @Body() body: { reason: string },
+    @Body() body: { reason: string; category?: string; severity?: string },
     @CurrentUser() user: AuthUser,
   ) {
-    return this.reviewsService.report(id, user.id, body.reason);
+    return this.reviewsService.report(id, user.id, body);
   }
 
   /**
@@ -192,12 +192,36 @@ export class ReviewsController {
   @Audited({ action: AuditAction.UPDATE, entityType: 'Review' })
   async moderate(
     @Param('id') id: string,
-    @Body() body: { status: 'APPROVED' | 'HIDDEN' },
+    @Body() body: { status: 'APPROVED' | 'HIDDEN'; reasonCode: string; reason: string },
     @CurrentUser() user: AuthUser,
   ) {
     if (!body.status || !['APPROVED', 'HIDDEN'].includes(body.status)) {
       throw new BadRequestException('status phải là APPROVED hoặc HIDDEN');
     }
-    return this.reviewsService.moderate(id, body.status, user);
+    return this.reviewsService.moderate(id, body.status, body.reasonCode, body.reason, user);
+  }
+
+  @Post(':id/appeals')
+  @Roles('CUSTOMER', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @RequirePermission('review:create:self', 'review:moderate:tenant', 'review:moderate:branch')
+  @Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewAppeal' })
+  appeal(
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.reviewsService.appeal(id, user.id, body.reason);
+  }
+
+  @Patch('appeals/:appealId')
+  @Roles('PLATFORM_ADMIN')
+  @RequirePermission('review:moderate:platform')
+  @Audited({ action: AuditAction.UPDATE, entityType: 'ReviewAppeal', idParam: 'appealId' })
+  resolveAppeal(
+    @Param('appealId') appealId: string,
+    @Body() body: { approve: boolean; resolution: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.reviewsService.resolveAppeal(appealId, body.approve, body.resolution, user);
   }
 }

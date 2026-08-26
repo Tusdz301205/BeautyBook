@@ -12,6 +12,8 @@ import {
   ValidateIf,
   Matches,
   MaxLength,
+  IsObject,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -66,6 +68,10 @@ export class CreateBookingDto {
   serviceIds?: string[];
 
   @IsOptional()
+  @IsObject()
+  variantSelections?: Record<string, string>;
+
+  @IsOptional()
   @IsUUID('4', { message: 'comboId không hợp lệ' })
   comboId?: string;
 
@@ -88,6 +94,19 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   voucherCode?: string;
+
+  @IsOptional()
+  loyaltyPoints?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  controlledOverbooking?: boolean;
+
+  @ValidateIf((value) => value.controlledOverbooking === true)
+  @IsString()
+  @MinLength(10, { message: 'Lý do overbooking phải có ít nhất 10 ký tự' })
+  @MaxLength(500)
+  overbookingReason?: string;
 
   @IsOptional()
   @IsEnum(['ONLINE_WEB', 'ONLINE_APP', 'WALK_IN', 'PHONE', 'STAFF_CREATED', 'ADMIN_CREATED'])

@@ -24,10 +24,16 @@ function fixture(claimCount = 1) {
     bookingStatusHistory: {
       create: jest.fn().mockResolvedValue({ id: 'history-1' }),
     },
-    customerVoucher: {
+    voucher: {
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
-    voucher: {
+    voucherRedemption: {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    promotionRedemption: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+    priceAdjustment: {
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     combo: {
@@ -39,7 +45,10 @@ function fixture(claimCount = 1) {
   );
 
   return {
-    service: new BookingsService(prisma, {} as never, {} as never, {} as never),
+    service: new BookingsService(
+      prisma, {} as never, {} as never, {} as never, {} as never,
+      { reverseRedemptionForBooking: jest.fn() } as never,
+    ),
     prisma,
   };
 }
@@ -58,17 +67,15 @@ describe('BookingsService voucher/combo reservation lifecycle', () => {
       },
       data: { status: 'EXPIRED', pendingExpiresAt: null },
     });
-    expect(prisma.customerVoucher.updateMany).toHaveBeenCalledWith({
+    expect(prisma.voucherRedemption.updateMany).toHaveBeenCalledWith({
       where: {
-        usedBookingId: 'booking-1',
+        bookingId: 'booking-1',
         voucherId: 'voucher-1',
-        status: { in: ['RESERVED', 'USED'] },
+        status: { in: ['RESERVED', 'APPLIED'] },
       },
       data: {
-        status: 'ACTIVE',
-        reservedAt: null,
-        usedAt: null,
-        usedBookingId: null,
+        status: 'RELEASED',
+        releasedAt: expect.any(Date),
       },
     });
     expect(prisma.voucher.updateMany).toHaveBeenCalledWith({
@@ -87,7 +94,7 @@ describe('BookingsService voucher/combo reservation lifecycle', () => {
     await expect(service.expirePendingHolds()).resolves.toBe(0);
 
     expect(prisma.bookingStatusHistory.create).not.toHaveBeenCalled();
-    expect(prisma.customerVoucher.updateMany).not.toHaveBeenCalled();
+    expect(prisma.voucherRedemption.updateMany).not.toHaveBeenCalled();
     expect(prisma.combo.updateMany).not.toHaveBeenCalled();
   });
 });

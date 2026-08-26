@@ -22,7 +22,7 @@ describe('ReviewsService tenant and booking integrity', () => {
         update,
       },
     } as unknown as PrismaService;
-    await expect(new ReviewsService(prisma, settings).moderate('review-2', 'HIDDEN', MANAGER))
+    await expect(new ReviewsService(prisma, settings).moderate('review-2', 'HIDDEN', 'POLICY', 'Ngoài phạm vi', MANAGER))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(update).not.toHaveBeenCalled();
   });
