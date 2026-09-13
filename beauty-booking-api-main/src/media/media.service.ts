@@ -13,7 +13,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertBranchAccess, assertBusinessAccess } from '../common/utils/multi-tenancy';
 import type { UploadMediaDto } from './dto/media.dto';
 import { auditLog } from '../common/utils/audit';
-import { can } from '../common/utils/policy';
+import { canAccessStoredMedia } from './media-access';
 
 type IncomingFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 
@@ -118,14 +118,7 @@ export class MediaService {
     const media = await this.prisma.mediaFile.findUnique({ where: { id } });
     if (!media) throw new NotFoundException('Tệp không tồn tại');
     if (media.visibility === 'PRIVATE') {
-      const context = {
-        tenantId: media.businessId ?? undefined,
-        branchId: media.branchId ?? undefined,
-      };
-      const permitted =
-        media.uploadedBy === user.id ||
-        can(user, 'legal_document:read:platform', context) ||
-        can(user, 'legal_document:read:tenant', context);
+      const permitted = canAccessStoredMedia(user, media, 'read');
       if (!permitted) {
         throw new ForbiddenException('Bạn không có quyền xem tài liệu riêng tư này');
       }
@@ -153,22 +146,13 @@ export class MediaService {
   async remove(id: string, user: AuthUser) {
     const media = await this.prisma.mediaFile.findUnique({ where: { id } });
     if (!media) throw new NotFoundException('Tệp không tồn tại');
-    const platform = user.roles.includes('PLATFORM_ADMIN');
     if (media.visibility === 'PRIVATE') {
-      const context = {
-        tenantId: media.businessId ?? undefined,
-        branchId: media.branchId ?? undefined,
-      };
-      const permitted =
-        media.uploadedBy === user.id ||
-        can(user, 'legal_document:delete:platform', context) ||
-        can(user, 'legal_document:delete:tenant', context);
+      const permitted = canAccessStoredMedia(user, media, 'delete');
       if (!permitted) {
         throw new ForbiddenException('Bạn không có quyền xóa tài liệu riêng tư này');
       }
-    } else if (!platform && media.uploadedBy !== user.id) {
-      if (!media.businessId) throw new ForbiddenException('Bạn không có quyền xóa tệp này');
-      await assertBusinessAccess(this.prisma, user, media.businessId);
+    } else if (!canAccessStoredMedia(user, media, 'delete')) {
+      throw new ForbiddenException('Bạn không có quyền xóa tệp tại cơ sở hoặc chi nhánh này');
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.user.updateMany({ where: { avatarMediaId: id }, data: { avatarMediaId: null } });

@@ -1,0 +1,312 @@
+@startuml class-domain
+title Mô hình Thực thể Miền Nghiệp vụ BeautyBook (Domain Model)
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+skinparam linetype ortho
+
+package "Phân hệ Người dùng & Định danh (Identity & Access)" {
+  class User {
+    + id: String [PK]
+    + email: String [Unique]
+    + phone: String? [Unique]
+    + fullName: String
+    + isActive: Boolean
+    + isEmailVerified: Boolean
+    + createdAt: DateTime
+  }
+
+  class UserSession {
+    + id: String [PK]
+    + userId: String [FK]
+    + workspace: AuthWorkspace
+    + businessId: String?
+    + branchId: String?
+    + expiresAt: DateTime
+    + revokedAt: DateTime?
+  }
+
+  class Role {
+    + id: String [PK]
+    + code: RoleCode [Unique]
+    + name: String
+    + level: RoleLevel
+  }
+
+  class UserRole {
+    + id: String [PK]
+    + userId: String [FK]
+    + roleId: String [FK]
+    + businessId: String? [FK]
+    + branchId: String? [FK]
+    + grantedAt: DateTime
+  }
+
+  class CustomerProfile {
+    + id: String [PK]
+    + userId: String [FK, Unique]
+    + address: String?
+    + note: String?
+  }
+
+  class StaffProfile {
+    + id: String [PK]
+    + userId: String? [FK]
+    + branchId: String [FK]
+    + fullName: String
+    + title: String?
+    + isBookable: Boolean
+    + status: StaffStatus
+  }
+}
+
+package "Phân hệ Salon & Cơ cấu Tổ chức (Salon & Branches)" {
+  class Business {
+    + id: String [PK]
+    + ownerProfileId: String? [FK]
+    + name: String
+    + slug: String [Unique]
+    + companyName: String?
+    + taxCode: String?
+    + status: BusinessStatus
+    + bookingRestrictedAt: DateTime?
+  }
+
+  class Branch {
+    + id: String [PK]
+    + businessId: String [FK]
+    + name: String
+    + slug: String
+    + addressLine: String
+    + status: BranchStatus
+    + bookingConfirmationMode: BookingConfirmationMode
+    + staffAssignmentMode: StaffAssignmentMode
+  }
+
+  class BranchWorkingHour {
+    + id: String [PK]
+    + branchId: String [FK]
+    + dayOfWeek: Int
+    + openTime: DateTime
+    + closeTime: DateTime
+    + isClosed: Boolean
+  }
+
+  class BranchHoliday {
+    + id: String [PK]
+    + branchId: String [FK]
+    + date: DateTime
+    + name: String
+    + isClosed: Boolean
+  }
+}
+
+package "Phân hệ Dịch vụ & Giá (Catalog & Pricing)" {
+  class BusinessService {
+    + id: String [PK]
+    + businessId: String [FK]
+    + canonicalServiceId: String? [FK]
+    + name: String
+    + durationMinutes: Int
+    + status: ServiceStatus
+  }
+
+  class BranchServiceOffering {
+    + id: String [PK]
+    + branchId: String [FK]
+    + businessServiceId: String [FK]
+    + price: Decimal
+    + durationMinutes: Int
+    + bookable: Boolean
+    + status: ServiceStatus
+  }
+
+  class ServiceVariant {
+    + id: String [PK]
+    + serviceId: String [FK]
+    + name: String
+    + price: Decimal
+    + durationMinutes: Int
+    + bufferBeforeMinutes: Int
+    + bufferAfterMinutes: Int
+    + status: ServiceStatus
+  }
+
+  class Combo {
+    + id: String [PK]
+    + branchId: String [FK]
+    + name: String
+    + comboPrice: Decimal
+    + status: ComboStatus
+    + pricingMode: ComboPricingMode
+    + staffAssignmentMode: ComboStaffAssignmentMode
+  }
+
+  class StaffService {
+    + staffId: String [PK, FK]
+    + serviceId: String [PK, FK]
+  }
+}
+
+package "Phân hệ Lịch hẹn & Vận hành (Bookings & Operations)" {
+  class Booking {
+    + id: String [PK]
+    + bookingCode: String [Unique]
+    + branchId: String [FK]
+    + customerId: String [FK]
+    + voucherId: String? [FK]
+    + appointmentDate: DateTime
+    + appointmentStartTime: DateTime
+    + appointmentEndTime: DateTime
+    + totalDurationMinutes: Int
+    + originalSubtotal: Decimal
+    + discountAmount: Decimal
+    + finalTotal: Decimal
+    + status: BookingStatus
+    + paymentStatus: PaymentStatus
+    + source: BookingSource
+    + guestName: String?
+    + guestPhone: String?
+  }
+
+  class BookingService {
+    + id: String [PK]
+    + bookingId: String [FK]
+    + serviceId: String [FK]
+    + staffId: String? [FK]
+    + variantId: String? [FK]
+    + priceSnapshot: Decimal
+    + itemStartAt: DateTime?
+    + itemEndAt: DateTime?
+    + status: BookingServiceStatus
+  }
+
+  class BookingStatusHistory {
+    + id: String [PK]
+    + bookingId: String [FK]
+    + fromStatus: BookingStatus
+    + toStatus: BookingStatus
+    + changedBy: String [FK]
+    + note: String?
+    + createdAt: DateTime
+  }
+
+  class AppointmentChangeRequest {
+    + id: String [PK]
+    + bookingId: String [FK]
+    + requestedBy: String [FK]
+    + type: ChangeRequestType
+    + status: ChangeRequestStatus
+    + newStartTime: DateTime?
+    + newStaffId: String?
+  }
+}
+
+package "Phân hệ Đánh giá & Thanh toán (Reviews & Finance)" {
+  class Review {
+    + id: String [PK]
+    + bookingId: String [FK, Unique]
+    + customerId: String [FK]
+    + overallRating: Int
+    + comment: String?
+    + isAnonymous: Boolean
+    + status: ReviewStatus
+    + createdAt: DateTime
+  }
+
+  class ReviewServiceRating {
+    + id: String [PK]
+    + reviewId: String [FK]
+    + bookingServiceId: String [FK]
+    + staffId: String? [FK]
+    + rating: Int
+    + comment: String?
+  }
+
+  class BusinessReply {
+    + id: String [PK]
+    + reviewId: String [FK, Unique]
+    + content: String
+    + createdAt: DateTime
+  }
+
+  class Payment {
+    + id: String [PK]
+    + bookingId: String [FK]
+    + amount: Decimal
+    + method: PaymentMethod
+    + status: PaymentStatus
+    + paidAt: DateTime?
+  }
+
+  class PaymentTransaction {
+    + id: String [PK]
+    + paymentId: String [FK]
+    + amount: Decimal
+    + status: PaymentTransactionStatus
+    + providerCode: String
+    + referenceCode: String?
+  }
+
+  class FinancialLedger {
+    + id: String [PK]
+    + businessId: String [FK]
+    + branchId: String [FK]
+    + bookingId: String? [FK]
+    + type: FinancialLedgerType
+    + direction: LedgerDirection
+    + amount: Decimal
+  }
+
+  class Invoice {
+    + id: String [PK]
+    + invoiceNumber: String [Unique]
+    + bookingId: String [FK]
+    + totalAmount: Decimal
+    + status: InvoiceStatus
+  }
+}
+
+' Relationships & Cardinalities
+User "1" -- "0..*" UserSession : có >
+User "1" -- "0..*" UserRole : được gán >
+Role "1" -- "0..*" UserRole : thuộc >
+User "1" -- "0..1" CustomerProfile : là >
+User "1" -- "0..1" StaffProfile : liên kết >
+
+Business "1" -- "1..*" Branch : sở hữu >
+Branch "1" -- "0..*" BranchWorkingHour : áp dụng >
+Branch "1" -- "0..*" BranchHoliday : có >
+Branch "1" -- "1..*" StaffProfile : quản lý >
+
+Business "1" -- "0..*" BusinessService : định nghĩa >
+BusinessService "1" -- "0..*" BranchServiceOffering : cung cấp tại >
+Branch "1" -- "0..*" BranchServiceOffering : triển khai >
+BranchServiceOffering "1" -- "0..*" ServiceVariant : có biến thể >
+Branch "1" -- "0..*" Combo : tạo >
+
+StaffProfile "1" -- "0..*" StaffService : có kỹ năng >
+BranchServiceOffering "1" -- "0..*" StaffService : thợ đảm nhận >
+
+CustomerProfile "1" -- "0..*" Booking : đặt >
+Branch "1" -- "0..*" Booking : tiếp nhận >
+Booking "1" *-- "1..*" BookingService : chứa các dịch vụ >
+BookingService "0..*" -- "0..1" StaffProfile : thực hiện bởi >
+BookingService "0..*" -- "1" BranchServiceOffering : thuộc dịch vụ >
+Booking "1" *-- "1..*" BookingStatusHistory : lưu vết trạng thái >
+Booking "1" -- "0..*" AppointmentChangeRequest : phát sinh yêu cầu đổi >
+
+Booking "1" -- "0..1" Review : được đánh giá >
+CustomerProfile "1" -- "0..*" Review : gửi >
+Review "1" *-- "0..*" ReviewServiceRating : chi tiết điểm thợ/dịch vụ >
+Review "1" -- "0..1" BusinessReply : nhận phản hồi >
+
+Booking "1" -- "0..*" Payment : thanh toán >
+Payment "1" *-- "1..*" PaymentTransaction : gồm các giao dịch >
+Booking "1" -- "0..1" Invoice : xuất hóa đơn >
+Booking "0..1" -- "0..*" FinancialLedger : ghi sổ cái >
+Business "1" -- "0..*" FinancialLedger : theo dõi tài chính >
+
+@enduml

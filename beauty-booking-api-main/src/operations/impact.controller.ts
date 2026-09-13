@@ -20,7 +20,7 @@ export class ImpactController {
     });
     const branchOnly = user.roles.includes('BRANCH_MANAGER') && !user.roles.includes('BUSINESS_OWNER') && !user.roles.includes('PLATFORM_ADMIN');
     if (branchOnly) {
-      if (!impact.branchId) throw new BadRequestException('Impact case cáº¥p doanh nghiá»‡p chá»‰ dÃ nh cho chá»§ doanh nghiá»‡p');
+      if (!impact.branchId) throw new BadRequestException('Impact case cấp doanh nghiệp chỉ dành cho chủ doanh nghiệp');
       await assertBranchAccess(this.prisma, user, impact.branchId);
     } else {
       await assertBusinessAccess(this.prisma, user, impact.businessId);

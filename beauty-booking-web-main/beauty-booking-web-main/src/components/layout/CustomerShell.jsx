@@ -1,17 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bell,
   CalendarCheck,
   ChevronDown,
+  ChevronRight,
   Compass,
+  Heart,
+  KeyRound,
   LogOut,
-  Menu,
   ShieldCheck,
   Sparkles,
   Star,
+  Store,
   TicketPercent,
   UserRound,
-  WalletCards,
   X,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -23,29 +25,71 @@ import { cx, IconButton } from '../ui';
 const primaryLinks = [
   ['/explore', 'Khám phá', Compass],
   ['/customer/appointments', 'Lịch hẹn', CalendarCheck],
-  ['/customer/vouchers', 'Voucher', TicketPercent],
-  ['/customer/payments', 'Thanh toán', WalletCards],
-  ['/customer/reviews', 'Đánh giá', Star],
 ];
 
-const accountLinks = [
-  ['/customer/profile', 'Hồ sơ cá nhân', UserRound],
-  ['/customer/privacy', 'Quyền riêng tư', ShieldCheck],
-  ['/customer/security', 'Bảo mật & phiên đăng nhập', ShieldCheck],
+const accountGroups = [
+  {
+    label: 'Tài khoản',
+    items: [
+      ['/customer/profile', 'Hồ sơ cá nhân', UserRound],
+      ['/customer/reviews', 'Đánh giá của tôi', Star],
+    ],
+  },
+  {
+    label: 'Ưu đãi',
+    items: [
+      ['/customer/vouchers', 'Voucher', TicketPercent],
+      ['/customer/benefits', 'Quyền lợi & dịch vụ đã lưu', Heart],
+    ],
+  },
+  {
+    label: 'Hệ thống',
+    items: [
+      ['/customer/security', 'Bảo mật & phiên đăng nhập', KeyRound],
+      ['/customer/privacy', 'Quyền riêng tư', ShieldCheck],
+    ],
+  },
 ];
+
+const accountRoutes = accountGroups.flatMap((group) => group.items.map(([to]) => to));
+
+function AccountNavigation({ onNavigate }) {
+  return (
+    <nav className="bb-customer-account__groups" aria-label="Chức năng tài khoản">
+      {accountGroups.map((group) => (
+        <section className="bb-customer-account__group" key={group.label}>
+          <h2>{group.label}</h2>
+          <div>
+            {group.items.map(([to, label, Icon]) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={onNavigate}
+                className={({ isActive }) => cx('bb-customer-account__item', isActive && 'bb-customer-account__item--active')}
+              >
+                <Icon size={18} aria-hidden="true" />
+                <span>{label}</span>
+                <ChevronRight size={15} aria-hidden="true" />
+              </NavLink>
+            ))}
+          </div>
+        </section>
+      ))}
+    </nav>
+  );
+}
 
 export function CustomerShell({ children }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const accountRef = useRef(null);
+  const accountPanelRef = useRef(null);
+  const accountTriggerRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
-    setMobileOpen(false);
     setAccountOpen(false);
   }, [location.pathname, location.search]);
 
@@ -60,34 +104,49 @@ export function CustomerShell({ children }) {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!mobileOpen && !accountOpen) return undefined;
+    if (!accountOpen) return undefined;
+    const mobile = window.matchMedia('(max-width: 47.99rem)').matches;
     const previousOverflow = document.body.style.overflow;
-    const close = (event) => {
+    if (mobile) document.body.style.overflow = 'hidden';
+    window.requestAnimationFrame(() => accountPanelRef.current?.querySelector('.bb-customer-account__item')?.focus());
+
+    const onKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setMobileOpen(false);
+        event.preventDefault();
         setAccountOpen(false);
+        window.requestAnimationFrame(() => accountTriggerRef.current?.focus());
+        return;
       }
-      if (accountOpen && accountRef.current && !accountRef.current.contains(event.target)) {
-        setAccountOpen(false);
+      if (event.key !== 'Tab') return;
+      const focusable = [...(accountPanelRef.current?.querySelectorAll('a[href], button:not([disabled])') || [])]
+        .filter((element) => element.getClientRects().length);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    if (mobileOpen) document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', close);
-    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', close);
-      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', onKeyDown);
     };
-  }, [accountOpen, mobileOpen]);
+  }, [accountOpen]);
 
-  const initials = (user?.fullName || user?.email || 'BB')
+  const initials = useMemo(() => (user?.fullName || user?.email || 'BB')
     .split(/\s+/)
     .filter(Boolean)
     .slice(-2)
     .map((part) => part[0])
     .join('')
-    .toUpperCase();
+    .toUpperCase(), [user?.email, user?.fullName]);
+  const accountActive = accountOpen || accountRoutes.some((route) => location.pathname.startsWith(route));
+  const closeAccount = () => setAccountOpen(false);
   const signOut = async () => {
     await logout();
     navigate('/login', { replace: true });
@@ -105,7 +164,7 @@ export function CustomerShell({ children }) {
             <span className="bb-display text-lg font-bold tracking-tight">BeautyBook</span>
           </Link>
 
-          <nav className="ml-4 hidden flex-1 items-center gap-1 lg:flex" aria-label="Tài khoản khách hàng">
+          <nav className="ml-3 hidden flex-1 items-center gap-1 md:flex" aria-label="Điều hướng khách hàng">
             {primaryLinks.map(([to, label, Icon]) => (
               <NavLink key={to} to={to} className={({ isActive }) => cx('flex min-h-11 items-center gap-2 whitespace-nowrap rounded-[var(--bb-radius-control)] px-3 text-sm font-semibold transition-colors', isActive ? 'bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]' : 'text-[var(--bb-ink-soft)] hover:bg-[var(--bb-surface-subtle)] hover:text-[var(--bb-ink)]')}>
                 <Icon size={16} aria-hidden="true" />{label}
@@ -113,51 +172,78 @@ export function CustomerShell({ children }) {
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-1.5">
-            <Link to="/customer/notifications" className="relative grid h-11 w-11 place-items-center rounded-[var(--bb-radius-control)] text-[var(--bb-ink-soft)] hover:bg-[var(--bb-surface-subtle)]" aria-label={unread ? `${unread} thông báo chưa đọc` : 'Thông báo'}>
+          <div className="ml-auto flex min-w-0 items-center gap-1.5">
+            <Link to="/customer/notifications" className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[var(--bb-radius-control)] text-[var(--bb-ink-soft)] hover:bg-[var(--bb-surface-subtle)]" aria-label={unread ? `${unread} thông báo chưa đọc` : 'Thông báo'}>
               <Bell size={19} aria-hidden="true" />
               {unread > 0 && <span className="absolute right-1.5 top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--bb-brand)] px-1 text-[10px] font-bold leading-none text-[var(--color-accent-ink)]">{unread > 99 ? '99+' : unread}</span>}
             </Link>
-            <div ref={accountRef} className="relative hidden sm:block">
-              <button type="button" className="flex min-h-11 items-center gap-2 rounded-[var(--bb-radius-control)] px-2 text-left hover:bg-[var(--bb-surface-subtle)]" aria-haspopup="menu" aria-expanded={accountOpen} onClick={() => setAccountOpen((value) => !value)}>
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span>
-                <span className="hidden max-w-36 lg:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Tài khoản'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">Khách hàng</span></span>
-                <ChevronDown size={15} aria-hidden="true" />
-              </button>
-              {accountOpen && <div role="menu" className="absolute right-0 top-[calc(100%+0.5rem)] z-[var(--z-dropdown)] w-72 rounded-[var(--bb-radius-card)] border border-[var(--bb-border)] bg-white p-2 shadow-[var(--bb-shadow-float)]">
-                <div className="border-b border-[var(--bb-border)] px-3 py-2"><p className="truncate text-sm font-bold">{user?.fullName || 'Tài khoản BeautyBook'}</p><p className="truncate text-xs text-[var(--bb-muted)]">{user?.email}</p></div>
-                {accountLinks.map(([to, label, Icon]) => <Link key={to} role="menuitem" to={to} className="mt-1 flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium hover:bg-[var(--bb-surface-subtle)]"><Icon size={17} />{label}</Link>)}
-                <button type="button" role="menuitem" onClick={signOut} className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium text-[var(--bb-danger)] hover:bg-red-50"><LogOut size={17} />Đăng xuất</button>
-              </div>}
-            </div>
-            <IconButton label="Mở menu tài khoản" className="lg:hidden" aria-expanded={mobileOpen} aria-controls="customer-mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton>
+            <button
+              ref={accountTriggerRef}
+              type="button"
+              className={cx('bb-customer-account-trigger flex min-h-11 min-w-0 items-center gap-2 rounded-[var(--bb-radius-control)] px-1.5 text-left', accountActive && 'bb-customer-account-trigger--active')}
+              aria-haspopup="dialog"
+              aria-label={`Mở menu tài khoản ${user?.fullName || 'Khách hàng'}`}
+              aria-expanded={accountOpen}
+              aria-controls="customer-account-panel"
+              onClick={() => setAccountOpen((value) => !value)}
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span>
+              <span className="hidden min-w-0 max-w-40 lg:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Tài khoản'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">Khách hàng</span></span>
+              <ChevronDown className={cx('hidden shrink-0 sm:block', accountOpen && 'rotate-180')} size={15} aria-hidden="true" />
+            </button>
           </div>
         </div>
       </header>
 
-      {mobileOpen && <div className="fixed inset-0 z-[var(--z-modal)] bg-[var(--color-overlay)]" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setMobileOpen(false); }}>
-        <nav id="customer-mobile-menu" aria-label="Menu tài khoản khách hàng" className="ml-auto flex h-full w-[min(88vw,22rem)] flex-col bg-white p-4 shadow-[var(--bb-shadow-float)]">
-          <div className="flex items-center justify-between border-b border-[var(--bb-border)] pb-3"><div><p className="font-bold">{user?.fullName || 'Tài khoản BeautyBook'}</p><p className="text-xs text-[var(--bb-muted)]">{user?.email}</p></div><IconButton label="Đóng menu" onClick={() => setMobileOpen(false)}><X size={20} /></IconButton></div>
-          <div className="bb-scrollbar mt-3 flex-1 overflow-y-auto">
-            {[...primaryLinks, ['/customer/notifications', 'Thông báo', Bell], ...accountLinks].map(([to, label, Icon]) => <NavLink key={to} to={to} className={({ isActive }) => cx('flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm font-semibold', isActive ? 'bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]' : 'hover:bg-[var(--bb-surface-subtle)]')}><Icon size={18} />{label}{to === '/customer/notifications' && unread > 0 ? <span className="ml-auto rounded-full bg-[var(--bb-brand)] px-2 py-0.5 text-xs text-[var(--color-accent-ink)]">{unread}</span> : null}</NavLink>)}
-          </div>
-          <button type="button" onClick={signOut} className="flex min-h-12 items-center gap-3 border-t border-[var(--bb-border)] px-3 pt-3 text-sm font-semibold text-[var(--bb-danger)]"><LogOut size={18} />Đăng xuất</button>
-        </nav>
-      </div>}
+      {accountOpen && (
+        <div className="bb-customer-account-layer" role="presentation">
+          <button type="button" className="bb-customer-account__backdrop" aria-label="Đóng menu tài khoản" onClick={closeAccount} />
+          <aside ref={accountPanelRef} id="customer-account-panel" className="bb-customer-account" role="dialog" aria-labelledby="customer-account-title">
+            <header className="bb-customer-account__header">
+              <span className="bb-customer-account__avatar" aria-hidden="true">{initials}</span>
+              <div>
+                <h2 id="customer-account-title">{user?.fullName || 'Tài khoản BeautyBook'}</h2>
+                <p>{user?.email || 'Khách hàng'}</p>
+                <span>Khách hàng</span>
+              </div>
+              <IconButton label="Đóng menu tài khoản" onClick={closeAccount}><X size={19} /></IconButton>
+            </header>
+
+            <div className="bb-customer-account__scroll bb-scrollbar">
+              <AccountNavigation onNavigate={closeAccount} />
+              <div className="bb-customer-account__bottom">
+                <Link to="/for-business" onClick={closeAccount} className="bb-customer-account__business">
+                  <Store size={18} aria-hidden="true" />
+                  <span><strong>Dành cho doanh nghiệp</strong><small>Tìm hiểu BeautyBook Business</small></span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </Link>
+                <button type="button" onClick={signOut} className="bb-customer-account__logout">
+                  <LogOut size={18} aria-hidden="true" />
+                  <span>Đăng xuất</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      )}
 
       <main id="main-content" tabIndex="-1" className="bb-customer-main mx-auto min-h-[60dvh] w-full max-w-[var(--maxw-page)] px-4 py-6 pb-24 sm:px-6 sm:py-8 lg:px-8 lg:pb-10">
         {children}
       </main>
       <PublicFooter />
 
-      <nav className="fixed inset-x-0 bottom-0 z-[var(--z-sticky)] grid grid-cols-5 border-t border-[var(--bb-border)] bg-[color-mix(in_oklch,var(--bb-surface)_96%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Điều hướng nhanh">
-        {[
-          ['/explore', 'Khám phá', Compass],
-          ['/customer/appointments', 'Lịch hẹn', CalendarCheck],
-          ['/customer/notifications', 'Thông báo', Bell],
-          ['/customer/vouchers', 'Voucher', TicketPercent],
-          ['/customer/profile', 'Tài khoản', UserRound],
-        ].map(([to, label, Icon]) => <NavLink key={to} to={to} className={({ isActive }) => cx('relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[10px] font-semibold', isActive ? 'text-[var(--bb-brand-strong)]' : 'text-[var(--bb-muted)]')}><Icon size={19} aria-hidden="true" /><span className="max-w-full truncate">{label}</span>{to === '/customer/notifications' && unread > 0 ? <span className="absolute right-[22%] top-2 h-2 w-2 rounded-full bg-[var(--bb-brand)]" aria-hidden="true" /> : null}</NavLink>)}
+      <nav className="fixed inset-x-0 bottom-0 z-[var(--z-sticky)] grid grid-cols-4 border-t border-[var(--bb-border)] bg-[color-mix(in_oklch,var(--bb-surface)_96%,transparent)] pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Điều hướng nhanh">
+        {primaryLinks.map(([to, label, Icon]) => (
+          <NavLink key={to} to={to} className={({ isActive }) => cx('relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[10px] font-semibold', isActive ? 'text-[var(--bb-brand-strong)]' : 'text-[var(--bb-muted)]')}>
+            <Icon size={19} aria-hidden="true" /><span className="max-w-full truncate">{label}</span>
+          </NavLink>
+        ))}
+        <NavLink to="/customer/notifications" className={({ isActive }) => cx('relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[10px] font-semibold', isActive ? 'text-[var(--bb-brand-strong)]' : 'text-[var(--bb-muted)]')}>
+          <Bell size={19} aria-hidden="true" /><span>Thông báo</span>{unread > 0 ? <span className="absolute right-[25%] top-2 h-2 w-2 rounded-full bg-[var(--bb-brand)]" aria-hidden="true" /> : null}
+        </NavLink>
+        <button type="button" onClick={() => setAccountOpen(true)} className={cx('relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 px-1 text-[10px] font-semibold', accountActive ? 'text-[var(--bb-brand-strong)]' : 'text-[var(--bb-muted)]')} aria-label="Mở menu tài khoản" aria-haspopup="dialog" aria-expanded={accountOpen} aria-controls="customer-account-panel">
+          <UserRound size={19} aria-hidden="true" /><span>Tài khoản</span>
+        </button>
       </nav>
     </div>
   );

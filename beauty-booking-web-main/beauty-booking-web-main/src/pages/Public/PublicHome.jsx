@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   ChevronDown,
   Clock3,
+  Heart,
   MapPin,
   Search,
   ShieldCheck,
@@ -14,12 +15,14 @@ import {
   X,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { servicesApi } from '../../api/apiClient';
+import toast from 'react-hot-toast';
+import { branchesApi, savedServicesApi, servicesApi } from '../../api/apiClient';
 import { PublicShell } from '../../components/layout/PublicShell';
 import { HomeMedia } from '../../components/public/HomeMedia';
 import { MarketplaceRail } from '../../components/public/MarketplaceRail';
 import { Select } from '../../components/ui';
 import { getHomeMedia, homeMediaRatios } from '../../config/homeMedia';
+import { useAuthStore } from '../../store/authStore';
 
 const filterKeys = ['serviceQuery', 'categoryId', 'area', 'minPrice', 'maxPrice', 'minRating', 'sort'];
 const emptyFilters = Object.freeze({
@@ -34,7 +37,7 @@ const emptyFilters = Object.freeze({
 
 const bookingSteps = [
   ['01', 'Chọn cơ sở và dịch vụ', 'So sánh thông tin, mức giá và những dịch vụ đang nhận lịch.'],
-  ['02', 'Chọn chuyên viên và giờ', 'Hệ thống kiểm tra lịch làm việc và giờ trống phù hợp với lựa chọn của bạn.'],
+  ['02', 'Chọn chuyên viên và giờ', 'Hệ thống kiểm tra giờ mở cửa, năng lực dịch vụ và các lịch đã giữ chỗ.'],
   ['03', 'Xác nhận thông tin', 'Kiểm tra lại chi tiết trước khi gửi yêu cầu đặt lịch.'],
   ['04', 'Theo dõi lịch hẹn', 'Đăng nhập để xem trạng thái và quản lý các lịch hẹn của riêng bạn.'],
 ];
@@ -240,7 +243,87 @@ function CategorySection({ categories, loading, error, retry }) {
   );
 }
 
-function SalonCard({ branch: service }) {
+function EstablishmentCard({ branch }) {
+  const title = branch.name || branch.branch_name || 'Cơ sở BeautyBook';
+  const branchName = branch.branch_name && branch.branch_name !== title ? branch.branch_name : '';
+  const address = [branch.address, branch.district].filter(Boolean).join(', ');
+  const categories = Array.isArray(branch.categories) ? branch.categories.slice(0, 3) : [];
+  const detailPath = `/explore/branches/${branch.id}`;
+
+  return (
+    <article className="bb-home-establishment-card">
+      <Link className="bb-home-establishment-card__link" to={detailPath} aria-label={`Xem cơ sở ${title}`}>
+        <div className="bb-home-establishment-card__media">
+          <HomeMedia
+            src={branch.coverImage || getHomeMedia('salons', branch.id)}
+            alt={`Hình ảnh cơ sở ${title}`}
+            ratio={homeMediaRatios.salon}
+            label={title}
+          />
+          {Number(branch.rating) > 0 ? (
+            <span className="bb-home-establishment-card__rating">
+              <Star size={14} fill="currentColor" aria-hidden="true" />
+              {Number(branch.rating).toFixed(1)}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="bb-home-establishment-card__body">
+          <div className="bb-home-establishment-card__heading">
+            <span>
+              <strong>{title}</strong>
+              {branchName ? <small>{branchName}</small> : null}
+            </span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </div>
+
+          <p className="bb-home-establishment-card__address">
+            <MapPin size={15} aria-hidden="true" />
+            {address || 'Địa chỉ đang được cập nhật'}
+          </p>
+
+          {categories.length ? (
+            <div className="bb-home-establishment-card__categories">
+              {categories.map((category) => <span key={category.id}>{category.name}</span>)}
+            </div>
+          ) : null}
+
+          <div className="bb-home-establishment-card__facts">
+            {Number(branch.minPrice) > 0 ? <span>Giá từ <strong>{formatMoney(branch.minPrice)}</strong></span> : null}
+            {Number(branch.services) > 0 ? <span>{branch.services} dịch vụ</span> : null}
+            {branch.workingHours?.summary ? <span>{branch.workingHours.summary}</span> : null}
+          </div>
+        </div>
+      </Link>
+    </article>
+  );
+}
+
+function EstablishmentSection({ branches, loading, error, retry }) {
+  return (
+    <section id="salons" className="bb-home-section bb-home-establishments">
+      <SectionHeading
+        kicker="Cơ sở nổi bật"
+        title="Khám phá địa điểm làm đẹp phù hợp với bạn"
+        description="Các cơ sở bên dưới đã được duyệt, đang hoạt động và đủ điều kiện nhận lịch trong dữ liệu công khai hiện tại."
+        action={<Link className="bb-home-text-link" to="/explore">Xem tất cả cơ sở <ArrowRight size={16} /></Link>}
+      />
+      {loading ? (
+        <LoadingTiles count={4} className="bb-home-establishment-grid" />
+      ) : error ? (
+        <InlineState title="Chưa tải được danh sách cơ sở." description="Vui lòng thử lại sau ít phút." onRetry={retry} />
+      ) : branches.length ? (
+        <div className="bb-home-establishment-grid">
+          {branches.map((branch) => <EstablishmentCard key={branch.id} branch={branch} />)}
+        </div>
+      ) : (
+        <InlineState title="Chưa có cơ sở phù hợp để hiển thị." description="Các cơ sở đủ điều kiện nhận lịch sẽ xuất hiện tại đây." />
+      )}
+    </section>
+  );
+}
+
+function SalonCard({ branch: service, saved, onToggleSaved }) {
   const title = service.displayName || service.name;
   const branchName = service.branchName || 'Chi nhánh';
   const businessName = service.businessName || '';
@@ -272,6 +355,7 @@ function SalonCard({ branch: service }) {
           <span>{service.availabilitySummary || `${service.availableStaffCount || 0} chuyên viên`}</span>
         </p>
         <div className="bb-home-salon-card__actions">
+          {onToggleSaved ? <button type="button" onClick={() => onToggleSaved(service.id)} aria-label={saved ? `Bỏ lưu ${title}` : `Lưu ${title}`}><Heart size={15} fill={saved ? 'currentColor' : 'none'} />{saved ? 'Đã lưu' : 'Lưu'}</button> : <Link to="/login" state={{ from: `/explore/services/${service.id}` }}><Heart size={15} />Lưu</Link>}
           <Link to={`/explore/services/${service.id}`}>Xem chi tiết</Link>
           <Link to={`/book?branchId=${encodeURIComponent(service.branchId)}&serviceId=${encodeURIComponent(service.id)}`}>Đặt dịch vụ <ArrowRight size={15} /></Link>
         </div>
@@ -280,9 +364,9 @@ function SalonCard({ branch: service }) {
   );
 }
 
-function SalonSection({ branches, loading, error, retry, exploreMode = false, kicker, title, description }) {
+function SalonSection({ branches, loading, error, retry, exploreMode = false, kicker, title, description, savedIds, onToggleSaved }) {
   return (
-    <section id="salons" className={`bb-home-section bb-home-salons ${exploreMode ? 'bb-home-salons--explore' : ''}`}>
+    <section id={exploreMode ? 'results' : undefined} className={`bb-home-section bb-home-salons ${exploreMode ? 'bb-home-salons--explore' : ''}`}>
       <SectionHeading
         kicker={kicker || (exploreMode ? 'Kết quả theo dịch vụ' : 'Dịch vụ được quan tâm trên BeautyBook')}
         title={title || (exploreMode ? 'Dịch vụ phù hợp với nhu cầu của bạn' : 'Bắt đầu từ điều bạn muốn làm')}
@@ -295,8 +379,8 @@ function SalonSection({ branches, loading, error, retry, exploreMode = false, ki
         <InlineState title="Chưa tải được danh sách cơ sở" description={error} onRetry={retry} />
       ) : branches.length ? (
         exploreMode
-          ? <div className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} key={branch.id} />)}</div>
-          : <MarketplaceRail label={title || 'Cơ sở được đề xuất'} className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} key={branch.id} />)}</MarketplaceRail>
+          ? <div className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} saved={savedIds?.has(branch.id)} onToggleSaved={onToggleSaved} key={branch.id} />)}</div>
+          : <MarketplaceRail label={title || 'Cơ sở được đề xuất'} className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} saved={savedIds?.has(branch.id)} onToggleSaved={onToggleSaved} key={branch.id} />)}</MarketplaceRail>
       ) : (
         <div className="bb-home-empty-results">
           <p className="bb-home-kicker">Không có kết quả</p>
@@ -315,7 +399,7 @@ function AvailabilitySection() {
       <div className="bb-home-availability__copy">
         <p className="bb-home-kicker">Lịch phù hợp với bạn</p>
         <h2>Giờ trống chỉ xuất hiện sau những lựa chọn đúng.</h2>
-        <p>BeautyBook kiểm tra lịch làm việc sau khi bạn chọn cơ sở, dịch vụ và chuyên viên. Vì vậy trang chủ không hiển thị giờ trống ước lượng.</p>
+        <p>BeautyBook kiểm tra giờ mở cửa và xung đột lịch sau khi bạn chọn cơ sở, dịch vụ và chuyên viên. Vì vậy trang chủ không hiển thị giờ trống ước lượng.</p>
         <Link className="bb-home-text-link" to="/explore">Chọn cơ sở trước <ArrowRight size={16} /></Link>
       </div>
       <HomeMedia
@@ -392,6 +476,7 @@ function FinalCta() {
 }
 
 export default function PublicHome({ exploreMode = false }) {
+  const authenticated = useAuthStore((state) => state.isAuthenticated());
   const [searchParams] = useSearchParams();
   const queryKey = searchParams.toString();
   const filters = useMemo(() => readFilters(searchParams), [queryKey]);
@@ -407,6 +492,27 @@ export default function PublicHome({ exploreMode = false }) {
   const [newBranchesError, setNewBranchesError] = useState('');
   const [newBranchesLoading, setNewBranchesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState('');
+  const [establishments, setEstablishments] = useState([]);
+  const [establishmentsLoading, setEstablishmentsLoading] = useState(true);
+  const [establishmentsError, setEstablishmentsError] = useState(false);
+  const [savedIds, setSavedIds] = useState(new Set());
+
+  useEffect(() => {
+    if (!authenticated) { setSavedIds(new Set()); return; }
+    void savedServicesApi.list().then((items) => setSavedIds(new Set(items.map((item) => item.branchServiceOfferingId)))).catch(() => setSavedIds(new Set()));
+  }, [authenticated]);
+
+  const toggleSaved = authenticated ? async (serviceId) => {
+    const wasSaved = savedIds.has(serviceId);
+    setSavedIds((current) => { const next = new Set(current); if (wasSaved) next.delete(serviceId); else next.add(serviceId); return next; });
+    try {
+      if (wasSaved) await savedServicesApi.remove(serviceId); else await savedServicesApi.save(serviceId);
+      toast.success(wasSaved ? 'Đã bỏ lưu dịch vụ' : 'Đã lưu dịch vụ');
+    } catch (requestError) {
+      setSavedIds((current) => { const next = new Set(current); if (wasSaved) next.add(serviceId); else next.delete(serviceId); return next; });
+      toast.error(requestError.message);
+    }
+  } : null;
 
   const loadBranches = useCallback(async (nextPage = 1, append = false) => {
     const pageToLoad = typeof nextPage === 'number' ? nextPage : 1;
@@ -466,9 +572,26 @@ export default function PublicHome({ exploreMode = false }) {
     }
   }, []);
 
+  const loadEstablishments = useCallback(async () => {
+    if (exploreMode) return;
+    setEstablishmentsLoading(true);
+    setEstablishmentsError(false);
+    try {
+      const response = await branchesApi.getAll({ sort: 'rating', limit: 4 });
+      setEstablishments(asList(response).slice(0, 4));
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('[PublicHome] Không thể tải danh sách cơ sở:', error);
+      setEstablishments([]);
+      setEstablishmentsError(true);
+    } finally {
+      setEstablishmentsLoading(false);
+    }
+  }, [exploreMode]);
+
   useEffect(() => { loadBranches(); }, [loadBranches]);
   useEffect(() => { loadNewBranches(); }, [loadNewBranches]);
   useEffect(() => { loadCategories(); }, [loadCategories]);
+  useEffect(() => { loadEstablishments(); }, [loadEstablishments]);
 
   if (exploreMode) {
     return (
@@ -485,7 +608,7 @@ export default function PublicHome({ exploreMode = false }) {
             <HomeSearch categories={categories} initialValues={filters} compact />
           </div>
           <div className="bb-home-boundary">
-            <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} exploreMode />
+            <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} exploreMode savedIds={savedIds} onToggleSaved={toggleSaved} />
             {hasMoreBranches && !branchesError ? <div className="bb-explore-load-more"><button type="button" className="bb-home-button bb-home-button--secondary" disabled={loadingMoreBranches} onClick={() => loadBranches(branchPage + 1, true)}>{loadingMoreBranches ? 'Đang tải…' : 'Xem thêm dịch vụ'}</button></div> : null}
           </div>
         </div>
@@ -524,8 +647,9 @@ export default function PublicHome({ exploreMode = false }) {
 
         <div className="bb-home-boundary">
           <CategorySection categories={categories} loading={categoriesLoading} error={categoriesError} retry={loadCategories} />
-          <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} />
-          <SalonSection branches={newBranches} loading={newBranchesLoading} error={newBranchesError} retry={loadNewBranches} kicker="Thêm lựa chọn" title="Dịch vụ cho lần hẹn tiếp theo" description="Các lựa chọn khác đang đủ điều kiện nhận lịch trong dữ liệu công khai hiện tại." />
+          <EstablishmentSection branches={establishments} loading={establishmentsLoading} error={establishmentsError} retry={loadEstablishments} />
+          <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} savedIds={savedIds} onToggleSaved={toggleSaved} />
+          <SalonSection branches={newBranches} loading={newBranchesLoading} error={newBranchesError} retry={loadNewBranches} kicker="Thêm lựa chọn" title="Dịch vụ cho lần hẹn tiếp theo" description="Các lựa chọn khác đang đủ điều kiện nhận lịch trong dữ liệu công khai hiện tại." savedIds={savedIds} onToggleSaved={toggleSaved} />
           <AvailabilitySection />
           <HowItWorks />
           <BenefitsSection />

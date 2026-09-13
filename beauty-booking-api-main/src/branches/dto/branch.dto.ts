@@ -1,5 +1,8 @@
 import {
   IsArray,
+  ArrayMaxSize,
+  ArrayUnique,
+  IsBoolean,
   IsDateString,
   IsEmail,
   IsIn,
@@ -15,7 +18,53 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
+  ValidateNested,
 } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+
+export class PublicBranchServicesQueryDto {
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit: number = 20;
+}
+
+export class PublicBranchReviewsQueryDto {
+  @IsOptional()
+  @IsIn(['newest', 'highest', 'lowest'])
+  sort: 'newest' | 'highest' | 'lowest' = 'newest';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit: number = 20;
+}
 
 export class UpdateBranchDto {
   @IsOptional()
@@ -169,14 +218,107 @@ export class CreateBranchDraftDto {
   phone?: string;
 }
 
+export class BranchBookingPolicyDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  leadTimeMinutes?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  bookingHorizonDays?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  cancellationHours?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  rescheduleHours?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  noShowHandling?: string | null;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  earlyCheckInMinutes?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  gracePeriodMinutes?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  allowWalkIn?: boolean;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  allowCounterBooking?: boolean;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  defaultBufferMinutes?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  overbookingEnabled?: boolean;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  maxOverbookedSlots?: number;
+}
+
+export class BranchWorkingHourDto {
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  dayOfWeek!: number;
+
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+  openTime!: string;
+
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+  closeTime!: string;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  isClosed?: boolean;
+}
+
 export class SaveBranchOnboardingDto {
   @IsInt()
   @Min(1)
-  @Max(14)
+  @Max(13)
   currentStep!: number;
 
   @IsOptional()
   @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(13)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(13, { each: true })
   completedSteps?: number[];
 
   @IsOptional()
@@ -185,22 +327,21 @@ export class SaveBranchOnboardingDto {
 
   @IsOptional()
   @IsObject()
+  @ValidateNested()
+  @Type(() => UpdateBranchDto)
   branch?: UpdateBranchDto;
 
   @IsOptional()
   @IsObject()
-  bookingPolicy?: Record<string, unknown>;
-
-  @IsOptional()
-  @IsObject()
-  attendancePolicy?: Record<string, unknown>;
+  @ValidateNested()
+  @Type(() => BranchBookingPolicyDto)
+  bookingPolicy?: BranchBookingPolicyDto;
 
   @IsOptional()
   @IsArray()
-  workingHours?: Array<{
-    dayOfWeek: number;
-    openTime: string;
-    closeTime: string;
-    isClosed?: boolean;
-  }>;
+  @ArrayMaxSize(7)
+  @ArrayUnique((hour: BranchWorkingHourDto) => hour?.dayOfWeek)
+  @ValidateNested({ each: true })
+  @Type(() => BranchWorkingHourDto)
+  workingHours?: BranchWorkingHourDto[];
 }

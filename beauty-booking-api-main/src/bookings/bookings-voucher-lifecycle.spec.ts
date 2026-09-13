@@ -24,6 +24,7 @@ function fixture(claimCount = 1) {
     bookingStatusHistory: {
       create: jest.fn().mockResolvedValue({ id: 'history-1' }),
     },
+    bookingService: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     voucher: {
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
@@ -67,6 +68,10 @@ describe('BookingsService voucher/combo reservation lifecycle', () => {
       },
       data: { status: 'EXPIRED', pendingExpiresAt: null },
     });
+    expect(prisma.bookingService.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: 'booking-1', status: { in: ['SCHEDULED', 'IN_PROGRESS'] } },
+      data: { status: 'CANCELLED', revision: { increment: 1 } },
+    });
     expect(prisma.voucherRedemption.updateMany).toHaveBeenCalledWith({
       where: {
         bookingId: 'booking-1',
@@ -94,6 +99,7 @@ describe('BookingsService voucher/combo reservation lifecycle', () => {
     await expect(service.expirePendingHolds()).resolves.toBe(0);
 
     expect(prisma.bookingStatusHistory.create).not.toHaveBeenCalled();
+    expect(prisma.bookingService.updateMany).not.toHaveBeenCalled();
     expect(prisma.voucherRedemption.updateMany).not.toHaveBeenCalled();
     expect(prisma.combo.updateMany).not.toHaveBeenCalled();
   });

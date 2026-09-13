@@ -58,7 +58,7 @@ function ChoiceGroup({ label, value, options, onChange, disabled = false }) {
             disabled={disabled}
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
-            className={`min-h-11 rounded-xl border px-4 text-left text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--bb-brand)] disabled:cursor-not-allowed disabled:opacity-55 ${
+            className={`min-h-11 rounded-xl border px-4 text-left text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${
               value === option.value
                 ? 'border-[var(--bb-brand)] bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]'
                 : 'border-[var(--bb-border)] bg-[var(--bb-surface)] hover:bg-[var(--bb-surface-subtle)]'

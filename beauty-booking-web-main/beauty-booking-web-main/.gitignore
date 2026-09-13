@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright artifacts and authenticated browser state
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+.playwright-cli/
+tests/e2e/.auth/
+*.auth-state.json

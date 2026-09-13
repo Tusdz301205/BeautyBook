@@ -51,6 +51,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { randomUUID } from 'crypto';
 import { BookingItemsService } from './booking-items.service';
 import { applyServicePriceRules } from '../services/service-price-rules';
+import { assertBookingChannelAllowed, resolveBookingSource } from './booking-channel-policy';
 
 /**
  * Routes that previously allowed the legacy role `ADMIN` keep that
@@ -75,6 +76,7 @@ export class BookingsController {
   private customerBookingView(booking: any) {
     return {
       id: booking.id,
+      branchId: booking.branchId,
       bookingCode: booking.bookingCode,
       status: booking.status,
       source: booking.source,
@@ -85,6 +87,7 @@ export class BookingsController {
       voucherDiscountAmount: booking.voucherDiscountAmount,
       finalAmount: booking.finalAmount,
       note: booking.note,
+      cancelReason: booking.cancelReason,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
       branch: booking.branch
@@ -107,6 +110,11 @@ export class BookingsController {
         : undefined,
       bookingServices: (booking.bookingServices ?? []).map((item: any) => ({
         id: item.id,
+        serviceId: item.serviceId,
+        status: item.status,
+        serviceNameSnapshot: item.serviceNameSnapshot,
+        itemStartAt: item.itemStartAt,
+        itemEndAt: item.itemEndAt,
         priceAtBooking: item.priceAtBooking,
         durationMinutes: item.durationMinutes,
         service: item.service
@@ -199,6 +207,17 @@ export class BookingsController {
     const customerOnly = user.roles.includes('CUSTOMER') &&
       !user.roles.some((role) => ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role));
     const mayOverbook = user.roles.some((role) => ['BUSINESS_OWNER', 'BRANCH_MANAGER'].includes(role));
+    const requestedSource = resolveBookingSource(customerOnly, body.source, Boolean(body.guestName?.trim()));
+    // Check the branch channel policy before creating a walk-in shadow
+    // customer. The service repeats this check as defence in depth, while
+    // this early guard prevents rejected requests from leaving orphan users.
+    if (!customerOnly) {
+      const policy = await this.prisma.branchBookingPolicy.findUnique({
+        where: { branchId: body.branchId },
+        select: { allowWalkIn: true, allowCounterBooking: true },
+      });
+      assertBookingChannelAllowed(requestedSource, policy);
+    }
     if (body.controlledOverbooking && !mayOverbook) {
       throw new ForbiddenException('Chỉ chủ doanh nghiệp hoặc quản lý chi nhánh được phép overbooking có kiểm soát');
     }
@@ -232,7 +251,7 @@ export class BookingsController {
       ...body,
       customerId,
       createdBy: user.id,
-      source: customerOnly ? 'ONLINE_WEB' : body.source ?? (body.guestName ? 'WALK_IN' : 'STAFF_CREATED'),
+      source: requestedSource,
       guestContact: body.guestName
         ? { fullName: body.guestName.trim(), phone: body.guestPhone?.trim() || null }
         : undefined,
@@ -315,8 +334,8 @@ export class BookingsController {
     for (const [serviceId, variantId] of Object.entries(variantSelections ?? {})) {
       const variant = variantsByService.get(serviceId);
       if (!variant || variant.id !== variantId) throw new BadRequestException('Biến thể không thuộc dịch vụ đã chọn');
-      if (variant.priceType === 'QUOTE' || variant.consultationRequired) {
-        throw new BadRequestException('Lựa chọn này cần tư vấn trước khi đặt trực tuyến');
+      if (variant.priceType === 'QUOTE') {
+        throw new BadRequestException('Lựa chọn này cần báo giá trước khi đặt trực tuyến');
       }
     }
     const pricingAt = appointmentDate ? new Date(appointmentDate) : new Date();
@@ -759,6 +778,7 @@ export class BookingsController {
 
   @Get('by-branch/:branchId')
   @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   @RequireScope({
     roles: ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN'],
     scopeLevel: 'branch',
@@ -768,10 +788,7 @@ export class BookingsController {
     @Param('branchId') branchId: string,
     @CurrentUser() user: AuthUser,
   ) {
-    const businessId = await (
-      await this.prisma.branch.findUniqueOrThrow({ where: { id: branchId } })
-    ).businessId;
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await this.bookingsAccess.assertReadBranch(user, branchId);
     return this.bookingsService.getByBranch(branchId);
   }
 
@@ -822,30 +839,34 @@ export class BookingsController {
   @RequirePermission('booking:read:self', 'booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   async findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     const booking = await this.bookingsService.findOne(id);
+    const roleCodes = new Set([
+      ...(user.roles || []),
+      ...(user.scopes || []).map((scope) => scope.code),
+    ]);
     const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
       ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role),
     );
+    const customerOnly =
+      roleCodes.has('CUSTOMER') &&
+      !['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF']
+        .some((role) => roleCodes.has(role));
     // Service-level access check via BookingsAccessService
     const isPlatform = isPlatformRole(user);
     if (!isPlatform) {
+      const readPermission = customerOnly
+        ? 'booking:read:self'
+        : roleCodes.has('BUSINESS_OWNER')
+          ? 'booking:read:tenant'
+          : 'booking:read:branch';
       const info = await this.bookingsAccess.loadAndAssert(
         user,
         id,
-        user.scopes?.some((s) => s.code === 'CUSTOMER')
-          ? 'booking:read:self'
-          : user.scopes?.some((s) => ['STAFF', 'RECEPTIONIST'].includes(s.code))
-            ? 'booking:read:branch'
-            : 'booking:read:branch',
+        readPermission,
       );
       if (staffOnly && info.staffUserId !== user.id) {
         throw new BadRequestException('Nhân viên chỉ được xem lịch được phân công cho mình');
       }
     }
-    const customerOnly =
-      user.roles.includes('CUSTOMER') &&
-      !user.roles.some((role) =>
-        ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'].includes(role),
-      );
     return customerOnly ? this.customerBookingView(booking) : booking;
   }
 

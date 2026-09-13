@@ -7,9 +7,20 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: glowbook_ci_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d glowbook_ci_test"
+          --health-interval 5s --health-timeout 5s --health-retries 15
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glowbook_ci?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glowbook_ci_test?schema=public
       JWT_SECRET: ci-access-secret-not-used-outside-tests-123456
       JWT_REFRESH_SECRET: ci-refresh-secret-not-used-outside-tests-1234
     defaults:
@@ -25,7 +36,14 @@ jobs:
       - run: npm ci
       - run: npx prisma validate
       - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed:small
       - run: npm test -- --runInBand
+      - name: Real PostgreSQL integrity and concurrency tests (no skips)
+        run: npm test -- --runInBand --testPathPatterns=integration --testTimeout=30000
+        env:
+          RUN_POSTGRES_INTEGRATION: '1'
       - run: npm run test:e2e -- --runInBand
       - run: npm run openapi:generate
       - run: git diff --exit-code -- docs/openapi.generated.json
@@ -44,4 +62,5 @@ jobs:
           cache: npm
           cache-dependency-path: beauty-booking-web-main/beauty-booking-web-main/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build

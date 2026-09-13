@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { differenceInHours, differenceInMinutes, format, parseISO } from 'date-fns';
-import { ArrowRight, ArrowRightLeft, Building2, CalendarCheck, CalendarPlus, CheckCircle2, Clock3, Compass, Eye, MapPin, Pause, Play, Repeat2, Star, WalletCards, XCircle } from 'lucide-react';
+import { differenceInHours, differenceInMinutes, format } from 'date-fns';
+import { ArrowRight, ArrowRightLeft, Building2, CalendarCheck, CalendarPlus, CheckCircle2, Clock3, Compass, Eye, MapPin, Pause, Play, Repeat2, Star, XCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { bookingsApi, branchesApi, platformPolicyApi, recurringApi } from '../../api/apiClient';
@@ -9,6 +9,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { RescheduleModal } from '../../components/customer/RescheduleModal';
 import { ReviewModal } from '../../components/customer/ReviewModal';
 import { Badge, Button, Card, Dialog, ErrorState, Field, InlineNotice, Page, PageHeader, Skeleton, Textarea, cx } from '../../components/ui';
+import { combineDateTime } from '../../utils/bookingCalendar.adapter';
 
 const TABS = [['upcoming', 'Sắp tới', CalendarCheck], ['completed', 'Hoàn thành', CheckCircle2], ['cancelled', 'Đã hủy', XCircle]];
 const labels = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
@@ -44,6 +45,17 @@ export function CustomerAppointments() {
   }, [accessToken, tab]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [load]);
+  useEffect(() => {
     let active = true;
     setRecommendationsLoading(true);
     setRecommendationsError('');
@@ -74,14 +86,28 @@ export function CustomerAppointments() {
   };
   return <Page className="max-w-6xl">
     <PageHeader eyebrow="Tài khoản khách hàng" title="Lịch hẹn của tôi" description="Theo dõi trạng thái thật của lịch và các yêu cầu thay đổi đang chờ cơ sở xử lý." />
-    {plans.length > 0 && <section><div className="mb-3 flex items-center gap-2"><Repeat2 size={18} className="text-[var(--bb-brand-strong)]" /><h2 className="font-bold">Chuỗi lịch lặp</h2></div><div className="grid gap-3 lg:grid-cols-2">{plans.map((plan) => <Card key={plan.id} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold">{plan.combo?.name || plan.bookings?.[0]?.bookingServices?.map((item) => item.service?.name).filter(Boolean).join(', ') || 'Chuỗi dịch vụ'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{plan.branch?.business?.name} · {plan.branch?.name}</p></div><Badge tone={plan.status === 'ACTIVE' ? 'success' : plan.status === 'PAUSED' ? 'warning' : 'neutral'}>{plan.status === 'ACTIVE' ? 'Đang chạy' : plan.status === 'PAUSED' ? 'Tạm dừng' : plan.status}</Badge></div><div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--bb-muted)]"><Badge>{plan.frequency === 'WEEKLY' ? 'Mỗi tuần' : plan.frequency === 'BIWEEKLY' ? 'Mỗi 2 tuần' : 'Mỗi tháng'}</Badge><Badge>{plan.preferredTime}</Badge><Badge>{plan.bookings?.length || 0} kỳ</Badge></div>{['ACTIVE', 'PAUSED'].includes(plan.status) && <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--bb-border)] pt-3"><Button size="sm" variant="secondary" disabled={busy} onClick={() => changePlan(plan, plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{plan.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}{plan.status === 'ACTIVE' ? 'Tạm dừng' : 'Tiếp tục'}</Button><Button size="sm" variant="ghost" className="text-[var(--bb-danger)]" disabled={busy} onClick={() => setPlanCancel(plan)}><XCircle size={14} />Hủy chuỗi</Button></div>}</Card>)}</div></section>}
+    {plans.length > 0 && <section>
+      <div className="mb-3 flex items-center gap-2"><Repeat2 size={18} className="text-[var(--bb-brand-strong)]" /><h2 className="font-bold">Chuỗi lịch lặp</h2></div>
+      <div className="grid gap-3 lg:grid-cols-2">{plans.map((plan) => <Card key={plan.id} className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div><p className="font-bold">{plan.combo?.name || plan.bookings?.[0]?.bookingServices?.map((item) => item.service?.name).filter(Boolean).join(', ') || 'Chuỗi dịch vụ'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{plan.branch?.business?.name} · {plan.branch?.name}</p></div>
+          <Badge tone={plan.status === 'ACTIVE' ? 'success' : plan.status === 'FAILED' ? 'danger' : ['CREATING', 'PAUSED'].includes(plan.status) ? 'warning' : 'neutral'}>{{ ACTIVE: 'Đang chạy', PAUSED: 'Tạm dừng', CREATING: 'Đang tạo', FAILED: 'Tạo chưa hoàn tất', CANCELLED: 'Đã hủy', COMPLETED: 'Hoàn thành' }[plan.status] || 'Chưa xác định'}</Badge>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--bb-muted)]"><Badge>{plan.frequency === 'WEEKLY' ? 'Mỗi tuần' : plan.frequency === 'BIWEEKLY' ? 'Mỗi 2 tuần' : 'Mỗi tháng'}</Badge><Badge>{plan.preferredTime}</Badge><Badge>{plan.bookings?.length || 0}/{plan.occurrenceCount} kỳ đã tạo</Badge></div>
+        {plan.status === 'FAILED' && <div className="mt-3 space-y-2">
+          <InlineNotice tone="warning">{plan.failureReason || 'Chuỗi lịch chưa được tạo hoàn tất. Hãy kiểm tra các kỳ đã có trước khi đặt thêm.'}</InlineNotice>
+          {plan.bookings?.map((booking, index) => <Link key={booking.id} className="block py-2 text-sm font-semibold text-[var(--bb-brand-strong)] underline" to={`/customer/appointments/${booking.id}`}>Xem kỳ {index + 1} · {labels[booking.status] || 'Xem trạng thái'}</Link>)}
+        </div>}
+        {['ACTIVE', 'PAUSED'].includes(plan.status) && <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--bb-border)] pt-3"><Button size="sm" variant="secondary" disabled={busy} onClick={() => changePlan(plan, plan.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}>{plan.status === 'ACTIVE' ? <Pause size={14} /> : <Play size={14} />}{plan.status === 'ACTIVE' ? 'Tạm dừng' : 'Tiếp tục'}</Button><Button size="sm" variant="ghost" className="text-[var(--bb-danger)]" disabled={busy} onClick={() => setPlanCancel(plan)}><XCircle size={14} />Hủy chuỗi</Button></div>}
+      </Card>)}</div>
+    </section>}
     <div role="tablist" aria-label="Nhóm lịch hẹn" className="bb-appointments-tabs flex gap-1 overflow-x-auto border-b border-[var(--bb-border)]">{TABS.map(([id, label, Icon]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={cx('flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-semibold', tab === id ? 'border-[var(--bb-brand)] text-[var(--bb-brand-strong)]' : 'border-transparent text-[var(--bb-muted)]')}><Icon size={16} />{label}</button>)}</div>
-    {tab === 'upcoming' && bookings.some((booking) => booking.status === 'CONFIRMED' && safeHours(booking) < policy.freeCancellationHours) && <InlineNotice tone="warning">Bạn có lịch nằm trong mốc hủy miễn phí {policy.freeCancellationHours} giờ. Hủy muộn có thể phát sinh phí theo chính sách cơ sở.</InlineNotice>}
+    {tab === 'upcoming' && bookings.some((booking) => booking.status === 'CONFIRMED' && safeHours(booking) < policy.freeCancellationHours) && <InlineNotice tone="warning">Bạn có lịch sắp diễn ra trong vòng {policy.freeCancellationHours} giờ. Nếu cần hủy, vui lòng liên hệ trực tiếp với cơ sở để được hỗ trợ.</InlineNotice>}
     {loading ? <Skeleton rows={6} /> : error ? <Card><ErrorState message={error} onRetry={load} /></Card> : !bookings.length ? <AppointmentEmpty tab={tab} recommendations={recommendations} recommendationsLoading={recommendationsLoading} recommendationsError={recommendationsError} onBook={() => navigate('/book')} onExplore={() => navigate('/explore')} /> : <div className="grid gap-4 lg:grid-cols-2">{bookings.map((booking) => <BookingCard key={booking.id} booking={booking} tab={tab} policy={policy} onCancel={() => { setCancel(booking); setReason(''); }} onReschedule={() => setReschedule(booking)} onReview={() => setReview(booking)} onRebook={() => { const serviceIds = (booking.bookingServices || []).map((item) => item.service?.id || item.serviceId).filter(Boolean); if (!booking.branchId || !serviceIds.length) return; setBranch(booking.branchId); serviceIds.forEach((serviceId) => toggleService(serviceId)); navigate('/book/staff'); }} />)}</div>}
     {reschedule && <RescheduleModal booking={reschedule} onClose={() => setReschedule(null)} onSuccess={() => { setReschedule(null); load(); }} />}
     {review && <ReviewModal booking={review} policy={policy} onClose={() => setReview(null)} onSuccess={() => { setReview(null); load(); }} />}
     <Dialog open={Boolean(cancel)} onClose={() => setCancel(null)} title="Hủy lịch hẹn" description={cancel ? `Mã lịch ${cancel.bookingCode || '—'}.` : ''} footer={<><Button variant="secondary" onClick={() => setCancel(null)}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!reason.trim()} onClick={submitCancel}>Xác nhận hủy</Button></>}>
-      {cancel && safeHours(cancel) < policy.freeCancellationHours && <InlineNotice tone="warning">Lịch diễn ra trong vòng {policy.freeCancellationHours} giờ; chính sách hủy trễ của cơ sở có thể được áp dụng.</InlineNotice>}
+      {cancel && safeHours(cancel) < policy.freeCancellationHours && <InlineNotice tone="warning">Lịch diễn ra trong vòng {policy.freeCancellationHours} giờ; yêu cầu hủy muộn có thể cần cơ sở xác nhận.</InlineNotice>}
       <Field label="Lý do hủy" required className="mt-4"><Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Lý do này sẽ được gửi cho cơ sở" /></Field>
     </Dialog>
     <Dialog open={Boolean(planCancel)} onClose={() => setPlanCancel(null)} title="Hủy chuỗi lịch" description={planCancel ? `Chuỗi lịch tại ${planCancel.branch?.name || 'cơ sở này'}.` : ''} footer={<><Button variant="secondary" onClick={() => setPlanCancel(null)}>Giữ chuỗi lịch</Button><Button variant="danger" loading={busy} onClick={() => changePlan(planCancel, 'cancel')}>Xác nhận hủy chuỗi</Button></>}><InlineNotice tone="warning">Các kỳ sắp tới thuộc chuỗi sẽ bị hủy theo chính sách hiện tại. Các lịch đã hoàn thành không bị thay đổi.</InlineNotice></Dialog>
@@ -118,12 +144,13 @@ function AppointmentEmpty({ tab, recommendations, recommendationsLoading, recomm
 }
 
 function safeHours(booking) {
-  return booking.appointmentStartTime ? differenceInHours(parseISO(booking.appointmentStartTime), new Date()) : Infinity;
+  const start = booking.appointmentStartTime ? combineDateTime(booking.appointmentDate, booking.appointmentStartTime) : null;
+  return start ? differenceInHours(start, new Date()) : Infinity;
 }
 
 function BookingCard({ booking, tab, policy, onCancel, onReschedule, onReview, onRebook }) {
-  const start = booking.appointmentStartTime ? parseISO(booking.appointmentStartTime) : null;
-  const end = booking.appointmentEndTime ? parseISO(booking.appointmentEndTime) : null;
+  const start = booking.appointmentStartTime ? combineDateTime(booking.appointmentDate, booking.appointmentStartTime) : null;
+  const end = booking.appointmentEndTime ? combineDateTime(booking.appointmentDate, booking.appointmentEndTime) : null;
   const hours = safeHours(booking);
   const services = booking.bookingServices || [];
   const latestRequest = booking.changeRequests?.[0];
@@ -133,12 +160,11 @@ function BookingCard({ booking, tab, policy, onCancel, onReschedule, onReview, o
   const canCancel = tab === 'upcoming' && hours >= 0 && latestRequest?.status !== 'PENDING';
   const canReview = tab === 'completed' && booking.status === 'COMPLETED' && !booking.review;
   const duration = start && end ? Math.max(0, differenceInMinutes(end, start)) : services.reduce((sum, item) => sum + Number(item.service?.durationMinutes || 0), 0);
-  const payment = booking.payments?.[0];
   return <Card as="article" className="bb-appointment-card flex flex-col overflow-hidden">
     <div className="flex items-start justify-between gap-3 border-b border-[var(--bb-border)] p-5"><div className="min-w-0"><h2 className="truncate font-bold">{booking.branch?.business?.name || booking.branch?.name || 'Cơ sở làm đẹp'}</h2><p className="mt-1 flex items-start gap-1 text-xs text-[var(--bb-muted)]"><MapPin size={13} className="mt-0.5 shrink-0" />{booking.branch?.addressLine || 'Chưa cập nhật địa chỉ'}</p></div><Badge tone={tones[booking.status] || 'neutral'}>{labels[booking.status] || booking.status || '—'}</Badge></div>
     <div className="flex-1 p-5"><div className="flex items-start gap-3 rounded-xl bg-[var(--bb-surface-subtle)] p-3"><CalendarCheck size={18} className="mt-0.5 text-[var(--bb-brand-strong)]" /><div><p className="text-sm font-bold">{start ? format(start, 'dd/MM/yyyy · HH:mm') : '—'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{end ? `Kết thúc ${format(end, 'HH:mm')}` : 'Chưa có giờ kết thúc'}</p></div></div>
       <div className="mt-4 divide-y divide-[var(--bb-border)]">{services.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.service?.name || 'Dịch vụ'}{item.staff && <small className="block text-[var(--bb-muted)]">{item.staff.user?.fullName || item.staff.fullName}</small>}</span><strong>{Number(item.priceAtBooking || 0).toLocaleString('vi-VN')}₫</strong></div>)}</div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--bb-muted)]">{booking.bookingCode && <span>Mã lịch <span className="bb-mono font-semibold text-[var(--bb-ink)]">{booking.bookingCode}</span></span>}{duration > 0 && <Badge>{duration} phút</Badge>}<Badge tone={payment?.status === 'PAID' ? 'success' : payment?.status === 'REFUNDED' ? 'info' : 'neutral'}><WalletCards size={12} className="mr-1" />{payment?.status === 'PAID' ? 'Đã thanh toán' : payment?.status === 'REFUNDED' ? 'Đã hoàn tiền' : 'Chưa thanh toán'}</Badge></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--bb-muted)]">{booking.bookingCode && <span>Mã lịch <span className="bb-mono font-semibold text-[var(--bb-ink)]">{booking.bookingCode}</span></span>}{duration > 0 && <Badge>{duration} phút</Badge>}</div>
       {latestRequest && <div className="mt-3"><InlineNotice tone={latestRequest.status === 'REJECTED' ? 'danger' : latestRequest.status === 'APPROVED' ? 'success' : 'warning'}><b>Yêu cầu thay đổi:</b> {requestLabels[latestRequest.status] || latestRequest.status}. {latestRequest.status === 'PENDING' && 'Lịch hiện tại chưa thay đổi.'}{latestRequest.reviewNote ? ` ${latestRequest.reviewNote}` : ''}</InlineNotice></div>}
       {rescheduleLimitReached && tab === 'upcoming' && <div className="mt-3"><InlineNotice tone="warning">Lịch hẹn này đã đạt số lần đổi lịch tối đa.</InlineNotice></div>}
       {booking.cancelReason && <div className="mt-3"><InlineNotice tone="danger"><b>Lý do hủy:</b> {booking.cancelReason}</InlineNotice></div>}

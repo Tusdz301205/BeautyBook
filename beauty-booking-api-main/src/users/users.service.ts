@@ -27,7 +27,6 @@ const NON_GRANTABLE_PLATFORM_OPERATIONS = new Set([
   'branch:create:platform',
   'service:create:platform',
   'service:update:platform',
-  'staff_schedule:manage:platform',
   'change_request:approve:platform',
 ]);
 
@@ -114,7 +113,7 @@ export class UsersService {
     if (status === 'SUSPENDED') where.isActive = false;
 
     const baseWhere = { deletedAt: null };
-    const [users, total, all, active, suspended, customers, workforce] = await Promise.all([
+    const [users, total, all, active, suspended, customers, teamMembers] = await Promise.all([
       this.prisma.user.findMany({
         where,
         include: {
@@ -156,7 +155,7 @@ export class UsersService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
-        summary: { total: all, active, suspended, customers, workforce },
+        summary: { total: all, active, suspended, customers, teamMembers },
       },
     };
   }

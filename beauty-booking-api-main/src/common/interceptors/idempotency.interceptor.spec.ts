@@ -67,6 +67,8 @@ describe('IdempotencyInterceptor', () => {
   });
 
   test('requires idempotency for financial package and settlement writes', () => {
+    expect(requiresIdempotency('POST', '/api/v1/bookings')).toBe(true);
+    expect(requiresIdempotency('POST', '/api/v1/bookings/guest')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/packages/pkg-1/purchases')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/package-installments/i-1/pay')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/package-purchases/p-1/sessions/reserve')).toBe(true);
@@ -81,8 +83,6 @@ describe('IdempotencyInterceptor', () => {
     await expect(lastValueFrom(interceptor.intercept(first.execution, handler))).resolves.toEqual({
       id: 'payment-1',
     });
-    await new Promise((resolve) => setImmediate(resolve));
-
     const second = context({ amount: 100 });
     await expect(lastValueFrom(interceptor.intercept(second.execution, handler))).resolves.toEqual({
       id: 'payment-1',
@@ -95,8 +95,6 @@ describe('IdempotencyInterceptor', () => {
     const interceptor = new IdempotencyInterceptor(config);
     const handler = { handle: jest.fn(() => of({ ok: true })) } as CallHandler;
     await lastValueFrom(interceptor.intercept(context({ amount: 100 }).execution, handler));
-    await new Promise((resolve) => setImmediate(resolve));
-
     await expect(
       lastValueFrom(interceptor.intercept(context({ amount: 200 }).execution, handler)),
     ).rejects.toBeInstanceOf(ConflictException);
@@ -109,7 +107,6 @@ describe('IdempotencyInterceptor', () => {
       context({ amount: 10 }, 'shared-key', '/api/v1/payments/payment-a/refund-requests').execution,
       handler,
     ));
-    await new Promise((resolve) => setImmediate(resolve));
     await lastValueFrom(interceptor.intercept(
       context({ amount: 10 }, 'shared-key', '/api/v1/payments/payment-b/refund-requests').execution,
       handler,

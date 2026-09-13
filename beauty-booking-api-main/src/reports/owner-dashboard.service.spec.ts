@@ -12,8 +12,6 @@ describe('ReportsService owner dashboard', () => {
       paymentTransaction: { findMany: jest.fn().mockResolvedValue([]) },
       refundRequest: { findMany: jest.fn().mockResolvedValue([]) },
       priceAdjustment: { findMany: jest.fn().mockResolvedValue([]) },
-      staffAttendance: { findMany: jest.fn().mockResolvedValue([]) },
-      attendanceExceptionRequest: { findMany: jest.fn().mockResolvedValue([]) },
       review: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const service = new ReportsService(prisma as any, {} as any);

@@ -1,0 +1,62 @@
+@startuml sequence-guest-booking
+title Quy trình Đặt lịch Khách Vãng lai (Guest Booking Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Khách vãng lai\n(Guest)" as Guest
+participant "Trang Đặt lịch Công khai\n(Web /book)" as Web
+participant "BookingsController\n(@Public)" as Controller
+participant "BookingsService" as Service
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "SchedulerGateway\n(Socket.IO)" as WsGateway
+
+Guest -> Web : Điền Họ tên, Số điện thoại (0xxxxxxxxx),\nChọn Salon, Dịch vụ, Giờ hẹn & Ghi chú
+Web -> Controller : POST /api/v1/bookings/guest\nBody: { guestName, guestPhone, branchId, serviceIds, appointmentDate, note }\n(Không yêu cầu Access Token)
+
+activate Controller
+Controller -> Controller : Validate CreateGuestBookingDto:\n- Chuẩn hóa SĐT sang E.164: +84xxxxxxxxx\n- Chặn các trường nhạy cảm: customerId, voucherCode, createdBy
+
+Controller -> Service : createGuestBooking(guestDto)
+activate Service
+
+Service -> DB : prisma.customerProfile.findFirst({\n  where: { user: { phone: normalizedPhone } }\n})
+activate DB
+
+alt Số điện thoại đã liên kết tài khoản trước đó
+  DB --> Service : Existing customerProfile
+else Số điện thoại mới hoàn toàn
+  Service -> DB : prisma.user.create({\n  fullName: guestName, phone: normalizedPhone,\n  passwordHash: dummyHash, isActive: true\n})\n+ prisma.customerProfile.create({ userId })
+  DB --> Service : Newly created guest customerProfile
+end
+deactivate DB
+
+Service -> Service : create({\n  customerId: resolvedProfile.id,\n  branchId, serviceIds, appointmentDate,\n  guestContact: { fullName, phone },\n  source: 'ONLINE_WEB',\n  // Voucher & Loyalty bị vô hiệu hóa cho khách vãng lai\n})
+
+note over Service, DB
+  Thực hiện đầy đủ quy trình kiểm tra slot và giao dịch Serializable
+  như quy trình đặt lịch chuẩn để chống trùng lịch (Double-booking).
+end note
+
+Service -> DB : withSerializableTransaction(...)
+activate DB
+DB --> Service : Booking created (id, bookingCode, status: 'PENDING')
+deactivate DB
+
+Service -> WsGateway : emit('booking:created', { branchId, bookingId })
+activate WsGateway
+WsGateway --> Web : Cập nhật real-time lịch chi nhánh
+deactivate WsGateway
+
+Service --> Controller : { id, bookingCode, guestName, guestPhone, status, appointmentStartTime }
+deactivate Service
+
+Controller --> Web : 201 Created\nBody: { id, bookingCode, status: 'PENDING', ... }
+deactivate Controller
+
+Web --> Guest : Hiển thị mã đặt lịch (Booking Code) & thông báo chờ salon xác nhận
+
+@enduml

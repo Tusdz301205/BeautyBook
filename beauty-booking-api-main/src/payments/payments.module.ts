@@ -3,12 +3,10 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { FinancialMetricsService } from './financial-metrics.service';
 import { PaymentProviderRegistry } from './providers/payment-provider.registry';
-import { WorkforceModule } from '../workforce/workforce.module';
-import { FinanceModule } from '../finance/finance.module';
 import { LoyaltyModule } from '../loyalty/loyalty.module';
 
 @Module({
-  imports: [WorkforceModule, FinanceModule, LoyaltyModule],
+  imports: [LoyaltyModule],
   controllers: [PaymentsController],
   providers: [PaymentsService, FinancialMetricsService, PaymentProviderRegistry],
   exports: [PaymentsService, FinancialMetricsService],

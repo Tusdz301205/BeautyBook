@@ -1,0 +1,110 @@
+@startuml activity-booking
+title Sơ đồ Hoạt động - Quy trình Đặt lịch Lập trình viên & Nghiệp vụ (Activity Diagram: Booking Flow)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+start
+:Khách hàng mở Marketplace hoặc trang Salon;
+:Chọn Chi nhánh (Branch);
+
+:Chọn Dịch vụ / Combo & Biến thể (Variants);
+
+if (Có dịch vụ phụ thuộc hoặc không tương thích?) then (Không tương thích)
+  :Báo lỗi ServiceDependency (INCOMPATIBLE / REQUIRED);
+  stop
+else (Hợp lệ)
+endif
+a
+if (Biến thể có điều kiện độ tuổi / giới tính?) then (Có)
+  if (Khách hàng đáp ứng điều kiện eligibilityRules?) then (Đạt)
+  else (Không đạt)
+    :Báo lỗi không đủ điều kiện thực hiện dịch vụ;
+    stop
+  endif
+else (Không)
+endif
+
+:Chọn Chuyên viên (Chỉ định cụ thể hoặc Tự động xếp thợ);
+:Chọn Ngày & Khung giờ hẹn mong muốn;
+
+if (Ngày hẹn nằm trong Ngày lễ đóng cửa (BranchHoliday)?) then (Có)
+  :Báo lỗi: Chi nhánh đóng cửa trong ngày đã chọn;
+  stop
+else (Mở cửa)
+endif
+
+if (Giờ hẹn nằm trong Giờ hoạt động (BranchWorkingHour)?) then (Hợp lệ)
+else (Ngoài giờ)
+  :Báo lỗi: Giờ đặt nằm ngoài khung giờ mở cửa;
+  stop
+endif
+
+if (Thời gian đặt thỏa mãn chính sách Lead Time & Max Advance Days?) then (Hợp lệ)
+else (Vi phạm)
+  :Báo lỗi: Cần đặt trước tối thiểu X giờ / Tối đa Y ngày;
+  stop
+endif
+
+:Tính tổng thời lượng (Services + BufferBefore + BufferAfter + Transition);
+if (Tổng thời lượng >= 30 phút?) then (Hợp lệ)
+else (Dưới 30 phút)
+  :Báo lỗi: Thời lượng slot tối thiểu là 30 phút;
+  stop
+endif
+
+:Kiểm tra tính khả dụng của Nhân sự (Staff Availability);
+if (Có chuyên viên phù hợp & không vướng lịch?) then (Có sẵn)
+else (Hết chỗ)
+  if (Yêu cầu Overbooking có kiểm soát & Chi nhánh cho phép?) then (Cho phép)
+    :Đánh dấu slot Overbooking (chờ xếp lịch thủ công);
+  else (Không cho phép)
+    :Thông báo khung giờ đã kín;
+    :Gợi ý chọn khung giờ hoặc ngày khác;
+    stop
+  endif
+endif
+
+:Tính toán Bảng giá (PricingEngine Quote);
+if (Khách hàng nhập Mã giảm giá (Voucher)?) then (Có)
+  if (Voucher hợp lệ, còn lượt & đúng điều kiện?) then (Hợp lệ)
+    :Trừ giá trị giảm giá Voucher;
+  else (Không hợp lệ)
+    :Báo lỗi voucher không áp dụng được;
+  endif
+endif
+
+if (Khách hàng áp dụng Điểm thưởng (Loyalty)?) then (Có)
+  :Tính quy đổi điểm thành tiền giảm giá;
+endif
+
+:Khách hàng bấm "Xác nhận Đặt lịch";
+:Tạo Idempotency-Key chống trùng lặp;
+
+partition "Giao dịch Serializable (Database Concurrency Protection)" {
+  :Bắt đầu Giao dịch với Isolation Level Serializable;
+  :Khóa và kiểm tra lại trạng thái Chi nhánh;
+  :Kiểm tra xung đột trùng lịch thời gian thực (Exclusion Range Lock);
+  
+  if (Phát hiện trùng lịch do khách khác đặt cùng lúc?) then (Xung đột)
+    :Rollback giao dịch;
+    :Throw ConflictException (409 Conflict);
+    :Thông báo slot vừa được người khác giữ chỗ;
+    stop
+  else (Không xung đột)
+    :Tạo bản ghi Booking (status: PENDING);
+    :Tạo các bản ghi BookingService gắn với Staff;
+    :Ghi nhật ký trạng thái BookingStatusHistory (PENDING);
+    :Cập nhật lượt sử dụng Voucher / Trừ điểm Loyalty (nếu có);
+    :Ghi hàng đợi thông báo NotificationOutbox;
+    :Commit Giao dịch;
+  endif
+}
+
+:Phát sự kiện WebSocket ('booking:created') tới Salon;
+:Gửi thông báo xác nhận lịch hẹn (In-app / Email Outbox);
+:Hiển thị màn hình Hoàn tất với Mã Đặt Lịch (Booking Code);
+stop
+
+@enduml

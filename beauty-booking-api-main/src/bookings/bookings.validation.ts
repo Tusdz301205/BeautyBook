@@ -126,11 +126,12 @@ export function evaluateCancelPolicy(
 }
 
 /**
- * Validate staff status, working hours, và có quyền làm dịch vụ.
+ * Validate staff status, service capability and branch opening hours.
  * Trả về staff nếu OK; throw nếu không hợp lệ.
  *
- * Áp dụng gap B trong phản biện URD: STAFF phải có status ACTIVE,
- * có StaffService mapping, và nằm trong StaffWorkingHour.
+ * Individual shifts, breaks and leave are deliberately not part of booking
+ * availability. Capacity is derived from the branch opening window plus the
+ * provider's active/bookable state, branch and service capability.
  */
 export async function validateStaffForService(
   prisma: PrismaService,
@@ -143,8 +144,6 @@ export async function validateStaffForService(
   const staff = await prisma.staffProfile.findUnique({
     where: { id: staffId },
     include: {
-      workingHours: true,
-      breaks: { where: { isActive: true } },
       staffServices: { where: { serviceId } },
       user: { select: { isActive: true, deletedAt: true } },
     },
@@ -175,25 +174,12 @@ export async function validateStaffForService(
 
   const date = appointmentDateFromInstant(startTime);
   const dayOfWeek = date.getUTCDay();
-  const [leave, holiday, specialDay, branchWorkingHour] = await Promise.all([
-    prisma.staffLeave.findFirst({
-      where: {
-        staffId,
-        status: 'APPROVED',
-        startAt: { lt: endTime },
-        endAt: { gt: startTime },
-      },
-    }),
+  const [holiday, specialDay, branchWorkingHour] = await Promise.all([
     prisma.branchHoliday.findUnique({
       where: { branchId_date: { branchId: staff.branchId, date } },
     }),
     prisma.specialWorkingDay.findFirst({
-      where: {
-        branchId: staff.branchId,
-        date,
-        OR: [{ staffId }, { staffId: null }],
-      },
-      orderBy: { staffId: 'desc' },
+      where: { branchId: staff.branchId, date },
     }),
     prisma.branchWorkingHour.findUnique({
       where: {
@@ -201,58 +187,29 @@ export async function validateStaffForService(
       },
     }),
   ]);
-  if (leave) {
-    throw new BadRequestException('Nhân viên đang trong thời gian nghỉ đã được duyệt');
-  }
   if (holiday?.isClosed && !specialDay) {
     throw new BadRequestException(`Chi nhánh nghỉ: ${holiday.name}`);
   }
 
-  // Kiểm tra giờ làm; ngày đặc biệt được ưu tiên hơn lịch tuần.
-  const workingHour = staff.workingHours.find(
-    (wh) => wh.dayOfWeek === dayOfWeek && !wh.isOff,
-  );
-  if (!workingHour && !specialDay) {
-    throw new BadRequestException(
-      `Nhân viên không làm việc vào ${['CN','T2','T3','T4','T5','T6','T7'][dayOfWeek]}`,
-    );
+  const openingWindow = specialDay ?? branchWorkingHour;
+  if (!openingWindow || (!specialDay && branchWorkingHour?.isClosed)) {
+    throw new BadRequestException('Chi nhánh đóng cửa trong ngày đã chọn');
   }
-  const whStart = new Date(specialDay?.startTime ?? workingHour!.startTime);
-  const whEnd = new Date(specialDay?.endTime ?? workingHour!.endTime);
-  // PostgreSQL TIME is a wall-clock value. Read it with UTC getters and
-  // compare it with the configured booking timezone, never the host timezone.
-  const whStartMinutes = timeValueMinutes(whStart);
-  const whEndMinutes = timeValueMinutes(whEnd);
+
+  // PostgreSQL TIME is a wall-clock value. Compare it in the configured
+  // booking timezone, never in the host timezone.
+  const openMinutes = timeValueMinutes(
+    new Date(specialDay?.startTime ?? branchWorkingHour!.openTime),
+  );
+  const closeMinutes = timeValueMinutes(
+    new Date(specialDay?.endTime ?? branchWorkingHour!.closeTime),
+  );
   const startParts = getZonedDateTimeParts(startTime);
   const endParts = getZonedDateTimeParts(endTime);
   const startMinutes = startParts.hour * 60 + startParts.minute;
   const endMinutes = endParts.hour * 60 + endParts.minute;
-  if (branchWorkingHour && !specialDay) {
-    if (branchWorkingHour.isClosed) {
-      throw new BadRequestException('Chi nhánh đóng cửa trong ngày đã chọn');
-    }
-    const branchStart = timeValueMinutes(branchWorkingHour.openTime);
-    const branchEnd = timeValueMinutes(branchWorkingHour.closeTime);
-    if (startMinutes < branchStart || endMinutes > branchEnd) {
-      throw new BadRequestException('Giờ đặt nằm ngoài giờ mở cửa của chi nhánh');
-    }
-  }
-  if (startMinutes < whStartMinutes || endMinutes > whEndMinutes) {
-    throw new BadRequestException(
-      `Giờ đặt nằm ngoài khung giờ làm việc của nhân viên (${whStartMinutes / 60}h - ${whEndMinutes / 60}h)`,
-    );
-  }
-
-  const overlapsBreak = staff.breaks.some((item) => {
-    if (item.dayOfWeek !== dayOfWeek) return false;
-    const breakStart = new Date(item.startTime);
-    const breakEnd = new Date(item.endTime);
-    const breakStartMinutes = timeValueMinutes(breakStart);
-    const breakEndMinutes = timeValueMinutes(breakEnd);
-    return startMinutes < breakEndMinutes && endMinutes > breakStartMinutes;
-  });
-  if (overlapsBreak) {
-    throw new BadRequestException('Khung giờ trùng giờ nghỉ của nhân viên');
+  if (startMinutes < openMinutes || endMinutes > closeMinutes) {
+    throw new BadRequestException('Giờ đặt nằm ngoài giờ mở cửa của chi nhánh');
   }
 }
 
@@ -343,16 +300,29 @@ export async function assertNoOverlap(
   const overlapping = await prisma.bookingService.findFirst({
     where: {
       staffId,
+      status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
       bookingId: bookingIdToIgnore ? { not: bookingIdToIgnore } : undefined,
       booking: {
         deletedAt: null,
         status: { in: [...BLOCKING_BOOKING_STATUSES] },
-        appointmentDate,
-        AND: [
-          { appointmentStartTime: { lt: appointmentEndTime } },
-          { appointmentEndTime: { gt: appointmentStartTime } },
-        ],
       },
+      OR: [
+        {
+          itemStartAt: { lt: endTime },
+          itemEndAt: { gt: startTime },
+        },
+        {
+          itemStartAt: null,
+          itemEndAt: null,
+          booking: {
+            appointmentDate,
+            AND: [
+              { appointmentStartTime: { lt: appointmentEndTime } },
+              { appointmentEndTime: { gt: appointmentStartTime } },
+            ],
+          },
+        },
+      ],
     },
     include: { booking: { select: { bookingCode: true } } },
   });

@@ -1,0 +1,74 @@
+@startuml sequence-login
+title Quy trình Đăng nhập Đa Workspace & Cấp phát Phiên (Login Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Người dùng / Nhân sự\n(User / Staff)" as User
+participant "Giao diện Web\n(React SPA / AuthStore)" as Web
+participant "AuthController\n(API Gateway)" as Controller
+participant "AuthService\n(Core Auth)" as AuthService
+participant "TokenBlacklistService" as Blacklist
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "Express Response" as Response
+
+User -> Web : Nhập Email, Mật khẩu & Chọn Workspace\n(CUSTOMER | SALON_PORTAL | PLATFORM_PORTAL)
+Web -> Controller : POST /api/v1/auth/login\nBody: { email, password, workspace, businessId?, branchId? }\nHeaders: X-Request-Id
+
+activate Controller
+Controller -> AuthService : login(email, password, context, clientMeta)
+activate AuthService
+
+AuthService -> DB : prisma.user.findUnique({ email })\ninclude: userRoles, ownerProfile, customerProfile, staffProfile
+activate DB
+DB --> AuthService : User record (kèm passwordHash, isActive, deletedAt, userRoles)
+deactivate DB
+
+alt Tài khoản không tồn tại hoặc bị xóa/khóa
+  AuthService --> Controller : throw UnauthorizedException("Email hoặc mật khẩu không chính xác" / "Tài khoản bị khóa")
+  Controller --> Web : 401 Unauthorized / 403 Forbidden
+  Web --> User : Hiển thị thông báo lỗi
+end
+
+AuthService -> AuthService : bcrypt.compare(password, user.passwordHash)
+alt Mật khẩu không khớp
+  AuthService --> Controller : throw UnauthorizedException("Email hoặc mật khẩu không chính xác")
+  Controller --> Web : 401 Unauthorized
+  Web --> User : Hiển thị lỗi xác thực
+end
+
+AuthService -> AuthService : validateWorkspaceAccess(user, workspace, businessId, branchId)
+note over AuthService
+  Kiểm tra quyền truy cập workspace:
+  - CUSTOMER: yêu cầu tài khoản khách hợp lệ
+  - SALON_PORTAL: yêu cầu role BUSINESS_OWNER, BRANCH_MANAGER, RECEPTIONIST, hoặc STAFF
+  - PLATFORM_PORTAL: yêu cầu role PLATFORM_ADMIN
+end note
+
+AuthService -> DB : prisma.userSession.create({\n  userId, workspace, businessId, branchId,\n  userAgent, ipAddress, expiresAt: now + 30d\n})
+activate DB
+DB --> AuthService : userSession record (id, refreshTokenHash)
+deactivate DB
+
+AuthService -> AuthService : jwtService.signAsync(payload, { expiresIn: '15m' }) -> accessToken
+AuthService -> AuthService : generateSecureToken() -> rawRefreshToken
+AuthService -> DB : prisma.userSession.update({\n  where: { id: session.id },\n  data: { refreshTokenHash: hash(rawRefreshToken) }\n})
+activate DB
+DB --> AuthService : Session updated
+deactivate DB
+
+AuthService -> AuthService : buildAuthUser(user, session) -> permissions, scopes
+AuthService --> Controller : { accessToken, refreshToken: rawRefreshToken, user: userProfile, permissions, scopes }
+deactivate AuthService
+
+Controller -> Response : setCookie('bb_refresh', rawRefreshToken, {\n  httpOnly: true, secure: prod, sameSite: 'lax', path: '/api/v1/auth', maxAge: 30d\n})
+Controller --> Web : 200 OK\nBody: { accessToken, user, permissions, scopes }\n(không chứa raw refresh token trong payload)
+deactivate Controller
+
+Web -> Web : authStore.setSession(accessToken, user, permissions, scopes)
+Web --> User : Điều hướng vào Dashboard tương ứng\n(/customer, /salon, hoặc /admin)
+
+@enduml

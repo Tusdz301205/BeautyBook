@@ -1,0 +1,54 @@
+@startuml c4-context
+title Sơ đồ Ngữ cảnh Hệ thống BeautyBook (C4 Context Diagram)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Khách hàng\n(Customer / Guest)" as UserCustomer <<Person>> #08427B
+note right of UserCustomer
+  Khách vãng lai & thành viên:
+  Tìm kiếm salon, chọn dịch vụ,
+  đặt lịch hẹn, thanh toán & đánh giá.
+end note
+
+actor "Chủ Salon & Nhân sự\n(Business Owner / Staff)" as UserSalon <<Person>> #08427B
+note right of UserSalon
+  Chủ salon, Quản lý, Lễ tân & Thợ:
+  Quản lý dịch vụ, xếp lịch chuyên viên,
+  check-in khách, thu ngân tại quầy.
+end note
+
+actor "Quản trị viên Nền tảng\n(Platform Admin)" as UserAdmin <<Person>> #08427B
+note right of UserAdmin
+  Duyệt hồ sơ onboarding, chuẩn hóa
+  danh mục dịch vụ, kiểm duyệt đánh giá,
+  quản lý đối soát phí & kiểm toán.
+end note
+
+rectangle "Nền tảng BeautyBook (GlowBook)\n[Software System]" as BeautyBookSystem #1168BD {
+  note as SystemNote
+    Hệ thống Marketplace & Quản lý vận hành Salon:
+    - Tìm kiếm & Khám phá Salon
+    - Lập lịch hẹn thời gian thực & Chống trùng lịch
+    - Quản lý doanh thu, thu ngân & sổ cái tài chính
+    - Kiểm duyệt hồ sơ pháp lý & Đánh giá chất lượng
+  end note
+}
+
+rectangle "Hệ thống Gửi Thư Điện tử (Mail Provider)\n[External System - Gmail SMTP]" as ExternalEmail #999999
+note right of ExternalEmail
+  Gửi email xác thực tài khoản,
+  thông báo đặt lịch & nhắc lịch hẹn.
+end note
+
+' Interactions
+UserCustomer --> BeautyBookSystem : Tìm kiếm, đặt lịch làm đẹp, thanh toán & gửi đánh giá\n[HTTPS / WebSocket]
+UserSalon --> BeautyBookSystem : Quản lý lịch hẹn, điều phối thợ, thu ngân & xem báo cáo\n[HTTPS / WebSocket]
+UserAdmin --> BeautyBookSystem : Thẩm định pháp lý, kiểm duyệt & quản trị hệ thống\n[HTTPS]
+
+BeautyBookSystem --> ExternalEmail : Chuyển tiếp email xác nhận & thông báo lịch hẹn\n[SMTP TLS / Port 587]
+ExternalEmail --> UserCustomer : Gửi email tới hòm thư cá nhân
+ExternalEmail --> UserSalon : Gửi thông báo tới chủ cơ sở
+
+@enduml

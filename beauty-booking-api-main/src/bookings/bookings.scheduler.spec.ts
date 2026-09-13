@@ -2,7 +2,7 @@ import type { PrismaService } from '../prisma/prisma.service';
 import { BookingsService } from './bookings.service';
 
 function service(prisma: PrismaService) {
-  return new BookingsService(prisma, {} as never, {} as never);
+  return new BookingsService(prisma, {} as never, {} as never, {} as never, {} as never, {} as never);
 }
 
 describe('operational scheduler scope', () => {

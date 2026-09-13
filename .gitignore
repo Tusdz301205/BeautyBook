@@ -2,6 +2,7 @@
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env.e2e.example
 *.pem
 *.key
 *.p12
@@ -47,3 +48,21 @@ tools/
 
 # Personal or generated office documents are not source code.
 docs/*.docx
+
+# Local exports, generated reports and temporary QA artifacts.
+/tmp/
+/output/
+*.zip
+*.7z
+*.rar
+**/.hallmark/
+**/.agents/
+**/playwright-report/
+**/test-results/
+**/playwright/.auth/
+**/uploads/
+
+# The Compose frontend is the nested application. The outer Vite starter is
+# a local reference, not part of the deployed BeautyBook application.
+/beauty-booking-web-main/*
+!/beauty-booking-web-main/beauty-booking-web-main/

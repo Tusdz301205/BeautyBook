@@ -14,7 +14,20 @@ function waitlistPrisma(overlap: boolean) {
       update: jest.fn().mockImplementation(({ data }) => ({ ...entry, ...data })),
     },
     branchServiceOffering: { findUniqueOrThrow: jest.fn().mockResolvedValue({ durationMinutes: 60 }) },
-    bookingService: { findFirst: jest.fn().mockResolvedValue(overlap ? { id: 'busy-item' } : null) },
+    staffProfile: { findUnique: jest.fn().mockResolvedValue({
+      id: 'staff-1', branchId: 'branch-1', status: 'ACTIVE', isBookable: true,
+      userId: null, user: null, staffServices: [{ serviceId: 'service-1' }],
+    }) },
+    branchHoliday: { findUnique: jest.fn().mockResolvedValue(null) },
+    specialWorkingDay: { findFirst: jest.fn().mockResolvedValue(null) },
+    branchWorkingHour: { findUnique: jest.fn().mockResolvedValue({
+      isClosed: false,
+      openTime: new Date('1970-01-01T00:00:00.000Z'),
+      closeTime: new Date('1970-01-01T23:59:00.000Z'),
+    }) },
+    bookingService: { findFirst: jest.fn().mockResolvedValue(
+      overlap ? { id: 'busy-item', booking: { bookingCode: 'BB-BUSY' } } : null,
+    ) },
     customerProfile: { findUniqueOrThrow: jest.fn().mockResolvedValue({ userId: 'customer-user' }) },
     notification: { create: jest.fn() },
     auditLog: { create: jest.fn() },

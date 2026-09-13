@@ -20,7 +20,8 @@ export interface CancellationDecision {
 }
 
 /**
- * Resolve cancellation policy: ưu tiên policy của salon, fallback default 2h/50%/100%/1h.
+ * Resolve cancellation timing policy. Cancellation/no-show fees are retired;
+ * this helper only determines whether the request is within the cutoff.
  */
 export async function resolveCancellationPolicy(
   prisma: PrismaService,
@@ -35,8 +36,6 @@ export async function resolveCancellationPolicy(
   });
 
   const freeHours = policy?.freeCancelHours ?? defaultFreeCancelHours;
-  const lateFeePercent = policy?.lateCancelFeePercent ?? 50;
-  const noShowFeePercent = policy?.noShowFeePercent ?? 100;
   const rescheduleHours = policy?.rescheduleAllowedHours ?? 1;
 
   const diffMs = appointmentStartTime.getTime() - now.getTime();
@@ -48,19 +47,17 @@ export async function resolveCancellationPolicy(
       feePercent: 0,
       hoursBeforeStart,
       feeAmount: 0,
-      notes: `Không thể huỷ sau giờ hẹn. Liên hệ cơ sở (no-show fee ${noShowFeePercent}%).`,
+      notes: 'Không thể huỷ sau giờ hẹn. Vui lòng liên hệ cơ sở.',
     };
   }
 
   if (hoursBeforeStart < freeHours) {
     return {
       policy: 'warn_late_cancel',
-      feePercent: lateFeePercent,
+      feePercent: 0,
       hoursBeforeStart,
-      feeAmount: Math.round(
-        Number(bookingTotalAmount) * (lateFeePercent / 100),
-      ),
-      notes: `Huỷ trong vòng ${freeHours}h trước giờ hẹn, áp phí ${lateFeePercent}%. Reschedule phải trước ${rescheduleHours}h.`,
+      feeAmount: 0,
+      notes: `Huỷ trong vòng ${freeHours}h trước giờ hẹn. Vui lòng liên hệ cơ sở để được hỗ trợ. Reschedule phải trước ${rescheduleHours}h.`,
     };
   }
 

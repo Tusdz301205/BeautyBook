@@ -1,0 +1,89 @@
+@startuml sequence-payment-process
+title Quy trình Thu tiền tại Quầy, Xác minh Chuyển khoản & Sổ Cái Tài chính (Payment Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Lễ tân / Thu ngân\n(Receptionist / Cashier)" as Cashier
+participant "Salon Portal\n(Checkout UI)" as Web
+participant "PaymentsController" as Controller
+participant "PaymentsService" as Service
+participant "PaymentProviderRegistry" as Registry
+participant "ManualBankTransferAdapter" as BankAdapter
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "SchedulerGateway\n(Socket.IO)" as WsGateway
+
+== 1. Thu tiền Mặt tại Quầy (Cash Payment) ==
+Cashier -> Web : Chọn lịch hẹn, kiểm tra tổng tiền & Chọn phương thức "Tiền mặt (CASH)"
+Web -> Controller : POST /api/v1/payments\nHeaders: Authorization: Bearer <token>, Idempotency-Key: <UUID>\nBody: { bookingId, amount, method: 'CASH' }
+
+activate Controller
+Controller -> Service : createPayment(dto, user)
+activate Service
+
+Service -> Registry : resolve('CASH')
+activate Registry
+Registry --> Service : CashPaymentAdapter (requiresManualVerification: false)
+deactivate Registry
+
+Service -> DB : withSerializableTransaction(async (tx) => { ... })
+activate DB
+Service -> DB : tx.payment.create({\n  bookingId, amount, method: 'CASH', status: 'PAID', paidAt: now\n})
+Service -> DB : tx.paymentTransaction.create({\n  paymentId, amount, status: 'VERIFIED', providerCode: 'CASH'\n})
+Service -> DB : tx.financialLedger.create({\n  businessId, branchId, bookingId, type: 'PAYMENT_RECEIVED',\n  direction: 'CREDIT', amount, createdBy: user.id\n})
+Service -> DB : tx.invoice.create({\n  invoiceNumber, bookingId, totalAmount, status: 'PAID'\n})
+Service -> DB : tx.booking.update({\n  where: { id: bookingId },\n  data: { paymentStatus: 'PAID' }\n})
+DB --> Service : Giao dịch Thanh toán Commit thành công
+deactivate DB
+
+Service -> WsGateway : emit('payment:success', { bookingId, amount })
+Service --> Controller : Payment response (status: 'PAID', invoiceId)
+deactivate Service
+Controller --> Web : 201 Created (status: 'PAID')
+deactivate Controller
+Web --> Cashier : In hóa đơn & hoàn tất thanh toán tiền mặt
+
+== 2. Chuyển khoản Ngân hàng Thủ công (Manual Bank Transfer) ==
+Cashier -> Web : Chọn "Chuyển khoản (BANK_TRANSFER)", hiển thị mã QR & số tài khoản
+Cashier -> Web : Tạo lệnh chờ thanh toán chuyển khoản
+Web -> Controller : POST /api/v1/payments\nBody: { bookingId, amount, method: 'BANK_TRANSFER' }
+activate Controller
+Controller -> Service : createPayment(...)
+activate Service
+Service -> Registry : resolve('BANK_TRANSFER')
+activate Registry
+Registry --> Service : ManualBankTransferAdapter (requiresManualVerification: true)
+deactivate Registry
+
+Service -> DB : withSerializableTransaction(async (tx) => {\n  tx.payment.create({ status: 'PENDING' }),\n  tx.paymentTransaction.create({ status: 'PENDING', providerCode: 'MANUAL_BANK' })\n})
+activate DB
+DB --> Service : Payment created (PENDING, transactionId)
+deactivate DB
+Service --> Controller : Payment pending
+deactivate Service
+Controller --> Web : 201 Created (status: 'PENDING', requiresVerification: true)
+deactivate Controller
+Web --> Cashier : Hiển thị trạng thái "Chờ khách chuyển khoản"
+
+Cashier -> Web : Đối soát App ngân hàng thấy tiền đã vào -> Bấm "Xác nhận đã nhận tiền"
+Web -> Controller : POST /api/v1/payments/transactions/{txId}/verify\nBody: { referenceCode: "MB123456", note: "Khách chuyển đúng cú pháp" }
+activate Controller
+Controller -> Service : verifyTransaction(txId, verifyDto, user)
+activate Service
+
+Service -> DB : withSerializableTransaction(async (tx) => {\n  tx.paymentTransaction.update({ where: { id: txId }, data: { status: 'VERIFIED', verifiedAt: now, verifiedById: user.id } }),\n  tx.payment.update({ data: { status: 'PAID', paidAt: now } }),\n  tx.financialLedger.create({\n    type: 'PAYMENT_RECEIVED', direction: 'CREDIT', amount,\n    referenceNumber: referenceCode\n  }),\n  tx.invoice.create({ status: 'PAID' }),\n  tx.booking.update({ data: { paymentStatus: 'PAID' } })\n})
+activate DB
+DB --> Service : Transaction verified & Ledger created
+deactivate DB
+
+Service -> WsGateway : emit('payment:verified', { bookingId })
+Service --> Controller : Verified transaction DTO
+deactivate Service
+Controller --> Web : 200 OK (Thanh toán hoàn tất)
+deactivate Controller
+Web --> Cashier : Cập nhật trạng thái "Đã thanh toán thành công"
+
+@enduml

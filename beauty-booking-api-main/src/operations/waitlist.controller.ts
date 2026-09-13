@@ -49,6 +49,7 @@ export class WaitlistController {
   @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
   @RequirePermission('booking:read:branch', 'booking:read:tenant')
   async branch(@Query('branchId') branchId: string, @CurrentUser() user: AuthUser) {
+    if (!branchId) throw new BadRequestException('branchId là bắt buộc');
     await assertBranchAccess(this.prisma, user, branchId);
     return this.waitlist.listBranch(branchId);
   }

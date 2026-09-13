@@ -1,5 +1,6 @@
 import {
   Logger,
+  OnModuleDestroy,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -16,6 +17,18 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { can } from '../common/utils/policy';
 
 const LOCAL_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'];
+export const SOCKET_REAUTHORIZE_INTERVAL_MS = 15_000;
+export const SOCKET_AUTHORIZATION_LEASE_MS = 30_000;
+export const SOCKET_AUTHORIZATION_TIMEOUT_MS = 5_000;
+
+interface SocketAuthorization {
+  client: Socket;
+  token: string;
+  rooms: Set<string>;
+  validUntil: number;
+  refreshing: boolean;
+  needsResync: boolean;
+}
 
 export function resolveWebSocketCorsOrigins(
   env: NodeJS.ProcessEnv = process.env,
@@ -124,10 +137,13 @@ export function buildBookingRealtimeDispatch(booking: BookingRealtimeSource): {
   },
 })
 export class SchedulerGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
   @WebSocketServer() server!: Server;
   private readonly logger = new Logger(SchedulerGateway.name);
+  private readonly authorizations = new Map<string, SocketAuthorization>();
+  private timer?: NodeJS.Timeout;
+  private reauthorizing = false;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -138,14 +154,14 @@ export class SchedulerGateway
     server.use(async (client, next) => {
       try {
         const token = this.extractToken(client);
-        const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-        const user = await this.jwtStrategy.validate(payload);
+        const { user, rooms, validUntil } = await this.authorize(token);
         client.data.user = user;
-        await client.join(bookingRoomsForUser(user));
+        await client.join([...rooms]);
+        this.authorizations.set(client.id, { client, token, rooms, validUntil, refreshing: false, needsResync: false });
         next();
       } catch (error) {
-        const reason = error instanceof Error ? error.message : 'unknown error';
-        this.logger.warn(`Rejected socket ${client.id}: ${reason}`);
+        this.authorizations.delete(client.id);
+        this.logger.warn(`Rejected socket ${client.id}: authentication failed`);
         const authError = new Error('WebSocket authentication failed') as Error & {
           data?: { code: string };
         };
@@ -153,6 +169,10 @@ export class SchedulerGateway
         next(authError);
       }
     });
+    if (!this.timer) {
+      this.timer = setInterval(() => void this.reauthorizeSockets(), SOCKET_REAUTHORIZE_INTERVAL_MS);
+      this.timer.unref?.();
+    }
   }
 
   handleConnection(client: Socket): void {
@@ -161,7 +181,91 @@ export class SchedulerGateway
   }
 
   handleDisconnect(client: Socket): void {
+    this.authorizations.delete(client.id);
     this.logger.log(`Socket disconnected: ${client.id}`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
+    for (const entry of this.authorizations.values()) entry.client.disconnect(true);
+    this.authorizations.clear();
+  }
+
+  async reauthorizeSockets(): Promise<void> {
+    if (this.reauthorizing) return;
+    this.reauthorizing = true;
+    try {
+      const entries = [...this.authorizations.values()];
+      // Bound simultaneous DB/session lookups. Delivery checks the lease even
+      // when a delayed batch or stalled dependency prevents timely renewal.
+      for (let offset = 0; offset < entries.length; offset += 20) {
+        await Promise.all(entries.slice(offset, offset + 20).map((entry) => this.refreshAuthorization(entry)));
+      }
+    } finally {
+      this.reauthorizing = false;
+    }
+  }
+
+  private async authorize(token: string) {
+    const startedAt = Date.now();
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        (async () => {
+          const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+          if (!Number.isFinite(payload.exp) || payload.exp! * 1000 <= Date.now()) {
+            throw new UnauthorizedException('Expired WebSocket access token');
+          }
+          // Reloads session revocation, blacklist, account state and role grants
+          // from the same authoritative checks used by HTTP authentication.
+          const user = await this.jwtStrategy.validate(payload);
+          const expiries = (user.scopes ?? []).map((scope) => scope.expiresAt ? new Date(scope.expiresAt).getTime() : Infinity);
+          const validUntil = Math.min(startedAt + SOCKET_AUTHORIZATION_LEASE_MS, payload.exp! * 1000, ...expiries);
+          if (!Number.isFinite(validUntil) || validUntil <= Date.now()) throw new UnauthorizedException('Expired authorization');
+          return { user, rooms: new Set(bookingRoomsForUser(user)), validUntil };
+        })(),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new UnauthorizedException('WebSocket authorization timeout')), SOCKET_AUTHORIZATION_TIMEOUT_MS);
+          timeout.unref?.();
+        }),
+      ]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
+
+  private async refreshAuthorization(entry: SocketAuthorization): Promise<void> {
+    if (this.authorizations.get(entry.client.id) !== entry || entry.refreshing) return;
+    if (!entry.client.connected) { this.authorizations.delete(entry.client.id); return; }
+    entry.refreshing = true;
+    try {
+      const fresh = await this.authorize(entry.token);
+      if (this.authorizations.get(entry.client.id) !== entry || !entry.client.connected) return;
+      const changed = fresh.rooms.size !== entry.rooms.size || [...entry.rooms].some((room) => !fresh.rooms.has(room));
+      for (const room of entry.rooms) if (!fresh.rooms.has(room)) await entry.client.leave(room);
+      await entry.client.join([...fresh.rooms]);
+      // A disconnect while awaiting an adapter must not resurrect authorization.
+      if (this.authorizations.get(entry.client.id) !== entry || !entry.client.connected) return;
+      entry.rooms = fresh.rooms;
+      entry.validUntil = fresh.validUntil;
+      entry.client.data.user = fresh.user;
+      if (changed) entry.client.emit('scheduler_access_changed');
+    } catch {
+      if (this.authorizations.get(entry.client.id) === entry) this.rejectConnectedSocket(entry);
+    } finally {
+      entry.refreshing = false;
+      if (entry.needsResync && this.authorizations.get(entry.client.id) === entry && entry.client.connected) {
+        entry.needsResync = false;
+        entry.client.emit('scheduler_resync');
+      }
+    }
+  }
+
+  private rejectConnectedSocket(entry: SocketAuthorization): void {
+    this.authorizations.delete(entry.client.id);
+    entry.client.emit('scheduler_auth_failed', { code: 'WS_AUTH_FAILED' });
+    entry.client.disconnect(true);
   }
 
   notifyBookingUpdated(booking: BookingRealtimeSource): void {
@@ -197,7 +301,18 @@ export class SchedulerGateway
       this.logger.warn(`Skipped ${event}: missing booking id or branch scope`);
       return;
     }
-    this.server.to(dispatch.rooms).emit(event, dispatch.payload);
+    // Never broadcast solely by previously joined rooms: their authorization
+    // can have expired while a DB recheck or the interval is delayed.
+    for (const entry of this.authorizations.values()) {
+      if (entry.refreshing) {
+        if (dispatch.rooms.some((room) => entry.rooms.has(room))) entry.needsResync = true;
+        continue;
+      }
+      if (entry.validUntil <= Date.now()) { this.rejectConnectedSocket(entry); continue; }
+      if (entry.client.connected && dispatch.rooms.some((room) => entry.rooms.has(room))) {
+        entry.client.emit(event, dispatch.payload);
+      }
+    }
     this.logger.log(`Emitted ${event} for booking ${booking.id} to scoped rooms`);
   }
 }

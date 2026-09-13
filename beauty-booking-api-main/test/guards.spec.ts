@@ -18,14 +18,19 @@ function makeContext({
   permissions = [],
   scopes = [],
   headers = {},
+}: {
+  roles?: AuthUser['roles'];
+  permissions?: string[];
+  scopes?: AuthUser['scopes'];
+  headers?: Record<string, string>;
 }): ExecutionContext {
   const user: AuthUser = {
     id: 'u-1',
     email: 'a@b.com',
     roles,
     scopes,
-    activeBusinessId: scopes[0]?.businessId ?? null,
-    activeBranchId: scopes[0]?.branchId ?? null,
+    businessId: scopes[0]?.businessId ?? null,
+    branchId: scopes[0]?.branchId ?? null,
     sessionType: 'salon',
     permissions,
   };

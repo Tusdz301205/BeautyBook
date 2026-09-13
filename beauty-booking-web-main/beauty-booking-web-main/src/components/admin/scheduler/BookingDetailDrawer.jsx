@@ -2,13 +2,76 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock3, History, MapPin, Phone, Scissors, Tag, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { bookingsApi } from '../../../api/apiClient';
+import { bookingsApi, servicesApi, staffApi } from '../../../api/apiClient';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking } from '../../../utils/bookingCalendar.adapter';
-import { Button, Dialog, Drawer, Field, Textarea } from '../../ui';
+import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+
+function ItemOperation({ bookingId, branchId, item, cancelWholeBooking = false, onDone }) {
+  const [action, setAction] = useState('');
+  const [reason, setReason] = useState('');
+  const [value, setValue] = useState('');
+  const [staff, setStaff] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const options = [
+    ...(item.status === 'SCHEDULED' ? [{ value: 'START', label: 'Bắt đầu' }, { value: 'REMOVE', label: cancelWholeBooking ? 'Hủy toàn bộ lịch' : 'Hủy dịch vụ này' }] : []),
+    ...(['SCHEDULED', 'IN_PROGRESS'].includes(item.status) ? [{ value: 'SKIP', label: 'Bỏ qua' }, { value: 'REASSIGN', label: 'Đổi nhân viên' }, { value: 'RESIZE', label: 'Đổi thời lượng' }, { value: 'REPRICE', label: 'Điều chỉnh giá' }] : []),
+    ...(item.status === 'IN_PROGRESS' ? [{ value: 'COMPLETE', label: 'Hoàn thành' }] : []),
+  ];
+  useEffect(() => {
+    if (action !== 'REASSIGN') return;
+    staffApi.getPublic(branchId, [item.id]).then((rows) => setStaff(Array.isArray(rows) ? rows : [])).catch(() => setStaff([]));
+  }, [action, branchId, item.id]);
+  if (!options.length) return null;
+  const submit = async () => {
+    if (!action || !reason.trim()) { toast.error('Chọn thao tác và nhập lý do'); return; }
+    const payload = { action, reason: reason.trim(), expectedRevision: item.revision };
+    if (action === 'REASSIGN') payload.staffId = value;
+    if (action === 'RESIZE') payload.durationMinutes = Number(value);
+    if (action === 'REPRICE') payload.price = Number(value);
+    setBusy(true);
+    try {
+      if (action === 'REMOVE' && cancelWholeBooking) {
+        await bookingsApi.updateStatus(bookingId, 'CANCELLED', undefined, reason.trim());
+        toast.success('Đã hủy toàn bộ lịch và thông báo cho khách');
+      } else {
+        await bookingsApi.updateItem(bookingId, item.bookingServiceId, payload);
+        toast.success('Đã cập nhật dịch vụ trong lịch');
+      }
+      setAction(''); setReason(''); setValue('');
+      await onDone();
+    } catch (error) { toast.error(error.message || 'Không thể cập nhật dịch vụ'); }
+    finally { setBusy(false); }
+  };
+  return <div className="mt-3 grid gap-2 rounded-lg bg-zinc-50 p-3 sm:grid-cols-2"><Select value={action} onChange={(event) => { setAction(event.target.value); setValue(''); }}><option value="">Thao tác với dịch vụ</option>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</Select>{action === 'REASSIGN' && <Select value={value} onChange={(event) => setValue(event.target.value)}><option value="">Chọn nhân viên</option>{staff.map((person) => <option key={person.id} value={person.id}>{person.fullName}</option>)}</Select>}{action === 'RESIZE' && <Input type="number" min="1" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Thời lượng mới (phút)" />}{action === 'REPRICE' && <Input type="number" min="0" value={value} onChange={(event) => setValue(event.target.value)} placeholder="Giá mới" />}<Input className={action && !['REASSIGN', 'RESIZE', 'REPRICE'].includes(action) ? 'sm:col-span-2' : ''} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Lý do bắt buộc" /><Button size="sm" loading={busy} disabled={!action || !reason.trim() || (['REASSIGN', 'RESIZE', 'REPRICE'].includes(action) && !value)} onClick={submit}>Áp dụng</Button></div>;
+}
+
+function AddItemOperation({ bookingId, branchId, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [services, setServices] = useState([]);
+  const [serviceId, setServiceId] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    servicesApi.getAll(branchId).then((rows) => setServices(rows?.data ?? rows ?? [])).catch((error) => toast.error(error.message));
+  }, [open, branchId]);
+  if (!open) return <Button className="mt-3" size="sm" variant="secondary" onClick={() => setOpen(true)}>Thêm dịch vụ phát sinh</Button>;
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await bookingsApi.addItem(bookingId, { serviceId, reason: reason.trim() });
+      toast.success('Đã thêm dịch vụ và tạo khoản chênh lệch cần thu');
+      setOpen(false); setServiceId(''); setReason('');
+      await onDone();
+    } catch (error) { toast.error(error.message || 'Không thể thêm dịch vụ'); }
+    finally { setBusy(false); }
+  };
+  return <div className="mt-3 grid gap-2 rounded-xl border border-zinc-200 p-3"><Select value={serviceId} onChange={(event) => setServiceId(event.target.value)}><option value="">Chọn dịch vụ phát sinh</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name} · {money.format(service.price)}</option>)}</Select><Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Lý do thêm dịch vụ" /><div className="flex gap-2"><Button size="sm" loading={busy} disabled={!serviceId || !reason.trim()} onClick={submit}>Thêm</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Đóng</Button></div></div>;
+}
 
 export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const can = useAuthStore((state) => state.can);
@@ -16,6 +79,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [normalCancelDialog, setNormalCancelDialog] = useState(false);
   const [cancelDialog, setCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelPreview, setCancelPreview] = useState(null);
@@ -65,22 +129,30 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const timeDecision = nextAction ? activeBooking.raw?.transitionAvailability?.[nextAction.status] : null;
   const blockedActionReason = timeDecision?.allowed === false ? timeDecision.reason : null;
   const forceCancellable = !['CANCELLED', 'COMPLETED'].includes(activeBooking.status);
+  const canCancel = !platform && receivesGuests && canUpdate && forceCancellable;
+  const activeServiceCount = activeBooking.services.filter((service) => !['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(service.status)).length;
 
   const runAction = async () => {
     if (!nextAction) return;
     setBusy(true);
     try {
-      if (nextAction.status === 'CHECKED_IN') await bookingsApi.checkin(activeBooking.id);
-      else await bookingsApi.updateStatus(activeBooking.id, nextAction.status);
-      const refreshed = await bookingsApi.getById(activeBooking.id);
-      setDetail(normalizeBooking(refreshed));
+      const updated = nextAction.status === 'CHECKED_IN'
+        ? await bookingsApi.checkin(activeBooking.id)
+        : await bookingsApi.updateStatus(activeBooking.id, nextAction.status);
+      if (updated) setDetail(normalizeBooking(updated));
       toast.success(`Đã cập nhật: ${nextAction.label}`);
-      onUpdated?.();
+      await onUpdated?.();
     } catch (error) {
       toast.error(error.message || 'Không thể cập nhật lịch hẹn');
     } finally {
       setBusy(false);
     }
+  };
+
+  const refreshDetail = async () => {
+    const refreshed = await bookingsApi.getById(activeBooking.id);
+    setDetail(normalizeBooking(refreshed));
+    onUpdated?.();
   };
 
   const openForceCancel = async () => {
@@ -95,6 +167,23 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
       setCancelDialog(false);
     } finally {
       setPreviewLoading(false);
+    }
+  };
+
+  const cancelBooking = async () => {
+    if (!cancelReason.trim()) return;
+    setBusy(true);
+    try {
+      const updated = await bookingsApi.updateStatus(activeBooking.id, 'CANCELLED', undefined, cancelReason.trim());
+      if (updated) setDetail(normalizeBooking(updated));
+      toast.success('Đã hủy lịch và thông báo cho khách');
+      setNormalCancelDialog(false);
+      setCancelReason('');
+      await onUpdated?.();
+    } catch (error) {
+      toast.error(error.message || 'Không thể hủy lịch hẹn');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -118,6 +207,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
     <div className="flex w-full flex-col gap-2">
       {platform && <p className="text-xs text-zinc-500">Platform chỉ quan sát; các thao tác vận hành do cơ sở thực hiện.</p>}
       {nextAction && !blockedActionReason && <Button className="w-full" loading={busy} onClick={runAction}>{nextAction.label}</Button>}
+      {canCancel && <Button className="w-full" variant="danger" onClick={() => { setCancelReason(''); setNormalCancelDialog(true); }}>Hủy lịch</Button>}
       {canForceCancel && forceCancellable && <Button className="w-full" variant="danger" onClick={openForceCancel}>Force-cancel theo ngoại lệ</Button>}
     </div>
   );
@@ -138,8 +228,9 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
         <section>
           <h3 className="text-sm font-bold text-zinc-950">Dịch vụ</h3>
           <div className="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-            {activeBooking.services.map((service, index) => <div key={service.id || index} className="flex items-start justify-between gap-4 px-4 py-3 text-sm"><span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span><span className="shrink-0 text-zinc-500">{service.durationMinutes ? `${service.durationMinutes} phút` : '—'}</span></div>)}
+            {activeBooking.services.map((service, index) => <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm"><div className="flex items-start justify-between gap-4"><span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span><span className="shrink-0 text-right text-zinc-500">{service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span></div>{canUpdate && service.bookingServiceId && <ItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}</div>)}
           </div>
+          {canUpdate && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>
         <section className="grid gap-3 sm:grid-cols-2">
           <Detail icon={Tag} label="Tổng tiền" value={money.format(activeBooking.totalAmount)} />
@@ -151,6 +242,9 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
         {blockedActionReason && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{blockedActionReason}</p>}
       </div>
     </Drawer>
+    <Dialog open={normalCancelDialog} onClose={() => !busy && setNormalCancelDialog(false)} title="Hủy lịch hẹn" description={`Mã lịch ${activeBooking.bookingCode}. Khách hàng sẽ nhận được trạng thái và thông báo hủy.`} footer={<><Button variant="secondary" onClick={() => setNormalCancelDialog(false)} disabled={busy}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={cancelBooking}>Xác nhận hủy</Button></>}>
+      <Field label="Lý do hủy" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={1000} placeholder="Nhập lý do để khách hàng biết vì sao lịch bị hủy" /></Field>
+    </Dialog>
     <Dialog open={cancelDialog} onClose={() => !busy && setCancelDialog(false)} title="Force-cancel lịch hẹn" description="Ngoại lệ của Platform, luôn được ghi audit" footer={<><Button variant="secondary" onClick={() => setCancelDialog(false)} disabled={busy}>Đóng</Button><Button variant="danger" loading={busy} disabled={previewLoading || !cancelReason.trim()} onClick={forceCancel}>Xác nhận force-cancel</Button></>}>
       <div className="space-y-4">
         {previewLoading ? <p className="text-sm text-zinc-500">Đang kiểm tra ảnh hưởng...</p> : cancelPreview && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-bold">Ảnh hưởng dự kiến</p><ul className="mt-2 list-disc space-y-1 pl-5"><li>Giải phóng {cancelPreview.impact?.releasesAssignedSlots || 0} phân công dịch vụ.</li><li>{cancelPreview.impact?.hasSuccessfulPayment ? 'Lịch có giao dịch đã thanh toán.' : 'Chưa ghi nhận giao dịch đã thanh toán.'}</li><li>Hệ thống không tự hoàn tiền; {cancelPreview.impact?.requiresSeparateRefundWorkflow ? 'cần mở quy trình hoàn tiền riêng.' : 'không cần quy trình hoàn tiền.'}</li></ul></div>}

@@ -49,7 +49,7 @@ export async function withSerializableTransaction<T>(
       if (isDatabaseConflict(error)) {
         throw new ConflictException(
           options.conflictMessage ??
-            'Dá»¯ liá»‡u vá»«a Ä‘Æ°á»£c thay Ä‘á»•i bá»Ÿi yÃªu cáº§u khÃ¡c, vui lÃ²ng thá»­ láº¡i',
+            'Dữ liệu vừa được thay đổi bởi yêu cầu khác, vui lòng thử lại',
         );
       }
       if (prismaErrorCode(error) !== 'P2034') throw error;

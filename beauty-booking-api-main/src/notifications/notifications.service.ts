@@ -194,8 +194,8 @@ export class NotificationsService {
   /**
    * Xóa device token (khi đăng xuất).
    */
-  async removeDeviceToken(token: string) {
-    return this.prisma.deviceToken.deleteMany({ where: { token } });
+  async removeDeviceToken(token: string, userId: string) {
+    return this.prisma.deviceToken.deleteMany({ where: { token, userId } });
   }
 
   /**

@@ -16,10 +16,8 @@ describe('bookable staff policy', () => {
     expect(bookableStaffWhere()).not.toHaveProperty('publicVisible');
   });
 
-  test('requires a configured working schedule when the caller requests it', () => {
-    expect(bookableStaffWhere({ requireSchedule: true })).toEqual(expect.objectContaining({
-      workingHours: { some: { isOff: false } },
-    }));
+  test('does not require employee schedule data', () => {
+    expect(JSON.stringify(bookableStaffWhere())).not.toContain('workingHours');
   });
 
   test('requires at least one selected service assignment and deduplicates ids', () => {

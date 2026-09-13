@@ -25,7 +25,6 @@ import {
   withSerializableTransaction,
 } from '../common/utils/serializable-transaction';
 import { PaymentProviderRegistry } from './providers/payment-provider.registry';
-import { WorkforceService } from '../workforce/workforce.service';
 import type {
   CreateTreatmentPackageDto,
   CreatePaymentPolicyDto,
@@ -35,7 +34,6 @@ import type {
   ReservePackageSessionDto,
   TransitionPlatformStatementDto,
 } from './dto/payments.dto';
-import { FinanceService } from '../finance/finance.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
@@ -44,8 +42,6 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly providerRegistry?: PaymentProviderRegistry,
-    @Optional() private readonly workforce?: WorkforceService,
-    @Optional() private readonly finance?: FinanceService,
     @Optional() private readonly loyalty?: LoyaltyService,
   ) {}
 
@@ -203,17 +199,10 @@ export class PaymentsService {
           const canCollectAtCounter =
             can(user, 'payment:create:branch', context) ||
             can(user, 'payment:create:tenant', context);
-          const canCreateOwnIntent = can(user, 'payment_intent:create:self', {
-            ownerId: booking.customer.userId,
-          });
-          if (
-            !canCollectAtCounter &&
-            !canCreateOwnIntent
-          ) {
-            throw new ForbiddenException('Không có quyền thu tiền trong phạm vi này');
-          }
-          if (!canCollectAtCounter && method === 'CASH') {
-            throw new ForbiddenException('Thanh toán tiền mặt chỉ được nhân sự tại cơ sở xác nhận');
+          // Khách hàng không được tự tạo giao dịch. Chỉ nhân sự có quyền tại
+          // chi nhánh/doanh nghiệp mới được ghi nhận tiền mặt hoặc chuyển khoản thủ công.
+          if (!canCollectAtCounter) {
+            throw new ForbiddenException('Chỉ nhân sự tại cơ sở mới được ghi nhận thanh toán');
           }
           if (!['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status)) {
             throw new ConflictException('Trạng thái booking chưa cho phép ghi nhận thanh toán');
@@ -297,15 +286,6 @@ export class PaymentsService {
             data: { status: verified ? 'SUCCEEDED' : 'PENDING' },
           });
           if (verified) {
-            if (method === 'CASH' && this.finance) {
-              await this.finance.recordCashPayment(tx, {
-                branchId: booking.branchId,
-                paymentId: legacyPayment.id,
-                amount,
-                actorId: user.id,
-                sourceId: transaction.id,
-              });
-            }
             await this.postPaymentLedger(tx, transaction.id, user.id);
             await this.ensurePlatformFee(tx, bookingId);
           }
@@ -561,17 +541,6 @@ export class PaymentsService {
           });
           await this.postRefundLedger(tx, refundId, user.id);
           await this.ensurePlatformFeeAdjustment(tx, refundId);
-          if (this.workforce) {
-            await this.workforce.recordRefundAdjustments(refundId, tx);
-          }
-          if (refund.payment.method === 'CASH' && this.finance) {
-            await this.finance.recordCashRefund(tx, {
-              branchId: refund.payment.booking.branchId,
-              refundRequestId: refundId,
-              amount: Number(refund.amount),
-              actorId: user.id,
-            });
-          }
           if (this.loyalty) {
             await this.loyalty.adjustForRefund(
               refund.payment.bookingId,
@@ -1403,19 +1372,10 @@ export class PaymentsService {
     if (!branch || (treatmentPackage.branchId && treatmentPackage.branchId !== branch.id)) {
       throw new BadRequestException('Chi nhánh không hợp lệ với gói liệu trình');
     }
-    let customerId = body.customerId;
-    const isCustomer = user.roles.includes('CUSTOMER') &&
-      !user.roles.some((role) => ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role));
-    if (isCustomer) {
-      const profile = await this.prisma.customerProfile.findUnique({
-        where: { userId: user.id },
-        select: { id: true },
-      });
-      if (!profile) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
-      customerId = profile.id;
-    } else {
-      await assertBranchAccess(this.prisma, user, branch.id);
-    }
+    // Việc tạo gói và khoản phải thu là nghiệp vụ tại quầy, không phải
+    // thanh toán online của khách hàng.
+    await assertBranchAccess(this.prisma, user, branch.id);
+    const customerId = body.customerId;
     if (!customerId) throw new BadRequestException('Khách hàng là bắt buộc');
     const customer = await this.prisma.customerProfile.findFirst({
       where: { id: customerId, deletedAt: null },
@@ -1563,15 +1523,8 @@ export class PaymentsService {
       const canCollectAtCounter =
         can(user, 'package_purchase:create:branch', context) ||
         can(user, 'package_purchase:create:tenant', context);
-      const canPayOwnInstallment = can(user, 'package_purchase:create:self', context);
-      if (
-        !canPayOwnInstallment &&
-        !canCollectAtCounter
-      ) {
+      if (!canCollectAtCounter) {
         throw new ForbiddenException('Không có quyền thanh toán gói liệu trình này');
-      }
-      if (!canCollectAtCounter && method === 'CASH') {
-        throw new ForbiddenException('Thanh toán tiền mặt chỉ được nhân sự tại cơ sở xác nhận');
       }
       const previous = await tx.paymentIntent.findUnique({
         where: { idempotencyKey: body.idempotencyKey.trim() },
@@ -1640,14 +1593,6 @@ export class PaymentsService {
         },
       });
       if (verified) {
-        if (method === 'CASH' && this.finance) {
-          await this.finance.recordCashPayment(tx, {
-            branchId,
-            amount: Number(installment.amount),
-            actorId: user.id,
-            sourceId: transaction.id,
-          });
-        }
         await this.postPaymentLedger(tx, transaction.id, user.id);
         await this.recalculatePackagePurchase(tx, installment.purchaseId);
       }

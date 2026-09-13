@@ -1,0 +1,62 @@
+@startuml activity-review
+title Sơ đồ Hoạt động - Đánh giá Dịch vụ, Phản hồi & Kiểm duyệt (Review & Moderation Flow)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+start
+:Khách hàng hoàn thành lịch hẹn (status: COMPLETED);
+:Hệ thống gửi lời nhắc đánh giá (In-app / Notification);
+
+:Khách hàng mở form đánh giá;
+:Nhập điểm sao tổng quan (1 - 5), nhận xét, đánh giá từng thợ/dịch vụ;
+
+if (Nội dung nhận xét đạt độ dài tối thiểu (reviewMinLength >= 10 ký tự)?) then (Đạt)
+else (Quá ngắn)
+  :Báo lỗi: Nhận xét cần tối thiểu 10 ký tự;
+  stop
+endif
+
+if (Lịch hẹn đã từng được đánh giá trước đây?) then (Đã đánh giá)
+  :Báo lỗi: Mỗi lịch hẹn chỉ được đánh giá một lần;
+  stop
+else (Chưa đánh giá)
+endif
+
+:Tạo bản ghi Review với trạng thái mặc định: 'APPROVED';
+:Lưu chi tiết ReviewServiceRating cho từng dịch vụ và chuyên viên;
+:Cập nhật điểm đánh giá trung bình của Salon và Chuyên viên;
+:Hiển thị công khai trên trang chi tiết Salon;
+
+fork
+  partition "Salon Phản hồi (Business Reply)" {
+    :Quản lý Salon xem đánh giá mới tại Salon Portal;
+    if (Salon muốn phản hồi khách hàng?) then (Có)
+      :Nhập nội dung phản hồi;
+      :Lưu BusinessReply;
+      :Hiển thị công khai câu trả lời bên dưới đánh giá;
+    else (Không)
+    endif
+  }
+fork again
+  partition "Kiểm duyệt & Khiếu nại (Moderation & Appeal)" {
+    if (Đánh giá có dấu hiệu vi phạm chuẩn mực / spam?) then (Vi phạm)
+      :Salon gửi Báo cáo vi phạm (ReviewReport);
+      :Trạng thái đánh giá chuyển sang 'REPORTED';
+      
+      :Quản trị viên Nền tảng (Admin) tiếp nhận hồ sơ;
+      if (Admin xác định vi phạm quy tắc cộng đồng?) then (Vi phạm thật)
+        :Admin ẩn đánh giá (status: 'HIDDEN');
+        :Ghi log ReviewModerationEvent;
+      else (Không vi phạm)
+        :Khôi phục trạng thái 'APPROVED';
+      endif
+    else (Bình thường)
+    endif
+  }
+end fork
+
+stop
+
+@enduml

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { endOfMonth, format, startOfMonth } from 'date-fns';
 import {
-  AlertTriangle,
   CalendarCheck,
   CheckCircle2,
   Clock3,
@@ -31,7 +30,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { attendanceApi, bookingsApi, branchesApi, paymentsApi, reportsApi, reviewsApi, servicesApi, staffApi } from '../../api/apiClient';
+import { bookingsApi, branchesApi, paymentsApi, reportsApi, reviewsApi, servicesApi, staffApi } from '../../api/apiClient';
 import { Badge, Card, EmptyState, ErrorState, Field, InlineNotice, Input, MetricCard, Page, PageHeader, Select, Skeleton } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeBooking } from '../../utils/bookingCalendar.adapter';
@@ -60,7 +59,7 @@ export function SalonOverview() {
   const [to, setTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState('ALL');
-  const [data, setData] = useState({ bookings: [], services: [], staff: [], attendance: [], reviews: [], payments: [], overview: null, dashboard: null });
+  const [data, setData] = useState({ bookings: [], services: [], staff: [], reviews: [], payments: [], overview: null, dashboard: null });
   const [warnings, setWarnings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,7 +79,6 @@ export function SalonOverview() {
       ['bookings', bookingsApi.getAll({ branchId: selectedBranch, dateFrom: from, dateTo: to, limit: 100 })],
       ['services', servicesApi.getManage(selectedBranch)],
       ['staff', staffApi.getAll(selectedBranch)],
-      ['attendance', owner ? attendanceApi.getTenantReport(from, to, selectedBranch) : attendanceApi.getBranchToday(selectedBranch)],
       ...(financeAllowed ? [
         ['payments', paymentsApi.getAll()],
         ['overview', reportsApi.getOverview()],
@@ -89,7 +87,7 @@ export function SalonOverview() {
       ...(can('review:moderate:tenant') || can('review:moderate:branch') ? [['reviews', reviewsApi.getForManagement({ branchId: selectedBranch, status: 'PENDING', page: 1, limit: 20 })]] : []),
     ];
     const results = await Promise.allSettled(tasks.map(([, promise]) => promise));
-    const next = { bookings: [], services: [], staff: [], attendance: [], reviews: [], payments: [], overview: null, dashboard: null };
+    const next = { bookings: [], services: [], staff: [], reviews: [], payments: [], overview: null, dashboard: null };
     const failed = [];
     results.forEach((result, index) => {
       const key = tasks[index][0];
@@ -112,7 +110,7 @@ export function SalonOverview() {
   const completed = bookings.filter((booking) => booking.status === 'COMPLETED').length;
   const activeServices = data.services.filter((service) => service.active !== false && service.status !== 'INACTIVE').length;
   const activeStaff = data.staff.filter((staff) => staff.status === 'ACTIVE').length;
-  const attendanceIssues = data.attendance.map((row) => row.attendance || row).filter((row) => row && ['ABSENT', 'LATE', 'MISSING_CHECKOUT', 'LEFT_EARLY', 'NOT_CHECKED_IN'].includes(row.status));
+  const bookableStaff = data.staff.filter((staff) => staff.status === 'ACTIVE' && staff.isBookable).length;
   const scopedPayments = data.payments.filter((payment) => {
     const timestamp = new Date(payment.paidAt || payment.createdAt);
     const inRange = timestamp >= new Date(`${from}T00:00:00`) && timestamp <= new Date(`${to}T23:59:59`);
@@ -123,7 +121,6 @@ export function SalonOverview() {
   const pendingReviews = data.reviews.length;
   const actionItems = [
     { label: 'Lịch cần xác nhận', count: pending, to: '/salon/appointments', icon: CalendarCheck, tone: pending ? 'warning' : 'neutral' },
-    { label: 'Vấn đề chấm công', count: attendanceIssues.length, to: '/salon/attendance', icon: AlertTriangle, tone: attendanceIssues.length ? 'danger' : 'neutral' },
     { label: 'Đánh giá chờ xử lý', count: pendingReviews, to: '/salon/reviews', icon: Star, tone: pendingReviews ? 'warning' : 'neutral' },
   ];
   const dashboard = data.dashboard;
@@ -145,7 +142,7 @@ export function SalonOverview() {
       {warnings.length > 0 && <InlineNotice tone="warning">Một phần dữ liệu chưa tải được: {warnings.join(', ')}. Các khối còn lại vẫn dùng kết quả API hợp lệ.</InlineNotice>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{financeAllowed && <MetricCard icon={TrendingUp} label="Doanh thu thuần trong kỳ" value={money(netRevenue)} note={comparison('netRevenue')} />}<MetricCard icon={CalendarCheck} label="Lịch trong kỳ" value={bookingCount} note={comparison('bookings')} tone="info" /><MetricCard icon={CheckCircle2} label="Lịch hoàn thành" value={completedCount} note={comparison('completedBookings')} tone="success" /><MetricCard icon={Scissors} label="Dịch vụ đang mở" value={`${activeServices}/${data.services.length}`} /><MetricCard icon={Users} label="Nhân sự hoạt động" value={`${activeStaff}/${data.staff.length}`} tone="info" /></div>
 
-      <section><div className="mb-3"><h2 className="text-lg font-bold">Trung tâm hành động</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">Ưu tiên các vấn đề đang cần người vận hành xử lý.</p></div><div className="grid gap-3 md:grid-cols-3">{actionItems.map((item) => <Link key={item.label} to={item.to} className="group"><Card className="flex h-full items-center gap-4 p-5 transition group-hover:border-[var(--bb-brand)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--bb-surface-subtle)] text-[var(--bb-brand-strong)]"><item.icon size={20} /></span><div className="min-w-0 flex-1"><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-sm font-semibold text-[var(--bb-muted)]">{item.label}</p></div><Badge tone={item.tone}>{item.count ? 'Cần xử lý' : 'Ổn định'}</Badge></Card></Link>)}</div></section>
+      <section><div className="mb-3"><h2 className="text-lg font-bold">Trung tâm hành động</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">Ưu tiên các vấn đề đang cần người vận hành xử lý.</p></div><div className="grid gap-3 md:grid-cols-2">{actionItems.map((item) => <Link key={item.label} to={item.to} className="group"><Card className="flex h-full items-center gap-4 p-5 transition group-hover:border-[var(--bb-brand)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--bb-surface-subtle)] text-[var(--bb-brand-strong)]"><item.icon size={20} /></span><div className="min-w-0 flex-1"><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-sm font-semibold text-[var(--bb-muted)]">{item.label}</p></div><Badge tone={item.tone}>{item.count ? 'Cần xử lý' : 'Ổn định'}</Badge></Card></Link>)}</div></section>
 
       {financeAllowed && <section>
         <div className="mb-3"><h2 className="text-lg font-bold">Phân tích trong kỳ</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">Biểu đồ dùng cùng phạm vi chi nhánh và ngày với KPI phía trên.</p></div>
@@ -230,18 +227,6 @@ export function SalonOverview() {
               </ResponsiveContainer>}
             </ChartCard>
 
-            <ChartCard title="Attendance và nhân sự" to="/salon/attendance">
-              {!chartData.attendanceStatus?.some((item) => item.count) ? <ChartEmpty /> : <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={chartData.attendanceStatus}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="status" tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip />
-                  <Bar dataKey="count" name="Số bản ghi" fill="var(--bb-info)" radius={[5, 5, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>}
-            </ChartCard>
-
             <ChartCard title="Phân bố đánh giá" to="/salon/reviews" meta={chartData.review?.average ? `${chartData.review.average}/5 · ${chartData.review.count} đánh giá` : undefined}>
               {!chartData.review?.distribution?.some((item) => item.count) ? <ChartEmpty /> : <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={chartData.review.distribution}>
@@ -269,7 +254,7 @@ export function SalonOverview() {
         )}
       </section>}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)]"><Card className="overflow-hidden"><header className="flex items-center justify-between gap-3 border-b border-[var(--bb-border)] p-5"><div><h2 className="font-bold">Lịch hẹn tiếp theo</h2><p className="mt-1 text-xs text-[var(--bb-muted)]">Theo thời gian thực trong phạm vi đã chọn.</p></div><Link to="/salon/appointments" className="min-h-11 px-3 py-3 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline">Mở lịch</Link></header>{!upcoming.length ? <EmptyState icon={CalendarCheck} title="Không có lịch sắp tới" description="Lịch vẫn sẵn sàng để tạo hoặc tiếp nhận lịch hẹn mới." /> : <div className="divide-y divide-[var(--bb-border)]">{upcoming.map((booking) => <Link key={booking.id} to={`/salon/appointments?bookingId=${booking.id}`} className="flex flex-col gap-3 p-4 hover:bg-[var(--bb-surface-subtle)] sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.customerName}</p><p className="mt-1 truncate text-xs text-[var(--bb-muted)]">{booking.serviceNames.join(', ') || 'Chưa có dịch vụ'} · {booking.branchName || 'Chi nhánh'}</p></div><p className="text-xs font-semibold">{format(booking.startAt, 'dd/MM · HH:mm')}</p><Badge tone={TONES[booking.status] || 'neutral'}>{LABELS[booking.status] || booking.status}</Badge></Link>)}</div>}</Card><div className="space-y-4"><Card className="p-5"><h2 className="font-bold">Tình trạng nhân sự</h2><div className="mt-4 grid grid-cols-2 gap-3"><Mini icon={UserRoundCheck} label="Đang hoạt động" value={activeStaff} /><Mini icon={AlertTriangle} label="Cảnh báo công" value={attendanceIssues.length} /></div>{attendanceIssues.length > 0 && <Link to="/salon/attendance" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline">Xử lý bảng công</Link>}</Card>{financeAllowed && <Card className="p-5"><h2 className="font-bold">Tóm tắt tài chính</h2><dl className="mt-4 space-y-3 text-sm"><Row label="Đã ghi nhận" value={money(grossRevenue)} /><Row label="Đã hoàn" value={money(refunded)} /><Row label="Thuần" value={money(grossRevenue - refunded)} strong /></dl><Link to="/salon/payments" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline"><CreditCard size={16} />Mở thanh toán & hoàn tiền</Link></Card>}</div></div>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.8fr)]"><Card className="overflow-hidden"><header className="flex items-center justify-between gap-3 border-b border-[var(--bb-border)] p-5"><div><h2 className="font-bold">Lịch hẹn tiếp theo</h2><p className="mt-1 text-xs text-[var(--bb-muted)]">Theo thời gian thực trong phạm vi đã chọn.</p></div><Link to="/salon/appointments" className="min-h-11 px-3 py-3 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline">Mở lịch</Link></header>{!upcoming.length ? <EmptyState icon={CalendarCheck} title="Không có lịch sắp tới" description="Lịch vẫn sẵn sàng để tạo hoặc tiếp nhận lịch hẹn mới." /> : <div className="divide-y divide-[var(--bb-border)]">{upcoming.map((booking) => <Link key={booking.id} to={`/salon/appointments?bookingId=${booking.id}`} className="flex flex-col gap-3 p-4 hover:bg-[var(--bb-surface-subtle)] sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{booking.customerName}</p><p className="mt-1 truncate text-xs text-[var(--bb-muted)]">{booking.serviceNames.join(', ') || 'Chưa có dịch vụ'} · {booking.branchName || 'Chi nhánh'}</p></div><p className="text-xs font-semibold">{format(booking.startAt, 'dd/MM · HH:mm')}</p><Badge tone={TONES[booking.status] || 'neutral'}>{LABELS[booking.status] || booking.status}</Badge></Link>)}</div>}</Card><div className="space-y-4"><Card className="p-5"><h2 className="font-bold">Tình trạng nhân sự</h2><div className="mt-4 grid grid-cols-2 gap-3"><Mini icon={UserRoundCheck} label="Đang hoạt động" value={activeStaff} /><Mini icon={Scissors} label="Đang nhận lịch" value={bookableStaff} /></div></Card>{financeAllowed && <Card className="p-5"><h2 className="font-bold">Tóm tắt tài chính</h2><dl className="mt-4 space-y-3 text-sm"><Row label="Đã ghi nhận" value={money(grossRevenue)} /><Row label="Đã hoàn" value={money(refunded)} /><Row label="Thuần" value={money(grossRevenue - refunded)} strong /></dl><Link to="/salon/payments" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline"><CreditCard size={16} />Mở thanh toán & hoàn tiền</Link></Card>}</div></div>
     </>}
   </Page>;
 }

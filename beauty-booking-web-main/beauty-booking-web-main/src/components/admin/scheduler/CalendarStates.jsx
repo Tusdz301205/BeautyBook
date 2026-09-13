@@ -31,15 +31,17 @@ export function CalendarEmptyState() {
   );
 }
 
-export function CalendarErrorState({ message, onRetry }) {
+export function CalendarErrorState({ error, onRetry }) {
   return (
     <div className="flex min-h-[360px] flex-col items-center justify-center px-6 text-center" role="alert">
       <span className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-red-50 text-red-700">
         <AlertCircle size={22} />
       </span>
-      <p className="font-semibold text-zinc-900">Không thể tải dữ liệu lịch hẹn</p>
-      <p className="mt-1 max-w-md text-sm text-zinc-500">{message || 'Vui lòng kiểm tra kết nối và thử lại.'}</p>
-      <Button type="button" variant="secondary" onClick={onRetry} className="mt-4"><RefreshCw size={16} /> Thử lại</Button>
+      <p className="font-semibold text-zinc-900">{error?.title || 'Không thể tải dữ liệu lịch hẹn'}</p>
+      <p className="mt-1 max-w-md text-sm text-zinc-500">{error?.message || 'Vui lòng kiểm tra kết nối và thử lại.'}</p>
+      {error?.retryable !== false && (
+        <Button type="button" variant="secondary" onClick={onRetry} className="mt-4"><RefreshCw size={16} /> Thử lại</Button>
+      )}
     </div>
   );
 }

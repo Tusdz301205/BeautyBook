@@ -1,0 +1,118 @@
+@startuml sequence-update-booking-status
+title Quy trình Chuyển trạng thái Lịch hẹn Vận hành tại Chi nhánh (Status Progression)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Lễ tân\n(Receptionist)" as Receptionist
+actor "Nhân viên / Thợ\n(Staff)" as Staff
+participant "Salon Portal\n(Scheduler UI)" as Web
+participant "BookingsController" as Controller
+participant "BookingsService" as Service
+participant "bookings.validation" as Validation
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "SchedulerGateway\n(Socket.IO)" as WsGateway
+
+== 1. Lễ tân Check-in Khách hàng đến Salon ==
+Receptionist -> Web : Bấm "Check-in" khi khách đến quầy
+Web -> Controller : POST /api/v1/bookings/{id}/checkin\nHeaders: Authorization: Bearer <token>\nBody: { note? }
+
+activate Controller
+Controller -> Service : checkin(bookingId, currentUser)
+activate Service
+
+Service -> DB : prisma.booking.findUnique({ id })\ninclude: branch, bookingServices
+activate DB
+DB --> Service : Booking record (status: 'CONFIRMED', appointmentStartTime: 14:00)
+deactivate DB
+
+Service -> Validation : evaluateTimeAllowedForStatusTransition({\n  from: 'CONFIRMED', to: 'CHECKED_IN',\n  appointmentStartTime: 14:00, now: 13:40,\n  earlyCheckInMinutes: 30\n})
+activate Validation
+note right of Validation
+  Quy tắc thời gian:
+  - Chỉ cho phép check-in sớm tối đa 30 phút
+    (earlyCheckInMinutes = 30)
+  - Khách đến lúc 13:40 -> Hợp lệ (trong khung 13:30 - 14:00)
+end note
+Validation --> Service : { allowed: true }
+deactivate Validation
+
+Service -> Validation : assertActorStatusTransition(user.roles, 'CONFIRMED', 'CHECKED_IN')
+activate Validation
+Validation --> Service : Hợp lệ (Role: RECEPTIONIST được check-in)
+deactivate Validation
+
+Service -> DB : withSerializableTransaction(async (tx) => {\n  tx.booking.update({ where: { id }, data: { status: 'CHECKED_IN' } }),\n  tx.bookingStatusHistory.create({ bookingId, fromStatus: 'CONFIRMED', toStatus: 'CHECKED_IN', changedBy }),\n  tx.notificationOutbox.create({ type: 'BOOKING_CHECKED_IN' })\n})
+activate DB
+DB --> Service : Booking updated (CHECKED_IN)
+deactivate DB
+
+Service -> WsGateway : emit('booking:status_changed', { id, status: 'CHECKED_IN' })
+activate WsGateway
+WsGateway --> Web : Cập nhật UI hàng đợi & thẻ lịch hẹn
+deactivate WsGateway
+
+Service --> Controller : Updated Booking DTO
+deactivate Service
+Controller --> Web : 200 OK (status: 'CHECKED_IN')
+deactivate Controller
+
+== 2. Chuyên viên Bắt đầu Thực hiện Dịch vụ ==
+Staff -> Web : Bấm "Bắt đầu làm" (Start Service)
+Web -> Controller : PATCH /api/v1/bookings/{id}/status\nBody: { status: 'IN_PROGRESS' }
+
+activate Controller
+Controller -> Service : updateStatus(id, { status: 'IN_PROGRESS' }, user)
+activate Service
+
+Service -> Validation : assertStatusTransition('CHECKED_IN', 'IN_PROGRESS')
+Service -> Validation : assertActorStatusTransition(user.roles, 'CHECKED_IN', 'IN_PROGRESS')
+note right of Validation
+  STAFF được phép chuyển CHECKED_IN -> IN_PROGRESS
+end note
+
+Service -> DB : withSerializableTransaction(...)
+activate DB
+DB --> Service : Booking updated (IN_PROGRESS)
+deactivate DB
+
+Service -> WsGateway : emit('booking:status_changed', { id, status: 'IN_PROGRESS' })
+activate WsGateway
+WsGateway --> Web : Broadcast real-time
+deactivate WsGateway
+
+Service --> Controller : 200 OK
+deactivate Service
+Controller --> Web : 200 OK (status: 'IN_PROGRESS')
+deactivate Controller
+
+== 3. Chuyên viên Hoàn thành Dịch vụ ==
+Staff -> Web : Bấm "Hoàn thành" (Complete Service)
+Web -> Controller : PATCH /api/v1/bookings/{id}/status\nBody: { status: 'COMPLETED' }
+
+activate Controller
+Controller -> Service : updateStatus(id, { status: 'COMPLETED' }, user)
+activate Service
+
+Service -> Validation : assertStatusTransition('IN_PROGRESS', 'COMPLETED')
+Service -> Validation : assertActorStatusTransition(user.roles, 'IN_PROGRESS', 'COMPLETED')
+
+Service -> DB : withSerializableTransaction(async (tx) => {\n  tx.booking.update({ status: 'COMPLETED', completedAt: now }),\n  tx.bookingStatusHistory.create({ toStatus: 'COMPLETED' }),\n  tx.notificationOutbox.create({ type: 'REVIEW_REMINDER', recipient: customerId })\n})
+activate DB
+DB --> Service : Booking status: COMPLETED (Terminal State)
+deactivate DB
+
+Service -> WsGateway : emit('booking:status_changed', { id, status: 'COMPLETED' })
+activate WsGateway
+WsGateway --> Web : Cập nhật màu sắc ô lịch sang Completed
+deactivate WsGateway
+
+Service --> Controller : 200 OK
+deactivate Service
+Controller --> Web : 200 OK (status: 'COMPLETED')
+deactivate Controller
+
+@enduml

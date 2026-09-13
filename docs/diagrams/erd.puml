@@ -1,0 +1,340 @@
+@startuml erd
+title Sơ đồ Quan hệ Thực thể Cơ sở Dữ liệu (Entity Relationship Diagram - PostgreSQL)
+skinparam linetype ortho
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+entity "users" as users {
+  * id : uuid <<PK>>
+  --
+  * email : varchar(255) <<Unique>>
+  phone : varchar(50) <<Unique>>
+  * password_hash : varchar(255)
+  * full_name : varchar(255)
+  address : text
+  avatar_media_id : uuid <<FK>>
+  gender : enum_Gender
+  date_of_birth : date
+  * is_email_verified : boolean = false
+  * is_active : boolean = true
+  * created_at : timestamp
+  * updated_at : timestamp
+  deleted_at : timestamp
+}
+
+entity "user_sessions" as user_sessions {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  refresh_token_hash : text
+  user_agent : text
+  ip_address : varchar(45)
+  * workspace : enum_AuthWorkspace = 'CUSTOMER'
+  business_id : uuid
+  branch_id : uuid
+  * last_active_at : timestamp
+  * expires_at : timestamp
+  revoked_at : timestamp
+}
+
+entity "roles" as roles {
+  * id : uuid <<PK>>
+  --
+  * code : enum_RoleCode <<Unique>>
+  * name : varchar(100)
+  * level : enum_RoleLevel = 'CUSTOMER'
+}
+
+entity "user_roles" as user_roles {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK>>
+  * role_id : uuid <<FK>>
+  business_id : uuid <<FK>>
+  branch_id : uuid <<FK>>
+  granted_by : uuid <<FK>>
+  * granted_at : timestamp
+  expires_at : timestamp
+}
+
+entity "customer_profiles" as customer_profiles {
+  * id : uuid <<PK>>
+  --
+  * user_id : uuid <<FK, Unique>>
+  address : text
+  note : text
+  loyalty_balance : integer = 0
+  * created_at : timestamp
+}
+
+entity "staff_profiles" as staff_profiles {
+  * id : uuid <<PK>>
+  --
+  user_id : uuid <<FK>>
+  * branch_id : uuid <<FK>>
+  * full_name : varchar(255)
+  title : varchar(100)
+  bio : text
+  * is_bookable : boolean = true
+  * status : enum_StaffStatus = 'ACTIVE'
+  * created_at : timestamp
+}
+
+entity "businesses" as businesses {
+  * id : uuid <<PK>>
+  --
+  owner_profile_id : uuid <<FK>>
+  * name : varchar(255)
+  * slug : varchar(255) <<Unique>>
+  company_name : varchar(255)
+  tax_code : varchar(50)
+  address_line : text
+  * status : enum_BusinessStatus = 'DRAFT'
+  booking_restricted_at : timestamp
+  * created_at : timestamp
+}
+
+entity "branches" as branches {
+  * id : uuid <<PK>>
+  --
+  * business_id : uuid <<FK>>
+  * name : varchar(255)
+  * slug : varchar(255)
+  * address_line : text
+  latitude : numeric(10, 7)
+  longitude : numeric(10, 7)
+  * status : enum_BranchStatus = 'ACTIVE'
+  * booking_confirmation_mode : enum_BookingConfirmationMode
+  * staff_assignment_mode : enum_StaffAssignmentMode
+  pending_hold_minutes : integer = 15
+}
+
+entity "branch_working_hours" as branch_working_hours {
+  * id : uuid <<PK>>
+  --
+  * branch_id : uuid <<FK>>
+  * day_of_week : smallint (0..6)
+  * open_time : time
+  * close_time : time
+  * is_closed : boolean = false
+}
+
+entity "branch_holidays" as branch_holidays {
+  * id : uuid <<PK>>
+  --
+  * branch_id : uuid <<FK>>
+  * date : date
+  * name : varchar(255)
+  * is_closed : boolean = true
+}
+
+entity "business_services" as business_services {
+  * id : uuid <<PK>>
+  --
+  * business_id : uuid <<FK>>
+  canonical_service_id : uuid
+  * name : varchar(255)
+  description : text
+  * duration_minutes : integer
+  * status : enum_ServiceStatus = 'ACTIVE'
+}
+
+entity "branch_service_offerings" as branch_service_offerings {
+  * id : uuid <<PK>>
+  --
+  * branch_id : uuid <<FK>>
+  * business_service_id : uuid <<FK>>
+  * price : numeric(12, 2)
+  * duration_minutes : integer
+  * bookable : boolean = true
+  * status : enum_ServiceStatus = 'ACTIVE'
+}
+
+entity "service_variants" as service_variants {
+  * id : uuid <<PK>>
+  --
+  * service_id : uuid <<FK>>
+  * name : varchar(255)
+  * price : numeric(12, 2)
+  duration_minutes : integer
+  buffer_before_minutes : integer = 0
+  buffer_after_minutes : integer = 0
+  eligibility_rules : jsonb
+  * status : enum_ServiceStatus = 'ACTIVE'
+}
+
+entity "staff_services" as staff_services {
+  * staff_id : uuid <<PK, FK>>
+  * service_id : uuid <<PK, FK>>
+}
+
+entity "bookings" as bookings {
+  * id : uuid <<PK>>
+  --
+  * booking_code : varchar(50) <<Unique>>
+  * branch_id : uuid <<FK>>
+  * customer_id : uuid <<FK>>
+  voucher_id : uuid <<FK>>
+  * appointment_date : date
+  * appointment_start_time : timestamptz
+  * appointment_end_time : timestamptz
+  * total_duration_minutes : integer
+  * original_subtotal : numeric(12, 2)
+  * discount_amount : numeric(12, 2) = 0
+  * final_total : numeric(12, 2)
+  * status : enum_BookingStatus = 'PENDING'
+  * payment_status : enum_PaymentStatus = 'PENDING'
+  * source : enum_BookingSource = 'ONLINE_WEB'
+  guest_name : varchar(100)
+  guest_phone : varchar(50)
+  cancellation_reason : text
+  cancelled_at : timestamptz
+  cancelled_by_id : uuid <<FK>>
+  * created_at : timestamptz
+}
+
+entity "booking_services" as booking_services {
+  * id : uuid <<PK>>
+  --
+  * booking_id : uuid <<FK>>
+  * service_id : uuid <<FK>>
+  staff_id : uuid <<FK>>
+  variant_id : uuid <<FK>>
+  * price_snapshot : numeric(12, 2)
+  item_start_at : timestamptz
+  item_end_at : timestamptz
+  * status : enum_BookingServiceStatus = 'SCHEDULED'
+  --
+  <<Constraint: booking_services_staff_slot_no_overlap (tstzrange exclusion)>>
+}
+
+entity "booking_status_histories" as booking_status_histories {
+  * id : uuid <<PK>>
+  --
+  * booking_id : uuid <<FK>>
+  * from_status : enum_BookingStatus
+  * to_status : enum_BookingStatus
+  * changed_by : uuid <<FK>>
+  note : text
+  * created_at : timestamptz
+}
+
+entity "reviews" as reviews {
+  * id : uuid <<PK>>
+  --
+  * booking_id : uuid <<FK, Unique>>
+  * customer_id : uuid <<FK>>
+  * overall_rating : smallint (1..5)
+  comment : text
+  * is_anonymous : boolean = false
+  * status : enum_ReviewStatus = 'APPROVED'
+  * created_at : timestamptz
+}
+
+entity "review_service_ratings" as review_service_ratings {
+  * id : uuid <<PK>>
+  --
+  * review_id : uuid <<FK>>
+  * booking_service_id : uuid <<FK>>
+  staff_id : uuid <<FK>>
+  * rating : smallint (1..5)
+  comment : text
+}
+
+entity "business_replies" as business_replies {
+  * id : uuid <<PK>>
+  --
+  * review_id : uuid <<FK, Unique>>
+  * business_id : uuid <<FK>>
+  * content : text
+  * created_at : timestamptz
+}
+
+entity "payments" as payments {
+  * id : uuid <<PK>>
+  --
+  * booking_id : uuid <<FK>>
+  * amount : numeric(12, 2)
+  * method : enum_PaymentMethod
+  * status : enum_PaymentStatus = 'PENDING'
+  paid_at : timestamptz
+}
+
+entity "payment_transactions" as payment_transactions {
+  * id : uuid <<PK>>
+  --
+  * payment_id : uuid <<FK>>
+  * amount : numeric(12, 2)
+  * status : enum_PaymentTransactionStatus
+  * provider_code : varchar(50)
+  reference_code : varchar(100)
+  verified_at : timestamptz
+  verified_by_id : uuid <<FK>>
+}
+
+entity "financial_ledgers" as financial_ledgers {
+  * id : uuid <<PK>>
+  --
+  * business_id : uuid <<FK>>
+  * branch_id : uuid <<FK>>
+  booking_id : uuid <<FK>>
+  * type : enum_FinancialLedgerType
+  * direction : enum_LedgerDirection ('DEBIT' | 'CREDIT')
+  * amount : numeric(12, 2)
+  * created_at : timestamptz
+}
+
+entity "invoices" as invoices {
+  * id : uuid <<PK>>
+  --
+  * invoice_number : varchar(100) <<Unique>>
+  * booking_id : uuid <<FK>>
+  * total_amount : numeric(12, 2)
+  * status : enum_InvoiceStatus = 'PAID'
+  * created_at : timestamptz
+}
+
+' Relational Foreign Key Connections
+users ||--o{ user_sessions : "user_id"
+users ||--o{ user_roles : "user_id"
+roles ||--o{ user_roles : "role_id"
+users ||--o| customer_profiles : "user_id"
+users ||--o| staff_profiles : "user_id"
+
+businesses ||--|{ branches : "business_id"
+businesses ||--o{ business_services : "business_id"
+branches ||--o{ branch_working_hours : "branch_id"
+branches ||--o{ branch_holidays : "branch_id"
+branches ||--|{ staff_profiles : "branch_id"
+
+business_services ||--o{ branch_service_offerings : "business_service_id"
+branches ||--o{ branch_service_offerings : "branch_id"
+branch_service_offerings ||--o{ service_variants : "service_id"
+
+staff_profiles ||--o{ staff_services : "staff_id"
+branch_service_offerings ||--o{ staff_services : "service_id"
+
+branches ||--o{ bookings : "branch_id"
+customer_profiles ||--o{ bookings : "customer_id"
+bookings ||--|{ booking_services : "booking_id"
+branch_service_offerings ||--o{ booking_services : "service_id"
+staff_profiles ||--o{ booking_services : "staff_id"
+service_variants ||--o{ booking_services : "variant_id"
+
+bookings ||--|{ booking_status_histories : "booking_id"
+users ||--o{ booking_status_histories : "changed_by"
+
+bookings ||--o| reviews : "booking_id"
+reviews ||--o{ review_service_ratings : "review_id"
+booking_services ||--o{ review_service_ratings : "booking_service_id"
+reviews ||--o| business_replies : "review_id"
+
+bookings ||--o{ payments : "booking_id"
+payments ||--|{ payment_transactions : "payment_id"
+bookings ||--o| invoices : "booking_id"
+businesses ||--o{ financial_ledgers : "business_id"
+bookings ||--o{ financial_ledgers : "booking_id"
+
+@enduml

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
@@ -109,63 +109,4 @@ export class FinanceController {
     });
   }
 
-  @Post('cash-shifts')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('payment:create:branch', 'payment:create:tenant')
-  async open(@Body() body: { branchId: string; openingBalance: number }, @CurrentUser() user: AuthUser) {
-    await assertBranchAccess(this.prisma, user, body.branchId);
-    return this.finance.openShift(body.branchId, user.id, body.openingBalance);
-  }
-
-  @Get('cash-shifts')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('payment:read:branch', 'payment:read:tenant')
-  async shifts(@Query('branchId') branchId: string | undefined, @CurrentUser() user: AuthUser) {
-    if (branchId) {
-      await assertBranchAccess(this.prisma, user, branchId);
-      return this.finance.listShifts([branchId]);
-    }
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
-    const branches = await this.prisma.branch.findMany({
-      where: { businessId: { in: businessIds }, deletedAt: null },
-      select: { id: true },
-    });
-    return this.finance.listShifts(branches.map((branch) => branch.id));
-  }
-
-  @Post('cash-shifts/:id/movements')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('payment:create:branch', 'payment:create:tenant')
-  async movement(@Param('id') id: string, @Body() body: any, @CurrentUser() user: AuthUser) {
-    const shift = await this.prisma.cashShift.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, shift.branchId);
-    return this.finance.addCashMovement(id, user.id, body);
-  }
-
-  @Patch('cash-shifts/:id/close')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('payment:create:branch', 'payment:create:tenant')
-  async close(@Param('id') id: string, @Body() body: any, @CurrentUser() user: AuthUser) {
-    const shift = await this.prisma.cashShift.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, shift.branchId);
-    return this.finance.closeShift(id, user.id, body);
-  }
-
-  @Patch('cash-shifts/:id/approve')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('payment:create:branch', 'payment:create:tenant')
-  async approve(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    const shift = await this.prisma.cashShift.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, shift.branchId);
-    return this.finance.approveShift(id, user.id);
-  }
-
-  @Get('cash-shifts/:id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('payment:read:branch', 'payment:read:tenant')
-  async shift(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    const shift = await this.prisma.cashShift.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, shift.branchId);
-    return this.finance.shiftDetail(id);
-  }
 }

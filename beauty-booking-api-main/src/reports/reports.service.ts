@@ -301,8 +301,6 @@ export class ReportsService {
       rawPreviousTransactions,
       rawRefunds,
       rawPreviousRefunds,
-      rawAttendance,
-      rawPendingAdjustments,
       rawReviews,
     ] = await Promise.all([
       this.prisma.branch.findMany({
@@ -404,14 +402,6 @@ export class ReportsService {
         where: { status: 'REFUNDED', processedAt: { gte: previousBroadFrom, lte: previousBroadTo }, payment: { booking: { branch: scopedBranchFilter } } },
         select: { id: true, amount: true, processedAt: true, payment: { select: { bookingId: true, booking: { select: { branchId: true } } } } },
       }),
-      this.prisma.staffAttendance.findMany({
-        where: { branch: scopedBranchFilter, workDate: { gte: broadFrom, lte: broadTo } },
-        select: { branchId: true, workDate: true, status: true },
-      }),
-      this.prisma.attendanceExceptionRequest.findMany({
-        where: { branch: scopedBranchFilter, status: 'PENDING', workDate: { gte: broadFrom, lte: broadTo } },
-        select: { id: true, branchId: true, workDate: true },
-      }),
       this.prisma.review.findMany({
         where: {
           deletedAt: null,
@@ -464,8 +454,6 @@ export class ReportsService {
     const previousTransactions = rawPreviousTransactions.filter((row) => inRange(row.verifiedAt ?? row.createdAt, row.branchId, previousFromKey, previousToKey));
     const refunds = rawRefunds.filter((row) => inRange(row.processedAt, row.payment.booking.branchId, fromKey, toKey));
     const previousRefunds = rawPreviousRefunds.filter((row) => inRange(row.processedAt, row.payment.booking.branchId, previousFromKey, previousToKey));
-    const attendance = rawAttendance.filter((row) => inRange(row.workDate, row.branchId, fromKey, toKey));
-    const pendingAdjustments = rawPendingAdjustments.filter((row) => inRange(row.workDate, row.branchId, fromKey, toKey)).length;
     const reviews = rawReviews.filter((row) => inRange(row.createdAt, row.booking.branchId, fromKey, toKey));
     const discountByBooking = new Map<string, number>();
     for (const adjustment of rawDiscountAdjustments) {
@@ -616,11 +604,6 @@ export class ReportsService {
         }
       }
     }
-    const attendanceStatuses = ['CHECKED_OUT', 'LATE', 'LEFT_EARLY', 'MISSING_CHECKOUT', 'ABSENT', 'NOT_CHECKED_IN'];
-    const attendanceStatus = attendanceStatuses.map((status) => ({
-      status,
-      count: attendance.filter((row) => row.status === status).length,
-    }));
     const approvedReviews = reviews.filter((review) => review.status === 'APPROVED');
     const ratingDistribution = [1, 2, 3, 4, 5].map((rating) => ({
       rating,
@@ -660,7 +643,6 @@ export class ReportsService {
         branchComparison,
         topServices: [...serviceMap.values()].sort((left, right) => right.bookings - left.bookings).slice(0, 8),
         topCombos: [...comboMap.values()].sort((left, right) => right.bookings - left.bookings).slice(0, 5),
-        attendanceStatus,
         review: {
           average: approvedReviews.length
             ? Math.round((approvedReviews.reduce((sum, item) => sum + item.overallRating, 0) / approvedReviews.length) * 10) / 10
@@ -671,7 +653,6 @@ export class ReportsService {
             trend: reviewTrend,
           },
       },
-      pendingAdjustments,
     };
   }
 
@@ -705,7 +686,6 @@ export class ReportsService {
         where: { branchId: { in: branchIds }, deletedAt: null, appointmentDate: { gte: broadFrom, lte: broadTo } },
         select: {
           id: true, branchId: true, status: true, appointmentDate: true, finalAmount: true, totalAmount: true,
-          cancellationFeeAmount: true,
           bookingServices: { select: { id: true, status: true, priceAtBooking: true } },
           paymentTransactions: { select: { id: true, amount: true, status: true, reversalOfId: true } },
           payments: {
@@ -781,12 +761,6 @@ export class ReportsService {
     const completedCount = scopedBookings.filter((booking) => booking.status === 'COMPLETED').length;
     const cancelledCount = scopedBookings.filter((booking) => ['CANCELLED', 'REJECTED', 'EXPIRED'].includes(booking.status)).length;
     const noShowCount = scopedBookings.filter((booking) => booking.status === 'NO_SHOW').length;
-    const cancellationFeeCollected = scopedBookings
-      .filter((booking) => booking.status === 'CANCELLED' && Number(booking.cancellationFeeAmount ?? 0) > 0)
-      .reduce((sum, booking) => sum + Math.max(0, Math.min(Number(booking.cancellationFeeAmount), lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
-    const noShowFeeCollected = scopedBookings
-      .filter((booking) => booking.status === 'NO_SHOW' && Number(booking.cancellationFeeAmount ?? 0) > 0)
-      .reduce((sum, booking) => sum + Math.max(0, Math.min(Number(booking.cancellationFeeAmount), lifetimeNetByBooking.get(booking.id) ?? 0)), 0);
     return {
       definitions: {
         bookedCount: 'Tất cả lịch được tạo trong kỳ theo ngày hẹn tại múi giờ chi nhánh.',
@@ -794,8 +768,6 @@ export class ReportsService {
         netCollected: 'grossCollected trừ refund/reversal thực tế phát sinh trong kỳ.',
         recognizedServiceRevenue: 'Tiền đã thu ròng được ghi nhận cho lịch hoàn thành, không vượt giá cuối cùng.',
         outstandingAmount: 'Giá cuối cùng còn thiếu trên các lịch không bị hủy/từ chối/hết hạn.',
-        cancellationFeeCollected: 'Phần phí hủy thực sự được bảo đảm bởi tiền đã thu ròng; không dùng phí chỉ mới được tính.',
-        noShowFeeCollected: 'Phần phí no-show thực sự được bảo đảm bởi tiền đã thu ròng; không dùng phí chỉ mới được tính.',
       },
       from: fromDate,
       to: toDate,
@@ -810,8 +782,8 @@ export class ReportsService {
       recognizedServiceRevenue,
       discountAmount,
       outstandingAmount,
-      cancellationFeeCollected,
-      noShowFeeCollected,
+      cancellationFeeCollected: 0,
+      noShowFeeCollected: 0,
       drillDown: {
         bookingIds: scopedBookings.map((booking) => booking.id),
         paymentTransactionIds: verified.map((transaction) => transaction.id),

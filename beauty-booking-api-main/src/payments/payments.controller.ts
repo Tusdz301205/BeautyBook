@@ -6,7 +6,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { PaymentsService } from './payments.service';
 import {
   CollectPaymentDto,
-  CreatePaymentIntentDto,
   CreatePaymentPolicyDto,
   CreateTreatmentPackageDto,
   GeneratePlatformStatementDto,
@@ -46,24 +45,17 @@ export class PaymentsController {
   }
 
   @Get('providers')
-  @Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')
-  @RequirePermission('payment:read:self', 'payment:read:branch', 'payment:read:tenant', 'payment:read:platform')
+  @Roles('RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')
+  @RequirePermission('payment:read:branch', 'payment:read:tenant', 'payment:read:platform')
   providerCapabilities() {
     return this.payments.providerCapabilities();
   }
 
   @Get('checkout/:bookingId')
-  @Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')
-  @RequirePermission('payment:read:self', 'payment:read:branch', 'payment:read:tenant', 'payment:read:platform')
+  @Roles('RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')
+  @RequirePermission('payment:read:branch', 'payment:read:tenant', 'payment:read:platform')
   checkout(@Param('bookingId') bookingId: string, @CurrentUser() user: AuthUser) {
     return this.payments.checkoutContext(bookingId, user);
-  }
-
-  @Post('intents')
-  @Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER')
-  @RequirePermission('payment_intent:create:self', 'payment_intent:create:branch', 'payment_intent:create:tenant')
-  createIntent(@Body() body: CreatePaymentIntentDto, @CurrentUser() user: AuthUser) {
-    return this.payments.collect(body.bookingId, body.method, user, body);
   }
 
   @Post('transactions/:transactionId/verify')
@@ -180,9 +172,8 @@ export class PaymentsController {
   }
 
   @Post('packages/:packageId/purchases')
-  @Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER')
+  @Roles('RECEPTIONIST', 'BUSINESS_OWNER')
   @RequirePermission(
-    'package_purchase:create:self',
     'package_purchase:create:branch',
     'package_purchase:create:tenant',
   )
@@ -205,9 +196,8 @@ export class PaymentsController {
   }
 
   @Post('package-installments/:installmentId/pay')
-  @Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER')
+  @Roles('RECEPTIONIST', 'BUSINESS_OWNER')
   @RequirePermission(
-    'package_purchase:create:self',
     'package_purchase:create:branch',
     'package_purchase:create:tenant',
   )

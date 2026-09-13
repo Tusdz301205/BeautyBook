@@ -142,13 +142,13 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
     }
     const routes = {
       customer: {
-        PAYMENT: '/customer/payments', REFUND: '/customer/payments', VOUCHER: '/customer/vouchers',
+        PAYMENT: '/customer/appointments', REFUND: '/customer/appointments', VOUCHER: '/customer/vouchers',
         PROMOTION: '/explore', REVIEW: '/customer/reviews', PRIVACY: '/customer/privacy',
         SECURITY: '/customer/security',
       },
       salon: {
         PAYMENT: '/salon/payments', REFUND: '/salon/payments', PROMOTION: '/salon/promotions',
-        VOUCHER: '/salon/promotions', REVIEW: '/salon/reviews', ATTENDANCE: '/salon/attendance/my',
+        VOUCHER: '/salon/promotions', REVIEW: '/salon/reviews',
         STAFF: '/salon/staff', BRANCH: '/salon/profile', BUSINESS: '/salon/profile', SECURITY: '/salon/security',
       },
       platform: {

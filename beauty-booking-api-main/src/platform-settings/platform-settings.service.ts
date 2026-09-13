@@ -22,12 +22,6 @@ export const PLATFORM_DEFAULTS = Object.freeze({
   allowAnonymousReview: false,
   autoHideReviewReportThreshold: 3,
   violationSuspendThreshold: 5,
-  checkInEarlyWindowMinutes: 30,
-  lateGraceMinutes: 10,
-  absentThresholdMinutes: 60,
-  checkOutEarlyGraceMinutes: 5,
-  overtimeGraceMinutes: 15,
-  attendanceQrTtlSeconds: 45,
 });
 
 export type PlatformSettings = typeof PLATFORM_DEFAULTS;
@@ -59,12 +53,6 @@ const INTEGER_RULES: Record<string, [number, number]> = {
   reviewMinLength: [0, 500],
   autoHideReviewReportThreshold: [1, 100],
   violationSuspendThreshold: [1, 100],
-  checkInEarlyWindowMinutes: [0, 180],
-  lateGraceMinutes: [0, 120],
-  absentThresholdMinutes: [1, 720],
-  checkOutEarlyGraceMinutes: [0, 120],
-  overtimeGraceMinutes: [0, 240],
-  attendanceQrTtlSeconds: [30, 60],
 };
 
 const BOOLEAN_KEYS = new Set([

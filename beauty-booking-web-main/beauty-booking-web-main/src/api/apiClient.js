@@ -6,24 +6,39 @@
  * - Error chuẩn hoá với message tiếng Việt
  */
 import { useAuthStore } from '../store/authStore';
+import { sanitizeApiErrorMessage } from '../utils/requestError';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api/v1';
 let refreshPromise = null;
 
-async function refreshSession() {
+async function performRefresh() {
+  const response = await fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) {
+    const error = new Error('Không thể làm mới phiên đăng nhập');
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+export async function refreshSession() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const response = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': crypto.randomUUID(),
-        },
-        body: JSON.stringify({}),
-      });
-      if (!response.ok) throw new Error('Không thể làm mới phiên đăng nhập');
-      return response.json();
+      // React StrictMode can initialize twice and separate tabs share the same
+      // rotating refresh cookie. A per-tab promise plus the browser-wide Web
+      // Lock serializes both cases so a valid token is not mistaken for replay.
+      if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+        return navigator.locks.request('beautybook-auth-refresh', performRefresh);
+      }
+      return performRefresh();
     })().finally(() => {
       refreshPromise = null;
     });
@@ -102,7 +117,7 @@ async function request(endpoint, options = {}, _isRetry = false) {
     } catch {
       // ignore JSON parse error
     }
-    const err = new Error(message);
+    const err = new Error(sanitizeApiErrorMessage(response.status, message));
     err.status = response.status;
     err.details = details;
     throw err;
@@ -138,11 +153,7 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  refresh: () =>
-    request('/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    }),
+  refresh: () => refreshSession(),
   verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
   forgotPassword: (email) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token, newPassword) => request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
@@ -204,25 +215,28 @@ export const bookingsApi = {
     });
   },
 
-  create: (data) =>
+  create: (data, idempotencyKey) =>
     request('/bookings', {
       method: 'POST',
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       body: JSON.stringify(data),
     }),
 
-  createGuest: (data) =>
+  createGuest: (data, idempotencyKey) =>
     request('/bookings/guest', {
       method: 'POST',
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       body: JSON.stringify(data),
     }),
 
-  availableSlots: ({ branchId, staffId, serviceIds, date }) => {
+  availableSlots: ({ branchId, staffId, serviceIds, date, variantSelections }) => {
     const query = new URLSearchParams({
       branchId,
       staffId: staffId || '',
       date,
       serviceIds: serviceIds.join(','),
     });
+    if (variantSelections && Object.keys(variantSelections).length) query.set('variantSelections', JSON.stringify(variantSelections));
     return request(`/bookings/available-slots?${query.toString()}`);
   },
 
@@ -250,6 +264,8 @@ export const bookingsApi = {
       method: 'PATCH',
       body: JSON.stringify({ staffId }),
     }),
+  addItem: (id, data) => request(`/bookings/${id}/items`, { method: 'POST', body: JSON.stringify(data) }),
+  updateItem: (id, itemId, data) => request(`/bookings/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // ===== Bổ sung nghiệp vụ 2026-07-10 =====
   myAppointments: (tab = 'upcoming') =>
@@ -259,10 +275,10 @@ export const bookingsApi = {
 
   salonViolations: () => request('/bookings/salon-violations'),
 
-  previewPrice: ({ customerId, branchId, serviceIds, comboId, voucherCode }) =>
+  previewPrice: ({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, loyaltyPoints, appointmentDate }) =>
     request('/bookings/preview-price', {
       method: 'POST',
-      body: JSON.stringify({ customerId, branchId, serviceIds, comboId, voucherCode }),
+      body: JSON.stringify({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, loyaltyPoints, appointmentDate }),
     }),
 
   createChangeRequest: (bookingId, body) =>
@@ -305,6 +321,11 @@ export const reportsApi = {
     const query = new URLSearchParams({ from, to });
     if (branchId && branchId !== 'ALL') query.set('branchId', branchId);
     return request(`/reports/owner-dashboard?${query.toString()}`);
+  },
+  getFinancialSummary: ({ from, to, branchId } = {}) => {
+    const query = new URLSearchParams({ from, to });
+    if (branchId && branchId !== 'ALL') query.set('branchId', branchId);
+    return request(`/reports/financial-summary?${query.toString()}`);
   },
 };
 
@@ -431,6 +452,11 @@ export const servicesApi = {
   }),
 
   getById: (id) => request(`/services/${id}`),
+  getVariants: (id) => request(`/services/${id}/variants`),
+  createVariant: (id, data) => request(`/services/${id}/variants`, { method: 'POST', body: JSON.stringify(data) }),
+  updateVariant: (id, data) => request(`/services/variants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  addDependency: (id, data) => request(`/services/${id}/dependencies`, { method: 'POST', body: JSON.stringify(data) }),
+  createPriceRule: (id, data) => request(`/services/${id}/price-rules`, { method: 'POST', body: JSON.stringify(data) }),
 
   create: (data) =>
     request('/services', {
@@ -500,14 +526,6 @@ export const staffApi = {
   deactivate: (id, data) =>
     request(`/staff/${id}`, { method: 'DELETE', body: JSON.stringify(data) }),
 
-  getWorkingHours: (id) => request(`/staff/${id}/working-hours`),
-
-  upsertWorkingHours: (id, hours) =>
-    request(`/staff/${id}/working-hours`, {
-      method: 'PATCH',
-      body: JSON.stringify({ hours }),
-    }),
-
   getServices: (id) => request(`/staff/${id}/services`),
 
   assignServices: (id, serviceIds) =>
@@ -534,32 +552,8 @@ export const staffApi = {
   changeInvitationEmail: (id, email) => request(`/staff/invitations/${id}/email`, { method: 'PATCH', body: JSON.stringify({ email }) }),
   revokeInvitation: (id) => request(`/staff/invitations/${id}`, { method: 'DELETE' }),
   acceptInvitation: (data) => request('/staff/invitations/accept', { method: 'POST', body: JSON.stringify(data) }),
-  getScheduleExceptions: (id) => request(`/staff/${id}/schedule-exceptions`),
-  replaceBreaks: (id, breaks) => request(`/staff/${id}/breaks`, { method: 'PATCH', body: JSON.stringify({ breaks }) }),
-  requestLeave: (id, data) => request(`/staff/${id}/leaves`, { method: 'POST', body: JSON.stringify(data) }),
-  reviewLeave: (leaveId, approve, reviewNote) => request(`/staff/leaves/${leaveId}/review`, { method: 'PATCH', body: JSON.stringify({ approve, reviewNote }) }),
   upsertHoliday: (branchId, data) => request(`/staff/branches/${branchId}/holidays`, { method: 'PATCH', body: JSON.stringify(data) }),
   createSpecialDay: (branchId, data) => request(`/staff/branches/${branchId}/special-days`, { method: 'POST', body: JSON.stringify(data) }),
-  getScheduleView: (id, { branchId, from, to }) => {
-    const query = new URLSearchParams({ from, to });
-    if (branchId) query.set('branchId', branchId);
-    return request(`/staff/${id}/schedule-view?${query.toString()}`);
-  },
-  getScheduleVersions: (id, branchId) =>
-    request(`/staff/${id}/schedule-versions${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),
-  saveScheduleVersion: (id, data) => request(`/staff/${id}/schedule-versions`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  requestScheduleChange: (id, data) => request(`/staff/${id}/schedule-change-requests`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  reviewScheduleChange: (requestId, approve, reviewNote) =>
-    request(`/staff/schedule-change-requests/${requestId}/review`, {
-      method: 'PATCH',
-      body: JSON.stringify({ approve, reviewNote }),
-    }),
   assignBranch: (id, data) => request(`/staff/${id}/branch-assignments`, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -722,12 +716,14 @@ export const reviewsApi = {
       body: JSON.stringify({ content }),
     }),
 
-  moderate: (reviewId, status) =>
+  moderate: (reviewId, data) =>
     request(`/reviews/${reviewId}/moderate`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(data),
     }),
-  report: (reviewId, reason) => request(`/reviews/${reviewId}/report`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  report: (reviewId, data) => request(`/reviews/${reviewId}/report`, { method: 'POST', body: JSON.stringify(typeof data === 'string' ? { reason: data } : data) }),
+  appeal: (reviewId, reason) => request(`/reviews/${reviewId}/appeals`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  resolveAppeal: (appealId, data) => request(`/reviews/appeals/${appealId}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ======================== ADMIN ========================
@@ -775,93 +771,6 @@ export const businessApi = {
   review: (businessId, decision, note) => request(`/business/${businessId}/review`, { method: 'PATCH', body: JSON.stringify({ decision, note }) }),
 };
 
-// ======================== ATTENDANCE ========================
-export const attendanceApi = {
-  getMyToday: (date) => request(`/attendance/me/today${date ? `?date=${encodeURIComponent(date)}` : ''}`),
-  getMyHistory: (from, to) => request(`/attendance/me/history?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-  checkIn: (qrToken) => request('/attendance/check-in', { method: 'POST', body: JSON.stringify({ qrToken }) }),
-  checkOut: (qrToken) => request('/attendance/check-out', { method: 'POST', body: JSON.stringify({ qrToken }) }),
-  startBreak: () => request('/attendance/break/start', { method: 'POST' }),
-  endBreak: () => request('/attendance/break/end', { method: 'POST' }),
-  getBoardContext: (branchId) => request(`/attendance/qr/board-context${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),
-  generateQr: (branchId, purpose = 'BOTH') => request('/attendance/qr/generate', { method: 'POST', body: JSON.stringify({ branchId, purpose }) }),
-  getBranchToday: (branchId, date) => request(`/attendance/branch/today?branchId=${encodeURIComponent(branchId)}${date ? `&date=${encodeURIComponent(date)}` : ''}`),
-  getTenantReport: (from, to, branchId) => request(`/attendance/tenant/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${branchId ? `&branchId=${encodeURIComponent(branchId)}` : ''}`),
-  createException: (data) => request('/attendance/exception-requests', { method: 'POST', body: JSON.stringify(data) }),
-  getExceptions: (branchId, status = 'PENDING') => request(`/attendance/exception-requests?status=${status}${branchId ? `&branchId=${encodeURIComponent(branchId)}` : ''}`),
-  reviewException: (id, approve, reason) => request(`/attendance/exception-requests/${id}/${approve ? 'approve' : 'reject'}`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  adjust: (id, data) => request(`/attendance/${id}/adjust`, { method: 'PATCH', body: JSON.stringify(data) }),
-  markAbsent: (staffId, date, reason) => request(`/attendance/absence/${staffId}/mark`, { method: 'POST', body: JSON.stringify({ date, reason }) }),
-  restoreAbsent: (id, reason) => request(`/attendance/${id}/restore-absent`, { method: 'POST', body: JSON.stringify({ reason }) }),
-  getAffectedBookings: (staffId, date) => request(`/attendance/absence/${staffId}/affected-bookings?date=${encodeURIComponent(date)}`),
-  resolveAffectedBooking: (staffId, bookingId, data) => request(`/attendance/absence/${staffId}/resolve-bookings/${bookingId}`, { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// ======================== WORKFORCE / TIMESHEETS / COMPENSATION ========================
-export const workforceApi = {
-  getAvailability: ({ staffId, branchId } = {}) => {
-    const query = new URLSearchParams();
-    if (staffId) query.set('staffId', staffId);
-    if (branchId) query.set('branchId', branchId);
-    return request(`/workforce/availability${query.size ? `?${query}` : ''}`);
-  },
-  replaceAvailability: (data) => request('/workforce/availability', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  generateTimesheets: (data) => request('/workforce/timesheets/generate', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  getTimesheets: (filters = {}) => {
-    const query = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) query.set(key, value);
-    });
-    return request(`/workforce/timesheets${query.size ? `?${query}` : ''}`);
-  },
-  approveTimesheet: (id, data) => request(`/workforce/timesheets/${id}/approve`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  }),
-  requestTimesheetAdjustment: (id, data) => request(`/workforce/timesheets/${id}/adjustments`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  reviewTimesheetAdjustment: (id, data) => request(`/workforce/timesheet-adjustments/${id}/review`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  }),
-  createCompensationRule: (data) => request('/workforce/compensation/rules', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  assignCompensationRule: (ruleId, data) => request(`/workforce/compensation/rules/${ruleId}/assignments`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  calculateCompensation: (data) => request('/workforce/compensation/calculate', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  getCompensation: (filters = {}) => {
-    const query = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) query.set(key, value);
-    });
-    return request(`/workforce/compensation${query.size ? `?${query}` : ''}`);
-  },
-  createPayRun: (data) => request('/workforce/pay-runs', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  getPayRuns: (businessId) => request(`/workforce/pay-runs${businessId ? `?businessId=${encodeURIComponent(businessId)}` : ''}`),
-  transitionPayRun: (id, data) => request(`/workforce/pay-runs/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  }),
-};
-
 // ======================== PAYMENTS / REFUNDS ========================
 export const paymentsApi = {
   getAll: () => request('/payments'),
@@ -871,7 +780,6 @@ export const paymentsApi = {
   }),
   getProviders: () => request('/payments/providers'),
   getCheckout: (bookingId) => request(`/payments/checkout/${bookingId}`),
-  createIntent: (data) => request('/payments/intents', { method: 'POST', body: JSON.stringify(data) }),
   verifyTransaction: (transactionId, settlementReference, evidence) =>
     request(`/payments/transactions/${transactionId}/verify`, {
       method: 'POST',
@@ -923,36 +831,9 @@ export const paymentsApi = {
     }),
 };
 
-// ======================== HEALTH RECORDS ========================
-export const healthRecordsApi = {
-  getConsents: () => request('/health-records/consent'),
-  create: (data) => request('/health-records', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  getById: (id) => request(`/health-records/${id}`),
-  getByBooking: (bookingId) => request(`/health-records/by-booking/${bookingId}`),
-  remove: (id) => request(`/health-records/${id}`, { method: 'DELETE' }),
-  grantConsent: (data) => request('/health-records/consent/grant', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  revokeConsent: (data) => request('/health-records/consent/revoke', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-};
-
 // ======================== PRIVACY CENTER ========================
-// New sensitive-data workflows are contextual to an appointment and use the
-// versioned Privacy API. Keep healthRecordsApi above only for legacy screens
-// that have not yet been migrated.
 export const privacyApi = {
   getCenter: () => request('/privacy/center'),
-  revokeConsent: (grantEventId) => request('/privacy/consultations/consents/revoke', {
-    method: 'POST',
-    body: JSON.stringify({ grantEventId }),
-  }),
   createDataRequest: (data) => request('/privacy/data-requests', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -971,4 +852,68 @@ export const privacyApi = {
     headers: { 'X-Privacy-Download-Token': downloadToken },
     cache: 'no-store',
   }),
+};
+
+// ======================== BUSINESS COMPLETION 2026-08 ========================
+export const savedServicesApi = {
+  list: () => request('/customer/saved-services'),
+  save: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'POST' }),
+  remove: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'DELETE' }),
+};
+
+export const loyaltyApi = {
+  mine: () => request('/loyalty/mine'),
+  configure: (data) => request('/loyalty/rules', { method: 'POST', body: JSON.stringify(data) }),
+  liability: (businessId) => request(`/loyalty/liability?businessId=${encodeURIComponent(businessId)}`),
+};
+
+export const waitlistApi = {
+  mine: () => request('/waitlist/mine'),
+  join: (data) => request('/waitlist', { method: 'POST', body: JSON.stringify(data) }),
+  cancel: (id) => request(`/waitlist/${id}/cancel`, { method: 'PATCH' }),
+  accept: (id, token) => request(`/waitlist/${id}/accept`, { method: 'PATCH', body: JSON.stringify({ token }) }),
+  branch: (branchId) => request(`/waitlist/branch?branchId=${encodeURIComponent(branchId)}`),
+  offer: (id, data) => request(`/waitlist/${id}/offer`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export const financeOperationsApi = {
+  invoices: () => request('/finance-operations/invoices'),
+  invoiceRequests: () => request('/finance-operations/invoice-requests'),
+  requestInvoice: (data) => request('/finance-operations/invoice-requests', { method: 'POST', body: JSON.stringify(data) }),
+  cancelInvoiceRequest: (id) => request(`/finance-operations/invoice-requests/${id}/cancel`, { method: 'PATCH' }),
+  rejectInvoiceRequest: (id, reason) => request(`/finance-operations/invoice-requests/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+  issueInvoice: (data) => request('/finance-operations/invoices', { method: 'POST', body: JSON.stringify(data) }),
+  cancelInvoice: (id, reason) => request(`/finance-operations/invoices/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+  reissueInvoice: (id, data) => request(`/finance-operations/invoices/${id}/reissue`, { method: 'POST', body: JSON.stringify(data) }),
+  shifts: (branchId) => request(`/finance-operations/cash-shifts${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),
+  shift: (id) => request(`/finance-operations/cash-shifts/${id}`),
+  openShift: (branchId, openingBalance) => request('/finance-operations/cash-shifts', { method: 'POST', body: JSON.stringify({ branchId, openingBalance }) }),
+  addMovement: (id, data) => request(`/finance-operations/cash-shifts/${id}/movements`, { method: 'POST', body: JSON.stringify(data) }),
+  closeShift: (id, data) => request(`/finance-operations/cash-shifts/${id}/close`, { method: 'PATCH', body: JSON.stringify(data) }),
+  approveShift: (id) => request(`/finance-operations/cash-shifts/${id}/approve`, { method: 'PATCH' }),
+};
+
+export const impactApi = {
+  list: () => request('/operational-impacts'),
+  detail: (id) => request(`/operational-impacts/${id}`),
+  resolve: (id, itemId, data) => request(`/operational-impacts/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  resolveBatch: (id, data) => request(`/operational-impacts/${id}/items`, { method: 'PATCH', body: JSON.stringify(data) }),
+  complete: (id) => request(`/operational-impacts/${id}/complete`, { method: 'POST' }),
+};
+
+export const ownershipApi = {
+  list: (businessId) => request(`/ownership-transfers?businessId=${encodeURIComponent(businessId)}`),
+  platformQueue: () => request('/ownership-transfers/platform/pending'),
+  incoming: () => request('/ownership-transfers/pending-for-me'),
+  create: (data) => request('/ownership-transfers', { method: 'POST', body: JSON.stringify(data) }),
+  accept: (id) => request(`/ownership-transfers/${id}/accept`, { method: 'PATCH' }),
+  submitMoreInfo: (id, data) => request(`/ownership-transfers/${id}/submit-more-info`, { method: 'PATCH', body: JSON.stringify(data) }),
+  cancel: (id, reason) => request(`/ownership-transfers/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
+  review: (id, data) => request(`/ownership-transfers/${id}/review`, { method: 'PATCH', body: JSON.stringify(data) }),
+  execute: (id) => request(`/ownership-transfers/${id}/execute`, { method: 'POST' }),
+  versions: (businessId) => request(`/ownership-transfers/business/${businessId}/versions`),
+  legalVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/legal-entity`, { method: 'POST', body: JSON.stringify(data) }),
+  payoutVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/payout-account`, { method: 'POST', body: JSON.stringify(data) }),
+  verifyLegalVersion: (id, data) => request(`/ownership-transfers/platform/legal-entity/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),
+  verifyPayoutVersion: (id, data) => request(`/ownership-transfers/platform/payout-account/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),
 };

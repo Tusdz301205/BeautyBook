@@ -174,7 +174,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
                   {visibleBranches.map((branch) => <option key={branch.id} value={branch.id}>{branchLabel(branch)}</option>)}
                 </Select>
               </div>
-              <button type="button" onClick={fetchBranches} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" aria-label="Tải lại chi nhánh" title="Tải lại chi nhánh">
+              <button type="button" onClick={fetchBranches} className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50" aria-label="Tải lại chi nhánh" title="Tải lại chi nhánh">
                 <RefreshCw size={17} className={branchesLoading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -239,7 +239,7 @@ function StatCard({ label, value, tone, onClick }) {
     zinc: 'border-zinc-300 bg-zinc-100 text-zinc-800',
   };
   return (
-    <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border px-3 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${tones[tone]}`}>
+    <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border px-3 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tones[tone]}`}>
       <span className="block text-2xl font-bold tabular-nums">{value}</span>
       <span className="mt-0.5 block truncate text-xs font-semibold opacity-75">{label}</span>
     </button>

@@ -102,12 +102,18 @@ function fakePrisma(booking: FakeBooking | null): PrismaService {
     branch: {
       findUnique: async ({ where }: any) => {
         // branchId → businessId
-        const map: Record<string, string> = { 'br-1': 'biz-1' };
+        const map: Record<string, string> = { 'br-1': 'biz-1', 'br-2': 'biz-1', 'br-3': 'biz-2' };
         return map[where.id] ? { businessId: map[where.id] } : null;
       },
     },
     staffProfile: {
-      findFirst: async () => ({ userId: 'staff-user-1' }),
+      findFirst: async ({ where }: any) => {
+        const staff = [
+          { id: 'staff-profile-1', userId: 'staff-user-1' },
+          { id: 'staff-profile-2', userId: 'staff-user-2' },
+        ].find((row) => where.id.in.includes(row.id) && where.userId === row.userId);
+        return staff ? { userId: staff.userId } : null;
+      },
     },
   } as unknown as PrismaService;
 }
@@ -164,6 +170,29 @@ describe('BookingsAccessService — cross-tenant blocking', () => {
     const svc = new BookingsAccessService(fakePrisma(null));
     await expect(svc.assertCustomerCreate(PLATFORM, 'br-1'))
       .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  test.each(['RECEPTIONIST', 'BRANCH_MANAGER'])('%s cannot create at another branch of the same business', async (role) => {
+    const user = { ...STAFF, roles: [role], scopes: [{ code: role, businessId: 'biz-1', branchId: 'br-1' }] } as AuthUser;
+    const service = new BookingsAccessService(fakePrisma(null));
+    await expect(service.assertCustomerCreate(user, 'br-1')).resolves.toBe('biz-1');
+    await expect(service.assertCustomerCreate(user, 'br-2')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  test('owner can create across their branches but not another business', async () => {
+    const service = new BookingsAccessService(fakePrisma(null));
+    await expect(service.assertCustomerCreate(OWNER_T1, 'br-2')).resolves.toBe('biz-1');
+    await expect(service.assertCustomerCreate(OWNER_T1, 'br-3')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  test('a second assigned provider can update a multi-provider booking', async () => {
+    const booking: FakeBooking = {
+      id: 'bk-1', branchId: 'br-1', customerId: 'cp-1', deletedAt: null,
+      customer: { userId: 'cust-user-1' }, branch: { businessId: 'biz-1' },
+      bookingServices: [{ staffId: 'staff-profile-1' }, { staffId: 'staff-profile-2' }],
+    };
+    await expect(new BookingsAccessService(fakePrisma(booking)).assertWrite(OTHER_STAFF, 'bk-1'))
+      .resolves.toMatchObject({ staffUserId: 'staff-user-2' });
   });
 
   test('platform refund operator can authorize a refund without force-cancel permission', async () => {

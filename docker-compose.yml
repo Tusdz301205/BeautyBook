@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: glowbook_db
-      POSTGRES_USER: glowbook
-      POSTGRES_PASSWORD: glowbook_local
+      POSTGRES_DB: ${POSTGRES_DB:-glowbook_db}
+      POSTGRES_USER: ${POSTGRES_USER:-glowbook}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-glowbook_local}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U glowbook -d glowbook_db"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -27,17 +27,17 @@ services:
   api:
     build: ./beauty-booking-api-main
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
-      DATABASE_URL: postgresql://glowbook:glowbook_local@postgres:5432/glowbook_db?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: local-development-access-secret-change-in-production
-      JWT_REFRESH_SECRET: local-development-refresh-secret-change-in-production
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-glowbook}:${POSTGRES_PASSWORD:-glowbook_local}@postgres:5432/${POSTGRES_DB:-glowbook_db}?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-local-development-access-secret-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-local-development-refresh-secret-change-in-production}
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN: 30d
-      CORS_ORIGINS: http://localhost:8080
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:${WEB_PORT:-8080}}
       BOOKING_TIME_ZONE: Asia/Ho_Chi_Minh
-      FRONTEND_URL: http://localhost:8080
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${WEB_PORT:-8080}}
       UPLOAD_DIR: /app/uploads
       SENSITIVE_DATA_ENCRYPTION_KEY: ${SENSITIVE_DATA_ENCRYPTION_KEY:-YmVhdXR5Ym9vay1sb2NhbC1kZXYta2V5LTMyYnl0ZXM=}
       SENSITIVE_DATA_KEY_VERSION: ${SENSITIVE_DATA_KEY_VERSION:-v1}
@@ -62,7 +62,7 @@ services:
         VITE_API_BASE: /api/v1
         VITE_WS_URL: /
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy

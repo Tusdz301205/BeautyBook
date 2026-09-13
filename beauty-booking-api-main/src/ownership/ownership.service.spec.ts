@@ -4,7 +4,7 @@ import { OwnershipService } from './ownership.service';
 
 const transfer = {
   id: 'transfer-1', businessId: 'business-1', requestedBy: 'old-owner-user', newOwnerUserId: 'new-owner-user',
-  status: 'UNDER_REVIEW', effectiveAt: new Date('2026-09-01T00:00:00Z'), legalEntityVersionId: null,
+  status: 'UNDER_REVIEW', effectiveAt: new Date(Date.now() + 24 * 60 * 60 * 1000), legalEntityVersionId: null,
   payoutAccountVersionId: null,
 };
 
@@ -37,6 +37,24 @@ describe('OwnershipService verification workflow', () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
       legalEntityVersionId: 'legal-1', payoutAccountVersionId: 'payout-1', status: 'SCHEDULED',
     }) }));
+  });
+
+  it('marks a verified transfer due now as approved and ready to execute', async () => {
+    const dueTransfer = { ...transfer, effectiveAt: new Date(Date.now() - 60_000) };
+    const update = jest.fn().mockImplementation(({ data }) => ({ ...dueTransfer, ...data }));
+    const prisma = {
+      ownershipTransfer: { findUnique: jest.fn().mockResolvedValue(dueTransfer), update },
+      legalEntityVersion: { findFirst: jest.fn().mockResolvedValue({ id: 'legal-1' }) },
+      payoutAccountVersion: { findFirst: jest.fn().mockResolvedValue({ id: 'payout-1' }) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+      notification: { createMany: jest.fn().mockResolvedValue({ count: 2 }) },
+    };
+
+    await serviceWith(prisma).review('transfer-1', 'platform-1', { approve: true, reason: 'Đủ điều kiện thực thi' });
+
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'APPROVED' }),
+    }));
   });
 
   it('only lets the original requester resubmit a NEED_MORE_INFO case', async () => {

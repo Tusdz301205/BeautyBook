@@ -69,7 +69,7 @@ export class ServicesService {
         },
         staffServices: {
           ...(publicOnly
-            ? { where: { staff: bookableStaffWhere({ publicOnly: true, requireSchedule: true }) } }
+            ? { where: { staff: bookableStaffWhere({ publicOnly: true }) } }
             : {}),
           include: { staff: { include: { user: { select: { fullName: true } } } } },
         },
@@ -240,7 +240,7 @@ export class ServicesService {
         staffServices: {
           where: {
             staff: publicOnly
-              ? bookableStaffWhere({ publicOnly: true, requireSchedule: true })
+              ? bookableStaffWhere({ publicOnly: true })
               : { status: 'ACTIVE', deletedAt: null },
           },
           include: {
@@ -925,7 +925,9 @@ export class ServicesService {
       maxDurationMinutes: data.maxDurationMinutes,
       bufferBeforeMinutes: data.bufferBeforeMinutes ?? 0,
       bufferAfterMinutes: data.bufferAfterMinutes ?? 0,
-      consultationRequired: Boolean(data.consultationRequired),
+      // Consultation forms/health profiles are retired. Persist the legacy
+      // column as false so newly-created variants cannot re-enable the flow.
+      consultationRequired: false,
       eligibilityRules: data.eligibilityRules as Prisma.InputJsonValue | undefined,
     } });
   }
@@ -949,6 +951,8 @@ export class ServicesService {
     });
     return this.prisma.serviceVariant.update({ where: { id: variantId }, data: {
       ...data,
+      // Ignore the retired consultation flag even if an older client sends it.
+      consultationRequired: false,
       name: data.name?.trim(),
       description: data.description?.trim(),
       eligibilityRules: data.eligibilityRules as Prisma.InputJsonValue | undefined,

@@ -17,10 +17,6 @@ export class PolicyNotificationCron implements OnModuleInit, OnModuleDestroy {
   async tick(now = new Date()) {
     const policy = await this.settings.getEffective();
     const dateFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const missingCheckout = await this.prisma.staffAttendance.updateMany({
-      where: { workDate: { lt: dateFrom }, checkInAt: { not: null }, checkOutAt: null, status: { notIn: ['ABSENT', 'MISSING_CHECKOUT'] } },
-      data: { status: 'MISSING_CHECKOUT' },
-    });
     const dateTo = new Date(dateFrom.getTime() + 2 * 24 * 60 * 60 * 1000);
     const bookings = await this.prisma.booking.findMany({
       where: { status: 'CONFIRMED', appointmentDate: { gte: dateFrom, lt: dateTo }, deletedAt: null },
@@ -41,7 +37,7 @@ export class PolicyNotificationCron implements OnModuleInit, OnModuleDestroy {
     const reviewRows = completed.map((booking) => ({ userId: booking.customer.userId, type: 'REVIEW_REMINDER' as const, title: 'Bạn thấy dịch vụ hôm nay thế nào?', body: 'Hãy chia sẻ đánh giá sau khi hoàn thành dịch vụ.', relatedBookingId: booking.id }));
     if (appointmentRows.length || reviewRows.length) await this.prisma.notification.createMany({ data: [...appointmentRows, ...reviewRows] });
     const birthdayIssued = await this.issueBirthdayVouchers(now);
-    return { appointmentReminders: appointmentRows.length, reviewReminders: reviewRows.length, birthdayVouchers: birthdayIssued, missingCheckout: missingCheckout.count };
+    return { appointmentReminders: appointmentRows.length, reviewReminders: reviewRows.length, birthdayVouchers: birthdayIssued };
   }
 
   private async issueBirthdayVouchers(now: Date) {

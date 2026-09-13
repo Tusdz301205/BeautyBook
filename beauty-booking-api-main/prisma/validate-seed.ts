@@ -13,7 +13,7 @@ const add = (check: string, count: number, severity: Finding["severity"] = "ERRO
 const minutes = (value: Date) => value.getUTCHours() * 60 + value.getUTCMinutes();
 
 async function main() {
-  const [bookingServices, workingHours, staffSkills, invalidReviews, payments, refunds, invalidBranches, attendance, permissions] = await Promise.all([
+  const [bookingServices, workingHours, staffSkills, invalidReviews, payments, refunds, invalidBranches, permissions] = await Promise.all([
     prisma.bookingService.findMany({
       where: { booking: { deletedAt: null, status: { notIn: ["CANCELLED", "REJECTED", "EXPIRED"] } } },
       select: { id: true, staffId: true, serviceId: true, durationMinutes: true, booking: { select: { id: true, bookingCode: true, branchId: true, appointmentDate: true, appointmentStartTime: true, appointmentEndTime: true, createdAt: true } } },
@@ -24,7 +24,6 @@ async function main() {
     prisma.payment.findMany({ select: { id: true, amount: true } }),
     prisma.refundRequest.findMany({ select: { id: true, amount: true, payment: { select: { amount: true } } } }),
     prisma.branch.count({ where: { status: "ACTIVE", business: { status: { notIn: ["ACTIVE", "APPROVED"] } } } }),
-    prisma.staffAttendance.findMany({ select: { id: true, staffId: true, branchId: true, businessId: true, absentMarkedAt: true, staff: { select: { branchId: true, branch: { select: { businessId: true } } } } } }),
     prisma.permission.findMany({ select: { code: true } }),
   ]);
 
@@ -64,17 +63,6 @@ async function main() {
   add("Payment có số tiền âm", payments.filter((row) => Number(row.amount) < 0).length);
   add("Refund vượt số tiền payment", refunds.filter((row) => Number(row.amount) > Number(row.payment.amount) || Number(row.amount) < 0).length);
   add("Branch ACTIVE thuộc business chưa được duyệt/active", invalidBranches);
-  add("Attendance sai scope branch/business", attendance.filter((row) => row.branchId !== row.staff.branchId || row.businessId !== row.staff.branch.businessId).length);
-
-  const absentRows = attendance.filter((row) => row.absentMarkedAt);
-  let postAbsenceBookings = 0;
-  for (const absent of absentRows) {
-    postAbsenceBookings += await prisma.bookingService.count({
-      where: { staffId: absent.staffId, booking: { createdAt: { gt: absent.absentMarkedAt! }, appointmentDate: { equals: absent.absentMarkedAt! } } },
-    });
-  }
-  add("Booking mới giao sau khi nhân viên đã bị đánh dấu vắng", postAbsenceBookings);
-
   const unknownPermissions = permissions.filter((row) => !PERMISSION_CODE_SET.has(row.code));
   const missingPermissions = [...PERMISSION_CODE_SET].filter((code) => !permissions.some((row) => row.code === code));
   add("Permission không tồn tại trong catalog", unknownPermissions.length, "ERROR", unknownPermissions[0]?.code);
@@ -84,7 +72,7 @@ async function main() {
     users: await prisma.user.count(), businesses: await prisma.business.count(), branches: await prisma.branch.count(),
     staff: await prisma.staffProfile.count(), customers: await prisma.customerProfile.count(), services: await prisma.branchServiceOffering.count(),
     bookings: await prisma.booking.count(), payments: payments.length, reviews: await prisma.review.count(),
-    attendance: attendance.length, notifications: await prisma.notification.count(), auditLogs: await prisma.auditLog.count(),
+    notifications: await prisma.notification.count(), auditLogs: await prisma.auditLog.count(),
   };
   console.table(counts);
   console.table(findings);

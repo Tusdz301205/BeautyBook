@@ -1,0 +1,62 @@
+@startuml activity-registration
+title Sơ đồ Hoạt động - Đăng ký Tài khoản & Xác thực Email (Registration Flow)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+start
+:Người dùng mở form Đăng ký;
+:Nhập Họ tên, Email, Mật khẩu, Số điện thoại (tùy chọn);
+
+if (Mật khẩu thỏa mãn độ phức tạp (tối thiểu 8 ký tự, chữ hoa, số, ký tự đặc biệt)?) then (Đạt)
+else (Không đạt)
+  :Báo lỗi mật khẩu không đủ mạnh;
+  stop
+endif
+
+:Gửi request POST /api/v1/auth/register;
+
+partition "Xử lý Backend (AuthService)" {
+  :Kiểm tra Email đã tồn tại trong database?;
+  if (Email đã được sử dụng?) then (Đã có)
+    :Throw ConflictException ("Email đã được sử dụng");
+    stop
+  else (Chưa có)
+  endif
+
+  if (Có số điện thoại và SĐT đã tồn tại?) then (Đã có)
+    :Throw ConflictException ("Số điện thoại đã được sử dụng");
+    stop
+  else (Hợp lệ)
+  endif
+
+  :Băm mật khẩu bằng bcrypt (saltRounds = 10);
+  :Tạo User (isEmailVerified = false, isActive = true);
+  :Gán Role mặc định: CUSTOMER (level: CUSTOMER, scope: SELF);
+  :Khởi tạo hồ sơ CustomerProfile liên kết với User;
+  
+  :Tạo AccountToken loại 'EMAIL_VERIFICATION' (hạn 24h, tokenHash);
+  :Tạo UserSession & Cấp phát JWT Access Token + HttpOnly Refresh Token;
+  :Gửi Email Xác thực (Nodemailer / MailService);
+}
+
+:Đăng nhập tự động & Hiển thị thông báo yêu cầu xác thực email;
+
+partition "Xác thực Email (Email Verification)" {
+  :Người dùng kiểm tra hòm thư & Nhấp liên kết xác thực;
+  :Trình duyệt gửi POST /api/v1/auth/verify-email với token;
+  
+  :Tìm AccountToken hợp lệ và chưa hết hạn;
+  if (Token hợp lệ & chưa sử dụng?) then (Hợp lệ)
+    :Cập nhật User: isEmailVerified = true;
+    :Đánh dấu token: usedAt = now;
+    :Thông báo xác thực email thành công;
+  else (Hết hạn hoặc không tồn tại)
+    :Báo lỗi token xác thực không hợp lệ;
+  endif
+}
+
+stop
+
+@enduml

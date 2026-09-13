@@ -1,0 +1,85 @@
+@startuml c4-container
+title Sơ đồ Container Hệ thống BeautyBook (C4 Container Diagram)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Khách hàng (Customer)" as Customer #08427B
+actor "Chủ Salon & Thợ (Salon Staff)" as Salon #08427B
+actor "Quản trị viên (Platform Admin)" as Admin #08427B
+
+rectangle "Ranh giới Hệ thống BeautyBook (GlowBook System Boundary)" {
+
+  rectangle "Web Application (Single Page App)\n[Container: React 18 / Vite / TailwindCSS / Zustand]" as WebApp #2366A0 {
+    note as WebNote
+      Cung cấp giao diện đa cổng:
+      - Cổng Khách hàng (/book, /customer)
+      - Cổng Salon (/salon: Scheduler, POS, Staff)
+      - Cổng Admin (/admin: Onboarding, Trust)
+    end note
+  }
+
+  rectangle "Web Server & Reverse Proxy\n[Container: Nginx:Alpine - Port :8080]" as Nginx #2366A0 {
+    note as NginxNote
+      Phục vụ Static Assets,
+      chuyển tiếp /api/v1/* &
+      nâng cấp kết nối WebSocket.
+    end note
+  }
+
+  rectangle "Backend API Application\n[Container: NestJS / Node.js 20 - Port :3000]" as ApiApp #1168BD {
+    note as ApiNote
+      Cung cấp API RESTful & WebSocket Gateway:
+      - Module Xác thực (Auth & JWT RBAC)
+      - Module Đặt lịch (Bookings & Concurrency)
+      - Module Vận hành Salon (Branches, Staff)
+      - Module Thu ngân & Sổ cái (Payments, Ledger)
+      - Module Kiểm duyệt & Đánh giá (Reviews)
+      - Background Cron Workers (Outbox, Expiry)
+    end note
+  }
+
+  database "Cơ sở Dữ liệu Chính\n[Container: PostgreSQL 16 - Port :5432]" as PostgresDb #438DD5 {
+    note as DbNote
+      Lưu trữ toàn bộ thực thể nghiệp vụ:
+      Users, Bookings, Services, Invoices.
+      Áp dụng Exclusion Constraint & Giao dịch Serializable.
+    end note
+  }
+
+  database "Bộ nhớ đệm & Phiên làm việc\n[Container: Redis 7 - Port :6379]" as RedisStore #438DD5 {
+    note as RedisNote
+      Lưu trữ Idempotency Keys (chống gửi trùng),
+      Token Blacklist, Giới hạn tần suất gọi API
+      (Rate Limit Throttling) & Phiên đăng nhập.
+    end note
+  }
+
+  folder "Bộ lưu trữ Tệp Media\n[Docker Volume: media_data - /app/uploads]" as MediaStorage #438DD5 {
+    note as MediaNote
+      Lưu trữ ảnh đại diện, ảnh dịch vụ
+      và hồ sơ pháp lý đính kèm (GPKD, CCCD).
+    end note
+  }
+}
+
+rectangle "Dịch vụ Gửi Thư Điện tử\n[External System: Gmail SMTP]" as SmtpServer #999999
+
+' Connections
+Customer --> Nginx : Truy cập ứng dụng qua trình duyệt [HTTPS :8080]
+Salon --> Nginx : Truy cập ứng dụng qua trình duyệt [HTTPS :8080]
+Admin --> Nginx : Truy cập ứng dụng qua trình duyệt [HTTPS :8080]
+
+Nginx --> WebApp : Phục vụ mã nguồn tĩnh JavaScript & HTML
+Nginx --> ApiApp : Chuyển tiếp REST API (/api/v1/*) [HTTP]
+Nginx --> ApiApp : Chuyển tiếp WebSocket (/socket.io/*) [WSS]
+
+WebApp --> Nginx : Gọi API REST & Nhận sự kiện thời gian thực
+
+ApiApp --> PostgresDb : Đọc / Ghi dữ liệu & Quản lý giao dịch [Prisma ORM / TCP :5432]
+ApiApp --> RedisStore : Kiểm tra Idempotency, Rate Limit & Blacklist [ioredis / TCP :6379]
+ApiApp --> MediaStorage : Đọc / Ghi tệp đính kèm [Local File IO]
+ApiApp --> SmtpServer : Gửi email kích hoạt & xác nhận lịch [SMTP TLS :587]
+
+@enduml

@@ -1,0 +1,68 @@
+@startuml use-case-admin
+title Sơ đồ Use Case - Phân hệ Quản trị Nền tảng (Platform Administration)
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Quản trị nền tảng\n(Platform Admin)" as PlatformAdmin
+
+rectangle "Phân hệ Quản trị Nền tảng (Admin Portal)" {
+
+  package "Kiểm duyệt Hồ sơ & Onboarding (Compliance)" {
+    usecase "Xem danh sách hồ sơ Doanh nghiệp & Chi nhánh" as UC_ListOnboarding
+    usecase "Kiểm duyệt giấy tờ pháp lý (GPKD, CCCD, MST, PCCC)" as UC_ReviewLegalDocs
+    usecase "Phê duyệt / Yêu cầu bổ sung / Từ chối Onboarding" as UC_DecideOnboarding
+  }
+
+  package "Chuẩn hóa Dịch vụ Toàn sàn (Taxonomy)" {
+    usecase "Quản lý danh mục dịch vụ chuẩn (Canonical Services)" as UC_ManageCanonical
+    usecase "Gợi ý / Ghép nối dịch vụ salon vào danh mục chuẩn" as UC_MapServices
+  }
+
+  package "Kiểm duyệt Đánh giá & Tranh chấp (Trust & Safety)" {
+    usecase "Xem danh sách đánh giá bị báo cáo vi phạm" as UC_ListReportedReviews
+    usecase "Kiểm duyệt nội dung / Ẩn / Khôi phục đánh giá" as UC_ModerateReviews
+    usecase "Xử lý khiếu nại của Salon (Review Appeal)" as UC_HandleAppeals
+    usecase "Áp dụng biện pháp xử lý vi phạm (Cảnh cáo, Hạn chế đặt lịch, Khóa tiệm)" as UC_TrustActions
+  }
+
+  package "Tài chính & Phí Nền tảng (Platform Finance)" {
+    usecase "Xem sổ cái tài chính toàn hệ thống (Financial Ledger)" as UC_ViewGlobalLedger
+    usecase "Phát hành & Quản lý kỳ đối soát phí sàn (Platform Statements)" as UC_ManageStatements
+    usecase "Thực hiện hoàn tiền ngoại lệ có kiểm toán (Admin Refund)" as UC_AdminRefund
+  }
+
+  package "Vận hành & Can thiệp Lịch hẹn (Operations Intervention)" {
+    usecase "Xem toàn bộ lịch hẹn toàn hệ thống" as UC_ViewAllBookings
+    usecase "Ép huỷ lịch hẹn vi phạm (Force Cancel có Audit)" as UC_ForceCancel
+  }
+
+  package "Cấu hình Hệ thống & Kiểm toán (System & Audit)" {
+    usecase "Quản lý cấu hình toàn nền tảng (Platform Settings)" as UC_PlatformSettings
+    usecase "Xem nhật ký kiểm toán bất biến (Immutable Audit Logs)" as UC_ViewAuditLogs
+    usecase "Xem báo cáo tăng trưởng & Doanh thu toàn nền tảng" as UC_PlatformOverview
+  }
+}
+
+PlatformAdmin --> UC_ListOnboarding
+PlatformAdmin --> UC_ReviewLegalDocs
+PlatformAdmin --> UC_DecideOnboarding
+PlatformAdmin --> UC_ManageCanonical
+PlatformAdmin --> UC_MapServices
+PlatformAdmin --> UC_ListReportedReviews
+PlatformAdmin --> UC_ModerateReviews
+PlatformAdmin --> UC_HandleAppeals
+PlatformAdmin --> UC_TrustActions
+PlatformAdmin --> UC_ViewGlobalLedger
+PlatformAdmin --> UC_ManageStatements
+PlatformAdmin --> UC_AdminRefund
+PlatformAdmin --> UC_ViewAllBookings
+PlatformAdmin --> UC_ForceCancel
+PlatformAdmin --> UC_PlatformSettings
+PlatformAdmin --> UC_ViewAuditLogs
+PlatformAdmin --> UC_PlatformOverview
+
+@enduml

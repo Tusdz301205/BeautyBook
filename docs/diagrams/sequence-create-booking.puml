@@ -1,0 +1,122 @@
+@startuml sequence-create-booking
+title Quy trình Đặt lịch Dịch vụ Thành viên & Bảo vệ Đồng thời (Member Booking Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Khách hàng\n(Customer)" as Customer
+participant "Giao diện Đặt lịch\n(React Web)" as Web
+participant "IdempotencyInterceptor\n(Redis Cache)" as Idempotency
+participant "JwtAuthGuard & RolesGuard\n(RBAC Scope)" as Guards
+participant "BookingsController" as Controller
+participant "BookingsService" as Service
+participant "PricingEngine & Loyalty" as Pricing
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "SchedulerGateway\n(Socket.IO)" as WsGateway
+
+Customer -> Web : Chọn Salon, Dịch vụ/Combo, Biến thể,\nChuyên viên (hoặc Auto), Ngày & Giờ hẹn
+Web -> Controller : POST /api/v1/bookings\nHeaders: Authorization: Bearer <token>, Idempotency-Key: <UUID>\nBody: { branchId, serviceIds, variantSelections, staffId?, appointmentDate, voucherCode?, loyaltyPoints? }
+
+activate Controller
+Controller -> Idempotency : Kiểm tra Idempotency-Key trong Redis
+activate Idempotency
+alt Khóa trùng lặp đang xử lý hoặc đã hoàn tất
+  Idempotency --> Controller : Trả lại kết quả cache trước đó / 409 Conflict
+  Controller --> Web : Phản hồi idempotent
+end
+Idempotency --> Controller : Cho phép tiếp tục
+deactivate Idempotency
+
+Controller -> Guards : canActivate() xác thực Token JWT & Scope 'booking:create:self'
+activate Guards
+Guards --> Controller : Xác thực thành công (AuthUser: customerId)
+deactivate Guards
+
+Controller -> Service : create(bookingDto, customerId)
+activate Service
+
+== 1. Tiền xử lý & Kiểm tra tính hợp lệ cơ bản ==
+Service -> DB : expirePendingHolds(branchId) (giải phóng slot giữ chỗ hết hạn)
+Service -> DB : Truy vấn branchServiceOffering & serviceVariant theo branchId
+activate DB
+DB --> Service : Danh sách dịch vụ & biến thể hợp lệ
+deactivate DB
+
+Service -> Service : Kiểm tra ServiceDependency (REQUIRED, INCOMPATIBLE)\n& Điều kiện giới tính / độ tuổi (eligibilityRules)
+Service -> Service : Tính tổng duration = serviceDuration + bufferBefore + bufferAfter + transition\nassertValidDuration(duration >= 30 phút)
+Service -> Service : assertFutureAppointment(appointmentStartTime > now)
+Service -> DB : Lấy PlatformSettings (minBookingLeadTimeHours, maxAdvanceBookingDays)
+Service -> Service : Kiểm tra giờ mở cửa chi nhánh & ngày nghỉ (Holiday / SpecialWorkingDay)
+
+== 2. Tính toán Giá & Ưu đãi ==
+Service -> Pricing : quote(subtotal, voucherCode, at)
+activate Pricing
+Pricing --> Service : pricingQuote (voucher discount, finalAmount)
+deactivate Pricing
+
+alt Có sử dụng điểm thưởng Loyalty
+  Service -> Pricing : previewRedemption(customerId, loyaltyPoints, finalAmount)
+  Pricing --> Service : loyaltyQuote (loyalty discount)
+end
+
+== 3. Tìm kiếm & Xác thực Ứng viên Chuyên viên (Staff Candidates) ==
+Service -> DB : findMany staffProfile (status: ACTIVE, isBookable: true, kỹ năng phù hợp)
+loop Cho từng ứng viên
+  Service -> Service : validateStaffForService(candidateId, serviceId, start, end)\n(kiểm tra lịch nghỉ cá nhân, giờ làm việc chi nhánh)
+end
+alt Không còn chuyên viên nào khả dụng
+  Service --> Controller : throw ConflictException("Không còn nhân viên phù hợp trong khung giờ đã chọn")
+  Controller --> Web : 409 Conflict
+  Web --> Customer : Thông báo slot vừa bị đặt, gợi ý giờ khác
+end
+
+== 4. Giao dịch Serializable Chống Race Condition ==
+note over Service, DB
+  Kỹ thuật bảo vệ đồng thời (Concurrency Protection):
+  - Isolation Level: Serializable (bắt lỗi P2034 / Serialization Failure)
+  - PostgreSQL Exclusion Constraint: 'booking_services_staff_slot_no_overlap' (bắt lỗi 23P01)
+  - Khóa hàng SELECT FOR UPDATE trên branches nếu overbooking có kiểm soát
+end note
+
+Service -> DB : withSerializableTransaction(async (tx) => { ... })
+activate DB
+
+Service -> DB : tx.branch.findFirst (xác minh lại trạng thái mở cửa & bookingPolicy)
+Service -> DB : reserveCandidate(): tx.bookingService.findFirst({\n  where: { staffId, booking: { status: in BLOCKING_BOOKING_STATUSES },\n  overlap: itemStart < end && itemEnd > start }\n})
+
+alt Phát hiện xung đột trùng lịch trong transaction
+  Service --> Controller : throw ConflictException("Khung giờ này vừa được người khác đặt")
+  Controller --> Web : 409 Conflict (Client rollback / retry)
+end
+
+Service -> DB : tx.booking.create({\n  bookingCode, branchId, customerId, status: 'PENDING',\n  appointmentStartTime, appointmentEndTime, finalTotal, ...\n})
+Service -> DB : tx.bookingService.createMany (từng dịch vụ gắn với staffId và itemStartAt/itemEndAt)
+Service -> DB : tx.bookingStatusHistory.create (status: 'PENDING', changedBy: customerId)
+opt Có Voucher
+  Service -> DB : tx.voucher.update (tăng usedCount, trừ quota)
+end
+opt Có Điểm Loyalty
+  Service -> DB : tx.loyaltyTransaction.create (ghi log trừ điểm)
+end
+Service -> DB : tx.notificationOutbox.create (lưu thông báo cho Salon để gửi bất đồng bộ)
+
+DB --> Service : Giao dịch Serializable Commit thành công (bookingId, bookingCode)
+deactivate DB
+
+Service -> WsGateway : emit('booking:created', { branchId, bookingId })
+activate WsGateway
+WsGateway --> Web : Broadcast real-time event tới phòng 'branch:{branchId}'
+deactivate WsGateway
+
+Service --> Controller : Booking response DTO
+deactivate Service
+
+Controller --> Web : 201 Created\nBody: { id, bookingCode, status: 'PENDING', appointmentStartTime, ... }
+deactivate Controller
+
+Web --> Customer : Chuyển sang màn hình xác nhận / chi tiết lịch hẹn thành công
+
+@enduml

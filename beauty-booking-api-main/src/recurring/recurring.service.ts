@@ -4,6 +4,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { validateStaffForService } from '../bookings/bookings.validation';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import type { CreateRecurringPlanDto, RecurringPreviewDto } from './dto/recurring.dto';
+import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 
 @Injectable()
 export class RecurringService {
@@ -82,29 +83,50 @@ export class RecurringService {
         });
         createdIds.push(booking.id);
       }
-      await this.prisma.recurringBookingPlan.update({
-        where: { id: plan.id },
+      const activated = await this.prisma.recurringBookingPlan.updateMany({
+        where: { id: plan.id, status: 'CREATING', deletedAt: null },
         data: {
           status: 'ACTIVE',
           createdOccurrenceCount: createdIds.length,
           failureReason: null,
         },
       });
+      if (activated.count !== 1) throw new ConflictException('Chuỗi lịch đã dừng tạo. Vui lòng kiểm tra các kỳ đã có.');
     } catch (error) {
+      // Claim failure before compensation. A recovered/cancelled plan must not
+      // be overwritten or have its retained occurrences cancelled by a late caller.
+      const pendingReason = 'Tạo chuỗi thất bại; đang kiểm tra hoàn tác các kỳ đã tạo';
+      const committedIds = await withSerializableTransaction(this.prisma, async (tx) => {
+        const claim = await tx.recurringBookingPlan.updateMany({
+          where: { id: plan.id, status: 'CREATING', deletedAt: null },
+          data: { status: 'FAILED', failureReason: pendingReason },
+        });
+        if (claim.count !== 1) return null;
+        // Includes a booking committed before create() failed during its response
+        // or notification phase, even if its id never reached this process.
+        const rows = await tx.booking.findMany({
+          where: { recurringPlanId: plan.id, deletedAt: null }, select: { id: true },
+        });
+        await tx.recurringBookingPlan.update({
+          where: { id: plan.id }, data: { createdOccurrenceCount: rows.length },
+        });
+        return rows.map((row) => row.id);
+      });
+      if (!committedIds) throw error;
       let compensationFailed = false;
       try {
         await this.bookings.compensateCreatedBookings(
-          createdIds,
+          committedIds,
           'Hoàn tác do không thể tạo trọn vẹn chuỗi lịch',
         );
       } catch {
         compensationFailed = true;
       }
-      await this.prisma.recurringBookingPlan.update({
-        where: { id: plan.id },
+      await this.prisma.recurringBookingPlan.updateMany({
+        where: { id: plan.id, status: 'FAILED', failureReason: pendingReason },
         data: {
           status: 'FAILED',
-          createdOccurrenceCount: createdIds.length,
+          createdOccurrenceCount: committedIds.length,
           failureReason: compensationFailed
             ? 'Tạo chuỗi thất bại; hoàn tác chưa hoàn tất và cần kiểm tra thủ công'
             : 'Tạo chuỗi thất bại; các kỳ đã tạo được hoàn tác bằng trạng thái CANCELLED',
@@ -139,8 +161,12 @@ export class RecurringService {
 
   async changeStatus(id: string, status: 'ACTIVE' | 'PAUSED', user: AuthUser) {
     const plan = await this.owned(id, user);
-    if (plan.status === 'CANCELLED' || plan.status === 'COMPLETED') throw new BadRequestException('Chuỗi lịch này không thể thay đổi');
-    return this.prisma.recurringBookingPlan.update({ where: { id }, data: { status } });
+    if (!['ACTIVE', 'PAUSED'].includes(plan.status)) throw new BadRequestException('Chuỗi lịch này không thể thay đổi');
+    const changed = await this.prisma.recurringBookingPlan.updateMany({
+      where: { id, customerId: plan.customerId, status: plan.status, deletedAt: null }, data: { status },
+    });
+    if (changed.count !== 1) throw new ConflictException('Chuỗi lịch vừa thay đổi, vui lòng tải lại');
+    return this.prisma.recurringBookingPlan.findUnique({ where: { id } });
   }
 
   async cancelOccurrence(id: string, bookingId: string, user: AuthUser) {
@@ -160,7 +186,8 @@ export class RecurringService {
   }
 
   async cancel(id: string, user: AuthUser) {
-    await this.owned(id, user);
+    const plan = await this.owned(id, user);
+    if (plan.status === 'CREATING') throw new ConflictException('Chuỗi lịch đang được tạo, vui lòng chờ và tải lại');
     const cancellable = await this.prisma.booking.findMany({
       where: { recurringPlanId: id, deletedAt: null, status: { in: ['PENDING', 'CONFIRMED'] } }, select: { id: true },
     });

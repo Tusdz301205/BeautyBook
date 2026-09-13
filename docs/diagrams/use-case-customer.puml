@@ -1,0 +1,70 @@
+@startuml use-case-customer
+title Sơ đồ Use Case - Phân hệ Khách hàng (Customer & Guest)
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Khách vãng lai\n(Guest)" as Guest
+actor "Khách hàng thành viên\n(Customer)" as Customer
+
+Guest <|-- Customer
+
+rectangle "Phân hệ Khách hàng (Customer Portal)" {
+  usecase "Khám phá & Tìm kiếm Salon / Dịch vụ" as UC_Search
+  usecase "Xem chi tiết Salon, Dịch vụ & Chuyên viên" as UC_ViewDetail
+  usecase "Tra cứu khung giờ trống (Available Slots)" as UC_QuerySlots
+  
+  usecase "Đặt lịch nhanh không cần tài khoản\n(Guest Booking)" as UC_GuestBook
+  usecase "Đăng ký tài khoản mới" as UC_Register
+  usecase "Đăng nhập hệ thống (JWT Auth)" as UC_Login
+  
+  usecase "Đặt lịch dịch vụ thành viên" as UC_MemberBook
+  usecase "Chọn dịch vụ / Combo & Biến thể (Variants)" as UC_SelectServices
+  usecase "Chọn chuyên viên ưa thích (Staff)" as UC_SelectStaff
+  usecase "Áp dụng mã giảm giá (Voucher)" as UC_ApplyVoucher
+  usecase "Sử dụng điểm tích lũy (Loyalty Points)" as UC_UseLoyalty
+  
+  usecase "Quản lý lịch hẹn cá nhân" as UC_ManageAppointments
+  usecase "Xem chi tiết lịch hẹn" as UC_ViewAppointmentDetail
+  usecase "Hủy lịch hẹn (Cancel Booking)" as UC_CancelBooking
+  usecase "Gửi yêu cầu đổi lịch (Reschedule Request)" as UC_RequestReschedule
+  
+  usecase "Viết đánh giá & Chấm điểm dịch vụ (Review)" as UC_WriteReview
+  usecase "Đánh giá ẩn danh (Anonymous Option)" as UC_AnonReview
+  usecase "Đánh giá chuyên sâu từng dịch vụ & thợ" as UC_ItemReview
+  
+  usecase "Quản lý thông báo cá nhân" as UC_Notifications
+  usecase "Quản lý quyền riêng tư & Dữ liệu sức khỏe\n(Consent & DSR Privacy)" as UC_PrivacyConsent
+  usecase "Quản lý phiên đăng nhập thiết bị (Revoke Sessions)" as UC_Sessions
+}
+
+Guest --> UC_Search
+Guest --> UC_ViewDetail
+Guest --> UC_QuerySlots
+Guest --> UC_GuestBook
+Guest --> UC_Register
+Guest --> UC_Login
+
+Customer --> UC_MemberBook
+Customer --> UC_ManageAppointments
+Customer --> UC_WriteReview
+Customer --> UC_Notifications
+Customer --> UC_PrivacyConsent
+Customer --> UC_Sessions
+
+UC_MemberBook ..> UC_SelectServices : <<include>>
+UC_MemberBook ..> UC_SelectStaff : <<include>>
+UC_MemberBook ..> UC_ApplyVoucher : <<extend>>
+UC_MemberBook ..> UC_UseLoyalty : <<extend>>
+
+UC_ManageAppointments ..> UC_ViewAppointmentDetail : <<include>>
+UC_ManageAppointments ..> UC_CancelBooking : <<extend>>
+UC_ManageAppointments ..> UC_RequestReschedule : <<extend>>
+
+UC_WriteReview ..> UC_AnonReview : <<extend>>
+UC_WriteReview ..> UC_ItemReview : <<extend>>
+
+@enduml

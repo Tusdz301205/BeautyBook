@@ -7,7 +7,7 @@ import { Badge, Button, Card, ErrorState, Field, Input, Page, PageHeader, Select
 import { FileUpload } from '../components/media/FileUpload';
 
 const initialForm = { fullName: '', phone: '', address: '', gender: '', dateOfBirth: '', staffBio: '', experienceYears: '', emergencyContactName: '', emergencyContactPhone: '' };
-const staffStatus = { ACTIVE: 'Hoạt động', ON_LEAVE: 'Nghỉ phép', INACTIVE: 'Tạm ngưng nhận lịch' };
+const staffStatus = { ACTIVE: 'Hoạt động', INACTIVE: 'Tạm ngưng nhận lịch' };
 
 export default function ProfileSettings() {
   const [form, setForm] = useState(initialForm);

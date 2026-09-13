@@ -45,17 +45,17 @@ function ReplyDialog({ review, onClose, onSent }) {
 }
 
 function ReportDialog({ review, onClose, onSent }) {
-  const [reason, setReason] = useState('');
+  const [form, setForm] = useState({ reason: '', category: 'OTHER', severity: 'MEDIUM' });
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (review) setReason(''); }, [review]);
+  useEffect(() => { if (review) setForm({ reason: '', category: 'OTHER', severity: 'MEDIUM' }); }, [review]);
   const submit = async () => {
-    if (!reason.trim()) return;
+    if (!form.reason.trim()) return;
     setSaving(true);
-    try { await reviewsApi.report(review.id, reason.trim()); toast.success('Đã gửi review vào hàng hậu kiểm của Platform'); onSent(); }
+    try { await reviewsApi.report(review.id, { ...form, reason: form.reason.trim() }); toast.success('Đã gửi review vào hàng hậu kiểm của Platform'); onSent(); }
     catch (error) { toast.error(error.message || 'Không thể báo cáo review'); }
     finally { setSaving(false); }
   };
-  return <Dialog open={Boolean(review)} onClose={onClose} title="Báo cáo review vi phạm" description="Review vẫn hiển thị cho tới khi Platform ra quyết định." footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button variant="danger" loading={saving} disabled={!reason.trim()} onClick={submit}>Gửi báo cáo</Button></>}><Field label="Lý do" required><Textarea autoFocus value={reason} onChange={(event) => setReason(event.target.value)} maxLength={1000} placeholder="Spam, đe dọa, thông tin cá nhân, giả mạo hoặc vi phạm chính sách..." /></Field></Dialog>;
+  return <Dialog open={Boolean(review)} onClose={onClose} title="Báo cáo review vi phạm" description="Nội dung nguy cơ cao sẽ được tạm ẩn ngay để Platform kiểm tra." footer={<><Button variant="secondary" onClick={onClose}>Hủy</Button><Button variant="danger" loading={saving} disabled={!form.reason.trim()} onClick={submit}>Gửi báo cáo</Button></>}><div className="grid gap-3 sm:grid-cols-2"><Field label="Phân loại" required><Select value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}><option value="OTHER">Khác</option><option value="PII">Thông tin cá nhân</option><option value="ABUSE">Xúc phạm</option><option value="THREAT">Đe dọa</option><option value="HATE">Thù ghét</option><option value="SPAM">Spam / giả mạo</option></Select></Field><Field label="Mức độ" required><Select value={form.severity} onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value }))}><option value="LOW">Thấp</option><option value="MEDIUM">Trung bình</option><option value="HIGH">Cao — tạm ẩn</option><option value="CRITICAL">Nghiêm trọng — tạm ẩn</option></Select></Field><Field className="sm:col-span-2" label="Lý do" required><Textarea autoFocus value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} maxLength={1000} placeholder="Mô tả nội dung và tác động cần Platform kiểm tra..." /></Field></div></Dialog>;
 }
 
 export function SalonReviews() {

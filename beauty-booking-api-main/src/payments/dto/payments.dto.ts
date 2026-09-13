@@ -4,8 +4,8 @@ export class CollectPaymentDto {
   @IsUUID()
   bookingId!: string;
 
-  @IsIn(['CASH', 'BANK_TRANSFER', 'MOMO', 'VNPAY', 'ZALOPAY', 'CREDIT_CARD'])
-  method!: 'CASH' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY' | 'ZALOPAY' | 'CREDIT_CARD';
+  @IsIn(['CASH', 'BANK_TRANSFER'])
+  method!: 'CASH' | 'BANK_TRANSFER';
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -21,8 +21,6 @@ export class CollectPaymentDto {
   @IsObject()
   evidence?: Record<string, unknown>;
 }
-
-export class CreatePaymentIntentDto extends CollectPaymentDto {}
 
 export class VerifyPaymentTransactionDto {
   @IsString()
@@ -187,8 +185,8 @@ export class PurchaseTreatmentPackageDto {
 }
 
 export class PayPackageInstallmentDto {
-  @IsIn(['CASH', 'BANK_TRANSFER', 'MOMO', 'VNPAY', 'ZALOPAY', 'CREDIT_CARD'])
-  method!: 'CASH' | 'BANK_TRANSFER' | 'MOMO' | 'VNPAY' | 'ZALOPAY' | 'CREDIT_CARD';
+  @IsIn(['CASH', 'BANK_TRANSFER'])
+  method!: 'CASH' | 'BANK_TRANSFER';
 
   @IsString()
   @MaxLength(200)

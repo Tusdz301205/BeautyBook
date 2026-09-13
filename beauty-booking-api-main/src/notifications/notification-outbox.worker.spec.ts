@@ -11,14 +11,16 @@ describe('NotificationOutboxWorker', () => {
     };
     const tx = {
       notificationOutbox: {
-        findUnique: jest.fn().mockResolvedValue({ ...row, status: 'PROCESSING' }),
+        findUnique: jest.fn().mockResolvedValue({ ...row, status: 'PROCESSING', attempts: 1 }),
         update: jest.fn().mockResolvedValue({}),
       },
       notification: { create: jest.fn().mockResolvedValue({ id: 'notification-1' }) },
     };
     const prisma = {
       notificationOutbox: {
+        count: jest.fn().mockResolvedValue(0),
         updateMany: jest.fn()
+          .mockResolvedValueOnce({ count: 0 })
           .mockResolvedValueOnce({ count: 0 })
           .mockResolvedValueOnce({ count: 1 }),
         findMany: jest.fn().mockResolvedValue([row]),
@@ -30,7 +32,7 @@ describe('NotificationOutboxWorker', () => {
     await expect(worker.drain()).resolves.toEqual({ processed: 1 });
     expect(tx.notification.create).toHaveBeenCalledTimes(1);
     expect(tx.notificationOutbox.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'outbox-1' },
+      where: { id: 'outbox-1', status: 'PROCESSING', attempts: 1 },
       data: expect.objectContaining({ status: 'SENT', notificationId: 'notification-1' }),
     }));
   });
@@ -38,7 +40,8 @@ describe('NotificationOutboxWorker', () => {
   it('does not project a row another worker already claimed', async () => {
     const prisma = {
       notificationOutbox: {
-        updateMany: jest.fn().mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 0 }),
+        count: jest.fn().mockResolvedValue(0),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         findMany: jest.fn().mockResolvedValue([{ id: 'outbox-1', attempts: 0 }]),
       },
     } as unknown as PrismaService;

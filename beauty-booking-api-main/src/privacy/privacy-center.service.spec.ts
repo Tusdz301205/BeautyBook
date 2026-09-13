@@ -13,13 +13,6 @@ describe('PrivacyCenterService export isolation', () => {
         }),
       },
       booking: { findMany: jest.fn().mockResolvedValue([]) },
-      consultationSubmission: {
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      sensitiveDataAccessEvent: {
-        findMany: jest.fn().mockResolvedValue([]),
-      },
-      bookingHealthRecord: { findMany: jest.fn().mockResolvedValue([]) },
       review: { findMany: jest.fn().mockResolvedValue([]) },
       notification: { findMany: jest.fn().mockResolvedValue([]) },
       dataSubjectRequest: { findMany: jest.fn().mockResolvedValue([]) },
@@ -46,17 +39,6 @@ describe('PrivacyCenterService export isolation', () => {
     expect(prisma.booking.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { customerId: 'customer-1' } }),
     );
-    expect(prisma.consultationSubmission.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { customerId: 'customer-1' } }),
-    );
-    expect(prisma.sensitiveDataAccessEvent.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { submission: { customerId: 'customer-1' } },
-      }),
-    );
-    expect(prisma.bookingHealthRecord.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { customerId: 'customer-1' } }),
-    );
     expect(prisma.review.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { customerId: 'customer-1' } }),
     );
@@ -72,7 +54,8 @@ describe('PrivacyCenterService export isolation', () => {
     expect(payload).toMatchObject({
       formatVersion: 'beautybook-privacy-export-v1',
       bookings: [],
-      consultationSubmissions: [],
     });
+    expect(payload).not.toHaveProperty('consultationSubmissions');
+    expect(payload).not.toHaveProperty('healthRecords');
   });
 });

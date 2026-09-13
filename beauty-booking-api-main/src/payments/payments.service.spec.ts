@@ -28,7 +28,7 @@ const CUSTOMER: AuthUser = {
   id: 'customer-user',
   email: 'customer@example.com',
   roles: ['CUSTOMER'],
-  permissions: ['payment_intent:create:self', 'package_purchase:create:self'],
+  permissions: ['package_purchase:create:self'],
   scopes: [{ code: 'CUSTOMER', businessId: null, branchId: null }],
   sessionType: 'customer',
 };

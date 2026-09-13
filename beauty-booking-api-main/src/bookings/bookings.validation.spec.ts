@@ -93,39 +93,62 @@ describe('booking status time guard', () => {
   });
 });
 
-describe('staff schedule exceptions', () => {
-  const start = new Date(2026, 6, 13, 10, 0);
-  const end = new Date(2026, 6, 13, 11, 0);
+describe('branch-based staff availability', () => {
+  const start = new Date('2026-07-13T03:00:00.000Z');
+  const end = new Date('2026-07-13T04:00:00.000Z');
 
-  function prismaStub(options: { leave?: boolean; withBreak?: boolean; isBookable?: boolean; inactiveUser?: boolean }): PrismaService {
+  function prismaStub(options: {
+    isBookable?: boolean;
+    inactiveUser?: boolean;
+    branchClosed?: boolean;
+    holidayClosed?: boolean;
+    specialOpening?: boolean;
+  } = {}): PrismaService {
     return {
       staffProfile: { findUnique: jest.fn().mockResolvedValue({
-        id: 'staff-1', branchId: 'branch-1', status: 'ACTIVE', isBookable: options.isBookable ?? true,
+        id: 'staff-1', branchId: 'branch-1', status: 'ACTIVE',
+        isBookable: options.isBookable ?? true,
         userId: options.inactiveUser ? 'user-1' : null,
         user: options.inactiveUser ? { isActive: false, deletedAt: null } : null,
         staffServices: [{ serviceId: 'service-1' }],
-        workingHours: [{ dayOfWeek: start.getDay(), isOff: false, startTime: new Date('1970-01-01T09:00:00.000Z'), endTime: new Date('1970-01-01T18:00:00.000Z') }],
-        breaks: options.withBreak
-          ? [{ dayOfWeek: start.getDay(), startTime: new Date('1970-01-01T10:30:00.000Z'), endTime: new Date('1970-01-01T11:30:00.000Z') }]
-          : [],
       }) },
-      staffLeave: { findFirst: jest.fn().mockResolvedValue(options.leave ? { id: 'leave-1' } : null) },
-      branchHoliday: { findUnique: jest.fn().mockResolvedValue(null) },
-      specialWorkingDay: { findFirst: jest.fn().mockResolvedValue(null) },
-      branchWorkingHour: { findUnique: jest.fn().mockResolvedValue(null) },
+      branchHoliday: { findUnique: jest.fn().mockResolvedValue(
+        options.holidayClosed ? { id: 'holiday-1', isClosed: true, name: 'Ngày nghỉ' } : null,
+      ) },
+      specialWorkingDay: { findFirst: jest.fn().mockResolvedValue(
+        options.specialOpening ? {
+          id: 'special-1',
+          startTime: new Date('1970-01-01T09:00:00.000Z'),
+          endTime: new Date('1970-01-01T18:00:00.000Z'),
+        } : null,
+      ) },
+      branchWorkingHour: { findUnique: jest.fn().mockResolvedValue({
+        isClosed: options.branchClosed ?? false,
+        openTime: new Date('1970-01-01T09:00:00.000Z'),
+        closeTime: new Date('1970-01-01T18:00:00.000Z'),
+      }) },
     } as unknown as PrismaService;
   }
 
-  test('approved leave blocks assignment', async () => {
+  test('active skilled provider is valid without an individual schedule', async () => {
     await expect(
-      validateStaffForService(prismaStub({ leave: true }), 'staff-1', 'service-1', start, end),
-    ).rejects.toBeInstanceOf(BadRequestException);
+      validateStaffForService(prismaStub(), 'staff-1', 'service-1', start, end, 'branch-1'),
+    ).resolves.toBeUndefined();
   });
 
-  test('staff break blocks overlapping service', async () => {
+  test('branch closure blocks assignment', async () => {
     await expect(
-      validateStaffForService(prismaStub({ withBreak: true }), 'staff-1', 'service-1', start, end),
-    ).rejects.toBeInstanceOf(BadRequestException);
+      validateStaffForService(prismaStub({ branchClosed: true }), 'staff-1', 'service-1', start, end),
+    ).rejects.toThrow('Chi nhánh đóng cửa');
+  });
+
+  test('special branch opening overrides a closed holiday', async () => {
+    await expect(
+      validateStaffForService(
+        prismaStub({ holidayClosed: true, specialOpening: true }),
+        'staff-1', 'service-1', start, end,
+      ),
+    ).resolves.toBeUndefined();
   });
 
   test('profile disabled for booking cannot be assigned even when it has the skill', async () => {
@@ -142,7 +165,7 @@ describe('staff schedule exceptions', () => {
 });
 
 describe('date-aware booking overlap', () => {
-  test('staff overlap query is constrained to the appointment date', async () => {
+  test('provider overlap uses item intervals and a date-aware legacy fallback', async () => {
     const findFirst = jest.fn().mockResolvedValue(null);
     const prisma = { bookingService: { findFirst } } as unknown as PrismaService;
     await assertNoOverlap(
@@ -153,19 +176,18 @@ describe('date-aware booking overlap', () => {
       new Date('2026-07-15T03:00:00.000Z'),
     );
 
-    expect(findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          booking: expect.objectContaining({
-            appointmentDate: new Date('2026-07-15T00:00:00.000Z'),
-            AND: [
-              { appointmentStartTime: { lt: new Date('1970-01-01T10:00:00.000Z') } },
-              { appointmentEndTime: { gt: new Date('1970-01-01T09:00:00.000Z') } },
-            ],
-          }),
-        }),
-      }),
-    );
+    const where = findFirst.mock.calls[0][0].where;
+    expect(where.OR[0]).toEqual({
+      itemStartAt: { lt: new Date('2026-07-15T03:00:00.000Z') },
+      itemEndAt: { gt: new Date('2026-07-15T02:00:00.000Z') },
+    });
+    expect(where.OR[1].booking).toEqual({
+      appointmentDate: new Date('2026-07-15T00:00:00.000Z'),
+      AND: [
+        { appointmentStartTime: { lt: new Date('1970-01-01T10:00:00.000Z') } },
+        { appointmentEndTime: { gt: new Date('1970-01-01T09:00:00.000Z') } },
+      ],
+    });
   });
 
   test('customer overlap query uses half-open adjacent intervals on one date', async () => {

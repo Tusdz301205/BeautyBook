@@ -200,8 +200,8 @@ export class CombosService {
               deletedAt: null,
               isBookable: true,
               OR: [
-                { workingHours: { some: { isOff: false } } },
-                { scheduleVersions: { some: { status: 'PUBLISHED' } } },
+                { userId: null },
+                { user: { is: { isActive: true, deletedAt: null } } },
               ],
             },
           },

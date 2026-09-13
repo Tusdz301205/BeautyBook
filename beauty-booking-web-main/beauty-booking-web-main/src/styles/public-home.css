@@ -680,10 +680,13 @@
 .bb-home-salon-card__address svg { flex: 0 0 auto; margin-top: 0.18rem; color: var(--color-accent-strong); }
 .bb-home-salon-card__facts { margin: var(--space-sm) 0 0; display: flex; gap: var(--space-xs); color: var(--color-muted); font-family: var(--font-body); font-size: var(--text-2xs); }
 .bb-home-salon-card__actions { margin-top: auto; padding-top: var(--space-lg); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-xs); }
-.bb-home-salon-card__actions a { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); color: var(--color-ink); border: 1px solid var(--color-rule); font-size: var(--text-xs); font-weight: 700; text-decoration: none; }
-.bb-home-salon-card__actions a:last-child { color: var(--color-accent-ink); background: var(--color-ink); border-color: var(--color-ink); }
-.bb-home-salon-card__actions a:hover { border-color: var(--color-accent); }
-.bb-home-salon-card__actions a:active { color: var(--color-accent-strong); }
+.bb-home-salon-card__actions > a,
+.bb-home-salon-card__actions > button { min-width: 0; min-height: 44px; margin: 0; padding: 0.65rem 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); color: var(--color-ink); background: transparent; border: 1px solid var(--color-rule); border-radius: 999px; font: inherit; font-size: var(--text-xs); font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
+.bb-home-salon-card__actions > :last-child { grid-column: 1 / -1; color: var(--color-accent-ink); background: var(--color-ink); border-color: var(--color-ink); }
+.bb-home-salon-card__actions > a:hover,
+.bb-home-salon-card__actions > button:hover { border-color: var(--color-accent); }
+.bb-home-salon-card__actions > a:active,
+.bb-home-salon-card__actions > button:active { color: var(--color-accent-strong); }
 
 .bb-home-availability {
   margin-block: clamp(5rem, 10vw, 8rem);
@@ -1561,8 +1564,7 @@ body { overflow-x: clip; }
 .bb-home-salon-card__body { padding: 1rem 1rem 1.05rem; }
 .bb-home-salon-card h3 { font-family: var(--font-body); font-size: clamp(1.2rem, 2vw, 1.5rem); font-weight: 800; }
 .bb-home-salon-card__eyebrow { text-transform: none; }
-.bb-home-salon-card__actions a { border-radius: 999px; }
-.bb-home-salon-card__actions a:last-child { background: var(--color-ink); }
+.bb-home-salon-card__actions > :last-child { background: var(--color-ink); }
 .bb-home-salon-card__media-link:hover .bb-home-media img { transform: scale(1.02); }
 .bb-home-media img { transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
 

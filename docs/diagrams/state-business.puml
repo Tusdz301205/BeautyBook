@@ -1,0 +1,55 @@
+@startuml state-business
+title Sơ đồ Vòng đời Doanh nghiệp Salon (Business Onboarding & Status Lifecycle)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+[*] --> DRAFT : Chủ Salon bắt đầu tạo hồ sơ doanh nghiệp
+
+state DRAFT as "DRAFT\n(Bản nháp)" {
+  DRAFT : Điền MST, GPKD, CCCD, tạo chi nhánh mẫu
+  DRAFT : Tải lên các giấy tờ pháp lý
+}
+
+state PENDING_REVIEW as "PENDING_REVIEW\n(Chờ xét duyệt)" {
+  PENDING_REVIEW : Đã gửi hồ sơ lên Platform
+  PENDING_REVIEW : Đang chờ Platform Admin thẩm định
+}
+
+state NEED_MORE_INFO as "NEED_MORE_INFO\n(Yêu cầu bổ sung hồ sơ)" {
+  NEED_MORE_INFO : Admin yêu cầu cập nhật lại giấy tờ mờ / thiếu
+}
+
+state APPROVED as "APPROVED\n(Đã phê duyệt)" {
+  APPROVED : Hồ sơ pháp lý hợp lệ
+  APPROVED : Các chi nhánh được phép kích hoạt
+}
+
+state ACTIVE as "ACTIVE\n(Đang hoạt động)" {
+  ACTIVE : Salon hiển thị công khai trên Marketplace
+  ACTIVE : Khách hàng có thể tìm kiếm và đặt lịch
+}
+
+state SUSPENDED as "SUSPENDED\n(Tạm đình chỉ)" {
+  SUSPENDED : Vi phạm quy chế sàn / khiếu nại khách hàng
+  SUSPENDED : Bị khóa tính năng nhận lịch hẹn mới
+}
+
+state REJECTED as "REJECTED\n(Bị từ chối)" <<terminal>> {
+  REJECTED : Hồ sơ giả mạo hoặc không đủ điều kiện pháp lý
+}
+
+DRAFT --> PENDING_REVIEW : Chủ Salon bấm Nộp hồ sơ (Submit)
+PENDING_REVIEW --> NEED_MORE_INFO : Admin yêu cầu bổ sung thông tin
+NEED_MORE_INFO --> PENDING_REVIEW : Chủ Salon bổ sung giấy tờ và nộp lại
+PENDING_REVIEW --> REJECTED : Admin từ chối hồ sơ không đạt chuẩn
+PENDING_REVIEW --> APPROVED : Admin phê duyệt hồ sơ
+
+APPROVED --> ACTIVE : Chi nhánh cấu hình xong bảng giá & giờ mở cửa
+ACTIVE --> SUSPENDED : Admin xử lý vi phạm Trust & Safety
+SUSPENDED --> ACTIVE : Khắc phục xong vi phạm & Admin mở khóa
+
+REJECTED --> [*]
+
+@enduml

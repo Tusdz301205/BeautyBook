@@ -1,22 +1,125 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { Clock3, ShieldCheck, TicketPercent, UserRound } from 'lucide-react';
-import { bookingsApi, recurringApi, servicesApi } from '../../api/apiClient';
+import { Clock3, Coins, TicketPercent, UserRound } from 'lucide-react';
+import { bookingsApi, loyaltyApi, recurringApi, servicesApi } from '../../api/apiClient';
 import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
-import { Button, Card, InlineNotice, Skeleton } from '../../components/ui';
+import { Button, Card, Field, InlineNotice, Input, Skeleton } from '../../components/ui';
 import { BookingLayout } from '../../components/customer/BookingLayout';
+import { useAsyncResource } from '../../hooks/useAsyncResource';
+
+const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
 
 export default function BookingConfirm() {
-  const navigate = useNavigate(); const state = useBookingStore(); const user = useAuthStore((s) => s.user); const [services, setServices] = useState([]); const [preview, setPreview] = useState(null); const [recurringPreview, setRecurringPreview] = useState(null); const [previewingRecurring, setPreviewingRecurring] = useState(false); const [loading, setLoading] = useState(true); const [submitting, setSubmitting] = useState(false);
-  useEffect(() => { if (!state.branchId || !state.serviceIds.length || !state.slot) { navigate('/book', { replace: true }); return; } servicesApi.getAll(state.branchId).then((result) => { const list = result.data ?? result ?? []; setServices(list.filter((item) => state.serviceIds.includes(item.id))); }).catch((e) => toast.error(e.message)).finally(() => setLoading(false)); }, [state.branchId, state.serviceIds, state.slot, navigate]);
-  useEffect(() => { if (!services.length) return; const subtotal = state.combo ? Number(state.combo.comboPrice) : services.reduce((sum, item) => sum + Number(item.price || 0), 0); bookingsApi.previewPrice({ branchId: state.branchId, serviceIds: state.serviceIds, comboId: state.comboId, voucherCode: state.voucherCode || undefined }).then(setPreview).catch(() => setPreview({ subtotal, voucherDiscount: 0, finalAmount: subtotal, voucherApplied: false })); }, [services, state.branchId, state.serviceIds, state.comboId, state.voucherCode]);
-  const recurringPayload = () => ({ branchId: state.branchId, serviceIds: state.serviceIds, comboId: state.comboId || undefined, staffId: state.staffId || undefined, staffMode: state.recurring.staffMode, frequency: state.recurring.frequency, startDate: state.date, preferredTime: format(new Date(state.slot.start), 'HH:mm'), occurrenceCount: state.recurring.occurrenceCount });
-  useEffect(() => { if (!user || !state.recurring.enabled || !state.slot) { setRecurringPreview(null); return; } setPreviewingRecurring(true); recurringApi.preview(recurringPayload()).then(setRecurringPreview).catch((error) => toast.error(error.message)).finally(() => setPreviewingRecurring(false)); }, [user, state.recurring.enabled, state.recurring.frequency, state.recurring.occurrenceCount, state.recurring.staffMode, state.slot?.start, state.staffId, state.comboId]);
-  const confirm = async () => { if (submitting) return; setSubmitting(true); try { let booking; let plan; if (state.recurring.enabled) { plan = await recurringApi.create({ ...recurringPayload(), skipConflicts: state.recurring.skipConflicts, note: state.customerInfo.note }); booking = plan.bookings?.[0]; } else { booking = await bookingsApi.create({ branchId: state.branchId, serviceIds: state.serviceIds, comboId: state.comboId || undefined, appointmentDate: state.slot.start, note: state.customerInfo.note, staffId: state.staffId, voucherCode: state.voucherCode || undefined, source: 'ONLINE_WEB' }); } toast.success(plan ? `Đã tạo chuỗi ${plan.bookings?.length || 0} lịch hẹn` : booking.status === 'PENDING' ? 'Đã gửi yêu cầu đặt lịch' : 'Đặt lịch thành công'); state.reset(); navigate('/book/success', { state: { booking, plan } }); } catch (err) { if (err.status === 409 || /trùng|conflict|already|khung giờ/i.test(err.message)) { toast.error('Một hoặc nhiều khung giờ vừa có người đặt. Vui lòng kiểm tra lại.'); navigate('/book/time'); } else toast.error(err.message || 'Đặt lịch thất bại'); } finally { setSubmitting(false); } };
-  const subtotal = state.combo ? Number(state.combo.comboPrice) : services.reduce((sum, item) => sum + Number(item.price || 0), 0); const duration = state.combo?.durationMinutes || services.reduce((sum, item) => sum + Number(item.durationMinutes || 0), 0); const total = preview?.finalAmount ?? subtotal;
-  const summary = <Card className="sticky top-24 p-5"><h2 className="text-sm font-bold">Tóm tắt thanh toán</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--bb-muted)]">Tạm tính mỗi kỳ</span><span>{(preview?.subtotal ?? subtotal).toLocaleString('vi-VN')}₫</span></div>{preview?.voucherApplied && <div className="flex justify-between text-[var(--bb-success)]"><span>Voucher {preview.code}</span><span>-{Number(preview.voucherDiscount || 0).toLocaleString('vi-VN')}₫</span></div>}<div className="flex justify-between border-t border-[var(--bb-border)] pt-3 text-base font-bold"><span>{state.recurring.enabled ? 'Mỗi kỳ' : 'Tổng cộng'}</span><span className="text-[var(--bb-brand-strong)]">{total.toLocaleString('vi-VN')}₫</span></div></div><Button loading={submitting || previewingRecurring} disabled={loading || !preview || (state.recurring.enabled && !recurringPreview)} onClick={confirm} className="mt-5 w-full">{state.recurring.enabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận đặt lịch'}</Button><p className="mt-3 text-center text-[11px] leading-5 text-[var(--bb-muted)]">Giá và khung giờ sẽ được hệ thống kiểm tra lại khi xác nhận.</p></Card>;
-  return <BookingLayout step={5} title="Kiểm tra và xác nhận" description="Vui lòng đối chiếu dịch vụ, thời gian và thông tin liên hệ trước khi tạo lịch." aside={summary}>{loading ? <Skeleton rows={6} /> : <div className="space-y-6"><section><h2 className="text-sm font-bold">{state.combo ? `Combo ${state.combo.name}` : 'Dịch vụ đã chọn'}</h2><div className="mt-3 divide-y divide-[var(--bb-border)] rounded-xl border border-[var(--bb-border)]">{services.map((item) => <div key={item.id} className="flex items-start justify-between gap-4 p-4"><div><p className="font-semibold">{item.name}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{item.durationMinutes || 0} phút</p></div>{!state.combo && <p className="font-bold">{Number(item.price || 0).toLocaleString('vi-VN')}₫</p>}</div>)}</div></section><div className="grid gap-3 sm:grid-cols-2"><Card className="p-4"><Clock3 size={18} className="text-[var(--bb-brand-strong)]" /><p className="mt-3 text-xs font-semibold text-[var(--bb-muted)]">Thời gian</p><p className="mt-1 text-sm font-bold">{state.slot && format(new Date(state.slot.start), 'dd/MM/yyyy · HH:mm')}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">Tổng thời lượng {duration} phút</p></Card><Card className="p-4"><UserRound size={18} className="text-[var(--bb-brand-strong)]" /><p className="mt-3 text-xs font-semibold text-[var(--bb-muted)]">Người đặt</p><p className="mt-1 text-sm font-bold">{state.customerInfo.fullName}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{state.customerInfo.phone}</p></Card></div>{state.recurring.enabled && <InlineNotice tone={recurringPreview?.conflictCount ? 'warning' : 'success'}>{previewingRecurring ? 'Đang kiểm tra toàn bộ chuỗi lịch…' : recurringPreview ? `${recurringPreview.availableCount} kỳ còn chỗ${recurringPreview.conflictCount ? `, ${recurringPreview.conflictCount} kỳ xung đột sẽ ${state.recurring.skipConflicts ? 'được bỏ qua' : 'cần xử lý'}.` : '.'}` : 'Chưa có kết quả kiểm tra chuỗi lịch.'}</InlineNotice>}{state.voucherCode && !state.recurring.enabled && <InlineNotice tone="success"><span className="flex items-center gap-2"><TicketPercent size={16} />Đã kiểm tra mã {state.voucherCode}{preview?.voucherApplied ? ' và áp dụng thành công.' : '; mã không tạo giảm giá trong kết quả hiện tại.'}</span></InlineNotice>}<InlineNotice tone="info"><span className="flex items-start gap-2"><ShieldCheck size={16} className="mt-0.5 shrink-0" />Hệ thống chống đặt trùng sẽ kiểm tra lại khung giờ trong transaction khi tạo lịch.</span></InlineNotice><div className="border-t border-[var(--bb-border)] pt-5"><Button variant="secondary" disabled={submitting} onClick={() => navigate('/book/info')}>Quay lại chỉnh sửa</Button></div></div>}</BookingLayout>;
+  const navigate = useNavigate();
+  const state = useBookingStore();
+  const user = useAuthStore((store) => store.user);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const idempotencyKey = useRef(crypto.randomUUID());
+
+  useEffect(() => {
+    if (!state.branchId || !state.serviceIds.length || !state.slot) { navigate('/book', { replace: true }); return; }
+  }, [state.branchId, state.serviceIds, state.slot, navigate]);
+
+  const serviceKey = state.branchId && state.serviceIds.length ? JSON.stringify([state.branchId, state.serviceIds]) : null;
+  const serviceResource = useAsyncResource(serviceKey, async () => {
+    const result = await servicesApi.getAll(state.branchId);
+    const selected = (result.data ?? result ?? []).filter((item) => state.serviceIds.includes(item.id));
+    if (selected.length !== state.serviceIds.length) throw new Error('Một số dịch vụ không còn khả dụng. Vui lòng chọn lại dịch vụ.');
+    return selected;
+  });
+  const services = serviceResource.data || [];
+  const loading = serviceResource.loading;
+
+  const variantByService = useMemo(() => new Map(services.map((service) => [
+    service.id,
+    service.variants?.find((variant) => variant.id === state.variantSelections[service.id]) || null,
+  ])), [services, state.variantSelections]);
+  const subtotal = state.combo ? Number(state.combo.comboPrice) : services.reduce((sum, service) => sum + Number(variantByService.get(service.id)?.price ?? service.price ?? 0), 0);
+  const businessId = services[0]?.branch?.businessId;
+  const { data: loyaltyAccount } = useAsyncResource(user && businessId ? JSON.stringify([user.id, businessId]) : null, async () => {
+    const rows = await loyaltyApi.mine();
+    return (rows || []).find((row) => row.businessId === businessId) || null;
+  });
+
+  const pricePayload = {
+      branchId: state.branchId,
+      serviceIds: state.serviceIds,
+      comboId: state.comboId,
+      voucherCode: !state.recurring.enabled && state.voucherCode ? state.voucherCode : undefined,
+      variantSelections: state.variantSelections,
+      loyaltyPoints: state.recurring.enabled ? 0 : state.loyaltyPoints,
+      appointmentDate: state.slot?.start,
+  };
+  const priceResource = useAsyncResource(services.length && state.slot ? JSON.stringify([user?.id, pricePayload]) : null, () => bookingsApi.previewPrice(pricePayload));
+  const preview = priceResource.data;
+
+  const recurringPayload = state.slot ? {
+    branchId: state.branchId,
+    serviceIds: state.serviceIds,
+    comboId: state.comboId || undefined,
+    staffId: state.staffId || undefined,
+    staffMode: state.recurring.staffMode,
+    frequency: state.recurring.frequency,
+    startDate: state.date,
+    preferredTime: format(new Date(state.slot.start), 'HH:mm'),
+    occurrenceCount: state.recurring.occurrenceCount,
+  } : null;
+  const recurringResource = useAsyncResource(user && state.recurring.enabled && recurringPayload && !Object.keys(state.variantSelections).length
+    ? JSON.stringify([user.id, recurringPayload]) : null, () => recurringApi.preview(recurringPayload));
+  const recurringPreview = recurringResource.data;
+  const previewingRecurring = recurringResource.loading;
+  const recurringReady = !state.recurring.enabled || (recurringPreview?.availableCount > 0 && (state.recurring.skipConflicts || !recurringPreview.conflictCount));
+  const canConfirm = Boolean(user && preview && !loading && !priceResource.loading && !previewingRecurring && recurringReady);
+
+  const confirm = async () => {
+    if (submittingRef.current || !canConfirm) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      let booking; let plan;
+      if (state.recurring.enabled) {
+        if (Object.keys(state.variantSelections).length) throw new Error('Lịch lặp với biến thể dịch vụ chưa được hỗ trợ. Hãy tắt lịch lặp.');
+        plan = await recurringApi.create({ ...recurringPayload, skipConflicts: state.recurring.skipConflicts, note: state.customerInfo.note });
+        booking = plan.bookings?.[0];
+      } else {
+        booking = await bookingsApi.create({
+          branchId: state.branchId,
+          serviceIds: state.serviceIds,
+          variantSelections: state.variantSelections,
+          comboId: state.comboId || undefined,
+          appointmentDate: state.slot.start,
+          note: state.customerInfo.note,
+          staffId: state.staffId,
+          voucherCode: state.voucherCode || undefined,
+          loyaltyPoints: state.loyaltyPoints,
+          source: 'ONLINE_WEB',
+        }, idempotencyKey.current);
+      }
+      toast.success(plan ? `Đã tạo chuỗi ${plan.bookings?.length || 0} lịch hẹn` : booking.status === 'PENDING' ? 'Đã gửi yêu cầu đặt lịch' : 'Đặt lịch thành công');
+      navigate('/book/success', { state: { booking, plan } });
+    } catch (error) {
+      if (error.status === 409 || /trùng|conflict|already|khung giờ/i.test(error.message)) {
+        toast.error('Một hoặc nhiều khung giờ vừa có người đặt. Vui lòng kiểm tra lại.');
+        navigate('/book/time');
+      } else toast.error(error.message || 'Đặt lịch thất bại');
+    } finally { submittingRef.current = false; setSubmitting(false); }
+  };
+
+  const total = preview?.finalAmount ?? subtotal;
+  const summary = <Card className="sticky top-24 p-5"><h2 className="text-sm font-bold">Tóm tắt giá dịch vụ</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--bb-muted)]">{state.recurring.enabled ? 'Tạm tính mỗi kỳ' : 'Tạm tính'}</span><span>{money(preview?.subtotal ?? subtotal)}</span></div>{preview?.promotionDiscount > 0 && <div className="flex justify-between text-[var(--bb-success)]"><span>Khuyến mãi tự động</span><span>-{money(preview.promotionDiscount)}</span></div>}{preview?.voucherApplied && <div className="flex justify-between text-[var(--bb-success)]"><span>Voucher {preview.code}</span><span>-{money(preview.voucherDiscount)}</span></div>}{preview?.loyaltyDiscount > 0 && <div className="flex justify-between text-[var(--bb-success)]"><span>{preview.loyaltyPoints} điểm</span><span>-{money(preview.loyaltyDiscount)}</span></div>}<div className="flex justify-between border-t border-[var(--bb-border)] pt-3 text-base font-bold"><span>{state.recurring.enabled ? 'Kỳ đầu tiên' : 'Tổng cộng'}</span><span className="text-[var(--bb-brand-strong)]">{priceResource.loading ? 'Đang tính giá…' : preview ? money(total) : 'Chưa có giá xác nhận'}</span></div></div>{state.recurring.enabled && <p className="mt-3 text-xs text-[var(--bb-muted)]">Giá từng kỳ được xác định khi tạo chuỗi lịch. Voucher và điểm không áp dụng cho chuỗi lịch.</p>}{(serviceResource.error || priceResource.error || recurringResource.error) && <div className="mt-4"><InlineNotice tone="danger">{(serviceResource.error || priceResource.error || recurringResource.error).message}</InlineNotice><Button variant="secondary" className="mt-2 w-full" onClick={() => { serviceResource.reload(); priceResource.reload(); recurringResource.reload(); }}>Thử lại</Button></div>}<Button loading={submitting || priceResource.loading || previewingRecurring} disabled={!canConfirm} onClick={confirm} className="mt-5 w-full">{state.recurring.enabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận đặt lịch'}</Button></Card>;
+
+  return <BookingLayout step={5} title="Kiểm tra và xác nhận" aside={summary}>
+    {loading ? <Skeleton rows={6} /> : <div className="space-y-6"><section><h2 className="text-sm font-bold">{state.combo ? `Combo ${state.combo.name}` : 'Dịch vụ đã chọn'}</h2><div className="mt-3 divide-y divide-[var(--bb-border)] rounded-xl border border-[var(--bb-border)]">{services.map((service) => { const variant = variantByService.get(service.id); return <div key={service.id} className="flex items-start justify-between gap-4 p-4"><div><p className="font-semibold">{service.name}</p>{variant && <p className="mt-1 text-xs font-semibold text-[var(--bb-brand-strong)]">{variant.name}</p>}<p className="mt-1 text-xs text-[var(--bb-muted)]">{variant?.durationMinutes || service.durationMinutes || 0} phút{variant ? ` · buffer ${variant.bufferBeforeMinutes || 0}/${variant.bufferAfterMinutes || 0} phút` : ''}</p></div>{!state.combo && <p className="font-bold">{variant?.priceDisplay || money(service.price)}</p>}</div>; })}</div></section>
+      {loyaltyAccount && !state.recurring.enabled && <Card className="p-4"><div className="flex items-center gap-2 font-bold"><Coins size={18} />Dùng điểm tích lũy</div><p className="mt-1 text-xs text-[var(--bb-muted)]">Khả dụng tại doanh nghiệp này: {loyaltyAccount.balance} điểm. Hệ thống tự giới hạn theo số tiền còn phải trả.</p><Field className="mt-3" label="Số điểm muốn dùng"><Input type="number" min="0" max={loyaltyAccount.balance} value={state.loyaltyPoints} onChange={(event) => state.setLoyaltyPoints(Math.min(loyaltyAccount.balance, Number(event.target.value) || 0))} /></Field></Card>}
+      <div className="grid gap-3 sm:grid-cols-2"><Card className="p-4"><Clock3 size={18} className="text-[var(--bb-brand-strong)]" /><p className="mt-3 text-xs font-semibold text-[var(--bb-muted)]">Thời gian</p><p className="mt-1 text-sm font-bold">{state.slot && format(new Date(state.slot.start), 'dd/MM/yyyy · HH:mm')}</p></Card><Card className="p-4"><UserRound size={18} className="text-[var(--bb-brand-strong)]" /><p className="mt-3 text-xs font-semibold text-[var(--bb-muted)]">Người đặt</p><p className="mt-1 text-sm font-bold">{state.customerInfo.fullName}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{state.customerInfo.phone}</p></Card></div>
+      {state.recurring.enabled && Object.keys(state.variantSelections).length > 0 && <InlineNotice tone="warning">Hãy tắt lịch lặp: biến thể cần được snapshot và xác nhận riêng cho từng kỳ.</InlineNotice>}
+      {state.recurring.enabled && Object.keys(state.variantSelections).length === 0 && <InlineNotice tone={recurringPreview?.conflictCount ? 'warning' : 'success'}>{previewingRecurring ? 'Đang kiểm tra toàn bộ chuỗi lịch…' : recurringPreview ? `${recurringPreview.availableCount} kỳ còn chỗ${recurringPreview.conflictCount ? `, ${recurringPreview.conflictCount} kỳ xung đột sẽ ${state.recurring.skipConflicts ? 'được bỏ qua' : 'cần xử lý'}.` : '.'}` : 'Chưa có kết quả kiểm tra chuỗi lịch.'}</InlineNotice>}
+      {state.voucherCode && !state.recurring.enabled && <InlineNotice tone={preview?.voucherApplied ? 'success' : 'warning'}><span className="flex items-center gap-2"><TicketPercent size={16} />{preview?.voucherApplied ? `Mã ${state.voucherCode} đã áp dụng.` : preview?.explanations?.join(' · ') || `Mã ${state.voucherCode} không đủ điều kiện.`}</span></InlineNotice>}
+      <div className="border-t border-[var(--bb-border)] pt-5"><Button variant="secondary" disabled={submitting} onClick={() => navigate('/book/info')}>Quay lại chỉnh sửa</Button></div>
+    </div>}
+  </BookingLayout>;
 }

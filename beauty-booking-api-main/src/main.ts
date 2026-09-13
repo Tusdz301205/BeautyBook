@@ -6,6 +6,7 @@ import { json, urlencoded } from 'express';
 import { randomUUID } from 'crypto';
 import helmet from 'helmet';
 import compression from 'compression';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 export function assertSafeProductionSecrets(config: ConfigService): void {
   if (config.get<string>('NODE_ENV') !== 'production') return;
@@ -22,15 +23,6 @@ export function assertSafeProductionSecrets(config: ConfigService): void {
   const encryptionKey = config.get<string>('SENSITIVE_DATA_ENCRYPTION_KEY');
   if (!encryptionKey || Buffer.from(encryptionKey, 'base64').length !== 32) {
     throw new Error('SENSITIVE_DATA_ENCRYPTION_KEY must be a base64-encoded 32-byte key in production');
-  }
-  const attendanceSecret = config.get<string>('ATTENDANCE_QR_SECRET');
-  if (
-    !attendanceSecret ||
-    attendanceSecret.length < 32 ||
-    unsafe.test(attendanceSecret) ||
-    attendanceSecret === config.get<string>('JWT_SECRET')
-  ) {
-    throw new Error('ATTENDANCE_QR_SECRET must be a distinct non-default secret of at least 32 characters in production');
   }
 }
 
@@ -89,6 +81,7 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   // Global API prefix — API Rule 7: chuẩn giao tiếp /api/v1/
   app.setGlobalPrefix('api/v1');

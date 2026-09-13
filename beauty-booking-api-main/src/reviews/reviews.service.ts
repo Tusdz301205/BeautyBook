@@ -10,6 +10,26 @@ import { can } from '../common/utils/policy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
 
+type ReviewerIdentity = {
+  isAnonymous: boolean;
+  customer?: {
+    user?: {
+      fullName?: string | null;
+      avatarMedia?: { url: string; visibility: string } | null;
+    } | null;
+  } | null;
+};
+
+function publicReviewerIdentity(review: ReviewerIdentity) {
+  const user = review.customer?.user;
+  return {
+    customerName: review.isAnonymous ? 'Ẩn danh' : user?.fullName || 'Ẩn danh',
+    customerAvatar: !review.isAnonymous && user?.avatarMedia?.visibility === 'PUBLIC'
+      ? user.avatarMedia.url
+      : null,
+  };
+}
+
 @Injectable()
 export class ReviewsService {
   constructor(
@@ -36,8 +56,8 @@ export class ReviewsService {
         where,
         include: {
           customer: {
-            include: {
-              user: { select: { fullName: true, avatarMedia: { select: { url: true } } } },
+            select: {
+              user: { select: { fullName: true, avatarMedia: { select: { url: true, visibility: true } } } },
             },
           },
           serviceRatings: {
@@ -77,8 +97,7 @@ export class ReviewsService {
         comment: r.comment,
         status: r.status,
         createdAt: r.createdAt,
-        customerName: r.isAnonymous ? 'Ẩn danh' : r.customer?.user?.fullName ?? 'Ẩn danh',
-        customerAvatar: r.isAnonymous ? null : r.customer?.user?.avatarMedia?.url ?? null,
+        ...publicReviewerIdentity(r),
         branchName: r.booking?.branch?.name,
         appointmentDate: r.booking?.appointmentDate,
         serviceRatings: r.serviceRatings.map((sr) => ({
@@ -172,7 +191,7 @@ export class ReviewsService {
   }
 
   /**
-   * Xem đánh giá về 1 nhân viên (staff xem về mình).
+   * Xem đánh giá công khai về 1 nhân viên, giữ nguyên lựa chọn ẩn danh.
    */
   async findByStaff(staffId: string) {
     const ratings = await this.prisma.reviewServiceRating.findMany({
@@ -184,8 +203,9 @@ export class ReviewsService {
             comment: true,
             status: true,
             createdAt: true,
+            isAnonymous: true,
             customer: {
-              include: {
+              select: {
                 user: { select: { fullName: true } },
               },
             },
@@ -210,38 +230,43 @@ export class ReviewsService {
           rating: r.rating,
           comment: r.comment,
           serviceName: r.bookingService?.service?.name,
-          customerName: r.review.customer?.user?.fullName ?? 'Ẩn danh',
+          customerName: publicReviewerIdentity(r.review).customerName,
           createdAt: r.createdAt,
         })),
     };
   }
 
   async findByService(serviceId: string) {
-    const ratings = await this.prisma.reviewServiceRating.findMany({
-      where: {
-        bookingService: { serviceId },
-        review: { status: 'APPROVED', deletedAt: null },
-      },
-      select: {
-        rating: true, comment: true, createdAt: true,
-        staff: { select: { id: true, fullName: true } },
-        review: { select: { customer: { select: { user: { select: { fullName: true } } } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
-    const averageRating = ratings.length
-      ? Math.round((ratings.reduce((sum, row) => sum + row.rating, 0) / ratings.length) * 10) / 10
-      : 0;
+    const where = {
+      bookingService: { serviceId },
+      review: { status: 'APPROVED' as const, deletedAt: null },
+    };
+    const [ratings, summary] = await Promise.all([
+      this.prisma.reviewServiceRating.findMany({
+        where,
+        select: {
+          rating: true, comment: true, createdAt: true,
+          staff: { select: { id: true, fullName: true } },
+          review: { select: { isAnonymous: true, customer: { select: { user: { select: { fullName: true } } } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.reviewServiceRating.aggregate({
+        where,
+        _avg: { rating: true },
+        _count: true,
+      }),
+    ]);
     return {
-      averageRating,
-      totalRatings: ratings.length,
+      averageRating: Math.round((summary._avg.rating ?? 0) * 10) / 10,
+      totalRatings: summary._count,
       ratings: ratings.map((row) => ({
         rating: row.rating,
         comment: row.comment,
         createdAt: row.createdAt,
         staff: row.staff,
-        customerName: row.review.customer.user.fullName || 'Ẩn danh',
+        customerName: publicReviewerIdentity(row.review).customerName,
       })),
     };
   }

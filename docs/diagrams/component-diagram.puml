@@ -1,0 +1,111 @@
+@startuml component-diagram
+title Sơ đồ Thành phần Hệ thống BeautyBook (Component Architecture Diagram)
+skinparam componentStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+package "Client Layer (Trình duyệt Người dùng)" {
+  component "React Web Application\n(Vite SPA - Port 8080)" as WebClient {
+    portout "HTTP / REST" as ClientHttpPort
+    portout "WebSocket" as ClientWsPort
+    
+    component "Customer Portal\n(Public Marketplace / Book / Profile)" as CompCustomerUI
+    component "Salon Portal\n(Scheduler / Staff / Services / POS)" as CompSalonUI
+    component "Platform Admin Portal\n(Onboarding / Moderation / Ledger)" as CompAdminUI
+    component "Zustand AuthStore & Session Lock" as CompAuthStore
+    component "Axios / Fetch ApiClient\n(Auto-refresh token & Idempotency)" as CompApiClient
+  }
+}
+
+package "API Gateway & Security Layer (NestJS)" {
+  component "NestJS Core HTTP Server\n(Port 3000 /api/v1)" as ApiServer {
+    portin "REST Ingress" as ApiRestPort
+    
+    component "Middleware & Filters\n(Helmet, CORS, Request-ID, PrismaFilter)" as CompMiddleware
+    component "Global Throttler Guard\n(Rate Limit 100 req/min/user)" as CompThrottler
+    component "Authentication & RBAC Guards\n(JwtAuthGuard, RolesGuard, ScopeGuard, PolicyGuard)" as CompGuards
+    component "Interceptors\n(IdempotencyInterceptor, AuditInterceptor)" as CompInterceptors
+  }
+}
+
+package "Backend Business Services (NestJS Modules)" {
+  component "AuthModule\n(AuthService, JwtStrategy, TokenBlacklist)" as ModAuth
+  component "BookingsModule\n(BookingsService, PricingEngine, Validation)" as ModBookings
+  component "Business & BranchesModule\n(Onboarding, BranchState, Hours)" as ModBranches
+  component "Services & CombosModule\n(ServiceCatalog, Variants, PriceRules)" as ModServices
+  component "StaffModule\n(StaffService, Invitations, BookableFlag)" as ModStaff
+  component "ReviewsModule\n(ReviewsService, Moderation, Appeals)" as ModReviews
+  component "Payments & FinanceModule\n(PaymentsService, PaymentProviderRegistry, Ledger)" as ModPayments
+  component "PlatformSettingsModule\n(PlatformSettingsService)" as ModSettings
+  component "SchedulerModule\n(SchedulerGateway - WebSocket Server)" as ModScheduler
+  component "Notifications & MailModule\n(NotificationOutboxWorker, MailService)" as ModNotifications
+}
+
+package "Data Access Layer" {
+  component "Prisma ORM Service\n(PrismaPg Driver Adapter + PG Pool)" as CompPrisma
+}
+
+package "External & Infrastructure Storage" {
+  database "PostgreSQL 16\n(glowbook_db)" as DbPostgres {
+    folder "Relational Tables & Exclusion Constraints" as Tables
+  }
+  
+  database "Redis 7\n(In-Memory Cache)" as RedisStore {
+    folder "Idempotency Keys, Session Expiry & Rate Limits" as RedisData
+  }
+  
+  folder "Local File Storage\n(/app/uploads)" as FileStorage
+  
+  node "External SMTP Server\n(Gmail / Nodemailer)" as SmtpServer
+}
+
+' Connecting layers
+ClientHttpPort --> ApiRestPort : HTTP/1.1 REST Requests
+ClientWsPort <--> ModScheduler : Socket.IO (bi-directional events)
+
+CompCustomerUI --> CompApiClient
+CompSalonUI --> CompApiClient
+CompAdminUI --> CompApiClient
+CompApiClient --> ClientHttpPort
+CompAuthStore --> CompApiClient
+
+ApiRestPort --> CompMiddleware
+CompMiddleware --> CompThrottler
+CompThrottler --> CompGuards
+CompGuards --> CompInterceptors
+
+CompInterceptors --> ModAuth
+CompInterceptors --> ModBookings
+CompInterceptors --> ModBranches
+CompInterceptors --> ModServices
+CompInterceptors --> ModStaff
+CompInterceptors --> ModReviews
+CompInterceptors --> ModPayments
+CompInterceptors --> ModNotifications
+
+ModBookings --> ModServices : query prices & duration
+ModBookings --> ModStaff : validate availability & skills
+ModBookings --> ModSettings : lead time & slot limits
+ModBookings --> ModScheduler : broadcast changes
+ModBookings --> ModNotifications : queue confirmation outbox
+
+ModPayments --> CompPrisma : ledger & payment updates
+ModAuth --> RedisStore : check blacklist
+CompInterceptors --> RedisStore : cache idempotency keys
+
+ModAuth --> CompPrisma
+ModBookings --> CompPrisma
+ModBranches --> CompPrisma
+ModServices --> CompPrisma
+ModStaff --> CompPrisma
+ModReviews --> CompPrisma
+ModPayments --> CompPrisma
+ModNotifications --> CompPrisma
+
+CompPrisma --> DbPostgres : SQL Queries / Transactions
+ModNotifications --> SmtpServer : Deliver transactional emails
+ModBranches --> FileStorage : Save legal media attachments
+
+@enduml

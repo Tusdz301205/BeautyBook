@@ -9,10 +9,7 @@ import {
   canOnResource,
   ensureCanOnResource,
 } from '../common/utils/policy';
-import {
-  assertBusinessAccess,
-  resolveBusinessIdByBranch,
-} from '../common/utils/multi-tenancy';
+import { resolveBusinessIdByBranch } from '../common/utils/multi-tenancy';
 import { PLATFORM_ROLE_CODES } from '../common/utils/scope-helpers';
 
 interface BookingRow {
@@ -39,6 +36,24 @@ interface BookingRow {
 @Injectable()
 export class BookingsAccessService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Branch-wide lists expose all appointments, not just a provider's assigned
+   * work. Evaluate managerial permissions on the requested branch, rather than
+   * combining a manager role in branch A with a staff membership in branch B. */
+  async assertReadBranch(user: AuthUser, branchId: string): Promise<void> {
+    const businessId = await resolveBusinessIdByBranch(this.prisma, branchId);
+    const principal = {
+      ...user,
+      scopes: (user.scopes ?? []).filter((scope) =>
+        ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER'].includes(scope.code),
+      ),
+    };
+    if (!['booking:read:branch', 'booking:read:tenant', 'booking:read:platform'].some((permission) =>
+      canOnResource(principal, permission, { businessId, branchId }),
+    )) {
+      throw new ForbiddenException('Bạn không có quyền xem toàn bộ lịch hẹn của chi nhánh này');
+    }
+  }
 
   /**
    * Load a booking + verify the caller is allowed to see it. Returns the
@@ -78,7 +93,7 @@ export class BookingsAccessService {
     let staffUserId: string | null = null;
     if (staffAssignments.length > 0) {
       const staff = await this.prisma.staffProfile.findFirst({
-        where: { id: { in: staffAssignments }, userId: { not: null } },
+        where: { id: { in: staffAssignments }, userId: user.id },
         select: { userId: true },
       });
       staffUserId = staff?.userId ?? null;
@@ -203,7 +218,12 @@ export class BookingsAccessService {
         throw new ForbiddenException('Customer profile not found');
       }
     } else {
-      await assertBusinessAccess(this.prisma, user, businessId);
+      const resource = { businessId, branchId };
+      if (!['booking:create:branch', 'booking:create:tenant'].some((permission) =>
+        canOnResource(user, permission, resource),
+      )) {
+        throw new ForbiddenException('Bạn không có quyền tạo lịch tại chi nhánh này');
+      }
     }
     return businessId;
   }

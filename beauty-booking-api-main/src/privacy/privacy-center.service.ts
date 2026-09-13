@@ -31,82 +31,11 @@ export class PrivacyCenterService {
     const customer = await this.customer(user);
     const [
       bookingCount,
-      submissionCount,
-      grants,
-      accessHistory,
-      retention,
       dataRequests,
       marketing,
     ] = await Promise.all([
       this.prisma.booking.count({
         where: { customerId: customer.id, deletedAt: null },
-      }),
-      this.prisma.consultationSubmission.count({
-        where: { customerId: customer.id },
-      }),
-      this.prisma.consentEvent.findMany({
-        where: { customerId: customer.id, action: 'GRANTED' },
-        select: {
-          id: true,
-          bookingId: true,
-          serviceId: true,
-          fieldId: true,
-          dataCategory: true,
-          purpose: true,
-          recipientType: true,
-          recipientId: true,
-          noticeVersion: true,
-          noticeHash: true,
-          expiresAt: true,
-          createdAt: true,
-          revokedBy: { select: { id: true, createdAt: true } },
-          booking: {
-            select: {
-              bookingCode: true,
-              branch: {
-                select: {
-                  id: true,
-                  name: true,
-                  business: { select: { id: true, name: true } },
-                },
-              },
-            },
-          },
-          service: { select: { name: true } },
-          field: { select: { fieldKey: true, label: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.sensitiveDataAccessEvent.findMany({
-        where: { submission: { customerId: customer.id } },
-        select: {
-          id: true,
-          actorId: true,
-          actorRole: true,
-          purpose: true,
-          result: true,
-          bookingId: true,
-          branchId: true,
-          createdAt: true,
-          breakGlassGrantId: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 200,
-      }),
-      this.prisma.consultationSubmission.findMany({
-        where: { customerId: customer.id },
-        select: {
-          id: true,
-          bookingId: true,
-          serviceId: true,
-          status: true,
-          retentionUntil: true,
-          legalHoldReason: true,
-          submittedAt: true,
-          service: { select: { name: true } },
-          booking: { select: { bookingCode: true } },
-        },
-        orderBy: { retentionUntil: 'asc' },
       }),
       this.prisma.dataSubjectRequest.findMany({
         where: { customerId: customer.id },
@@ -133,19 +62,6 @@ export class PrivacyCenterService {
         },
       }),
     ]);
-    const actorIds = [...new Set(accessHistory.map((event) => event.actorId))];
-    const actors =
-      actorIds.length > 0
-        ? await this.prisma.user.findMany({
-            where: { id: { in: actorIds } },
-            select: { id: true, fullName: true },
-          })
-        : [];
-    const actorNameById = new Map(
-      actors.map((actor) => [actor.id, actor.fullName]),
-    );
-    const now = new Date();
-
     return {
       account: {
         email: customer.user.email,
@@ -154,22 +70,15 @@ export class PrivacyCenterService {
       },
       summary: {
         bookingCount,
-        submissionCount,
-        activeShareCount: grants.filter(
-          (grant) => !grant.revokedBy && grant.expiresAt > now,
-        ).length,
-        accessEventCount: accessHistory.length,
+        submissionCount: 0,
+        activeShareCount: 0,
+        accessEventCount: 0,
       },
       sections: {
-        shares: grants.map((grant) => ({
-          ...grant,
-          active: !grant.revokedBy && grant.expiresAt > now,
-        })),
-        accessHistory: accessHistory.map((event) => ({
-          ...event,
-          actorName: actorNameById.get(event.actorId) ?? 'Tài khoản hệ thống',
-        })),
-        retention,
+        // Health records and consultation data are no longer collected or exposed.
+        shares: [],
+        accessHistory: [],
+        retention: [],
         dataRequests,
         marketing:
           marketing ??
@@ -440,9 +349,6 @@ export class PrivacyCenterService {
     const [
       profile,
       bookings,
-      submissions,
-      accessHistory,
-      legacyHealthRecords,
       reviews,
       notifications,
       dataRequests,
@@ -477,7 +383,6 @@ export class PrivacyCenterService {
           totalAmount: true,
           finalAmount: true,
           voucherDiscountAmount: true,
-          cancellationFeeAmount: true,
           cancelReason: true,
           createdAt: true,
           branch: {
@@ -526,83 +431,8 @@ export class PrivacyCenterService {
         },
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.consultationSubmission.findMany({
-        where: { customerId },
-        include: {
-          version: {
-            select: {
-              version: true,
-              noticeVersion: true,
-              noticeHash: true,
-              purpose: true,
-            },
-          },
-          answers: {
-            include: {
-              field: {
-                select: {
-                  fieldKey: true,
-                  label: true,
-                  fieldType: true,
-                  dataCategory: true,
-                },
-              },
-            },
-          },
-          consentEvents: {
-            select: {
-              id: true,
-              fieldId: true,
-              dataCategory: true,
-              action: true,
-              purpose: true,
-              recipientType: true,
-              recipientId: true,
-              noticeVersion: true,
-              noticeHash: true,
-              expiresAt: true,
-              revokeOfEventId: true,
-              createdAt: true,
-            },
-            orderBy: { createdAt: 'asc' },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.sensitiveDataAccessEvent.findMany({
-        where: { submission: { customerId } },
-        select: {
-          id: true,
-          submissionId: true,
-          actorRole: true,
-          purpose: true,
-          result: true,
-          bookingId: true,
-          branchId: true,
-          breakGlassGrantId: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.bookingHealthRecord.findMany({
-        where: { customerId },
-        select: {
-          id: true,
-          bookingId: true,
-          field: true,
-          payload: true,
-          createdAt: true,
-          consent: {
-            select: {
-              scope: true,
-              granted: true,
-              grantedAt: true,
-              revokedAt: true,
-              policyVersion: true,
-            },
-          },
-        },
-      }),
+      // Health records and consultation submissions are retired. Keep them
+      // out of exports; legacy tables are handled by retention tooling only.
       this.prisma.review.findMany({
         where: { customerId },
         select: {
@@ -672,28 +502,9 @@ export class PrivacyCenterService {
       formatVersion: 'beautybook-privacy-export-v1',
       profile,
       bookings,
-      consultationSubmissions: submissions.map((submission) => ({
-        id: submission.id,
-        bookingId: submission.bookingId,
-        serviceId: submission.serviceId,
-        status: submission.status,
-        requiresReview: submission.requiresReview,
-        submittedAt: submission.submittedAt,
-        retentionUntil: submission.retentionUntil,
-        version: submission.version,
-        answers: submission.answers.map((answer) => ({
-          field: answer.field,
-          value: this.cipher.decrypt({
-            valueCiphertext: answer.valueCiphertext,
-            encryptionIv: answer.encryptionIv,
-            authenticationTag: answer.authenticationTag,
-            keyVersion: answer.keyVersion,
-          }),
-        })),
-        consentEvents: submission.consentEvents,
-      })),
-      sensitiveDataAccessHistory: accessHistory,
-      legacyHealthRecords,
+      // Health records and consultation answers are intentionally excluded from
+      // exports because the feature has been retired. Existing legacy rows are
+      // retained only for controlled migration/retention handling.
       reviews,
       notifications,
       dataSubjectRequests: dataRequests,

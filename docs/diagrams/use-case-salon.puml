@@ -1,0 +1,91 @@
+@startuml use-case-salon
+title Sơ đồ Use Case - Phân hệ Quản trị Salon & Vận hành Chi nhánh
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Nhân viên / Thợ\n(Staff)" as Staff
+actor "Lễ tân\n(Receptionist)" as Receptionist
+actor "Quản lý chi nhánh\n(Branch Manager)" as BranchManager
+actor "Chủ Salon\n(Business Owner)" as BusinessOwner
+
+Staff <|-- Receptionist
+Receptionist <|-- BranchManager
+BranchManager <|-- BusinessOwner
+
+rectangle "Phân hệ Vận hành Salon (Salon Portal)" {
+
+  package "Lịch hẹn & Điều phối (Calendar & Dispatch)" {
+    usecase "Xem lịch làm việc chi nhánh (Scheduler Matrix)" as UC_ViewScheduler
+    usecase "Thực hiện dịch vụ (Start / Complete)" as UC_ExecuteService
+    usecase "Tạo lịch hẹn vãng lai / qua điện thoại (Walk-in / Phone)" as UC_CreateAppointment
+    usecase "Check-in khách hàng khi đến tiệm" as UC_CheckInCustomer
+    usecase "Phân công / Đổi chuyên viên (Assign Staff)" as UC_DispatchStaff
+    usecase "Duyệt yêu cầu đổi lịch / hủy lịch của khách" as UC_ProcessChangeRequest
+    usecase "Kéo thả / Thay đổi thời gian lịch hẹn (Move/Resize)" as UC_MoveResize
+  }
+
+  package "Thu ngân & Bán hàng (Point of Sale / Checkout)" {
+    usecase "Thu tiền mặt / Xác nhận chuyển khoản tại quầy" as UC_CollectPayment
+    usecase "Xác minh giao dịch chuyển khoản thủ công" as UC_VerifyTransfer
+    usecase "Bán gói liệu trình (Package Purchase)" as UC_SellPackage
+    usecase "Tạo yêu cầu hoàn tiền (Refund Request)" as UC_RequestRefund
+  }
+
+  package "Danh mục Dịch vụ & Khuyến mãi (Catalog & Deals)" {
+    usecase "Quản lý dịch vụ doanh nghiệp (Business Services)" as UC_ManageBizServices
+    usecase "Cấu hình dịch vụ áp dụng tại chi nhánh (Branch Offerings)" as UC_ConfigBranchServices
+    usecase "Thiết lập Combo dịch vụ & Biến thể giá (Price Rules)" as UC_ConfigPricing
+    usecase "Cấu hình chương trình khuyến mãi & Voucher" as UC_ManageVouchers
+  }
+
+  package "Nhân sự & Hồ sơ Chi nhánh (Staff & Organization)" {
+    usecase "Xem hồ sơ & lịch cá nhân" as UC_StaffSelfProfile
+    usecase "Gửi lời mời nhân sự vào chi nhánh (Staff Invitation)" as UC_InviteStaff
+    usecase "Cấu hình giờ mở cửa & ngày nghỉ chi nhánh (Holidays)" as UC_BranchCalendar
+    usecase "Quản lý hồ sơ pháp lý & Onboarding doanh nghiệp" as UC_BusinessLegal
+  }
+
+  package "Báo cáo & Phản hồi khách hàng (Analytics & Reviews)" {
+    usecase "Xem báo cáo vận hành & doanh thu chi nhánh" as UC_BranchReport
+    usecase "Xem báo cáo tổng hợp toàn doanh nghiệp (Multi-branch)" as UC_TenantReport
+    usecase "Phản hồi đánh giá của khách hàng (Reply Review)" as UC_ReplyReview
+    usecase "Báo cáo đánh giá xấu / vi phạm (Report Review)" as UC_ReportReview
+  }
+}
+
+' Staff capabilities
+Staff --> UC_ViewScheduler
+Staff --> UC_ExecuteService
+Staff --> UC_StaffSelfProfile
+
+' Receptionist additions
+Receptionist --> UC_CreateAppointment
+Receptionist --> UC_CheckInCustomer
+Receptionist --> UC_CollectPayment
+Receptionist --> UC_VerifyTransfer
+Receptionist --> UC_SellPackage
+
+' Branch Manager additions
+BranchManager --> UC_DispatchStaff
+BranchManager --> UC_ProcessChangeRequest
+BranchManager --> UC_MoveResize
+BranchManager --> UC_ConfigBranchServices
+BranchManager --> UC_BranchCalendar
+BranchManager --> UC_BranchReport
+BranchManager --> UC_ReplyReview
+BranchManager --> UC_ReportReview
+
+' Business Owner additions
+BusinessOwner --> UC_ManageBizServices
+BusinessOwner --> UC_ConfigPricing
+BusinessOwner --> UC_ManageVouchers
+BusinessOwner --> UC_InviteStaff
+BusinessOwner --> UC_BusinessLegal
+BusinessOwner --> UC_RequestRefund
+BusinessOwner --> UC_TenantReport
+
+@enduml

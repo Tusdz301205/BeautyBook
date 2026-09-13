@@ -1,15 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Archive,
   Clock3,
   Download,
-  Eye,
   FileClock,
-  FileText,
-  History,
   LockKeyhole,
   Megaphone,
-  ShieldCheck,
   UserRound,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -29,9 +24,6 @@ import {
 import '../../styles/privacy-center.css';
 
 const SECTION_DEFINITIONS = [
-  { id: 'shares', label: 'Chia sẻ', icon: ShieldCheck },
-  { id: 'access', label: 'Truy cập', icon: Eye },
-  { id: 'retention', label: 'Lưu trữ', icon: Archive },
   { id: 'requests', label: 'Yêu cầu', icon: FileClock },
   { id: 'marketing', label: 'Tiếp thị', icon: Megaphone },
 ];
@@ -52,22 +44,6 @@ const REQUEST_STATUSES = {
   COMPLETED: 'Đã hoàn tất',
   REJECTED: 'Không thể thực hiện',
   CANCELLED: 'Đã hủy',
-};
-
-const ACCESS_RESULTS = {
-  GRANTED: { label: 'Đã cho xem', tone: 'success' },
-  DENIED: { label: 'Đã từ chối', tone: 'danger' },
-  REDACTED: { label: 'Đã che dữ liệu', tone: 'warning' },
-};
-
-const ROLE_LABELS = {
-  CUSTOMER: 'Khách hàng',
-  STAFF: 'Nhân viên phục vụ',
-  RECEPTIONIST: 'Lễ tân',
-  BRANCH_MANAGER: 'Quản lý chi nhánh',
-  BUSINESS_OWNER: 'Chủ doanh nghiệp',
-  PLATFORM_ADMIN: 'Quản trị nền tảng',
-  ADMIN: 'Quản trị viên',
 };
 
 const MARKETING_OPTIONS = [
@@ -118,12 +94,10 @@ function requestStatusTone(status) {
 
 export default function PrivacySettings() {
   const [center, setCenter] = useState(null);
-  const [activeSection, setActiveSection] = useState('shares');
+  const [activeSection, setActiveSection] = useState('requests');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
-  const [revokeTarget, setRevokeTarget] = useState(null);
-  const [revoking, setRevoking] = useState(false);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [requestType, setRequestType] = useState('RECTIFICATION');
   const [requestReason, setRequestReason] = useState('');
@@ -158,9 +132,6 @@ export default function PrivacySettings() {
     void loadCenter();
   }, []);
 
-  const shares = center?.sections?.shares || [];
-  const accessHistory = center?.sections?.accessHistory || [];
-  const retention = center?.sections?.retention || [];
   const dataRequests = center?.sections?.dataRequests || [];
   const marketingDirty = useMemo(
     () => Object.keys(DEFAULT_MARKETING).some((key) => marketing[key] !== marketingBaseline[key]),
@@ -168,26 +139,8 @@ export default function PrivacySettings() {
   );
 
   const counts = {
-    shares: shares.filter((share) => share.active).length,
-    access: accessHistory.length,
-    retention: retention.length,
     requests: dataRequests.length,
     marketing: Object.values(marketing).filter(Boolean).length,
-  };
-
-  const revokeShare = async () => {
-    if (!revokeTarget?.id) return;
-    setRevoking(true);
-    try {
-      await privacyApi.revokeConsent(revokeTarget.id);
-      setRevokeTarget(null);
-      setStatusMessage('Quyền chia sẻ đã được thu hồi. Các lần đọc mới sẽ bị từ chối.');
-      await loadCenter({ quiet: true });
-    } catch (requestError) {
-      toast.error(requestError.message);
-    } finally {
-      setRevoking(false);
-    }
   };
 
   const createDataRequest = async (event) => {
@@ -281,8 +234,7 @@ export default function PrivacySettings() {
           <p className="privacy-center__kicker">Dữ liệu của bạn</p>
           <h1>Trung tâm quyền riêng tư</h1>
           <p>
-            Xem ai đã được phép đọc dữ liệu tư vấn, kiểm tra lịch sử truy cập
-            và gửi yêu cầu xử lý dữ liệu từ một nơi.
+            Kiểm soát dữ liệu tài khoản, lịch hẹn và lựa chọn tiếp thị từ một nơi.
           </p>
         </div>
         <Button variant="secondary" onClick={() => setExportDialogOpen(true)} disabled={loading || Boolean(error)}>
@@ -294,8 +246,9 @@ export default function PrivacySettings() {
       <div className="privacy-center__assurance" role="note">
         <LockKeyhole size={18} aria-hidden="true" />
         <p>
-          Dữ liệu tư vấn nhạy cảm chỉ được mở trong đúng lịch hẹn, cho đúng nhân
-          sự được phân công. Mỗi lần đọc đều được máy chủ ghi lại.
+          BeautyBook chỉ sử dụng dữ liệu cần thiết để vận hành lịch hẹn và gửi
+          thông báo theo lựa chọn của bạn. Bạn có thể gửi yêu cầu xử lý dữ liệu
+          bất cứ lúc nào.
         </p>
       </div>
 
@@ -319,9 +272,6 @@ export default function PrivacySettings() {
             </div>
             <dl className="privacy-center__summary">
               <SummaryItem label="Lịch hẹn" value={center?.summary?.bookingCount || 0} />
-              <SummaryItem label="Hồ sơ tư vấn" value={center?.summary?.submissionCount || 0} />
-              <SummaryItem label="Chia sẻ hiệu lực" value={center?.summary?.activeShareCount || 0} />
-              <SummaryItem label="Lần truy cập ghi nhận" value={center?.summary?.accessEventCount || 0} />
             </dl>
             <Link className="privacy-center__profile-link" to="/customer/profile">
               <UserRound size={16} aria-hidden="true" />
@@ -347,15 +297,6 @@ export default function PrivacySettings() {
             </nav>
 
             <section className="privacy-center__content" aria-live="polite">
-              {activeSection === 'shares' && (
-                <SharesSection shares={shares} onRevoke={setRevokeTarget} />
-              )}
-              {activeSection === 'access' && (
-                <AccessSection events={accessHistory} />
-              )}
-              {activeSection === 'retention' && (
-                <RetentionSection entries={retention} />
-              )}
               {activeSection === 'requests' && (
                 <RequestsSection
                   requests={dataRequests}
@@ -379,37 +320,6 @@ export default function PrivacySettings() {
           </div>
         </>
       )}
-
-      <Dialog
-        open={Boolean(revokeTarget)}
-        onClose={() => setRevokeTarget(null)}
-        title="Thu hồi quyền chia sẻ"
-        description="Quyền này gắn riêng với dữ liệu, lịch hẹn và người nhận đã nêu."
-        footer={(
-          <>
-            <Button variant="secondary" onClick={() => setRevokeTarget(null)}>Giữ nguyên</Button>
-            <Button variant="danger" loading={revoking} onClick={revokeShare}>Thu hồi quyền</Button>
-          </>
-        )}
-      >
-        <div className="privacy-center__dialog-copy">
-          <p>
-            Sau khi thu hồi, người nhận không thể mở dữ liệu này ở những lần
-            truy cập mới. Nhật ký cũ vẫn được giữ để phục vụ kiểm tra.
-          </p>
-          <dl>
-            <Detail term="Dữ liệu" value={revokeTarget?.field?.label || revokeTarget?.dataCategory} />
-            <Detail term="Lịch hẹn" value={revokeTarget?.booking?.bookingCode || '—'} />
-            <Detail
-              term="Cơ sở"
-              value={[
-                revokeTarget?.booking?.branch?.business?.name,
-                revokeTarget?.booking?.branch?.name,
-              ].filter(Boolean).join(' · ') || '—'}
-            />
-          </dl>
-        </div>
-      </Dialog>
 
       <Dialog
         open={requestDialogOpen}
@@ -527,156 +437,6 @@ function SectionHeading({ title, description, action }) {
       </div>
       {action}
     </header>
-  );
-}
-
-function SharesSection({ shares, onRevoke }) {
-  return (
-    <>
-      <SectionHeading
-        title="Quyền chia sẻ đang ghi nhận"
-        description="Mỗi quyền chỉ áp dụng cho một trường dữ liệu trong một lịch hẹn cụ thể."
-      />
-      {!shares.length ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="Chưa có quyền chia sẻ"
-          description="Quyền sẽ xuất hiện sau khi bạn gửi biểu mẫu tư vấn cho một lịch hẹn yêu cầu thông tin nhạy cảm."
-        />
-      ) : (
-        <div className="privacy-center__records">
-          {shares.map((share) => (
-            <article className="privacy-center__record" key={share.id}>
-              <header>
-                <div>
-                  <h3>{share.field?.label || share.dataCategory || 'Dữ liệu tư vấn'}</h3>
-                  <p>{share.service?.name || 'Dịch vụ trong lịch hẹn'}</p>
-                </div>
-                <Badge tone={share.active ? 'success' : 'neutral'}>
-                  {share.active ? 'Đang hiệu lực' : 'Đã hết hiệu lực'}
-                </Badge>
-              </header>
-              <dl className="privacy-center__details">
-                <Detail
-                  term="Cơ sở nhận"
-                  value={[
-                    share.booking?.branch?.business?.name,
-                    share.booking?.branch?.name,
-                  ].filter(Boolean).join(' · ') || '—'}
-                />
-                <Detail term="Lịch hẹn" value={share.booking?.bookingCode || '—'} />
-                <Detail term="Mục đích" value={share.purpose || 'Phục vụ lịch hẹn'} />
-                <Detail
-                  term="Thời hạn"
-                  value={`${formatDate(share.createdAt)} – ${formatDate(share.expiresAt)}`}
-                />
-              </dl>
-              <footer>
-                <p>
-                  Thông báo đồng ý {share.noticeVersion || '—'} · người nhận{' '}
-                  {share.recipientType || 'nhân sự được phân công'}
-                </p>
-                {share.active && (
-                  <Button variant="secondary" size="sm" onClick={() => onRevoke(share)}>
-                    Thu hồi
-                  </Button>
-                )}
-              </footer>
-            </article>
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-function AccessSection({ events }) {
-  return (
-    <>
-      <SectionHeading
-        title="Lịch sử truy cập"
-        description="Nhật ký ghi cả lần được phép, bị từ chối và dữ liệu đã che."
-      />
-      {!events.length ? (
-        <EmptyState
-          icon={History}
-          title="Chưa có lần truy cập"
-          description="Khi dữ liệu tư vấn được đọc hoặc bị chặn, sự kiện sẽ xuất hiện tại đây."
-        />
-      ) : (
-        <ol className="privacy-center__timeline">
-          {events.map((event) => {
-            const result = ACCESS_RESULTS[event.result] || {
-              label: event.result || 'Đã ghi nhận',
-              tone: 'neutral',
-            };
-            return (
-              <li key={event.id}>
-                <span className="privacy-center__timeline-mark" aria-hidden="true" />
-                <div>
-                  <header>
-                    <div>
-                      <h3>{event.actorName}</h3>
-                      <p>{ROLE_LABELS[event.actorRole] || event.actorRole || 'Tài khoản hệ thống'}</p>
-                    </div>
-                    <Badge tone={result.tone}>{result.label}</Badge>
-                  </header>
-                  <dl className="privacy-center__details">
-                    <Detail term="Thời điểm" value={formatDate(event.createdAt, true)} />
-                    <Detail term="Mục đích" value={event.purpose || 'Kiểm tra quyền truy cập'} />
-                    <Detail term="Lịch hẹn" value={event.bookingId || '—'} />
-                    <Detail
-                      term="Truy cập khẩn cấp"
-                      value={event.breakGlassGrantId ? 'Có, đã ghi lý do và thời hạn' : 'Không'}
-                    />
-                  </dl>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-    </>
-  );
-}
-
-function RetentionSection({ entries }) {
-  return (
-    <>
-      <SectionHeading
-        title="Thời hạn lưu dữ liệu"
-        description="Thời hạn được tính theo phiên bản biểu mẫu đã dùng khi bạn gửi thông tin."
-      />
-      {!entries.length ? (
-        <EmptyState
-          icon={Archive}
-          title="Chưa có dữ liệu tư vấn đang lưu"
-          description="Mục này chỉ liệt kê biểu mẫu tư vấn đã được gửi từ tài khoản của bạn."
-        />
-      ) : (
-        <div className="privacy-center__retention-list">
-          {entries.map((entry) => (
-            <article key={entry.id}>
-              <div>
-                <h3>{entry.service?.name || 'Hồ sơ tư vấn'}</h3>
-                <p>Lịch hẹn {entry.booking?.bookingCode || entry.bookingId}</p>
-              </div>
-              <dl>
-                <Detail term="Đã gửi" value={formatDate(entry.submittedAt)} />
-                <Detail term="Lưu đến" value={formatDate(entry.retentionUntil)} />
-                <Detail term="Trạng thái" value={entry.status || '—'} />
-              </dl>
-              {entry.legalHoldReason && (
-                <div className="privacy-center__legal-hold">
-                  <FileText size={16} aria-hidden="true" />
-                  <span>Đang tạm giữ theo nghĩa vụ pháp lý: {entry.legalHoldReason}</span>
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      )}
-    </>
   );
 }
 

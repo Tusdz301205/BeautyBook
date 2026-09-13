@@ -21,6 +21,7 @@ import {
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { BookingsService } from './bookings.service';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { cancelUnfinishedBookingItems } from './booking-item-lifecycle';
 
 @Injectable()
 export class ChangeRequestsService {
@@ -29,6 +30,18 @@ export class ChangeRequestsService {
     private readonly platformSettings: PlatformSettingsService,
     private readonly bookings: BookingsService,
   ) {}
+
+  async expirePending(bookingId?: string): Promise<number> {
+    const result = await this.prisma.appointmentChangeRequest.updateMany({
+      where: {
+        ...(bookingId ? { bookingId } : {}),
+        status: 'PENDING',
+        expiresAt: { lte: new Date() },
+      },
+      data: { status: 'EXPIRED' },
+    });
+    return result.count;
+  }
 
   /**
    * Khách (CUSTOMER) hoặc Salon (SALON) gửi yêu cầu thay đổi lịch.
@@ -75,10 +88,7 @@ export class ChangeRequestsService {
     }
 
     const now = new Date();
-    await this.prisma.appointmentChangeRequest.updateMany({
-      where: { bookingId, status: 'PENDING', expiresAt: { lte: now } },
-      data: { status: 'EXPIRED' },
-    });
+    await this.expirePending(bookingId);
     const existingPending = await this.prisma.appointmentChangeRequest.findFirst({
       where: { bookingId, status: 'PENDING', expiresAt: { gt: now } },
       select: { id: true },
@@ -110,10 +120,7 @@ export class ChangeRequestsService {
    */
   async listPending(allowedBusinessIds?: string[], allowedBranchIds?: string[]) {
     const now = new Date();
-    await this.prisma.appointmentChangeRequest.updateMany({
-      where: { status: 'PENDING', expiresAt: { lte: now } },
-      data: { status: 'EXPIRED' },
-    });
+    await this.expirePending();
     const where: any = { status: 'PENDING', expiresAt: { gt: now } };
     if (allowedBranchIds) {
       where.booking = { branchId: { in: allowedBranchIds } };
@@ -186,35 +193,17 @@ export class ChangeRequestsService {
       if (!sameAppointmentDate(req.proposedStartTime, req.proposedEndTime)) {
         throw new BadRequestException('Booking qua ngày chưa được hỗ trợ');
       }
-      // Chống double-book khi move
-      if (req.proposedStaffId) {
-        await assertNoOverlap(
-          this.prisma,
-          req.proposedStaffId,
-          req.bookingId,
-          req.proposedStartTime,
-          req.proposedEndTime,
-        );
-      } else {
-        const staffId = req.booking.bookingServices[0]?.staffId;
-        if (staffId) {
-          await assertNoOverlap(
-            this.prisma,
-            staffId,
-            req.bookingId,
-            req.proposedStartTime,
-            req.proposedEndTime,
-          );
-        }
-      }
-      await assertCustomerNotDoubleBooked(
-        this.prisma,
-        req.booking.customerId,
-        req.bookingId,
-        req.proposedStartTime,
-        req.proposedEndTime,
+      const currentInterval = toBookingInterval(
+        req.booking.appointmentDate,
+        req.booking.appointmentStartTime,
+        req.booking.appointmentEndTime,
       );
-
+      if (
+        req.proposedEndTime.getTime() - req.proposedStartTime.getTime() !==
+        currentInterval.end.getTime() - currentInterval.start.getTime()
+      ) {
+        throw new BadRequestException('Đổi lịch phải giữ nguyên thời lượng dịch vụ');
+      }
       const storedAppointment = normalizeAppointmentForStorage(
         req.proposedStartTime,
         req.proposedEndTime,
@@ -242,6 +231,7 @@ export class ChangeRequestsService {
     }
     if (req.requestType === 'CANCEL') {
       updates.status = 'CANCELLED';
+      updates.pendingExpiresAt = null;
       updates.cancelledAt = new Date();
       updates.cancelledBy = reviewerId;
       updates.cancelledByType = 'SALON';
@@ -297,29 +287,37 @@ export class ChangeRequestsService {
             `Đổi lịch phải trước giờ hẹn ${cutoff}h`,
           );
         }
-        const targetStaffId =
-          req.proposedStaffId ??
-          lockedBooking.bookingServices.find((item) => item.staffId)?.staffId;
-        if (targetStaffId) {
-          for (const serviceId of new Set(
-            lockedBooking.bookingServices.map((item) => item.serviceId),
-          )) {
+        const currentInterval = toBookingInterval(
+          lockedBooking.appointmentDate,
+          lockedBooking.appointmentStartTime,
+          lockedBooking.appointmentEndTime,
+        );
+        const shiftMs = req.proposedStartTime.getTime() - currentInterval.start.getTime();
+        for (const item of lockedBooking.bookingServices) {
+          const targetStaffId = req.proposedStaffId ?? item.staffId;
+          const itemStartAt = item.itemStartAt
+            ? new Date(item.itemStartAt.getTime() + shiftMs)
+            : req.proposedStartTime;
+          const itemEndAt = item.itemEndAt
+            ? new Date(item.itemEndAt.getTime() + shiftMs)
+            : req.proposedEndTime;
+          if (targetStaffId) {
             await validateStaffForService(
               transactionClient,
               targetStaffId,
-              serviceId,
-              req.proposedStartTime,
-              req.proposedEndTime,
+              item.serviceId,
+              itemStartAt,
+              itemEndAt,
               lockedBooking.branchId,
             );
+            await assertNoOverlap(
+              transactionClient,
+              targetStaffId,
+              req.bookingId,
+              itemStartAt,
+              itemEndAt,
+            );
           }
-          await assertNoOverlap(
-            transactionClient,
-            targetStaffId,
-            req.bookingId,
-            req.proposedStartTime,
-            req.proposedEndTime,
-          );
         }
         await assertCustomerNotDoubleBooked(
           transactionClient,
@@ -377,16 +375,55 @@ export class ChangeRequestsService {
               'Yêu cầu hủy đã qua thời hạn cho phép',
           );
         }
-        updates.cancellationFeeAmount =
-          cancellation.policy === 'warn_late_cancel'
-            ? cancellation.feeAmount
-            : null;
+        // Cancellation fees are retired; clear any legacy snapshot.
+        updates.cancellationFeeAmount = null;
         if (cancellation.policy === 'warn_late_cancel') {
           updates.cancelReason =
-            `[Cảnh báo: ${cancellation.notes ?? 'hủy trễ, có tính phí'}] ` +
+            `[Cảnh báo: ${cancellation.notes ?? 'hủy sát giờ'}] ` +
             (reviewNote ?? req.reason ?? '');
         }
       }
+      if (
+        req.requestType === 'RESCHEDULE' &&
+        req.proposedStartTime &&
+        req.proposedEndTime
+      ) {
+        const currentInterval = toBookingInterval(
+          lockedBooking.appointmentDate,
+          lockedBooking.appointmentStartTime,
+          lockedBooking.appointmentEndTime,
+        );
+        const shiftMs = req.proposedStartTime.getTime() - currentInterval.start.getTime();
+        const orderedItems = [...lockedBooking.bookingServices].sort((left, right) =>
+          (req.proposedStaffId ?? left.staffId ?? '').localeCompare(
+            req.proposedStaffId ?? right.staffId ?? '',
+          ) || left.id.localeCompare(right.id),
+        );
+        for (const item of orderedItems) {
+          await tx.bookingService.update({
+            where: { id: item.id },
+            data: {
+              staffId: req.proposedStaffId ?? item.staffId,
+              itemStartAt: item.itemStartAt
+                ? new Date(item.itemStartAt.getTime() + shiftMs)
+                : req.proposedStartTime,
+              itemEndAt: item.itemEndAt
+                ? new Date(item.itemEndAt.getTime() + shiftMs)
+                : req.proposedEndTime,
+            },
+          });
+        }
+      } else if (req.requestType === 'STAFF_CHANGE' && req.proposedStaffId) {
+        await tx.bookingService.updateMany({
+          where: { bookingId: req.bookingId },
+          data: { staffId: req.proposedStaffId },
+        });
+      }
+
+      if (req.requestType === 'CANCEL') {
+        await cancelUnfinishedBookingItems(tx, req.bookingId);
+      }
+
       const b = await tx.booking.update({
         where: { id: req.bookingId },
         data: updates,
@@ -396,13 +433,6 @@ export class ChangeRequestsService {
           bookingServices: true,
         },
       });
-
-      if (req.requestType === 'STAFF_CHANGE' && req.proposedStaffId) {
-        await tx.bookingService.updateMany({
-          where: { bookingId: req.bookingId },
-          data: { staffId: req.proposedStaffId },
-        });
-      }
 
       if (req.requestType === 'CANCEL') {
         await this.bookings.releaseBookingBenefits(

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
-import { businessApi, staffApi } from './api/apiClient';
+import { businessApi } from './api/apiClient';
 
 import { PlatformShell } from './components/layout/PlatformShell';
 import { SalonShell } from './components/layout/SalonShell';
@@ -33,12 +33,8 @@ const SalonReviews = React.lazy(() => import('./pages/Salon/SalonReviews'));
 const SalonNotifications = React.lazy(() => import('./pages/Salon/SalonNotifications'));
 const BusinessOnboarding = React.lazy(() => import('./pages/Salon/BusinessOnboarding'));
 const BranchOnboardingWizard = React.lazy(() => import('./pages/Salon/BranchOnboardingWizard'));
-const StaffSchedulePage = React.lazy(() => import('./pages/Salon/StaffSchedulePage'));
 const PaymentsWorkspace = React.lazy(() => import('./pages/Salon/PaymentsWorkspace'));
-const WorkforceWorkspace = React.lazy(() => import('./pages/Salon/WorkforceWorkspace'));
-const AttendanceMy = lazyNamed(() => import('./pages/Salon/SalonAttendance'), 'AttendanceMy');
-const AttendanceQrBoard = lazyNamed(() => import('./pages/Salon/SalonAttendance'), 'AttendanceQrBoard');
-const AttendanceBoard = lazyNamed(() => import('./pages/Salon/SalonAttendance'), 'AttendanceBoard');
+const SalonOperations = React.lazy(() => import('./pages/Salon/SalonOperations'));
 const SalonAudit = React.lazy(() => import('./pages/Admin/AdminAudit').then((module) => ({ default: () => <module.AdminAudit scopeLabel="thao tác của chính tài khoản bạn" /> })));
 const AdminOverview = lazyNamed(() => import('./pages/Admin/AdminOverview'), 'AdminOverview');
 const AdminSalons = lazyNamed(() => import('./pages/Admin/AdminSalons'), 'AdminSalons');
@@ -49,6 +45,7 @@ const AdminBusinessDetail = lazyNamed(() => import('./pages/Admin/AdminEntityDet
 const AdminAppointmentsView = lazyNamed(() => import('./pages/Admin/AdminAppointmentsView'), 'AdminAppointmentsView');
 const AdminReports = lazyNamed(() => import('./pages/Admin/AdminReports'), 'AdminReports');
 const AdminReviewsModeration = React.lazy(() => import('./pages/Admin/AdminReviewsModeration'));
+const AdminOwnership = React.lazy(() => import('./pages/Admin/AdminOwnership'));
 const AdminNotifications = React.lazy(() => import('./pages/Admin/AdminNotifications'));
 const AdminSettings = React.lazy(() => import('./pages/Admin/AdminSettings'));
 const AdminAudit = React.lazy(() => import('./pages/Admin/AdminAudit'));
@@ -62,8 +59,8 @@ const CustomerAppointments = lazyNamed(() => import('./pages/Customer/CustomerAp
 const CustomerAppointmentDetail = lazyNamed(() => import('./pages/Customer/CustomerAppointmentDetail'), 'CustomerAppointmentDetail');
 const CustomerNotifications = lazyNamed(() => import('./pages/Customer/CustomerNotifications'), 'CustomerNotifications');
 const CustomerVouchers = lazyNamed(() => import('./pages/Customer/CustomerVouchers'), 'CustomerVouchers');
-const CustomerPayments = lazyNamed(() => import('./pages/Customer/CustomerPayments'), 'CustomerPayments');
 const CustomerReviews = lazyNamed(() => import('./pages/Customer/CustomerReviews'), 'CustomerReviews');
+const CustomerBenefits = React.lazy(() => import('./pages/Customer/CustomerBenefits'));
 const SecuritySettings = React.lazy(() => import('./pages/SecuritySettings'));
 const ProfileSettings = React.lazy(() => import('./pages/ProfileSettings'));
 const PrivacySettings = React.lazy(() => import('./pages/Customer/PrivacySettings'));
@@ -171,22 +168,6 @@ function BusinessOnboardingRoute() {
     : <BusinessOnboarding />;
 }
 
-function MyStaffScheduleRedirect() {
-  const [staffId, setStaffId] = useState('');
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let active = true;
-    staffApi.getMine()
-      .then((staff) => { if (active) setStaffId(staff.id); })
-      .catch(() => { if (active) setFailed(true); });
-    return () => { active = false; };
-  }, []);
-  if (failed) return <Navigate to="/salon/account" replace />;
-  return staffId
-    ? <Navigate to={`/salon/staff/${staffId}/schedule`} replace />
-    : <RouteFallback />;
-}
-
 function AdminLanding() {
   return <AdminOverview />;
 }
@@ -231,8 +212,8 @@ export default function App() {
                   <Route path="appointments/:id" element={<CustomerAppointmentDetail />} />
                   <Route path="notifications" element={<CustomerNotifications />} />
                   <Route path="vouchers" element={<CustomerVouchers />} />
-                  <Route path="payments" element={<CustomerPayments />} />
                   <Route path="reviews" element={<CustomerReviews />} />
+                  <Route path="benefits" element={<CustomerBenefits />} />
                   <Route path="security" element={<SecuritySettings />} />
                   <Route path="profile" element={<ProfileSettings />} />
                   <Route path="privacy" element={<PrivacySettings />} />
@@ -268,9 +249,9 @@ export default function App() {
                     <Route path="combos" element={<PermissionGate fallback="/salon" anyOf={['combo:manage:tenant']}><SalonCombos /></PermissionGate>} />
                     <Route path="appointments" element={<PermissionGate fallback="/salon" anyOf={['booking:read:tenant', 'booking:read:branch']}><SalonAppointments /></PermissionGate>} />
                     <Route path="staff" element={<PermissionGate fallback="/salon" anyOf={['user:read:tenant', 'user:read:branch']}><SalonStaffManagement /></PermissionGate>} />
+                    {/* Prevent the retired schedule route from being parsed as staffId="schedule". */}
+                    <Route path="staff/schedule" element={<Navigate to="/salon/appointments" replace />} />
                     <Route path="staff/:staffId" element={<PermissionGate fallback="/salon" anyOf={['user:read:tenant', 'user:read:branch', 'user:read:self']}><StaffDetail /></PermissionGate>} />
-                    <Route path="staff/:staffId/schedule" element={<PermissionGate fallback="/salon" anyOf={['staff_schedule:read:branch', 'staff_schedule:read:self', 'staff_schedule:read:platform']}><StaffSchedulePage /></PermissionGate>} />
-                    <Route path="my-schedule" element={<PermissionGate fallback="/salon" anyOf={['staff_schedule:read:self']}><MyStaffScheduleRedirect /></PermissionGate>} />
                     <Route path="branches/new" element={<PermissionGate fallback="/salon/profile" anyOf={['branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />
                     <Route path="branches/:branchId/setup" element={<PermissionGate fallback="/salon/profile" anyOf={['branch:update:tenant', 'branch:update:branch', 'branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />
                     <Route path="promotions" element={<PermissionGate fallback="/salon" anyOf={['promotion:manage:tenant']}><SalonPromotions /></PermissionGate>} />
@@ -278,10 +259,7 @@ export default function App() {
                     <Route path="stats" element={<PermissionGate fallback="/salon" anyOf={['report:revenue:tenant', 'report:revenue:branch']}><SalonStats /></PermissionGate>} />
                     <Route path="profile" element={<PermissionGate fallback="/salon" anyOf={['branch:update:tenant', 'branch:update:branch']}><SalonProfile /></PermissionGate>} />
                     <Route path="payments" element={<PermissionGate fallback="/salon" anyOf={['payment:read:branch', 'payment:read:tenant']}><PaymentsWorkspace /></PermissionGate>} />
-                    <Route path="workforce" element={<PermissionGate fallback="/salon" anyOf={['timesheet:read:self', 'timesheet:read:branch', 'timesheet:read:tenant', 'compensation:read:self', 'compensation:read:tenant']}><WorkforceWorkspace /></PermissionGate>} />
-                    <Route path="attendance/my" element={<PermissionGate fallback="/salon" anyOf={['attendance:read:self']}><AttendanceMy /></PermissionGate>} />
-                    <Route path="attendance/qr-board" element={<PermissionGate fallback="/salon" anyOf={['attendance:qr_board:branch']}><AttendanceQrBoard /></PermissionGate>} />
-                    <Route path="attendance" element={<PermissionGate fallback="/salon" anyOf={['attendance:read:branch', 'attendance:read:tenant']}><AttendanceBoard /></PermissionGate>} />
+                    <Route path="operations" element={<PermissionGate fallback="/salon" anyOf={['booking:read:tenant', 'booking:read:branch', 'payment:read:tenant', 'payment:read:branch']}><SalonOperations /></PermissionGate>} />
                     <Route path="audit" element={<PermissionGate fallback="/salon" anyOf={['audit:read:branch', 'audit:read:tenant']}><SalonAudit /></PermissionGate>} />
                   </Route>
                   <Route path="*" element={<Navigate to="/salon" replace />} />
@@ -308,6 +286,7 @@ export default function App() {
                   <Route path="payments" element={<PermissionGate fallback="/admin" anyOf={['payment:read:platform']}><PaymentsWorkspace /></PermissionGate>} />
                   <Route path="reports" element={<PermissionGate fallback="/admin" anyOf={['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']}><AdminReports /></PermissionGate>} />
                   <Route path="reviews" element={<PermissionGate fallback="/admin" anyOf={['review:moderate:platform']}><AdminReviewsModeration /></PermissionGate>} />
+                  <Route path="ownership" element={<PermissionGate fallback="/admin" anyOf={['business:review:platform']}><AdminOwnership /></PermissionGate>} />
                   <Route path="violations" element={<Navigate to="/admin/salons" replace />} />
                   <Route path="audit" element={<PermissionGate fallback="/admin" anyOf={['audit:read:platform']}><AdminAudit /></PermissionGate>} />
                   <Route path="notifications" element={<PermissionGate fallback="/admin" anyOf={['notification:read:self']}><AdminNotifications /></PermissionGate>} />

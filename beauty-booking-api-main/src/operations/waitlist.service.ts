@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
 
 @Injectable()
 export class WaitlistService {
@@ -19,32 +20,41 @@ export class WaitlistService {
     if (!Number.isFinite(windowStart.getTime()) || !Number.isFinite(windowEnd.getTime()) || windowStart >= windowEnd || windowEnd <= new Date()) {
       throw new BadRequestException('Khoảng thời gian chờ không hợp lệ');
     }
-    const service = await this.prisma.branchServiceOffering.findFirst({
-      where: { id: input.serviceId, branchId: input.branchId, status: 'ACTIVE', bookable: true, deletedAt: null },
-      select: { id: true, branch: { select: { businessId: true } } },
-    });
-    if (!service) throw new BadRequestException('Dịch vụ không khả dụng tại chi nhánh');
-    if (input.staffId) {
-      const staff = await this.prisma.staffService.findFirst({
-        where: { staffId: input.staffId, serviceId: input.serviceId, staff: { branchId: input.branchId, status: 'ACTIVE', isBookable: true, deletedAt: null } },
-        select: { staffId: true },
+    return withSerializableTransaction(this.prisma, async (tx) => {
+      const joinKey = `${customerId}:${input.branchId}:${input.serviceId}`;
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(
+          hashtext('beautybook_waitlist_join'),
+          hashtext(${joinKey})
+        )
+      `;
+      const service = await tx.branchServiceOffering.findFirst({
+        where: { id: input.serviceId, branchId: input.branchId, status: 'ACTIVE', bookable: true, deletedAt: null },
+        select: { id: true, branch: { select: { businessId: true } } },
       });
-      if (!staff) throw new BadRequestException('Nhân viên không phục vụ dịch vụ này');
-    }
-    const duplicate = await this.prisma.waitlistEntry.findFirst({
-      where: { customerId, branchId: input.branchId, serviceId: input.serviceId, status: { in: ['WAITING', 'OFFERED'] } },
-      select: { id: true },
-    });
-    if (duplicate) throw new ConflictException('Bạn đã ở trong danh sách chờ cho dịch vụ này');
-    return this.prisma.waitlistEntry.create({ data: {
-      customerId,
-      businessId: service.branch.businessId,
-      branchId: input.branchId,
-      serviceId: input.serviceId,
-      staffId: input.staffId,
-      windowStart,
-      windowEnd,
-    } });
+      if (!service) throw new BadRequestException('Dịch vụ không khả dụng tại chi nhánh');
+      if (input.staffId) {
+        const staff = await tx.staffService.findFirst({
+          where: { staffId: input.staffId, serviceId: input.serviceId, staff: { branchId: input.branchId, status: 'ACTIVE', isBookable: true, deletedAt: null } },
+          select: { staffId: true },
+        });
+        if (!staff) throw new BadRequestException('Nhân viên không phục vụ dịch vụ này');
+      }
+      const duplicate = await tx.waitlistEntry.findFirst({
+        where: { customerId, branchId: input.branchId, serviceId: input.serviceId, status: { in: ['WAITING', 'OFFERED'] } },
+        select: { id: true },
+      });
+      if (duplicate) throw new ConflictException('Bạn đã ở trong danh sách chờ cho dịch vụ này');
+      return tx.waitlistEntry.create({ data: {
+        customerId,
+        businessId: service.branch.businessId,
+        branchId: input.branchId,
+        serviceId: input.serviceId,
+        staffId: input.staffId,
+        windowStart,
+        windowEnd,
+      } });
+    }, { conflictMessage: 'Yêu cầu danh sách chờ trùng đang được xử lý' });
   }
 
   async listCustomer(customerId: string) {
@@ -88,20 +98,21 @@ export class WaitlistService {
       const entry = await tx.waitlistEntry.findUnique({ where: { id: entryId } });
       if (!entry || entry.status !== 'WAITING') throw new ConflictException('Khách không còn ở trạng thái chờ');
       if (startAt < entry.windowStart || startAt > entry.windowEnd) throw new BadRequestException('Slot nằm ngoài khoảng thời gian khách mong muốn');
+      if (entry.staffId && entry.staffId !== input.staffId) {
+        throw new BadRequestException('Slot không thuộc nhân viên khách đã chọn');
+      }
       const service = await tx.branchServiceOffering.findUniqueOrThrow({ where: { id: entry.serviceId } });
       const endAt = new Date(startAt.getTime() + service.durationMinutes * 60_000);
-      const overlap = await tx.bookingService.findFirst({
-        where: {
-          staffId: input.staffId,
-          booking: { branchId: entry.branchId, deletedAt: null, status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] } },
-          OR: [
-            { itemStartAt: { lt: endAt }, itemEndAt: { gt: startAt } },
-            { itemStartAt: null, booking: { appointmentStartTime: { lt: endAt }, appointmentEndTime: { gt: startAt } } },
-          ],
-        },
-        select: { id: true },
-      });
-      if (overlap) throw new ConflictException('Slot không còn trống');
+      const transactionClient = tx as unknown as PrismaService;
+      await validateStaffForService(
+        transactionClient,
+        input.staffId,
+        entry.serviceId,
+        startAt,
+        endAt,
+        entry.branchId,
+      );
+      await assertNoOverlap(transactionClient, input.staffId, null, startAt, endAt);
       const slotKey = `${entry.branchId}:${input.staffId}:${startAt.toISOString()}`;
       const updated = await tx.waitlistEntry.update({ where: { id: entryId }, data: {
         status: 'OFFERED', staffId: input.staffId, offeredStartAt: startAt,

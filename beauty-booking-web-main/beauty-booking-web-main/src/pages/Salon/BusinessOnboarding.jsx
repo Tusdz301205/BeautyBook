@@ -106,7 +106,7 @@ function ChoiceGrid({ value, onChange }) {
           type="button"
           aria-pressed={value === optionValue}
           onClick={() => onChange(optionValue)}
-          className={`min-h-14 rounded-xl border p-4 text-left text-sm font-bold outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--bb-brand)] ${
+          className={`min-h-14 rounded-xl border p-4 text-left text-sm font-bold transition ${
             value === optionValue
               ? 'border-[var(--bb-brand)] bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]'
               : 'border-[var(--bb-border)] hover:bg-[var(--bb-surface-subtle)]'
@@ -396,7 +396,7 @@ export default function BusinessOnboarding() {
                         disabled={number > maxStep}
                         aria-current={number === step ? 'step' : undefined}
                         onClick={() => setStep(number)}
-                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-brand)] disabled:opacity-40 ${
+                        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold disabled:opacity-40 ${
                           number === step
                             ? 'border-[var(--bb-brand)] bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]'
                             : 'border-[var(--bb-border)]'

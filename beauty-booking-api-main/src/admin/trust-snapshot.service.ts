@@ -130,13 +130,15 @@ export class TrustSnapshotService {
 
   async upsertSnapshot(businessId: string): Promise<void> {
     const m = await this.computeForBusiness(businessId);
+    const computedAt = new Date();
     await this.prisma.salonTrustSnapshot.upsert({
       where: { businessId },
       create: {
         businessId,
         ...m,
+        computedAt,
       },
-      update: m,
+      update: { ...m, computedAt },
     });
   }
 

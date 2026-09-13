@@ -12,6 +12,25 @@ import { ALL_TENANTS, resolveBranchIdsForUser, resolveBusinessIdsForUser } from 
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { bookableStaffWhere, professionalTitle, staffRating } from '../staff/bookable-staff';
 import { BranchStateService } from './branch-state.service';
+import { SaveBranchOnboardingDto } from './dto/branch.dto';
+import { plainToInstance } from 'class-transformer';
+import { validateSync } from 'class-validator';
+
+function formatWorkingTime(value: Date) {
+  return value.toISOString().slice(11, 16);
+}
+
+function summarizeWorkingHours(hours: Array<{ dayOfWeek: number; openTime: Date; closeTime: Date; isClosed: boolean }>) {
+  const openDays = hours.filter((item) => !item.isClosed).sort((left, right) => left.dayOfWeek - right.dayOfWeek);
+  if (!openDays.length) return null;
+  const first = openDays[0];
+  return {
+    openTime: formatWorkingTime(first.openTime),
+    closeTime: formatWorkingTime(first.closeTime),
+    openDays: openDays.map((item) => item.dayOfWeek),
+    summary: `${formatWorkingTime(first.openTime)} - ${formatWorkingTime(first.closeTime)}`,
+  };
+}
 
 @Injectable()
 export class BranchesService {
@@ -56,7 +75,7 @@ export class BranchesService {
         operationalStatus: 'ACTIVE',
         business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
         services: { some: { status: 'ACTIVE', deletedAt: null } },
-        staff: { some: bookableStaffWhere({ publicOnly: true, requireSchedule: true }) },
+        staff: { some: bookableStaffWhere({ publicOnly: true }) },
       }),
     };
     if (includeNonPublic && status && status !== 'Tất cả') {
@@ -108,7 +127,7 @@ export class BranchesService {
     const branches = await this.prisma.branch.findMany({
       where,
       include: {
-        business: { select: { id: true, name: true, status: true } },
+        business: { select: { id: true, name: true, status: true, description: true } },
         district: {
           include: { province: { select: { name: true } } },
         },
@@ -116,11 +135,26 @@ export class BranchesService {
           select: {
             services: { where: matchedServiceWhere },
             bookings: { where: { deletedAt: null } },
+            staff: { where: bookableStaffWhere({ publicOnly: true }) },
           },
+        },
+        workingHours: { orderBy: { dayOfWeek: 'asc' } },
+        images: {
+          where: { media: { visibility: 'PUBLIC' } },
+          orderBy: { sortOrder: 'asc' },
+          take: 1,
+          select: { media: { select: { url: true } } },
         },
         services: {
           where: matchedServiceWhere,
-          select: { price: true, category: { select: { id: true, name: true } } },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            durationMinutes: true,
+            category: { select: { id: true, name: true } },
+            _count: { select: { bookingServices: true } },
+          },
         },
       },
       orderBy: sort === 'popular' ? { bookings: { _count: 'desc' } } : { createdAt: 'desc' },
@@ -163,6 +197,19 @@ export class BranchesService {
       bookings: b._count.bookings,
       minPrice: b.services.length ? Math.min(...b.services.map((service) => Number(service.price))) : null,
       maxPrice: b.services.length ? Math.max(...b.services.map((service) => Number(service.price))) : null,
+      coverImage: b.images[0]?.media.url ?? null,
+      workingHours: summarizeWorkingHours(b.workingHours),
+      description: b.business?.description ?? null,
+      totalStaff: b._count.staff,
+      topServices: [...b.services]
+        .sort((left, right) => right._count.bookingServices - left._count.bookingServices)
+        .slice(0, 5)
+        .map((service) => ({
+          id: service.id,
+          name: service.name,
+          price: Number(service.price),
+          duration: service.durationMinutes,
+        })),
       status: b.status,
     }));
     if (sort === 'rating') return result.sort((a, b) => b.rating - a.rating);
@@ -198,6 +245,9 @@ export class BranchesService {
         status: true,
         reviewStatus: true,
         operationalStatus: true,
+        bookingPolicy: {
+          select: { allowWalkIn: true, allowCounterBooking: true },
+        },
         onboardingProgress: {
           select: { currentStep: true, completedSteps: true, updatedAt: true },
         },
@@ -261,7 +311,6 @@ export class BranchesService {
         },
         onboardingProgress: true,
         bookingPolicy: true,
-        attendancePolicy: true,
         documents: {
           where: { status: { not: 'ARCHIVED' } },
           orderBy: { createdAt: 'desc' },
@@ -304,7 +353,7 @@ export class BranchesService {
         deletedAt: null,
         business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
         services: { some: { status: 'ACTIVE', deletedAt: null } },
-        staff: { some: bookableStaffWhere({ publicOnly: true, requireSchedule: true }) },
+        staff: { some: bookableStaffWhere({ publicOnly: true }) },
       },
       select: {
         id: true,
@@ -325,21 +374,28 @@ export class BranchesService {
           },
         },
         workingHours: true,
-        images: { select: { id: true, sortOrder: true, media: { select: { id: true, url: true, fileType: true } } } },
+        images: {
+          where: { media: { visibility: 'PUBLIC' } },
+          select: { id: true, sortOrder: true, media: { select: { id: true, url: true, fileType: true } } },
+        },
         services: {
           where: { status: 'ACTIVE', deletedAt: null },
           include: { category: true },
         },
         staff: {
-          where: bookableStaffWhere({ publicOnly: true, requireSchedule: true }),
+          where: bookableStaffWhere({ publicOnly: true }),
           select: {
             id: true, fullName: true, position: true, bio: true, experienceYears: true,
-            user: { select: { avatarMedia: { select: { url: true } } } },
+            user: { select: { avatarMedia: { select: { url: true, visibility: true } } } },
             staffServices: {
               where: { service: { status: 'ACTIVE', deletedAt: null } },
               select: { service: { select: { id: true, name: true } } },
             },
-            images: { select: { media: { select: { url: true } } }, orderBy: { sortOrder: 'asc' } },
+            images: {
+              where: { media: { visibility: 'PUBLIC' } },
+              select: { media: { select: { url: true } } },
+              orderBy: { sortOrder: 'asc' },
+            },
             reviewRatings: {
               where: { review: { status: 'APPROVED', deletedAt: null } },
               select: { rating: true },
@@ -350,17 +406,213 @@ export class BranchesService {
       },
     });
     if (!branch) return null;
+    const reviewWhere = {
+      status: 'APPROVED' as const,
+      deletedAt: null,
+      booking: { branchId: id, deletedAt: null },
+    };
+    const [reviewStats, recentReviews] = await Promise.all([
+      this.prisma.review.aggregate({
+        where: reviewWhere,
+        _avg: { overallRating: true },
+        _count: true,
+      }),
+      this.prisma.review.findMany({
+        where: reviewWhere,
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          overallRating: true,
+          comment: true,
+          isAnonymous: true,
+          createdAt: true,
+          customer: { select: { user: { select: { fullName: true } } } },
+          serviceRatings: {
+            where: { staffId: { not: null } },
+            take: 1,
+            select: { staff: { select: { fullName: true } } },
+          },
+        },
+      }),
+    ]);
+    const servicesByCategory = [...branch.services.reduce((groups, service) => {
+      const key = service.category.id;
+      const group = groups.get(key) ?? {
+        categoryId: key,
+        categoryName: service.category.name,
+        services: [],
+      };
+      group.services.push({
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        price: Number(service.price),
+        duration: service.durationMinutes,
+        status: service.status,
+      });
+      groups.set(key, group);
+      return groups;
+    }, new Map<string, {
+      categoryId: string;
+      categoryName: string;
+      services: Array<{ id: string; name: string; description: string | null; price: number; duration: number; status: string }>;
+    }>()).values()];
     return {
       ...branch,
+      servicesByCategory,
+      stats: {
+        totalServices: branch.services.length,
+        totalStaff: branch.staff.length,
+        averageRating: Math.round(Number(reviewStats._avg.overallRating ?? 0) * 10) / 10,
+        totalReviews: reviewStats._count,
+      },
+      recentReviews: recentReviews.map((review) => ({
+        id: review.id,
+        customerName: review.isAnonymous ? 'Ẩn danh' : review.customer.user.fullName,
+        rating: review.overallRating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        staffName: review.serviceRatings[0]?.staff?.fullName,
+      })),
       staff: branch.staff.map(({ user, images, reviewRatings, position, ...item }) => ({
         ...item,
         images,
         professionalTitle: professionalTitle(position),
         specialties: item.staffServices.map((entry) => entry.service.name),
-        avatarUrl: user?.avatarMedia?.url || images[0]?.media?.url || null,
+        avatarUrl: user?.avatarMedia?.visibility === 'PUBLIC'
+          ? user.avatarMedia.url
+          : images[0]?.media?.url || null,
         ...staffRating(reviewRatings),
       })),
     };
+  }
+
+  async findPublicServices(id: string, query: { categoryId?: string; search?: string; page?: number; limit?: number }) {
+    const branch = await this.findPublicBranchIdentity(id);
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const where: Prisma.BranchServiceOfferingWhereInput = {
+      branchId: branch.id,
+      status: 'ACTIVE',
+      deletedAt: null,
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.search?.trim() ? { name: { contains: query.search.trim(), mode: 'insensitive' } } : {}),
+    };
+    const [services, total] = await Promise.all([
+      this.prisma.branchServiceOffering.findMany({
+        where,
+        include: { category: { select: { id: true, name: true } } },
+        orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.branchServiceOffering.count({ where }),
+    ]);
+    const data = [...services.reduce((groups, service) => {
+      const group = groups.get(service.category.id) ?? {
+        categoryId: service.category.id,
+        categoryName: service.category.name,
+        services: [],
+      };
+      group.services.push({
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        price: Number(service.price),
+        duration: service.durationMinutes,
+        status: service.status,
+      });
+      groups.set(service.category.id, group);
+      return groups;
+    }, new Map<string, { categoryId: string; categoryName: string; services: Array<Record<string, unknown>> }>()).values()];
+    return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async findPublicReviews(id: string, query: { sort?: 'newest' | 'highest' | 'lowest'; page?: number; limit?: number }) {
+    const branch = await this.findPublicBranchIdentity(id);
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const where: Prisma.ReviewWhereInput = {
+      status: 'APPROVED',
+      deletedAt: null,
+      booking: { branchId: branch.id, deletedAt: null },
+    };
+    const orderBy: Prisma.ReviewOrderByWithRelationInput[] = query.sort === 'highest'
+      ? [{ overallRating: 'desc' }, { createdAt: 'desc' }]
+      : query.sort === 'lowest'
+        ? [{ overallRating: 'asc' }, { createdAt: 'desc' }]
+        : [{ createdAt: 'desc' }];
+    const [reviews, total, summary] = await Promise.all([
+      this.prisma.review.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          overallRating: true,
+          comment: true,
+          isAnonymous: true,
+          createdAt: true,
+          customer: {
+            select: {
+              user: { select: { fullName: true, avatarMedia: { select: { url: true, visibility: true } } } },
+            },
+          },
+          serviceRatings: {
+            select: {
+              rating: true,
+              comment: true,
+              staff: { select: { fullName: true } },
+              bookingService: { select: { serviceNameSnapshot: true } },
+            },
+          },
+          businessReply: { select: { content: true, createdAt: true } },
+        },
+      }),
+      this.prisma.review.count({ where }),
+      this.prisma.review.aggregate({ where, _avg: { overallRating: true } }),
+    ]);
+    return {
+      data: reviews.map((review) => ({
+        id: review.id,
+        customerName: review.isAnonymous ? 'Ẩn danh' : review.customer.user.fullName,
+        customerAvatar: review.isAnonymous || review.customer.user.avatarMedia?.visibility !== 'PUBLIC'
+          ? null
+          : review.customer.user.avatarMedia.url,
+        rating: review.overallRating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        serviceRatings: review.serviceRatings.map((rating) => ({
+          serviceName: rating.bookingService.serviceNameSnapshot,
+          staffName: rating.staff?.fullName,
+          rating: rating.rating,
+          comment: rating.comment,
+        })),
+        businessReply: review.businessReply,
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      summary: { averageRating: Math.round(Number(summary._avg.overallRating ?? 0) * 10) / 10, totalReviews: total },
+    };
+  }
+
+  private async findPublicBranchIdentity(id: string) {
+    const branch = await this.prisma.branch.findFirst({
+      where: {
+        id,
+        status: 'ACTIVE',
+        reviewStatus: 'APPROVED',
+        operationalStatus: 'ACTIVE',
+        deletedAt: null,
+        business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
+        services: { some: { status: 'ACTIVE', deletedAt: null } },
+        staff: { some: bookableStaffWhere({ publicOnly: true }) },
+      },
+      select: { id: true },
+    });
+    if (!branch) throw new NotFoundException('Cơ sở không tồn tại hoặc chưa được công khai');
+    return branch;
   }
 
   /**
@@ -472,7 +724,6 @@ export class BranchesService {
             },
           },
           bookingPolicy: { create: {} },
-          attendancePolicy: { create: {} },
         },
       });
       if (actorId) {
@@ -545,18 +796,6 @@ export class BranchesService {
             workingHours: { where: { isClosed: false } },
           },
         },
-        staff: {
-          where: bookableStaffWhere(),
-          select: {
-            id: true,
-            _count: {
-              select: {
-                workingHours: { where: { isOff: false } },
-                scheduleVersions: { where: { status: 'PUBLISHED' } },
-              },
-            },
-          },
-        },
         combos: {
           where: { status: 'ACTIVE', deletedAt: null },
           select: {
@@ -594,9 +833,6 @@ export class BranchesService {
     if (!branch.phone && !branch.email) reasons.push('Chưa có thông tin liên hệ');
     if (!branch._count.services) reasons.push('Chưa có dịch vụ đang hoạt động');
     if (!branch._count.staff) reasons.push('Chưa có chuyên viên được bật nhận lịch');
-    if (!branch.staff.some((staff) =>
-      staff._count.scheduleVersions > 0 || staff._count.workingHours > 0,
-    )) reasons.push('Nhân viên chưa có lịch làm');
     if (!branch._count.workingHours) reasons.push('Chưa cấu hình giờ mở cửa');
     if (!branch.bookingPolicy?.confirmedAt) reasons.push('Chưa xác nhận chính sách đặt lịch');
     if (branch.pendingHoldMinutes < 5 || branch.pendingHoldMinutes > 1440) reasons.push('Thời gian giữ lịch PENDING không hợp lệ');
@@ -624,7 +860,7 @@ export class BranchesService {
     };
   }
 
-  /** Update arbitrary branch fields. */
+  /** Update editable branch contact and operating settings. */
   async update(id: string, data: {
     name?: string; publicName?: string; description?: string;
     addressLine?: string; districtId?: string; ward?: string; floor?: string; directions?: string;
@@ -636,8 +872,8 @@ export class BranchesService {
     bookingConfirmationMode?: 'MANUAL_CONFIRMATION' | 'AUTO_CONFIRMATION';
     staffAssignmentMode?: 'CUSTOMER_SELECTS_STAFF' | 'AUTO_ASSIGN_IF_ANY_STAFF' | 'MANUAL_ASSIGN_BY_RECEPTIONIST';
     pendingHoldMinutes?: number;
-  }) {
-    const current = await this.prisma.branch.findFirst({
+  }, client: Prisma.TransactionClient = this.prisma) {
+    const current = await client.branch.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, businessId: true, addressLine: true, districtId: true },
     });
@@ -645,7 +881,7 @@ export class BranchesService {
     const addressLine = data.addressLine?.trim() ?? current.addressLine;
     const districtId = data.districtId ?? current.districtId;
     if (addressLine && districtId) {
-      const duplicate = await this.prisma.branch.findFirst({
+      const duplicate = await client.branch.findFirst({
         where: {
           id: { not: id },
           businessId: current.businessId,
@@ -658,7 +894,7 @@ export class BranchesService {
       });
       if (duplicate) throw new ConflictException('Địa chỉ này đã được dùng cho một chi nhánh khác.');
     }
-    return this.prisma.branch.update({
+    return client.branch.update({
       where: { id },
       data: {
         ...data,
@@ -675,32 +911,23 @@ export class BranchesService {
 
   async saveOnboarding(
     id: string,
-    input: {
-      currentStep: number;
-      completedSteps?: number[];
-      draftData?: Record<string, unknown>;
-      branch?: Parameters<BranchesService['update']>[1];
-      bookingPolicy?: Record<string, unknown>;
-      attendancePolicy?: Record<string, unknown>;
-      workingHours?: Array<{ dayOfWeek: number; openTime: string; closeTime: string; isClosed?: boolean }>;
-    },
+    input: SaveBranchOnboardingDto,
   ) {
-    if (!Number.isInteger(input.currentStep) || input.currentStep < 1 || input.currentStep > 14) {
-      throw new BadRequestException('Bước thiết lập chi nhánh không hợp lệ');
+    // Also validate non-HTTP callers before any write. Nested identifiers and
+    // Prisma relation operations must never pass through onboarding settings.
+    input = plainToInstance(SaveBranchOnboardingDto, input);
+    const errors = validateSync(input, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length) {
+      throw new BadRequestException('Thông tin thiết lập chi nhánh không hợp lệ');
     }
-    if (input.branch) await this.update(id, input.branch);
+    for (const hour of input.workingHours ?? []) {
+      if (!hour.isClosed && hour.openTime >= hour.closeTime) {
+        throw new BadRequestException('Giờ hoạt động không hợp lệ');
+      }
+    }
     return this.prisma.$transaction(async (tx) => {
+      if (input.branch) await this.update(id, input.branch, tx);
       if (input.workingHours) {
-        for (const hour of input.workingHours) {
-          if (
-            !Number.isInteger(hour.dayOfWeek) ||
-            hour.dayOfWeek < 0 ||
-            hour.dayOfWeek > 6 ||
-            !/^\d{2}:\d{2}$/.test(hour.openTime) ||
-            !/^\d{2}:\d{2}$/.test(hour.closeTime) ||
-            (!hour.isClosed && hour.openTime >= hour.closeTime)
-          ) throw new BadRequestException('Giờ hoạt động không hợp lệ');
-        }
         await tx.branchWorkingHour.deleteMany({ where: { branchId: id } });
         if (input.workingHours.length) {
           await tx.branchWorkingHour.createMany({
@@ -715,25 +942,29 @@ export class BranchesService {
         }
       }
       if (input.bookingPolicy) {
+        const policy = input.bookingPolicy;
+        const policyData = {
+          leadTimeMinutes: policy.leadTimeMinutes,
+          bookingHorizonDays: policy.bookingHorizonDays,
+          cancellationHours: policy.cancellationHours,
+          rescheduleHours: policy.rescheduleHours,
+          noShowHandling: policy.noShowHandling,
+          earlyCheckInMinutes: policy.earlyCheckInMinutes,
+          gracePeriodMinutes: policy.gracePeriodMinutes,
+          allowWalkIn: policy.allowWalkIn,
+          allowCounterBooking: policy.allowCounterBooking,
+          defaultBufferMinutes: policy.defaultBufferMinutes,
+          overbookingEnabled: policy.overbookingEnabled,
+          maxOverbookedSlots: policy.maxOverbookedSlots,
+          confirmedAt: new Date(),
+        };
         await tx.branchBookingPolicy.upsert({
           where: { branchId: id },
           create: {
             branchId: id,
-            ...(input.bookingPolicy as any),
-            confirmedAt: new Date(),
+            ...policyData,
           },
-          update: { ...(input.bookingPolicy as any), confirmedAt: new Date() },
-        });
-      }
-      if (input.attendancePolicy) {
-        await tx.branchAttendancePolicy.upsert({
-          where: { branchId: id },
-          create: {
-            branchId: id,
-            ...(input.attendancePolicy as any),
-            confirmedAt: new Date(),
-          },
-          update: { ...(input.attendancePolicy as any), confirmedAt: new Date() },
+          update: policyData,
         });
       }
       return tx.branchOnboardingProgress.upsert({

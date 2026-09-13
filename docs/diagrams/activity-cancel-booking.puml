@@ -1,0 +1,90 @@
+@startuml activity-cancel-booking
+title Sơ đồ Hoạt động - Quy trình Hủy Lịch hẹn (Activity Diagram: Cancel Booking Flow)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+start
+:Người dùng yêu cầu hủy lịch hẹn;
+:Nhập lý do hủy (Cancellation Note);
+
+:Truy vấn thông tin lịch hẹn (Booking);
+
+if (Lịch hẹn có tồn tại?) then (Không)
+  :Báo lỗi 404 Not Found;
+  stop
+else (Có)
+endif
+
+if (Trạng thái hiện tại thuộc nhóm Trạng thái Kết thúc\n(COMPLETED, CANCELLED, NO_SHOW, REJECTED, EXPIRED)?) then (Đã kết thúc)
+  :Báo lỗi: Không thể hủy lịch hẹn đã kết thúc;
+  stop
+else (Đang hoạt động)
+endif
+
+partition "Kiểm tra Thẩm quyền & Quy tắc Chuyển trạng thái" {
+  if (Chủ thể yêu cầu hủy là ai?) then (Khách hàng - Customer)
+    if (Trạng thái là PENDING hoặc CONFIRMED?) then (Đúng)
+    else (Sai)
+      :Từ chối: Khách không thể hủy khi dịch vụ đã check-in hoặc đang làm;
+      stop
+    endif
+    
+    :Đánh giá Chính sách Hủy (evaluateCancelPolicy);\nKhoảng cách thời gian = Giờ hẹn - Hiện tại;
+    
+    if (Khoảng cách < 0 (Đã quá giờ hẹn)?) then (Quá giờ)
+      :Báo lỗi 'too_late': Đã quá thời gian hẹn;
+      stop
+    else (Chưa tới giờ)
+      if (Khoảng cách < 2 giờ?) then (Sát giờ)
+        :Ghi nhận cảnh báo Hủy sát giờ (warn_late_cancel);
+      else (Đủ điều kiện)
+        :Hủy hợp lệ (allowed);
+      endif
+    endif
+
+  else if (Chủ thể là Salon (Manager / Receptionist)) then (Salon)
+    if (Trạng thái là PENDING, CONFIRMED, CHECKED_IN, IN_PROGRESS?) then (Cho phép)
+    else (Không cho phép)
+      :Báo lỗi: Trạng thái không hợp lệ để salon hủy;
+      stop
+    endif
+
+  else (Quản trị viên - Platform Admin)
+    :Cho phép ép hủy có kiểm toán (FORCE_CANCEL);
+  endif
+}
+
+partition "Giao dịch Hủy & Hoàn trả Tài nguyên (Serializable Transaction)" {
+  :Bắt đầu giao dịch Serializable;
+  :Cập nhật trạng thái Booking = 'CANCELLED';
+  :Ghi nhận cancelledAt, cancelledById, cancellationReason;
+  :Thêm bản ghi BookingStatusHistory (CANCELLED);
+
+  if (Lịch hẹn có sử dụng Voucher?) then (Có)
+    :Giảm số lần sử dụng Voucher (usedCount - 1);
+    :Mở lại hiệu lực Voucher cho khách;
+  endif
+
+  if (Lịch hẹn có trừ Điểm thưởng (Loyalty)?) then (Có)
+    :Tạo giao dịch LoyaltyTransaction (REFUND);
+    :Cộng trả lại điểm vào ví tích lũy của khách;
+  endif
+
+  :Tạo bản ghi NotificationOutbox (Gửi thông báo hủy lịch);
+  :Commit giao dịch;
+}
+
+note right
+  Do trạng thái đã chuyển sang CANCELLED,
+  khung giờ của chuyên viên được giải phóng
+  ngay lập tức cho các khách hàng khác đặt lịch.
+end note
+
+:Phát sự kiện WebSocket ('booking:cancelled') tới Salon;
+:Gửi thông báo (SMS / In-app / Email) tới các bên liên quan;
+:Hiển thị xác nhận hủy lịch thành công;
+stop
+
+@enduml

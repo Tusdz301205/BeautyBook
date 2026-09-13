@@ -1,0 +1,79 @@
+@startuml state-booking
+title Sơ đồ Trạng thái Lịch hẹn (Booking Lifecycle State Machine)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+[*] --> PENDING : Khách hàng / Lễ tân tạo lịch hẹn mới\n(Lưu slot giữ chỗ tạm thời)
+
+state PENDING as "PENDING\n(Mới tạo / Chờ xác nhận)" {
+  PENDING : Slot nhân sự bị khóa tạm thời
+  PENDING : Thuộc nhóm BLOCKING_BOOKING_STATUSES
+}
+
+state CONFIRMED as "CONFIRMED\n(Đã xác nhận)" {
+  CONFIRMED : Lịch hẹn chính thức có hiệu lực
+  CONFIRMED : Thuộc nhóm BLOCKING_BOOKING_STATUSES
+}
+
+state CHECKED_IN as "CHECKED_IN\n(Đã Check-in tại quầy)" {
+  CHECKED_IN : Khách hàng đã có mặt tại Salon
+  CHECKED_IN : Cho phép check-in sớm tối đa 30 phút
+  CHECKED_IN : Thuộc nhóm BLOCKING_BOOKING_STATUSES
+}
+
+state IN_PROGRESS as "IN_PROGRESS\n(Đang thực hiện dịch vụ)" {
+  IN_PROGRESS : Chuyên viên đang phục vụ khách
+  IN_PROGRESS : Thuộc nhóm BLOCKING_BOOKING_STATUSES
+}
+
+state COMPLETED as "COMPLETED\n(Hoàn thành dịch vụ)" <<terminal>> {
+  COMPLETED : Dịch vụ kết thúc thành công
+  COMPLETED : Kích hoạt quyền gửi Đánh giá (Review)
+  COMPLETED : Xuất hóa đơn & Ghi nhận doanh thu
+}
+
+state CANCELLED as "CANCELLED\n(Đã hủy)" <<terminal>> {
+  CANCELLED : Khách tự hủy hoặc Salon hủy
+  CANCELLED : Giải phóng hoàn toàn slot nhân sự
+  CANCELLED : Hoàn trả Voucher / Điểm thưởng Loyalty
+}
+
+state NO_SHOW as "NO_SHOW\n(Khách không đến)" <<terminal>> {
+  NO_SHOW : Quá thời gian ân hạn vắng mặt (15 phút)
+  NO_SHOW : Giải phóng slot của chuyên viên
+}
+
+state REJECTED as "REJECTED\n(Salon từ chối)" <<terminal>> {
+  REJECTED : Salon không thể tiếp nhận lịch
+}
+
+state EXPIRED as "EXPIRED\n(Hết hạn giữ chỗ)" <<terminal>> {
+  EXPIRED : Quá pending_hold_minutes mà chưa được duyệt
+  EXPIRED : Scheduler tự động thu hồi
+}
+
+' Transitions
+PENDING --> CONFIRMED : [Lễ tân duyệt / Chi nhánh bật Auto-confirm]
+PENDING --> REJECTED : [Lễ tân từ chối nhận lịch]
+PENDING --> EXPIRED : [Hết thời gian giữ chỗ tạm thời (Cron Worker)]
+PENDING --> CANCELLED : [Khách hàng hoặc Salon hủy]
+
+CONFIRMED --> CHECKED_IN : [Lễ tân check-in khi khách đến (Trong 30 phút trước giờ hẹn)]
+CONFIRMED --> NO_SHOW : [Khách vắng mặt quá 15 phút sau giờ hẹn]
+CONFIRMED --> CANCELLED : [Khách hủy (thỏa mãn Lead Time >= 2h) hoặc Salon hủy]
+
+CHECKED_IN --> IN_PROGRESS : [Chuyên viên bấm Bắt đầu làm dịch vụ]
+CHECKED_IN --> CANCELLED : [Phát sinh sự cố bất khả kháng tại tiệm]
+
+IN_PROGRESS --> COMPLETED : [Chuyên viên bấm Hoàn thành dịch vụ]
+IN_PROGRESS --> CANCELLED : [Dừng dịch vụ đột xuất có kiểm toán]
+
+COMPLETED --> [*]
+CANCELLED --> [*]
+NO_SHOW --> [*]
+REJECTED --> [*]
+EXPIRED --> [*]
+
+@enduml

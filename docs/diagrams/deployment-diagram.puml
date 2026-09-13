@@ -1,0 +1,58 @@
+@startuml deployment-diagram
+title Sơ đồ Triển khai Hệ thống Thực tế (Deployment Diagram - Docker Compose Architecture)
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+node "Thiết bị Người dùng (Client Workstation / Mobile)" as ClientDevice {
+  artifact "Web Browser (Chrome / Safari / Edge)\n[React 18 Single Page Application]" as BrowserApp
+}
+
+node "Máy chủ Ứng dụng (Host Machine / Docker Engine)" as HostServer {
+
+  package "Docker Compose Network (glowbook_network)" {
+
+    node "Container: web\n[nginx:alpine]" as ContainerWeb {
+      artifact "Static Web Bundle\n(HTML, CSS, JS Chunks)" as StaticFiles
+      component "Nginx Reverse Proxy\n(Port :80 -> Host :8080)" as NginxProxy
+    }
+
+    node "Container: api\n[Node.js 20 Alpine]" as ContainerApi {
+      artifact "NestJS Application Server\n(dist/main.js - Port :3000)" as NestApp
+      folder "Persistent Volume: /app/uploads\n[media_data]" as UploadsMount
+    }
+
+    node "Container: postgres\n[postgres:16-alpine]" as ContainerPostgres {
+      database "PostgreSQL Database Engine\n(Port :5432)" as PostgresInstance {
+        database "Database: glowbook_db\n(Schema: public)" as GlowbookDb
+      }
+      folder "Persistent Volume: /var/lib/postgresql/data\n[postgres_data]" as PostgresData
+    }
+
+    node "Container: redis\n[redis:7-alpine]" as ContainerRedis {
+      database "Redis Server Engine\n(Port :6379 - Appendonly Yes)" as RedisInstance
+      folder "Persistent Volume: /data\n[redis_data]" as RedisData
+    }
+  }
+}
+
+cloud "Hạ tầng Dịch vụ Bên ngoài (External Cloud Services)" {
+  node "Mail Delivery Provider\n[Google Gmail SMTP / Nodemailer]" as ExternalSmtp
+}
+
+' Network Connections
+BrowserApp --> NginxProxy : HTTP / HTTPS (Port 8080)
+NginxProxy --> StaticFiles : Phục vụ tài nguyên tĩnh (Static Assets)
+NginxProxy --> NestApp : Reverse Proxy chuyển tiếp\n/api/v1/* & WebSocket /socket.io
+
+NestApp --> GlowbookDb : TCP :5432 (Prisma ORM / Connection Pool)
+NestApp --> RedisInstance : TCP :6379 (Cache, Sessions, Idempotency)
+NestApp --> UploadsMount : Lưu trữ tệp media/hồ sơ pháp lý
+NestApp --> ExternalSmtp : SMTP TLS :587 (Gửi email xác thực & thông báo)
+
+ContainerPostgres .. PostgresData : Gắn kết volume lưu trữ
+ContainerRedis .. RedisData : Gắn kết volume lưu trữ
+ContainerApi .. UploadsMount : Gắn kết volume lưu trữ
+
+@enduml

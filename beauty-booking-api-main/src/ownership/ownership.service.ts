@@ -135,6 +135,26 @@ export class OwnershipService {
       if (transfer.status === 'COMPLETED') return transfer;
       if (!['APPROVED', 'SCHEDULED'].includes(transfer.status) || !transfer.approvedBy || !transfer.acceptedByNewOwnerAt) throw new ConflictException('Yêu cầu chưa đủ phê duyệt');
       if (transfer.effectiveAt > new Date()) throw new ConflictException('Chưa đến thời điểm chuyển giao');
+      // Re-check financial liabilities at execution time, not only in the
+      // earlier impact preview. The transfer and this check share the row
+      // lock/serializable transaction so a pending obligation cannot slip in
+      // between review and ownership mutation.
+      const [pendingPayments, pendingRefunds] = await Promise.all([
+        tx.paymentTransaction.count({
+          where: { businessId: transfer.businessId, status: 'PENDING' },
+        }),
+        tx.refundRequest.count({
+          where: {
+            payment: { booking: { branch: { businessId: transfer.businessId } } },
+            status: { in: ['PENDING', 'APPROVED', 'PROCESSING'] },
+          },
+        }),
+      ]);
+      if (pendingPayments || pendingRefunds) {
+        throw new ConflictException(
+          `Chưa thể chuyển giao khi còn ${pendingPayments} giao dịch chờ xác minh và ${pendingRefunds} yêu cầu hoàn tiền đang xử lý`,
+        );
+      }
       await tx.ownershipTransfer.update({ where: { id: transferId }, data: { status: 'EXECUTING' } });
       const business = await tx.business.findUniqueOrThrow({ where: { id: transfer.businessId }, include: { owner: true } });
       if (business.ownerId !== transfer.oldOwnerId) throw new ConflictException('Chủ doanh nghiệp đã thay đổi ngoài workflow');

@@ -16,7 +16,7 @@ export default function DayBookingsDrawer({ date, bookings, onClose, onOpenBooki
           ) : bookings.map((booking) => {
             const status = BOOKING_STATUSES[booking.status] ?? BOOKING_STATUSES.PENDING;
             return (
-              <button key={booking.id} type="button" onClick={() => onOpenBooking(booking)} className="w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-pink-200 hover:bg-pink-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
+              <button key={booking.id} type="button" onClick={() => onOpenBooking(booking)} className="w-full rounded-xl border border-zinc-200 p-3 text-left transition hover:border-pink-200 hover:bg-pink-50/40">
                 <div className="flex items-start gap-3">
                   <span className="w-12 shrink-0 text-sm font-bold tabular-nums text-zinc-950">{format(booking.startAt, 'HH:mm')}</span>
                   <span className="min-w-0 flex-1">

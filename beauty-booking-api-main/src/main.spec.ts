@@ -26,13 +26,12 @@ describe('production environment validation', () => {
           JWT_SECRET: '7sF!Q2mN9vK4xP8cR6yT3uW1zA5dG0hJ',
           JWT_REFRESH_SECRET: '4bL@8qZ2nV6tM0pX9cK3sR7wF1yH5jD!',
           SENSITIVE_DATA_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
-          ATTENDANCE_QR_SECRET: '9xN!4pQ7sV2mK8wR5tY1cF6hJ3dL0zB@',
         }),
       ),
     ).not.toThrow();
   });
 
-  test('rejects missing production data and attendance keys', () => {
+  test('rejects a missing production data-encryption key', () => {
     expect(() =>
       assertSafeProductionSecrets(
         config({

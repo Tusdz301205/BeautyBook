@@ -1,0 +1,98 @@
+@startuml sequence-submit-review
+title Quy trình Gửi Đánh giá Dịch vụ & Phản hồi từ Salon (Review Submission & Feedback Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Khách hàng\n(Customer)" as Customer
+participant "Giao diện Lịch hẹn\n(React Web)" as Web
+participant "ReviewsController" as Controller
+participant "ReviewsService" as Service
+participant "PlatformSettingsService" as Settings
+database "PostgreSQL\n(Prisma ORM)" as DB
+actor "Quản lý Salon\n(Salon Manager)" as Salon
+
+== 1. Khách hàng Gửi Đánh giá sau khi Dịch vụ Hoàn thành ==
+Customer -> Web : Chọn lịch hẹn đã hoàn thành & Điền đánh giá:\n- Điểm tổng quan (overallRating: 5 sao)\n- Nhận xét (comment)\n- Tùy chọn ẩn danh (isAnonymous)\n- Điểm chi tiết cho từng dịch vụ & chuyên viên (serviceRatings)
+Web -> Controller : POST /api/v1/reviews\nHeaders: Authorization: Bearer <token>\nBody: { bookingId, overallRating, comment, isAnonymous, serviceRatings }
+
+activate Controller
+Controller -> Service : create(reviewDto, customerId)
+activate Service
+
+Service -> Settings : getEffective() -> { reviewMinLength: 10, allowAnonymousReview: true }
+activate Settings
+Settings --> Service : Platform review policies
+deactivate Settings
+
+Service -> Service : Kiểm tra độ dài comment >= reviewMinLength (10 ký tự)
+
+Service -> DB : prisma.booking.findUnique({\n  where: { id: bookingId },\n  include: { review: true, bookingServices: true }\n})
+activate DB
+DB --> Service : Booking record (customerId, status: 'COMPLETED', review: null)
+deactivate DB
+
+alt Booking không thuộc về khách hàng
+  Service --> Controller : throw ForbiddenException("Bạn không có quyền đánh giá booking này")
+  Controller --> Web : 403 Forbidden
+end
+
+alt Booking chưa hoàn thành (status != 'COMPLETED')
+  Service --> Controller : throw BadRequestException("Chỉ có thể đánh giá sau khi dịch vụ hoàn thành")
+  Controller --> Web : 400 Bad Request
+end
+
+alt Booking đã có đánh giá trước đó
+  Service --> Controller : throw BadRequestException("Booking này đã được đánh giá")
+  Controller --> Web : 400 Bad Request
+end
+
+Service -> DB : prisma.review.create({\n  data: {\n    bookingId, customerId, overallRating, comment, isAnonymous,\n    status: 'APPROVED',\n    serviceRatings: { createMany: { data: serviceRatings } }\n  }\n})
+activate DB
+DB --> Service : Review created (id, status: 'APPROVED')
+deactivate DB
+
+Service -> DB : prisma.notificationOutbox.create({\n  type: 'NEW_REVIEW_RECEIVED',\n  recipientId: branchManagerId,\n  payload: { reviewId, overallRating }\n})
+
+Service --> Controller : Review response DTO
+deactivate Service
+Controller --> Web : 201 Created
+deactivate Controller
+
+Web --> Customer : Hiển thị lời cảm ơn & cập nhật trạng thái đã đánh giá
+
+== 2. Salon Tiếp nhận & Phản hồi Đánh giá (Business Reply) ==
+Salon -> Web : Xem danh sách đánh giá tại Salon Portal (/salon/reviews)
+Web -> Controller : GET /api/v1/reviews/branch/{branchId}
+activate Controller
+Controller -> Service : findByBranch(branchId, page, limit)
+activate Service
+Service -> DB : prisma.review.findMany({ where: { booking: { branchId } } })
+activate DB
+DB --> Service : Danh sách đánh giá
+deactivate DB
+Service --> Controller : Danh sách đánh giá kèm điểm trung bình
+deactivate Service
+Controller --> Web : 200 OK
+deactivate Controller
+
+Salon -> Web : Nhập câu trả lời phản hồi khách hàng
+Web -> Controller : POST /api/v1/reviews/{id}/reply\nBody: { content: "Cảm ơn quý khách đã tin tưởng trải nghiệm!" }
+activate Controller
+Controller -> Service : reply(reviewId, content, user)
+activate Service
+Service -> DB : prisma.businessReply.upsert({\n  where: { reviewId },\n  update: { content, updatedAt: now },\n  create: { reviewId, content, businessId }\n})
+activate DB
+DB --> Service : BusinessReply saved
+deactivate DB
+Service --> Controller : 200 OK
+deactivate Service
+Controller --> Web : 200 OK (Cập nhật câu trả lời công khai)
+deactivate Controller
+
+Web --> Salon : Hiển thị phản hồi đính kèm bên dưới đánh giá
+
+@enduml

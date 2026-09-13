@@ -185,118 +185,6 @@ export class StaffController {
     return this.staffService.findMine(user.id);
   }
 
-  @Patch('schedule-change-requests/:requestId/review')
-  @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'StaffScheduleChangeRequest', idParam: 'requestId' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
-  async reviewScheduleChange(
-    @Param('requestId') requestId: string,
-    @Body() body: { approve: boolean; reviewNote?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
-    const request = await this.prisma.staffScheduleChangeRequest.findUnique({
-      where: { id: requestId },
-      select: { branchId: true },
-    });
-    if (!request) throw new BadRequestException('Yêu cầu thay đổi lịch không tồn tại');
-    await assertBranchAccess(this.prisma, user, request.branchId);
-    return this.staffService.reviewScheduleChange(
-      requestId,
-      Boolean(body.approve),
-      user,
-      body.reviewNote,
-    );
-  }
-
-  @Get(':id/schedule-view')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
-  @RequirePermission(
-    'staff_schedule:read:branch',
-    'staff_schedule:read:self',
-  )
-  async getScheduleView(
-    @Param('id') id: string,
-    @Query('branchId') branchId: string | undefined,
-    @Query('from') from: string,
-    @Query('to') to: string,
-    @CurrentUser() user: AuthUser,
-  ) {
-    if (!from || !to) throw new BadRequestException('from và to là bắt buộc');
-    await this.assertStaffResourceAccess(user, id, branchId);
-    return this.staffService.getScheduleView(id, { branchId, from, to });
-  }
-
-  @Get(':id/schedule-versions')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
-  @RequirePermission(
-    'staff_schedule:read:branch',
-    'staff_schedule:read:self',
-  )
-  async getScheduleVersions(
-    @Param('id') id: string,
-    @Query('branchId') branchId: string | undefined,
-    @CurrentUser() user: AuthUser,
-  ) {
-    await this.assertStaffResourceAccess(user, id, branchId);
-    return this.staffService.getScheduleVersions(id, branchId);
-  }
-
-  @Post(':id/schedule-versions')
-  @Audited({ action: AuditAction.UPDATE, entityType: 'StaffScheduleVersion' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'STAFF')
-  @RequirePermission(
-    'staff_schedule:manage:branch',
-    'staff_schedule:manage:self',
-  )
-  async saveScheduleVersion(
-    @Param('id') id: string,
-    @Body() body: {
-      branchId: string;
-      effectiveFrom: string;
-      effectiveTo?: string | null;
-      note?: string;
-      acknowledgeOutOfHours?: boolean;
-      segments: Array<{
-        dayOfWeek: number;
-        startTime: string;
-        endTime: string;
-        sortOrder?: number;
-      }>;
-    },
-    @CurrentUser() user: AuthUser,
-  ) {
-    if (!body.branchId || !Array.isArray(body.segments)) {
-      throw new BadRequestException('branchId và segments là bắt buộc');
-    }
-    await this.assertStaffResourceAccess(user, id);
-    await assertBranchAccess(this.prisma, user, body.branchId);
-    return this.staffService.saveScheduleVersion(id, body, user);
-  }
-
-  @Post(':id/schedule-change-requests')
-  @Audited({ action: AuditAction.CREATE, entityType: 'StaffScheduleChangeRequest' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'STAFF')
-  @RequirePermission(
-    'staff_schedule:request_change:self',
-    'staff_schedule:manage:branch',
-  )
-  async requestScheduleChange(
-    @Param('id') id: string,
-    @Body() body: {
-      branchId: string;
-      type: 'RECURRING_SCHEDULE' | 'SINGLE_DAY' | 'LEAVE';
-      effectiveFrom: string;
-      effectiveTo?: string;
-      proposedData: Record<string, unknown>;
-      reason: string;
-    },
-    @CurrentUser() user: AuthUser,
-  ) {
-    await this.assertStaffResourceAccess(user, id);
-    await assertBranchAccess(this.prisma, user, body.branchId);
-    return this.staffService.requestScheduleChange(id, body, user);
-  }
-
   /**
    * GET /api/staff
    * Danh sách nhân viên — filtered theo scope user.
@@ -373,7 +261,7 @@ export class StaffController {
       fullName?: string;
       position?: string;
       bio?: string;
-      status?: 'PROFILE_ONLY' | 'INVITED' | 'ACTIVE' | 'LOCKED' | 'INACTIVE' | 'ON_LEAVE';
+      status?: 'PROFILE_ONLY' | 'INVITED' | 'ACTIVE' | 'LOCKED' | 'INACTIVE';
       publicVisible?: boolean;
       isBookable?: boolean;
     },
@@ -436,106 +324,10 @@ export class StaffController {
     return this.staffService.offboardingImpact(id);
   }
 
-  // ============================================================
-  // WORKING HOURS
-  // ============================================================
-
-  /**
-   * GET /api/staff/:id/working-hours
-   * Lấy lịch làm việc.
-   */
-  @Get(':id/working-hours')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
-  @RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:self', 'user:read:platform')
-  async getWorkingHours(
-    @Param('id') id: string,
-    @CurrentUser() user: AuthUser,
-  ) {
-    await this.assertStaffResourceAccess(user, id);
-    return this.staffService.getWorkingHours(id);
-  }
-
-  /**
-   * PUT /api/staff/:id/working-hours
-   * Cập nhật lịch làm việc (upsert).
-   */
-  @Patch(':id/working-hours')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
-  @Audited({ action: AuditAction.UPDATE, entityType: 'StaffWorkingHour' })
-  async upsertWorkingHours(
-    @Param('id') id: string,
-    @Body() body: {
-      hours: Array<{
-        dayOfWeek: number;
-        startTime: string;
-        endTime: string;
-        isOff?: boolean;
-      }>;
-    },
-    @CurrentUser() user: AuthUser,
-  ) {
-    if (!body.hours || !Array.isArray(body.hours)) {
-      throw new BadRequestException('hours phải là một mảng');
-    }
-    const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
-    return this.staffService.upsertWorkingHours(id, body.hours);
-  }
-
-  @Get(':id/schedule-exceptions')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
-  @RequirePermission('staff_schedule:read:branch', 'staff_schedule:read:self')
-  async getScheduleExceptions(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    await this.assertStaffResourceAccess(user, id);
-    return this.staffService.getScheduleExceptions(id);
-  }
-
-  @Patch(':id/breaks')
-  @Audited({ action: AuditAction.UPDATE, entityType: 'StaffBreak' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
-  async replaceBreaks(
-    @Param('id') id: string,
-    @Body() body: { breaks: Array<{ dayOfWeek: number; startTime: string; endTime: string }> },
-    @CurrentUser() user: AuthUser,
-  ) {
-    const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
-    return this.staffService.replaceBreaks(id, body.breaks ?? []);
-  }
-
-  @Post(':id/leaves')
-  @Audited({ action: AuditAction.CREATE, entityType: 'StaffLeave' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'STAFF')
-  @RequirePermission('staff_leave:create:self', 'staff_schedule:manage:branch')
-  async requestLeave(
-    @Param('id') id: string,
-    @Body() body: { startAt: string; endAt: string; reason?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
-    await this.assertStaffResourceAccess(user, id);
-    return this.staffService.requestLeave(id, body, user);
-  }
-
-  @Patch('leaves/:leaveId/review')
-  @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'StaffLeave', idParam: 'leaveId' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
-  async reviewLeave(
-    @Param('leaveId') leaveId: string,
-    @Body() body: { approve: boolean; reviewNote?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
-    const branchId = await this.staffService.getBranchIdByLeave(leaveId);
-    await assertBranchAccess(this.prisma, user, branchId);
-    return this.staffService.reviewLeave(leaveId, body.approve, user.id, body.reviewNote);
-  }
-
   @Patch('branches/:branchId/holidays')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BranchHoliday', idParam: 'branchId' })
   @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
+  @RequirePermission('branch:update:tenant', 'branch:update:branch')
   async upsertHoliday(
     @Param('branchId') branchId: string,
     @Body() body: { date: string; name: string; isClosed?: boolean },
@@ -548,10 +340,10 @@ export class StaffController {
   @Post('branches/:branchId/special-days')
   @Audited({ action: AuditAction.CREATE, entityType: 'SpecialWorkingDay', idParam: 'branchId' })
   @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_schedule:manage:branch')
+  @RequirePermission('branch:update:tenant', 'branch:update:branch')
   async createSpecialDay(
     @Param('branchId') branchId: string,
-    @Body() body: { staffId?: string; date: string; startTime: string; endTime: string },
+    @Body() body: { date: string; startTime: string; endTime: string },
     @CurrentUser() user: AuthUser,
   ) {
     await assertBranchAccess(this.prisma, user, branchId);

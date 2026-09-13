@@ -10,7 +10,6 @@ describe('PlatformSettingsService validation', () => {
     ['maxRescheduleCountPerBooking', 11],
     ['reviewMinLength', 501],
     ['autoHideReviewReportThreshold', 0],
-    ['attendanceQrTtlSeconds', 61],
   ])('rejects invalid %s', (key, value) => {
     expect(() => service.validate({ [key]: value })).toThrow(BadRequestException);
   });

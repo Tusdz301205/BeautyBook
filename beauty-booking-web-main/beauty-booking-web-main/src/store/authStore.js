@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi } from '../api/apiClient';
+import { useBookingStore } from './bookingStore';
 
 /**
  * RBAC + Scope shape carried from the backend. Each scoped role holds
@@ -152,6 +153,7 @@ export const useAuthStore = create(
       },
 
       clearSession: () => {
+        useBookingStore.getState().reset();
         set({ user: null, accessToken: null, initialized: true });
       },
 
@@ -159,6 +161,9 @@ export const useAuthStore = create(
         try {
           if (get().accessToken) await authApi.logout();
         } finally {
+          // Do not carry contact details, notes or selections into the next
+          // account when two users share the same browser tab.
+          useBookingStore.getState().reset();
           set({ user: null, accessToken: null, initialized: true });
         }
       },

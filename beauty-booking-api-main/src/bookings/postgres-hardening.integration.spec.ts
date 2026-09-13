@@ -9,8 +9,18 @@ import { ServicesService } from '../services/services.service';
 import { assertCustomerNotDoubleBooked, assertNoOverlap, validateStaffForService } from './bookings.validation';
 import { BookingsService } from './bookings.service';
 import { timeValueMinutes } from '../common/utils/booking-datetime';
+import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { PricingEngineService } from '../promotions/pricing-engine.service';
+import { LoyaltyService } from '../loyalty/loyalty.service';
 
 const postgresDescribe = process.env.RUN_POSTGRES_INTEGRATION === '1' ? describe : describe.skip;
+
+if (process.env.RUN_POSTGRES_INTEGRATION === '1') {
+  const database = new URL(process.env.DATABASE_URL ?? '').pathname;
+  if (!/(^|[_/])(test|e2e)(_|$)/i.test(database) || process.env.NODE_ENV === 'production') {
+    throw new Error('PostgreSQL integration tests require a disposable test/e2e database');
+  }
+}
 
 function instant(day: number, hour: number): Date {
   return zonedDateTimeToInstant({
@@ -87,6 +97,22 @@ postgresDescribe('PostgreSQL hardening integration', () => {
         await expect(
           assertCustomerNotDoubleBooked(client, customer.id, null, instant(15, 9), instant(15, 10)),
         ).rejects.toBeInstanceOf(ConflictException);
+        const otherProvider = await tx.staffProfile.findFirst({
+          where: { id: { not: staffService.staffId }, status: 'ACTIVE', deletedAt: null },
+          select: { id: true },
+        });
+        if (!otherProvider) throw new Error('Integration fixture requires two active providers');
+        await expect(
+          assertNoOverlap(client, otherProvider.id, null, instant(15, 9), instant(15, 10)),
+        ).resolves.toBeUndefined();
+
+        await tx.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } });
+        await expect(
+          assertNoOverlap(client, staffService.staffId, null, instant(15, 9), instant(15, 10)),
+        ).resolves.toBeUndefined();
+        await expect(
+          assertCustomerNotDoubleBooked(client, customer.id, null, instant(15, 9), instant(15, 10)),
+        ).resolves.toBeUndefined();
         throw rollback;
       });
     } catch (error) {
@@ -187,9 +213,7 @@ postgresDescribe('PostgreSQL hardening integration', () => {
         },
       }),
     ]);
-    const createdIds = outcomes
-      .filter((outcome): outcome is PromiseFulfilledResult<{ id: string }> => outcome.status === 'fulfilled')
-      .map((outcome) => outcome.value.id);
+    const createdIds = outcomes.flatMap((outcome) => outcome.status === 'fulfilled' ? [outcome.value.id] : []);
 
     try {
       expect(createdIds).toHaveLength(1);
@@ -199,35 +223,51 @@ postgresDescribe('PostgreSQL hardening integration', () => {
     }
   });
 
-  test('two concurrent booking requests for one staff/slot create exactly one reservation', async () => {
+  test.each([
+    [5, 'ONLINE_WEB'],
+    [10, 'STAFF_CREATED'],
+  ] as const)(
+    '%i concurrent %s booking requests for one provider/slot create exactly one reservation',
+    async (requestCount, source) => {
     const fixture = await prisma.staffProfile.findFirst({
       where: {
-        status: 'ACTIVE', deletedAt: null, branch: { status: 'ACTIVE', deletedAt: null },
-        workingHours: { some: { isOff: false } },
-        staffServices: { some: { service: { status: 'ACTIVE', deletedAt: null } } },
+        status: 'ACTIVE',
+        isBookable: true,
+        deletedAt: null,
+        branch: {
+          status: 'ACTIVE',
+          deletedAt: null,
+          workingHours: { some: { isClosed: false } },
+        },
+        staffServices: {
+          some: { service: { status: 'ACTIVE', bookable: true, deletedAt: null } },
+        },
       },
       include: {
-        branch: { include: { workingHours: true } },
-        workingHours: { where: { isOff: false }, orderBy: { dayOfWeek: 'asc' } },
-        staffServices: { where: { service: { status: 'ACTIVE', deletedAt: null } }, include: { service: true } },
+        branch: {
+          include: {
+            workingHours: {
+              where: { isClosed: false },
+              orderBy: { dayOfWeek: 'asc' },
+            },
+          },
+        },
+        staffServices: {
+          where: { service: { status: 'ACTIVE', bookable: true, deletedAt: null } },
+          include: { service: true },
+        },
       },
     });
-    const customers = await prisma.customerProfile.findMany({ take: 2, select: { id: true } });
-    const working = fixture?.workingHours.find((item) => {
-      const branchDay = fixture.branch.workingHours.find((entry) => entry.dayOfWeek === item.dayOfWeek);
-      return !branchDay || !branchDay.isClosed;
+    const customers = await prisma.customerProfile.findMany({
+      take: requestCount,
+      select: { id: true },
     });
-    if (!fixture || customers.length < 2 || !working || !fixture.staffServices[0]) {
-      throw new Error('Integration fixture requires active staff/service and two customers');
+    const working = fixture?.branch.workingHours[0];
+    if (!fixture || customers.length < requestCount || !working || !fixture.staffServices[0]) {
+      throw new Error(`Integration fixture requires an active provider/service and ${requestCount} customers`);
     }
     const serviceRow = fixture.staffServices[0].service;
-    const branchHour = await prisma.branchWorkingHour.findUnique({
-      where: { branchId_dayOfWeek: { branchId: fixture.branchId, dayOfWeek: working.dayOfWeek } },
-    });
-    const firstStartMinutes = Math.max(
-      timeValueMinutes(working.startTime),
-      branchHour && !branchHour.isClosed ? timeValueMinutes(branchHour.openTime) : 0,
-    );
+    const firstStartMinutes = timeValueMinutes(working.openTime);
     const now = new Date();
     const appointmentDay = Array.from({ length: 27 }, (_, index) => {
       const value = new Date(now);
@@ -235,10 +275,7 @@ postgresDescribe('PostgreSQL hardening integration', () => {
       return value;
     }).find((value) => value.getUTCDay() === working.dayOfWeek);
     if (!appointmentDay) throw new Error('Cannot resolve integration appointment day');
-    const lastEndMinutes = Math.min(
-      timeValueMinutes(working.endTime),
-      branchHour && !branchHour.isClosed ? timeValueMinutes(branchHour.closeTime) : 24 * 60,
-    );
+    const lastEndMinutes = timeValueMinutes(working.closeTime);
     let start: Date | undefined;
     for (let startMinutes = firstStartMinutes; startMinutes + serviceRow.durationMinutes <= lastEndMinutes; startMinutes += 30) {
       const candidate = zonedDateTimeToInstant({
@@ -256,7 +293,7 @@ postgresDescribe('PostgreSQL hardening integration', () => {
         start = candidate;
         break;
       } catch {
-        // Keep scanning to avoid staff breaks and other date-aware closures.
+        // Keep scanning to avoid branch closures and existing reservations.
       }
     }
     if (!start) throw new Error('Cannot resolve a valid integration appointment slot');
@@ -267,21 +304,20 @@ postgresDescribe('PostgreSQL hardening integration', () => {
       mail as never,
       gateway as never,
       new PlatformSettingsService(prisma),
+      new PricingEngineService(prisma),
+      new LoyaltyService(prisma),
     );
     const payload = {
       branchId: fixture.branchId,
       serviceIds: [serviceRow.id],
       staffId: fixture.id,
       appointmentDate: start.toISOString(),
-      source: 'ONLINE_WEB' as const,
+      source,
     };
-    const outcomes = await Promise.allSettled([
-      bookings.create({ ...payload, customerId: customers[0].id }),
-      bookings.create({ ...payload, customerId: customers[1].id }),
-    ]);
-    const createdIds = outcomes
-      .filter((outcome): outcome is PromiseFulfilledResult<{ id: string }> => outcome.status === 'fulfilled')
-      .map((outcome) => outcome.value.id);
+    const outcomes = await Promise.allSettled(
+      customers.map((customer) => bookings.create({ ...payload, customerId: customer.id })),
+    );
+    const createdIds = outcomes.flatMap((outcome) => outcome.status === 'fulfilled' ? [outcome.value.id] : []);
     try {
       if (createdIds.length !== 1) {
         const reasons = outcomes.map((outcome) => outcome.status === 'rejected'
@@ -290,10 +326,142 @@ postgresDescribe('PostgreSQL hardening integration', () => {
         throw new Error(`Expected exactly one reservation; outcomes: ${reasons.join(' | ')}`);
       }
       expect(createdIds).toHaveLength(1);
-      expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(requestCount - 1);
+      expect(await prisma.bookingService.count({
+        where: {
+          staffId: fixture.id,
+          status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
+          itemStartAt: { lt: new Date(start.getTime() + serviceRow.durationMinutes * 60_000) },
+          itemEndAt: { gt: start },
+          booking: {
+            deletedAt: null,
+            status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] },
+          },
+        },
+      })).toBe(1);
     } finally {
       await prisma.notification.deleteMany({ where: { relatedBookingId: { in: createdIds } } });
       await prisma.booking.deleteMany({ where: { id: { in: createdIds } } });
+    }
+    },
+  );
+
+  test('a concurrent reschedule and create for one provider/slot have exactly one winner', async () => {
+    const staffService = await prisma.staffService.findFirst({
+      where: {
+        staff: { status: 'ACTIVE', isBookable: true, deletedAt: null },
+        service: { status: 'ACTIVE', bookable: true, deletedAt: null },
+      },
+      include: {
+        staff: { select: { branchId: true } },
+        service: {
+          select: {
+            businessServiceId: true,
+            businessService: { select: { canonicalServiceId: true, name: true } },
+          },
+        },
+      },
+    });
+    const customers = await prisma.customerProfile.findMany({ take: 2, select: { id: true } });
+    if (!staffService || customers.length < 2) {
+      throw new Error('Integration fixture requires one provider/service and two customers');
+    }
+
+    const oldInterval = normalizeAppointmentForStorage(instant(23, 8), instant(23, 9));
+    const targetStart = instant(24, 10);
+    const targetEnd = instant(24, 11);
+    const targetInterval = normalizeAppointmentForStorage(targetStart, targetEnd);
+    const codeA = `IT-RESCHEDULE-A-${randomUUID()}`;
+    const codeB = `IT-RESCHEDULE-B-${randomUUID()}`;
+    const bookingA = await prisma.booking.create({
+      data: {
+        bookingCode: codeA,
+        customerId: customers[0].id,
+        branchId: staffService.staff.branchId,
+        status: 'CONFIRMED',
+        totalAmount: 1,
+        ...oldInterval,
+      },
+    });
+    const itemA = await prisma.bookingService.create({
+      data: {
+        bookingId: bookingA.id,
+        serviceId: staffService.serviceId,
+        businessServiceId: staffService.service.businessServiceId,
+        canonicalServiceId: staffService.service.businessService.canonicalServiceId,
+        staffId: staffService.staffId,
+        priceAtBooking: 1,
+        durationMinutes: 60,
+        serviceNameSnapshot: staffService.service.businessService.name,
+        itemStartAt: instant(23, 8),
+        itemEndAt: instant(23, 9),
+      },
+    });
+
+    try {
+      const outcomes = await Promise.allSettled([
+        withSerializableTransaction(prisma, async (tx) => {
+          await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${bookingA.id} FOR UPDATE`;
+          await tx.bookingService.update({
+            where: { id: itemA.id },
+            data: { itemStartAt: targetStart, itemEndAt: targetEnd },
+          });
+          return tx.booking.update({
+            where: { id: bookingA.id },
+            data: targetInterval,
+          });
+        }),
+        withSerializableTransaction(prisma, async (tx) => {
+          const bookingB = await tx.booking.create({
+            data: {
+              bookingCode: codeB,
+              customerId: customers[1].id,
+              branchId: staffService.staff.branchId,
+              status: 'CONFIRMED',
+              totalAmount: 1,
+              ...targetInterval,
+            },
+          });
+          await tx.bookingService.create({
+            data: {
+              bookingId: bookingB.id,
+              serviceId: staffService.serviceId,
+              businessServiceId: staffService.service.businessServiceId,
+              canonicalServiceId: staffService.service.businessService.canonicalServiceId,
+              staffId: staffService.staffId,
+              priceAtBooking: 1,
+              durationMinutes: 60,
+              serviceNameSnapshot: staffService.service.businessService.name,
+              itemStartAt: targetStart,
+              itemEndAt: targetEnd,
+            },
+          });
+          return bookingB;
+        }),
+      ]);
+
+      expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+      expect(await prisma.bookingService.count({
+        where: {
+          staffId: staffService.staffId,
+          itemStartAt: { lt: targetEnd },
+          itemEndAt: { gt: targetStart },
+          booking: {
+            deletedAt: null,
+            status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] },
+          },
+        },
+      })).toBe(1);
+
+      if (outcomes[0].status === 'rejected') {
+        const unchanged = await prisma.booking.findUniqueOrThrow({ where: { id: bookingA.id } });
+        expect(unchanged.appointmentDate).toEqual(oldInterval.appointmentDate);
+        expect(unchanged.appointmentStartTime).toEqual(oldInterval.appointmentStartTime);
+        expect(unchanged.appointmentEndTime).toEqual(oldInterval.appointmentEndTime);
+      }
+    } finally {
+      await prisma.booking.deleteMany({ where: { bookingCode: { in: [codeA, codeB] } } });
     }
   });
 
@@ -413,7 +581,7 @@ postgresDescribe('PostgreSQL hardening integration', () => {
     try {
       const result = await new ServicesService(prisma).search({ query: aliasName, limit: 5 });
       expect(result.data.length).toBeGreaterThan(0);
-      expect(result.data.every((item) => item.canonicalServiceId === target.id)).toBe(true);
+      for (const item of result.data) expect(item).toMatchObject({ canonicalServiceId: target.id });
     } finally {
       await prisma.canonicalService.delete({ where: { id: alias.id } });
     }

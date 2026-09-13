@@ -1,0 +1,103 @@
+@startuml sequence-salon-onboarding
+title Quy trình Onboarding Doanh nghiệp Salon & Phê duyệt Pháp lý (Salon Onboarding)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Chủ Salon\n(Business Owner)" as Owner
+participant "Giao diện Web\n(Salon Portal)" as Web
+participant "MediaController\n(Upload Gateway)" as MediaController
+participant "BusinessController" as BizController
+participant "BusinessOnboardingService" as BizService
+database "PostgreSQL\n(Prisma ORM)" as DB
+actor "Quản trị viên Nền tảng\n(Platform Admin)" as Admin
+participant "AdminController" as AdminController
+
+== 1. Chủ Salon Khởi tạo Hồ sơ Doanh nghiệp ==
+Owner -> Web : Nhập thông tin doanh nghiệp (Tên cty, Mã số thuế, Tên thương hiệu, Địa chỉ)
+Web -> BizController : POST /api/v1/business/onboarding/draft\nBody: { companyName, taxCode, name, slug, addressLine, ... }
+activate BizController
+BizController -> BizService : saveDraft(userId, draftInput)
+activate BizService
+BizService -> DB : prisma.business.upsert({\n  where: { ownerProfile: { userId } },\n  data: { status: 'DRAFT', name, taxCode, ... }\n})
+activate DB
+DB --> BizService : Business draft record (id, status: 'DRAFT')
+deactivate DB
+BizService --> BizController : Draft saved
+deactivate BizService
+BizController --> Web : 200 OK (status: 'DRAFT')
+deactivate BizController
+
+== 2. Tải lên Hồ sơ Pháp lý (Media Upload) ==
+Owner -> Web : Đính kèm file Giấy phép kinh doanh, CCCD chủ cơ sở, Giấy tờ thuế
+Web -> MediaController : POST /api/v1/media/upload (multipart/form-data)\nBody: { file, category: 'LEGAL_DOCUMENT' }
+activate MediaController
+MediaController -> DB : prisma.mediaFile.create({\n  uploaderId: userId, filename, mimeType, path, visibility: 'PRIVATE'\n})
+activate DB
+DB --> MediaController : mediaFile record (id, url: '/api/v1/media/{id}')
+deactivate DB
+MediaController --> Web : 201 Created (mediaId, url)
+deactivate MediaController
+
+Web -> BizController : POST /api/v1/business/onboarding/draft\nBody: { legalDocuments: [{ documentType: 'BUSINESS_LICENSE', mediaId, ... }] }
+activate BizController
+BizController -> BizService : saveDraft(userId, { legalDocuments })
+activate BizService
+BizService -> DB : prisma.businessDocumentVersion.createMany(...)
+activate DB
+DB --> BizService : Document versions attached
+deactivate DB
+BizService --> BizController : Updated draft
+deactivate BizService
+BizController --> Web : 200 OK
+deactivate BizController
+
+== 3. Nộp Hồ sơ để Chờ Xét duyệt ==
+Owner -> Web : Bấm "Gửi hồ sơ xét duyệt" (Submit Onboarding)
+Web -> BizController : POST /api/v1/business/onboarding/submit
+activate BizController
+BizController -> BizService : submit(userId)
+activate BizService
+BizService -> BizService : validateSubmissionRequirements(draft):\n- Đủ thông tin thuế, CCCD, GPKD\n- Ít nhất 1 chi nhánh khởi tạo
+BizService -> DB : prisma.business.update({\n  where: { id },\n  data: { status: 'PENDING_REVIEW', submittedAt: now }\n})\n+ prisma.documentReviewEvent.create({ action: 'SUBMIT' })
+activate DB
+DB --> BizService : Business status: PENDING_REVIEW
+deactivate DB
+BizService --> BizController : Submitted successfully
+deactivate BizService
+BizController --> Web : 200 OK (status: 'PENDING_REVIEW')
+deactivate BizController
+
+== 4. Quản trị viên Nền tảng Thẩm định & Phê duyệt ==
+Admin -> AdminController : GET /api/v1/admin/onboarding/pending
+activate AdminController
+AdminController -> DB : prisma.business.findMany({ where: { status: 'PENDING_REVIEW' } })
+activate DB
+DB --> AdminController : Danh sách doanh nghiệp chờ duyệt
+deactivate DB
+AdminController --> Admin : Hiển thị danh sách hồ sơ cần thẩm định
+deactivate AdminController
+
+Admin -> AdminController : PATCH /api/v1/admin/onboarding/{id}/approve\nBody: { note: "Hồ sơ pháp lý hợp lệ và đầy đủ" }
+activate AdminController
+AdminController -> BizService : approveBusiness(businessId, adminUser, note)
+activate BizService
+BizService -> DB : prisma.$transaction(async (tx) => {\n  tx.business.update({ status: 'APPROVED' }),\n  tx.branch.updateMany({ where: { businessId }, data: { status: 'ACTIVE' } }),\n  tx.businessReviewEvent.create({ action: 'APPROVE', actorId: admin.id }),\n  tx.auditLog.create({ action: 'UPDATE', entityType: 'Business' }),\n  tx.notificationOutbox.create({ type: 'SALON_ONBOARDING_APPROVED', recipient: ownerId })\n})
+activate DB
+DB --> BizService : Transaction commit thành công
+deactivate DB
+BizService --> AdminController : Business approved & Branch activated
+deactivate BizService
+AdminController --> Admin : 200 OK (Phê duyệt thành công)
+deactivate AdminController
+
+Web -> BizController : GET /api/v1/business/my-onboarding
+activate BizController
+BizController --> Web : 200 OK (status: 'APPROVED')
+deactivate BizController
+Web --> Owner : Mở khóa toàn bộ tính năng vận hành Salon Portal & Hiển thị trên Marketplace!
+
+@enduml

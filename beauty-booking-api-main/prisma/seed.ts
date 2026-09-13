@@ -18,9 +18,9 @@ if (!(["small", "demo", "realistic"] as const).includes(requestedMode as SeedMod
 }
 const SEED_MODE = requestedMode as SeedMode;
 const MODE = {
-  small: { businesses: 3, branchesMin: 2, branchesMax: 2, staffPerBranch: 3, customers: 120, bookings: 600, comments: 30, notifications: 120, audits: 100, attendanceDays: 30 },
-  demo: { businesses: 8, branchesMin: 3, branchesMax: 3, staffPerBranch: 5, customers: 600, bookings: 4000, comments: 200, notifications: 1200, audits: 1000, attendanceDays: 180 },
-  realistic: { businesses: 12, branchesMin: 3, branchesMax: 4, staffPerBranch: 6, customers: 1500, bookings: 10000, comments: 600, notifications: 5000, audits: 20000, attendanceDays: 730 },
+  small: { businesses: 3, branchesMin: 2, branchesMax: 2, staffPerBranch: 3, customers: 120, bookings: 600, comments: 30, notifications: 120, audits: 100 },
+  demo: { businesses: 8, branchesMin: 3, branchesMax: 3, staffPerBranch: 5, customers: 600, bookings: 4000, comments: 200, notifications: 1200, audits: 1000 },
+  realistic: { businesses: 12, branchesMin: 3, branchesMax: 4, staffPerBranch: 6, customers: 1500, bookings: 10000, comments: 600, notifications: 5000, audits: 20000 },
 } as const;
 const seedConfig = MODE[SEED_MODE];
 const DAY_MS = 86_400_000;
@@ -29,6 +29,21 @@ const parsedEndDate = process.env.SEED_END_DATE ? new Date(`${process.env.SEED_E
 if (Number.isNaN(parsedEndDate.getTime())) throw new Error("SEED_END_DATE phải có dạng YYYY-MM-DD.");
 const SEED_END_DATE = parsedEndDate;
 const FUTURE_END_DATE = new Date(SEED_END_DATE.getTime() + 60 * DAY_MS);
+
+function assertSafeSeedTarget() {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) throw new Error('DATABASE_URL chưa được cấu hình.');
+  const databaseName = decodeURIComponent(new URL(rawUrl).pathname.replace(/^\//, ''));
+  const isolatedName = /(^|_)(e2e|test|demo|dev)(_|$)/i.test(databaseName);
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Không được phép seed khi NODE_ENV=production.');
+  }
+  if (!isolatedName && process.env.SEED_ALLOW_DESTRUCTIVE !== '1') {
+    throw new Error(
+      `Từ chối xóa dữ liệu database "${databaseName}". Chỉ seed DB e2e/test/demo/dev hoặc đặt SEED_ALLOW_DESTRUCTIVE=1 sau khi đã backup.`,
+    );
+  }
+}
 
 // ============================================================
 // RANDOM HELPERS (seedable)
@@ -170,76 +185,23 @@ function atUtcTime(date: Date, hour: number, minute = 0) {
 // MAIN
 // ============================================================
 async function main() {
+  assertSafeSeedTarget();
   console.log(`Bắt đầu seed production-like: mode=${SEED_MODE}, từ 2024-01-01 đến ${SEED_END_DATE.toISOString().slice(0, 10)}...`);
 
   console.log("Reset dữ liệu demo cũ theo đúng thứ tự quan hệ (Docker volume không bị xóa)...");
-  await prisma.attendanceExceptionRequest.deleteMany();
-  await prisma.staffAttendance.deleteMany();
-  await prisma.reviewReport.deleteMany();
-  await prisma.trustAction.deleteMany();
-  await prisma.businessReviewEvent.deleteMany();
-  await prisma.platformSetting.deleteMany();
-  await prisma.bookingHealthRecord.deleteMany();
-  await prisma.sensitiveConsent.deleteMany();
-  await prisma.appointmentChangeRequest.deleteMany();
-  await prisma.customerVoucher.deleteMany();
-  await prisma.refundRequest.deleteMany();
-  await prisma.staffInvitation.deleteMany();
-  await prisma.userSession.deleteMany();
-  await prisma.accountToken.deleteMany();
-  await prisma.specialWorkingDay.deleteMany();
-  await prisma.branchHoliday.deleteMany();
-  await prisma.staffLeave.deleteMany();
-  await prisma.staffBreak.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.businessComment.deleteMany();
-  await prisma.reviewServiceRating.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.bookingStatusHistory.deleteMany();
-  await prisma.bookingService.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.voucher.deleteMany();
-  await prisma.recurringBookingPlan.deleteMany();
-  await prisma.staffWorkingHour.deleteMany();
-  await prisma.staffService.deleteMany();
-  await prisma.staffImage.deleteMany();
-  await prisma.staffProfile.deleteMany();
-  await prisma.comboService.deleteMany();
-  await prisma.comboImage.deleteMany();
-  await prisma.combo.deleteMany();
-  await prisma.promotionCombo.deleteMany();
-  await prisma.promotionService.deleteMany();
-  await prisma.promotionBranch.deleteMany();
-  await prisma.promotionBusiness.deleteMany();
-  await prisma.promotion.deleteMany();
-  await prisma.serviceImage.deleteMany();
-  await prisma.branchServiceOffering.deleteMany();
-  await prisma.businessService.deleteMany();
-  await prisma.canonicalService.deleteMany();
-  await prisma.serviceCategory.deleteMany();
-  await prisma.cancellationPolicy.deleteMany();
-  await prisma.salonTrustSnapshot.deleteMany();
-  await prisma.salonMember.deleteMany();
-  await prisma.userRole.deleteMany();
-  await prisma.branchWorkingHour.deleteMany();
-  await prisma.branchImage.deleteMany();
-  await prisma.branch.deleteMany();
-  await prisma.businessImage.deleteMany();
-  await prisma.business.deleteMany();
-  await prisma.deviceToken.deleteMany();
-  await prisma.customerProfile.deleteMany();
-  await prisma.businessOwnerProfile.deleteMany();
-  await prisma.staffProfile.deleteMany();
-  await prisma.user.updateMany({ data: { avatarMediaId: null } });
-  await prisma.mediaFile.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.district.deleteMany();
-  await prisma.province.deleteMany();
-  await prisma.rolePermission.deleteMany();
-  await prisma.permission.deleteMany();
-  await prisma.role.deleteMany();
+  const tables = await prisma.$queryRaw<Array<{ tableName: string }>>`
+    SELECT tablename AS "tableName"
+    FROM pg_tables
+    WHERE schemaname = 'public'
+      AND tablename <> '_prisma_migrations'
+      AND tablename !~ '^archive_'
+  `;
+  if (tables.length) {
+    const quoted = tables
+      .map(({ tableName }) => `"${tableName.replace(/"/g, '""')}"`)
+      .join(', ');
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`);
+  }
 
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
   console.log("Hash mật khẩu xong");
@@ -347,8 +309,6 @@ async function main() {
         autoApproveNewSalons: false, requirePhoneVerification: false, requireIdVerification: true,
         maxBranchesPerBusiness: 10, reviewMinLength: 10, allowAnonymousReview: true,
         autoHideReviewReportThreshold: 5, violationSuspendThreshold: 3,
-        checkInEarlyWindowMinutes: 30, lateGraceMinutes: 10, absentThresholdMinutes: 60,
-        checkOutEarlyGraceMinutes: 5, overtimeGraceMinutes: 15, attendanceQrTtlSeconds: 45,
       },
     },
   });
@@ -459,7 +419,7 @@ async function main() {
       data: { businessId: b.id },
     });
     await prisma.cancellationPolicy.create({
-      data: { businessId: b.id, freeCancelHours: 24, lateCancelFeePercent: 30, noShowFeePercent: 50, rescheduleAllowedHours: 2, updatedBy: adminUser.id, notes: "Chính sách demo production-like; không tự động thu phí no-show." },
+      data: { businessId: b.id, freeCancelHours: 24, lateCancelFeePercent: 0, noShowFeePercent: 0, rescheduleAllowedHours: 2, updatedBy: adminUser.id, notes: "Chính sách hủy/đổi lịch; hệ thống không thu phí hủy hoặc no-show." },
     });
     await prisma.businessReviewEvent.create({
       data: {
@@ -519,6 +479,11 @@ async function main() {
           longitude: 106.6 + rand() * 0.4,
           phone: `028${randInt(1000000, 9999999)}`,
           status: branchStatus,
+          reviewStatus: branchStatus === "ACTIVE" ? "APPROVED" : branchStatus === "PENDING" ? "PENDING_REVIEW" : "DRAFT",
+          operationalStatus: branchStatus === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          submittedAt: branchStatus !== "INACTIVE" ? new Date(SEED_END_DATE.getTime() - 14 * DAY_MS) : null,
+          reviewedAt: branchStatus === "ACTIVE" ? new Date(SEED_END_DATE.getTime() - 7 * DAY_MS) : null,
+          publishedAt: branchStatus === "ACTIVE" ? new Date(SEED_END_DATE.getTime() - 6 * DAY_MS) : null,
           reviewNote: businessStatus === "SUSPENDED"
             ? "Tạm ngưng do tỷ lệ hủy sát giờ cao."
             : ["PENDING_REVIEW", "NEED_MORE_INFO"].includes(businessStatus)
@@ -722,7 +687,7 @@ async function main() {
               fullName: name,
               position,
               bio: `${position} với ${randInt(2, 12)} năm kinh nghiệm.`,
-              status: chance(0.85) ? "ACTIVE" : (chance(0.5) ? "ON_LEAVE" : "INACTIVE"),
+              status: chance(0.85) ? "ACTIVE" : "INACTIVE",
               isBookable: operationalRole.id === roleStaff.id,
               publicVisible: operationalRole.id === roleStaff.id,
               hiredAt: randDate(new Date("2022-01-01"), new Date("2024-06-30")),
@@ -737,30 +702,6 @@ async function main() {
     }
   }
   console.log(`  -> ${staffRecords.length} nhân viên`);
-
-  // Staff working hours
-  for (const sp of staffRecords) {
-    for (let dow = 1; dow <= 6; dow++) {
-      await prisma.staffWorkingHour.create({
-        data: {
-          staffId: sp.id,
-          dayOfWeek: dow,
-          startTime: new Date(`1970-01-01T${chance(0.5) ? "09:00:00" : "10:00:00"}Z`),
-          endTime: new Date(`1970-01-01T${chance(0.3) ? "18:00:00" : "19:00:00"}Z`),
-          isOff: false,
-        },
-      });
-    }
-    await prisma.staffWorkingHour.create({
-      data: {
-        staffId: sp.id,
-        dayOfWeek: 0,
-        startTime: new Date(`1970-01-01T00:00:00Z`),
-        endTime: new Date(`1970-01-01T00:00:00Z`),
-        isOff: true,
-      },
-    });
-  }
 
   // Staff-Service mapping
   console.log("Gán dịch vụ cho nhân viên...");
@@ -1221,86 +1162,6 @@ async function main() {
   console.log(`  -> Tổng ${bookingIds.length} bookings`);
 
   // ============================================================
-  // 12. ATTENDANCE / LEAVE / EXCEPTIONS
-  // ============================================================
-  console.log("Tạo lịch sử chấm công, nghỉ phép và yêu cầu ngoại lệ...");
-  const businessIdByBranch = new Map(branches.map((branch) => [branch.id, branch.businessId]));
-  const attendanceStart = new Date(Math.max(SEED_START_DATE.getTime(), SEED_END_DATE.getTime() - seedConfig.attendanceDays * DAY_MS));
-  const attendanceRows: Prisma.StaffAttendanceCreateManyInput[] = [];
-  const todayKey = SEED_END_DATE.toISOString().slice(0, 10);
-  const yesterdayKey = new Date(SEED_END_DATE.getTime() - DAY_MS).toISOString().slice(0, 10);
-  for (let staffIndex = 0; staffIndex < staffRecords.length; staffIndex++) {
-    const staff = staffRecords[staffIndex];
-    for (let cursor = new Date(attendanceStart); cursor <= SEED_END_DATE; cursor = new Date(cursor.getTime() + DAY_MS)) {
-      if (cursor.getUTCDay() === 0) continue;
-      const date = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate()));
-      const dateKey = date.toISOString().slice(0, 10);
-      let status: Prisma.StaffAttendanceCreateManyInput["status"] = "CHECKED_OUT";
-      let lateMinutes = 0;
-      let earlyLeaveMinutes = 0;
-      let checkInAt: Date | null = atUtcTime(date, 9, randInt(-5, 8));
-      let checkOutAt: Date | null = atUtcTime(date, 18, randInt(0, 25));
-      if (dateKey === todayKey) {
-        status = pick(["CHECKED_IN", "LATE", "ABSENT", "NOT_CHECKED_IN"] as const);
-        checkOutAt = null;
-        if (status === "NOT_CHECKED_IN" || status === "ABSENT") checkInAt = null;
-        if (status === "LATE") { lateMinutes = randInt(12, 45); checkInAt = atUtcTime(date, 9, lateMinutes); }
-      } else if (dateKey === yesterdayKey && staffIndex % 17 === 0) {
-        status = "MISSING_CHECKOUT";
-        checkOutAt = null;
-      } else {
-        const roll = rand();
-        if (roll < 0.04) { status = "ABSENT"; checkInAt = null; checkOutAt = null; }
-        else if (roll < 0.12) { status = "LATE"; lateMinutes = randInt(11, 50); checkInAt = atUtcTime(date, 9, lateMinutes); }
-        else if (roll < 0.16) { status = "LEFT_EARLY"; earlyLeaveMinutes = randInt(10, 60); checkOutAt = atUtcTime(date, 18, -earlyLeaveMinutes); }
-        else if (roll < 0.19) { status = "MISSING_CHECKOUT"; checkOutAt = null; }
-      }
-      attendanceRows.push({
-        businessId: businessIdByBranch.get(staff.branchId)!, branchId: staff.branchId, staffId: staff.id, userId: staff.userId,
-        workDate: date, scheduledStartTime: new Date("1970-01-01T09:00:00.000Z"), scheduledEndTime: new Date("1970-01-01T18:00:00.000Z"),
-        checkInAt, checkOutAt, checkInMethod: checkInAt ? (chance(0.92) ? "QR" : "MANUAL_EXCEPTION") : null,
-        checkOutMethod: checkOutAt ? (chance(0.92) ? "QR" : "MANUAL_ADJUSTMENT") : null,
-        status, lateMinutes, earlyLeaveMinutes, overtimeMinutes: checkOutAt && checkOutAt.getUTCHours() >= 19 ? randInt(15, 60) : 0,
-        note: status === "ABSENT" ? "Vắng đột xuất; quản lý đã tiếp nhận xử lý lịch liên quan." : null,
-        absentMarkedBy: status === "ABSENT" ? adminUser.id : null, absentMarkedAt: status === "ABSENT" ? atUtcTime(date, 9, 45) : null,
-        createdAt: date, updatedAt: date,
-      });
-    }
-  }
-  for (let offset = 0; offset < attendanceRows.length; offset += 2000) {
-    await prisma.staffAttendance.createMany({ data: attendanceRows.slice(offset, offset + 2000) });
-    if (offset && offset % 10000 === 0) console.log(`  -> ${offset} attendance records`);
-  }
-
-  const leaveCount = Math.min(staffRecords.length, SEED_MODE === "small" ? 8 : SEED_MODE === "demo" ? 50 : 180);
-  for (let i = 0; i < leaveCount; i++) {
-    const staff = staffRecords[i];
-    const startAt = randDate(attendanceStart, SEED_END_DATE);
-    await prisma.staffLeave.create({
-      data: { staffId: staff.id, startAt, endAt: new Date(startAt.getTime() + DAY_MS), reason: pick(["Nghỉ phép năm", "Việc gia đình", "Khám sức khỏe"]), status: chance(0.82) ? "APPROVED" : chance(0.5) ? "PENDING" : "REJECTED", reviewedBy: adminUser.id, reviewNote: "Dữ liệu lịch nghỉ production-like." },
-    });
-  }
-
-  const exceptionCount = Math.min(staffRecords.length, SEED_MODE === "small" ? 8 : SEED_MODE === "demo" ? 60 : 200);
-  for (let i = 0; i < exceptionCount; i++) {
-    const staff = staffRecords[i];
-    const workDate = i < 6 ? new Date(Date.UTC(SEED_END_DATE.getUTCFullYear(), SEED_END_DATE.getUTCMonth(), SEED_END_DATE.getUTCDate())) : randDate(attendanceStart, SEED_END_DATE);
-    const requestStatus = i < 3 ? "PENDING" : pick(["PENDING", "APPROVED", "APPROVED", "REJECTED"] as const);
-    await prisma.attendanceExceptionRequest.create({
-      data: {
-        businessId: businessIdByBranch.get(staff.branchId)!, branchId: staff.branchId, staffId: staff.id, requestedBy: staff.userId,
-        type: pick(["CHECK_IN", "CHECK_OUT", "ADJUST_TIME"] as const), workDate,
-        proposedAt: atUtcTime(workDate, chance(0.7) ? 9 : 18, randInt(0, 20)),
-        reason: pick(["Quên check-in.", "Quên check-out.", "QR tại quầy chưa được mở.", "Máy quầy lỗi hoặc mất mạng."]),
-        status: requestStatus, reviewedBy: requestStatus === "PENDING" ? null : adminUser.id,
-        reviewedAt: requestStatus === "PENDING" ? null : new Date(workDate.getTime() + DAY_MS),
-        reviewReason: requestStatus === "REJECTED" ? "Thời gian đề nghị không khớp lịch làm việc." : requestStatus === "APPROVED" ? "Đã đối chiếu lịch ca và xác nhận." : null,
-        createdAt: workDate,
-      },
-    });
-  }
-
-  // ============================================================
   // 13. TRUST & SAFETY
   // ============================================================
   console.log("Tạo trust snapshots và lịch sử xử lý vi phạm...");
@@ -1412,7 +1273,7 @@ async function main() {
       data: {
         userId: chance(0.7) ? adminUser.id : pick(owners).userId,
         action,
-        entityType: pick(["Business", "Branch", "Booking", "User", "Promotion", "Payment", "RefundRequest", "Review", "StaffAttendance", "AttendanceExceptionRequest", "TrustAction", "PlatformSetting"]),
+        entityType: pick(["Business", "Branch", "Booking", "User", "Promotion", "Payment", "RefundRequest", "Review", "TrustAction", "PlatformSetting"]),
         entityId: null,
         oldData:
           action === "UPDATE" || action === "STATUS_CHANGE"
@@ -1432,7 +1293,7 @@ async function main() {
     users: await prisma.user.count(), businesses: await prisma.business.count(), branches: await prisma.branch.count(),
     staff: await prisma.staffProfile.count(), customers: await prisma.customerProfile.count(), services: await prisma.branchServiceOffering.count(),
     bookings: await prisma.booking.count(), payments: await prisma.payment.count(), refunds: await prisma.refundRequest.count(),
-    reviews: await prisma.review.count(), attendance: await prisma.staffAttendance.count(), attendanceExceptions: await prisma.attendanceExceptionRequest.count(),
+    reviews: await prisma.review.count(),
     notifications: await prisma.notification.count(), auditLogs: await prisma.auditLog.count(), trustSnapshots: await prisma.salonTrustSnapshot.count(),
     trustActions: await prisma.trustAction.count(), onboardingEvents: await prisma.businessReviewEvent.count(),
   };

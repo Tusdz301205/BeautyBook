@@ -3,6 +3,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, type AuthUser } from '../common/decorators/current-user.decorator';
 import { CancellationPoliciesService } from './cancellation-policies.service';
+import { UpdateCancellationPolicyDto } from './dto/cancellation-policy.dto';
 import { SalonMembersService } from './salon-members.service';
 import { assertBusinessAccess } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +12,7 @@ import { BusinessOnboardingService } from './business-onboarding.service';
 import type { BusinessDraftInput } from './business-onboarding.service';
 import { Audited } from '../common/decorators/audit.decorator';
 import { AuditAction, Prisma } from '@prisma/client';
+import { ensureCanOnResource } from '../common/utils/policy';
 
 @Controller('business')
 @UseGuards(RolesGuard)
@@ -171,11 +173,14 @@ export class BusinessController {
    * GET /api/business/:businessId/members
    */
   @Get(':businessId/members')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:read:tenant')
   async listMembers(
     @Param('businessId') businessId: string,
     @CurrentUser() user: AuthUser,
   ) {
     await assertBusinessAccess(this.prisma, user, businessId);
+    ensureCanOnResource(user, 'user:read:tenant', { businessId });
     return this.salonMembersService.listByBusiness(businessId);
   }
 
@@ -183,6 +188,7 @@ export class BusinessController {
    * GET /api/business/:businessId/cancellation-policy
    */
   @Get(':businessId/cancellation-policy')
+  @RequirePermission('branch:read:tenant', 'branch:read:branch')
   async getPolicy(
     @Param('businessId') businessId: string,
     @CurrentUser() user: AuthUser,
@@ -200,13 +206,7 @@ export class BusinessController {
   @RequirePermission('business:update:tenant')
   async updatePolicy(
     @Param('businessId') businessId: string,
-    @Body() body: {
-      freeCancelHours?: number;
-      lateCancelFeePercent?: number;
-      noShowFeePercent?: number;
-      rescheduleAllowedHours?: number;
-      notes?: string;
-    },
+    @Body() body: UpdateCancellationPolicyDto,
     @CurrentUser() user: AuthUser,
   ) {
     await assertBusinessAccess(this.prisma, user, businessId);

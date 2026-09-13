@@ -28,7 +28,7 @@ export default function SchedulerMonthView({ currentDate, bookings, onDateClick 
                 key={key}
                 type="button"
                 onClick={() => onDateClick(day, dayBookings)}
-                className={`min-h-[128px] border-b border-r border-zinc-200 p-2.5 text-left transition hover:bg-pink-50/50 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${inMonth ? 'bg-white' : 'bg-zinc-50 text-zinc-400'}`}
+                className={`min-h-[128px] border-b border-r border-zinc-200 p-2.5 text-left transition hover:bg-pink-50/50 focus-visible:z-10 ${inMonth ? 'bg-white' : 'bg-zinc-50 text-zinc-400'}`}
               >
                 <span className={`grid h-7 w-7 place-items-center rounded-full text-sm font-bold ${isToday(day) ? 'bg-pink-700 text-white' : inMonth ? 'text-zinc-900' : 'text-zinc-400'}`}>{format(day, 'd')}</span>
                 {dayBookings.length > 0 ? (

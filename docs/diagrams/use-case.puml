@@ -1,0 +1,141 @@
+@startuml use-case-overview
+title Sơ đồ Use Case Tổng quan Hệ thống BeautyBook (GlowBook)
+left to right direction
+skinparam packageStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam roundcorner 8
+
+actor "Khách vãng lai\n(Guest)" as Guest
+actor "Khách hàng thành viên\n(Customer)" as Customer
+actor "Nhân viên / Thợ\n(Staff)" as Staff
+actor "Lễ tân\n(Receptionist)" as Receptionist
+actor "Quản lý chi nhánh\n(Branch Manager)" as BranchManager
+actor "Chủ Salon\n(Business Owner)" as BusinessOwner
+actor "Quản trị nền tảng\n(Platform Admin)" as PlatformAdmin
+
+Guest <|-- Customer
+Staff <|-- Receptionist
+Receptionist <|-- BranchManager
+BranchManager <|-- BusinessOwner
+
+rectangle "Hệ thống BeautyBook" {
+
+  package "Xác thực & Tài khoản" {
+    usecase "Đăng ký tài khoản" as UC_Register
+    usecase "Đăng nhập đa workspace\n(Customer / Salon / Admin)" as UC_Login
+    usecase "Xác thực Email / Đổi mật khẩu" as UC_AuthSecurity
+    usecase "Quản lý phiên đăng nhập (Sessions)" as UC_ManageSessions
+    usecase "Chấp nhận lời mời nhân sự" as UC_AcceptInvite
+  }
+
+  package "Khám phá & Đặt lịch (Marketplace)" {
+    usecase "Tìm kiếm & Xem chi nhánh/dịch vụ/thợ" as UC_Discover
+    usecase "Xem lịch trống (Available Slots)" as UC_ViewSlots
+    usecase "Đặt lịch vãng lai (Guest Booking)" as UC_BookGuest
+    usecase "Đặt lịch thành viên (Member Booking)" as UC_BookMember
+    usecase "Áp dụng Voucher / Điểm thưởng Loyalty" as UC_ApplyVoucherLoyalty
+    usecase "Xem lịch hẹn cá nhân" as UC_ViewMyAppointments
+    usecase "Yêu cầu đổi lịch / Huỷ lịch hẹn" as UC_CancelReschedule
+  }
+
+  package "Vận hành Chi nhánh & Lịch hẹn (Salon Operations)" {
+    usecase "Xem lịch làm việc chi nhánh (Scheduler / Calendar)" as UC_ViewScheduler
+    usecase "Tạo lịch hẹn tại quầy / qua điện thoại (Walk-in/Phone)" as UC_CreateWalkIn
+    usecase "Check-in khách hàng" as UC_CheckIn
+    usecase "Bắt đầu thực hiện dịch vụ (In-Progress)" as UC_StartService
+    usecase "Đánh dấu hoàn thành dịch vụ (Completed)" as UC_CompleteService
+    usecase "Điều phối / Phân công chuyên viên (Assign Staff)" as UC_AssignStaff
+    usecase "Duyệt yêu cầu đổi lịch / huỷ lịch" as UC_ApproveChangeRequest
+    usecase "Xem hàng đợi & Cảnh báo vi phạm (Salon Queue)" as UC_SalonQueue
+  }
+
+  package "Quản lý Dịch vụ & Danh mục" {
+    usecase "Quản lý danh mục dịch vụ doanh nghiệp (Business Services)" as UC_ManageServices
+    usecase "Cấu hình dịch vụ chi nhánh (Branch Offerings)" as UC_BranchOfferings
+    usecase "Thiết lập biến thể & quy tắc giá (Variants & Price Rules)" as UC_PriceRules
+    usecase "Tạo & quản lý gói Combo dịch vụ" as UC_ManageCombos
+  }
+
+  package "Quản lý Nhân sự & Chi nhánh" {
+    usecase "Đăng ký Onboarding Doanh nghiệp & Chi nhánh" as UC_Onboarding
+    usecase "Tải lên hồ sơ pháp lý (Giấy phép, CCCD, MST)" as UC_UploadLegalDocs
+    usecase "Mời nhân sự & Phân quyền chi nhánh (Staff Invitation)" as UC_InviteStaff
+    usecase "Cấu hình giờ làm việc & ngày nghỉ chi nhánh" as UC_BranchHours
+  }
+
+  package "Đánh giá & Phản hồi" {
+    usecase "Gửi đánh giá sau khi hoàn thành dịch vụ" as UC_SubmitReview
+    usecase "Đánh giá chi tiết từng dịch vụ & chuyên viên" as UC_RateStaffService
+    usecase "Phản hồi đánh giá của khách (Business Reply)" as UC_ReplyReview
+    usecase "Báo cáo đánh giá vi phạm (Report Review)" as UC_ReportReview
+    usecase "Kiểm duyệt đánh giá (Moderate Review)" as UC_ModerateReview
+  }
+
+  package "Thanh toán & Sổ tài chính" {
+    usecase "Thu tiền mặt / Xác nhận chuyển khoản tại quầy" as UC_ProcessPayment
+    usecase "Xem hoá đơn & Lịch sử thanh toán" as UC_ViewInvoice
+    usecase "Tạo & Duyệt yêu cầu hoàn tiền (Refund)" as UC_ManageRefund
+    usecase "Xem sổ cái tài chính & Đối soát phí (Financial Ledger)" as UC_ViewLedger
+  }
+
+  package "Quản trị Nền tảng & Kiểm toán (Platform Governance)" {
+    usecase "Duyệt hồ sơ Onboarding Doanh nghiệp/Chi nhánh" as UC_ApproveOnboarding
+    usecase "Quản lý cấu hình toàn nền tảng (Platform Settings)" as UC_PlatformSettings
+    usecase "Khóa tài khoản / Đình chỉ chi nhánh vi phạm" as UC_SuspendEntity
+    usecase "Xem nhật ký kiểm toán (Audit Logs)" as UC_ViewAudit
+    usecase "Theo dõi báo cáo doanh thu & tăng trưởng toàn sàn" as UC_PlatformReports
+  }
+}
+
+' Actor relationships to use cases
+Guest --> UC_Register
+Guest --> UC_Login
+Guest --> UC_Discover
+Guest --> UC_ViewSlots
+Guest --> UC_BookGuest
+Guest --> UC_AuthSecurity
+
+Customer --> UC_BookMember
+Customer --> UC_ViewMyAppointments
+Customer --> UC_CancelReschedule
+Customer --> UC_SubmitReview
+Customer --> UC_ManageSessions
+UC_BookMember ..> UC_ApplyVoucherLoyalty : <<include>>
+UC_SubmitReview ..> UC_RateStaffService : <<extend>>
+
+Staff --> UC_ViewScheduler
+Staff --> UC_StartService
+Staff --> UC_CompleteService
+Staff --> UC_AcceptInvite
+
+Receptionist --> UC_CreateWalkIn
+Receptionist --> UC_CheckIn
+Receptionist --> UC_ProcessPayment
+Receptionist --> UC_SalonQueue
+
+BranchManager --> UC_AssignStaff
+BranchManager --> UC_ApproveChangeRequest
+BranchManager --> UC_BranchOfferings
+BranchManager --> UC_BranchHours
+BranchManager --> UC_ReplyReview
+BranchManager --> UC_ReportReview
+
+BusinessOwner --> UC_Onboarding
+BusinessOwner --> UC_UploadLegalDocs
+BusinessOwner --> UC_ManageServices
+BusinessOwner --> UC_PriceRules
+BusinessOwner --> UC_ManageCombos
+BusinessOwner --> UC_InviteStaff
+BusinessOwner --> UC_ManageRefund
+BusinessOwner --> UC_ViewLedger
+
+PlatformAdmin --> UC_ApproveOnboarding
+PlatformAdmin --> UC_ModerateReview
+PlatformAdmin --> UC_PlatformSettings
+PlatformAdmin --> UC_SuspendEntity
+PlatformAdmin --> UC_ViewAudit
+PlatformAdmin --> UC_PlatformReports
+
+@enduml

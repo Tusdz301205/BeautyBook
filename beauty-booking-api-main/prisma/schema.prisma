@@ -41,14 +41,6 @@ model User {
   avatarMedia              MediaFile?                   @relation("UserAvatar", fields: [avatarMediaId], references: [id])
   accountTokens            AccountToken[]
   sessions                 UserSession[]
-  attendanceRecords        StaffAttendance[]            @relation("AttendanceUser")
-  attendanceAdjustments    StaffAttendance[]            @relation("AttendanceAdjustedBy")
-  attendanceExceptions     AttendanceExceptionRequest[] @relation("AttendanceExceptionRequester")
-  attendanceReviews        AttendanceExceptionRequest[] @relation("AttendanceExceptionReviewer")
-  attendanceAbsences       StaffAttendance[]            @relation("AttendanceAbsentMarker")
-  attendanceQrTokens       AttendanceQrToken[]          @relation("AttendanceQrTokenCreator")
-  attendanceQrUses         AttendanceQrUse[]            @relation("AttendanceQrUser")
-  attendanceEvents         AttendanceEvent[]            @relation("AttendanceEventActor")
   trustActions             TrustAction[]                @relation("TrustActionActor")
   businessReviewEvents     BusinessReviewEvent[]        @relation("BusinessReviewActor")
   businessDocumentVersions BusinessDocumentVersion[]    @relation("BusinessDocumentVersionCreator")
@@ -57,15 +49,30 @@ model User {
   branchReviewEvents       BranchReviewEvent[]          @relation("BranchReviewActor")
   branchReviewRequests     BranchReviewRequest[]        @relation("BranchReviewRequester")
   branchReviewAssignments  BranchReviewRequest[]        @relation("BranchReviewReviewer")
-  staffScheduleVersions    StaffScheduleVersion[]       @relation("StaffScheduleVersionCreator")
-  scheduleChangeRequests   StaffScheduleChangeRequest[] @relation("ScheduleChangeRequester")
-  scheduleChangeReviews    StaffScheduleChangeRequest[] @relation("ScheduleChangeReviewer")
   userPermissions          UserPermission[]
   reviewReports            ReviewReport[]               @relation("ReviewReporter")
 
   @@index([email])
   @@index([phone])
   @@map("users")
+  refs_BranchStateTransition_actorId BranchStateTransition[] @relation("Audit_BranchStateTransition_actorId")
+  refs_BookingServiceAdjustment_actorId BookingServiceAdjustment[] @relation("Audit_BookingServiceAdjustment_actorId")
+  refs_OperationalImpactCase_ownerId OperationalImpactCase[] @relation("Audit_OperationalImpactCase_ownerId")
+  refs_OperationalImpactCase_createdBy OperationalImpactCase[] @relation("Audit_OperationalImpactCase_createdBy")
+  refs_OperationalImpactItem_resolvedBy OperationalImpactItem[] @relation("Audit_OperationalImpactItem_resolvedBy")
+  refs_ReviewModerationEvent_actorId ReviewModerationEvent[] @relation("Audit_ReviewModerationEvent_actorId")
+  refs_ReviewAppeal_appellantId ReviewAppeal[] @relation("Audit_ReviewAppeal_appellantId")
+  refs_ReviewAppeal_reviewedBy ReviewAppeal[] @relation("Audit_ReviewAppeal_reviewedBy")
+  refs_LoyaltyRule_createdBy LoyaltyRule[] @relation("Audit_LoyaltyRule_createdBy")
+  refs_LoyaltyTransaction_createdBy LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_createdBy")
+  refs_Invoice_createdBy Invoice[] @relation("Audit_Invoice_createdBy")
+  refs_InvoiceEvent_actorId InvoiceEvent[] @relation("Audit_InvoiceEvent_actorId")
+  refs_OwnershipTransfer_newOwnerUserId OwnershipTransfer[] @relation("Audit_OwnershipTransfer_newOwnerUserId")
+  refs_OwnershipTransfer_requestedBy OwnershipTransfer[] @relation("Audit_OwnershipTransfer_requestedBy")
+  refs_OwnershipTransfer_approvedBy OwnershipTransfer[] @relation("Audit_OwnershipTransfer_approvedBy")
+  refs_LegalEntityVersion_createdBy LegalEntityVersion[] @relation("Audit_LegalEntityVersion_createdBy")
+  refs_PayoutAccountVersion_createdBy PayoutAccountVersion[] @relation("Audit_PayoutAccountVersion_createdBy")
+  refs_CustomerBusinessSegment_assignedBy CustomerBusinessSegment[] @relation("Audit_CustomerBusinessSegment_assignedBy")
 }
 
 model AccountToken {
@@ -235,7 +242,7 @@ model CustomerProfile {
   healthRecords           BookingHealthRecord[]
   bookings                Booking[]
   comments                BusinessComment[]
-  user                    User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
   customerVouchers        CustomerVoucher[]
   recurringPlans          RecurringBookingPlan[]
   reviews                 Review[]
@@ -250,6 +257,13 @@ model CustomerProfile {
   invoiceRequests         InvoiceInformationRequest[]
 
   @@map("customer_profiles")
+  refs_PriceAdjustment_customerId PriceAdjustment[] @relation("Audit_PriceAdjustment_customerId")
+  refs_PromotionRedemption_customerId PromotionRedemption[] @relation("Audit_PromotionRedemption_customerId")
+  refs_VoucherRedemption_customerId VoucherRedemption[] @relation("Audit_VoucherRedemption_customerId")
+  refs_WaitlistEntry_customerId WaitlistEntry[] @relation("Audit_WaitlistEntry_customerId")
+  refs_LoyaltyAccount_customerId LoyaltyAccount[] @relation("Audit_LoyaltyAccount_customerId")
+  refs_LoyaltyTransaction_customerId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_customerId")
+  refs_CustomerBusinessSegment_customerId CustomerBusinessSegment[] @relation("Audit_CustomerBusinessSegment_customerId")
 }
 
 /// Immutable contact snapshot for a guest or walk-in booking. A phone number
@@ -276,10 +290,12 @@ model BusinessOwnerProfile {
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
   deletedAt          DateTime?  @map("deleted_at")
-  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   businesses         Business[]
 
   @@map("business_owner_profiles")
+  refs_OwnershipTransfer_oldOwnerId OwnershipTransfer[] @relation("Audit_OwnershipTransfer_oldOwnerId")
+  refs_OwnershipHistory_ownerId OwnershipHistory[] @relation("Audit_OwnershipHistory_ownerId")
 }
 
 model StaffProfile {
@@ -307,23 +323,8 @@ model StaffProfile {
   branch                  Branch                       @relation(fields: [branchId], references: [id])
   user                    User?                        @relation(fields: [userId], references: [id])
   staffServices           StaffService[]
-  workingHours            StaffWorkingHour[]
-  breaks                  StaffBreak[]
-  leaves                  StaffLeave[]
-  specialDays             SpecialWorkingDay[]
-  attendances             StaffAttendance[]
-  attendanceExceptions    AttendanceExceptionRequest[]
-  attendanceQrUses        AttendanceQrUse[]
-  attendanceEvents        AttendanceEvent[]
   recurringPlans          RecurringBookingPlan[]
   branchAssignments       StaffBranchAssignment[]
-  scheduleVersions        StaffScheduleVersion[]
-  scheduleChangeRequests  StaffScheduleChangeRequest[]
-  availabilities          StaffAvailability[]
-  timesheets              Timesheet[]
-  compensationAssignments CompensationAssignment[]
-  compensationEntries     CompensationEntry[]
-  payRunItems             PayRunItem[]
   invitations             StaffInvitation[]
 
   @@unique([branchId, employeeCode])
@@ -331,6 +332,8 @@ model StaffProfile {
   @@index([status])
   @@index([branchId, status, isBookable, publicVisible])
   @@map("staff_profiles")
+  refs_OperationalImpactItem_replacementStaffId OperationalImpactItem[] @relation("Audit_OperationalImpactItem_replacementStaffId")
+  refs_WaitlistEntry_staffId WaitlistEntry[] @relation("Audit_WaitlistEntry_staffId")
 }
 
 model DeviceToken {
@@ -412,21 +415,11 @@ model Business {
   reviewEvents              BusinessReviewEvent[]
   documents                 BusinessDocument[]
   combos                    Combo[]
-  attendances               StaffAttendance[]
-  attendanceExceptions      AttendanceExceptionRequest[]
-  attendanceQrTokens        AttendanceQrToken[]
-  attendanceEvents          AttendanceEvent[]
   consultationTemplates     ConsultationFormTemplate[]
   consultationSubmissions   ConsultationSubmission[]
   consultationConsentEvents ConsentEvent[]
   sensitiveAccessEvents     SensitiveDataAccessEvent[]
   sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
-  branchReviewRequests      BranchReviewRequest[]
-  staffAvailabilities       StaffAvailability[]
-  timesheets                Timesheet[]
-  compensationRules         CompensationRule[]
-  compensationEntries       CompensationEntry[]
-  payRuns                   PayRun[]
   paymentPolicies           PaymentPolicy[]
   pricingSnapshots          PricingSnapshot[]
   paymentPolicySnapshots    PaymentPolicySnapshot[]
@@ -439,12 +432,22 @@ model Business {
   treatmentPackages         TreatmentPackage[]
   packagePurchases          PackagePurchase[]
   invoiceRequests           InvoiceInformationRequest[]
-  voucherScopes             VoucherBranchScope[]
 
   @@index([ownerId])
   @@index([status])
   @@index([name])
   @@map("businesses")
+  refs_OperationalImpactCase_businessId OperationalImpactCase[] @relation("Audit_OperationalImpactCase_businessId")
+  refs_WaitlistEntry_businessId WaitlistEntry[] @relation("Audit_WaitlistEntry_businessId")
+  refs_LoyaltyRule_businessId LoyaltyRule[] @relation("Audit_LoyaltyRule_businessId")
+  refs_LoyaltyAccount_businessId LoyaltyAccount[] @relation("Audit_LoyaltyAccount_businessId")
+  refs_LoyaltyTransaction_businessId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_businessId")
+  refs_Invoice_businessId Invoice[] @relation("Audit_Invoice_businessId")
+  refs_OwnershipTransfer_businessId OwnershipTransfer[] @relation("Audit_OwnershipTransfer_businessId")
+  refs_OwnershipHistory_businessId OwnershipHistory[] @relation("Audit_OwnershipHistory_businessId")
+  refs_LegalEntityVersion_businessId LegalEntityVersion[] @relation("Audit_LegalEntityVersion_businessId")
+  refs_PayoutAccountVersion_businessId PayoutAccountVersion[] @relation("Audit_PayoutAccountVersion_businessId")
+  refs_CustomerBusinessSegment_businessId CustomerBusinessSegment[] @relation("Audit_CustomerBusinessSegment_businessId")
 }
 
 model Branch {
@@ -499,10 +502,6 @@ model Branch {
   userRoles                 UserRole[]
   holidays                  BranchHoliday[]
   specialDays               SpecialWorkingDay[]
-  attendances               StaffAttendance[]
-  attendanceExceptions      AttendanceExceptionRequest[]
-  attendanceQrTokens        AttendanceQrToken[]
-  attendanceEvents          AttendanceEvent[]
   trustActions              TrustAction[]
   consultationTemplates     ConsultationFormTemplate[]
   consultationSubmissions   ConsultationSubmission[]
@@ -511,18 +510,10 @@ model Branch {
   sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
   onboardingProgress        BranchOnboardingProgress?
   bookingPolicy             BranchBookingPolicy?
-  attendancePolicy          BranchAttendancePolicy?
   documents                 BranchDocument[]
   reviewRequests            BranchReviewRequest[]
   reviewEvents              BranchReviewEvent[]
   staffAssignments          StaffBranchAssignment[]
-  scheduleVersions          StaffScheduleVersion[]
-  scheduleChangeRequests    StaffScheduleChangeRequest[]
-  staffAvailabilities       StaffAvailability[]
-  timesheets                Timesheet[]
-  compensationRules         CompensationRule[]
-  compensationAssignments   CompensationAssignment[]
-  compensationEntries       CompensationEntry[]
   paymentPolicies           PaymentPolicy[]
   pricingSnapshots          PricingSnapshot[]
   paymentPolicySnapshots    PaymentPolicySnapshot[]
@@ -544,6 +535,15 @@ model Branch {
   @@index([status, deletedAt, createdAt])
   @@index([latitude, longitude])
   @@map("branches")
+  refs_BranchStateTransition_branchId BranchStateTransition[] @relation("Audit_BranchStateTransition_branchId")
+  refs_PriceAdjustment_branchId PriceAdjustment[] @relation("Audit_PriceAdjustment_branchId")
+  refs_PromotionRedemption_branchId PromotionRedemption[] @relation("Audit_PromotionRedemption_branchId")
+  refs_VoucherRedemption_branchId VoucherRedemption[] @relation("Audit_VoucherRedemption_branchId")
+  refs_OperationalImpactCase_branchId OperationalImpactCase[] @relation("Audit_OperationalImpactCase_branchId")
+  refs_OperationalImpactItem_replacementBranchId OperationalImpactItem[] @relation("Audit_OperationalImpactItem_replacementBranchId")
+  refs_WaitlistEntry_branchId WaitlistEntry[] @relation("Audit_WaitlistEntry_branchId")
+  refs_LoyaltyRule_branchId LoyaltyRule[] @relation("Audit_LoyaltyRule_branchId")
+  refs_Invoice_branchId Invoice[] @relation("Audit_Invoice_branchId")
 }
 
 model BranchWorkingHour {
@@ -612,68 +612,6 @@ model OverbookingOverride {
   @@map("overbooking_overrides")
 }
 
-model BranchAttendancePolicy {
-  id                      String    @id @default(uuid())
-  branchId                String    @unique @map("branch_id")
-  useQr                   Boolean   @default(true) @map("use_qr")
-  qrBoardRoles            Json      @default("[\"BUSINESS_OWNER\",\"BRANCH_MANAGER\",\"RECEPTIONIST\"]") @map("qr_board_roles")
-  adjustmentReviewerRoles Json      @default("[\"BUSINESS_OWNER\",\"BRANCH_MANAGER\"]") @map("adjustment_reviewer_roles")
-  lateThresholdMinutes    Int       @default(10) @map("late_threshold_minutes")
-  earlyLeaveRule          String?   @map("early_leave_rule")
-  overtimeRule            String?   @map("overtime_rule")
-  missingPunchWorkflow    String?   @map("missing_punch_workflow")
-  confirmedAt             DateTime? @map("confirmed_at")
-  createdAt               DateTime  @default(now()) @map("created_at")
-  updatedAt               DateTime  @updatedAt @map("updated_at")
-  branch                  Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  @@map("branch_attendance_policies")
-}
-
-model StaffWorkingHour {
-  id        String       @id @default(uuid())
-  staffId   String       @map("staff_id")
-  dayOfWeek Int          @map("day_of_week") @db.SmallInt
-  startTime DateTime     @map("start_time") @db.Time(6)
-  endTime   DateTime     @map("end_time") @db.Time(6)
-  isOff     Boolean      @default(false) @map("is_off")
-  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  @@unique([staffId, dayOfWeek])
-  @@map("staff_working_hours")
-}
-
-model StaffBreak {
-  id        String       @id @default(uuid())
-  staffId   String       @map("staff_id")
-  dayOfWeek Int          @map("day_of_week") @db.SmallInt
-  startTime DateTime     @map("start_time") @db.Time(6)
-  endTime   DateTime     @map("end_time") @db.Time(6)
-  isActive  Boolean      @default(true) @map("is_active")
-  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  @@index([staffId, dayOfWeek])
-  @@map("staff_breaks")
-}
-
-model StaffLeave {
-  id         String       @id @default(uuid())
-  staffId    String       @map("staff_id")
-  startAt    DateTime     @map("start_at")
-  endAt      DateTime     @map("end_at")
-  reason     String?
-  status     LeaveStatus  @default(PENDING)
-  reviewedBy String?      @map("reviewed_by")
-  reviewNote String?      @map("review_note")
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  @@index([staffId, startAt, endAt])
-  @@index([status])
-  @@map("staff_leaves")
-}
-
 model BranchHoliday {
   id       String   @id @default(uuid())
   branchId String   @map("branch_id")
@@ -687,17 +625,14 @@ model BranchHoliday {
 }
 
 model SpecialWorkingDay {
-  id        String        @id @default(uuid())
-  branchId  String        @map("branch_id")
-  staffId   String?       @map("staff_id")
-  date      DateTime      @db.Date
-  startTime DateTime      @map("start_time") @db.Time(6)
-  endTime   DateTime      @map("end_time") @db.Time(6)
-  branch    Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff     StaffProfile? @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  branchId  String   @map("branch_id")
+  date      DateTime @db.Date
+  startTime DateTime @map("start_time") @db.Time(6)
+  endTime   DateTime @map("end_time") @db.Time(6)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  @@index([branchId, date])
-  @@index([staffId, date])
+  @@unique([branchId, date])
   @@map("special_working_days")
 }
 
@@ -720,70 +655,6 @@ model StaffBranchAssignment {
   @@index([branchId, status, startDate])
   @@index([staffId, status, startDate])
   @@map("staff_branch_assignments")
-}
-
-model StaffScheduleVersion {
-  id            String                 @id @default(uuid())
-  staffId       String                 @map("staff_id")
-  branchId      String                 @map("branch_id")
-  version       Int
-  effectiveFrom DateTime               @map("effective_from") @db.Date
-  effectiveTo   DateTime?              @map("effective_to") @db.Date
-  status        StaffScheduleStatus    @default(PUBLISHED)
-  note          String?
-  createdBy     String                 @map("created_by")
-  createdAt     DateTime               @default(now()) @map("created_at")
-  staff         StaffProfile           @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  branch        Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  creator       User                   @relation("StaffScheduleVersionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  segments      StaffScheduleSegment[]
-  attendances   StaffAttendance[]
-
-  @@unique([staffId, branchId, version])
-  @@index([staffId, branchId, effectiveFrom, effectiveTo])
-  @@map("staff_schedule_versions")
-}
-
-model StaffScheduleSegment {
-  id          String               @id @default(uuid())
-  versionId   String               @map("version_id")
-  dayOfWeek   Int                  @map("day_of_week") @db.SmallInt
-  startTime   DateTime             @map("start_time") @db.Time(6)
-  endTime     DateTime             @map("end_time") @db.Time(6)
-  sortOrder   Int                  @default(0) @map("sort_order")
-  segmentType ScheduleSegmentType  @default(SHIFT) @map("segment_type")
-  roleCode    RoleCode?            @map("role_code")
-  version     StaffScheduleVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-
-  @@unique([versionId, dayOfWeek, sortOrder])
-  @@index([versionId, dayOfWeek])
-  @@map("staff_schedule_segments")
-}
-
-model StaffScheduleChangeRequest {
-  id            String                     @id @default(uuid())
-  staffId       String                     @map("staff_id")
-  branchId      String                     @map("branch_id")
-  requestedBy   String                     @map("requested_by")
-  type          StaffScheduleChangeType
-  effectiveFrom DateTime                   @map("effective_from") @db.Date
-  effectiveTo   DateTime?                  @map("effective_to") @db.Date
-  proposedData  Json                       @map("proposed_data")
-  reason        String
-  status        StaffScheduleRequestStatus @default(PENDING)
-  reviewedBy    String?                    @map("reviewed_by")
-  reviewedAt    DateTime?                  @map("reviewed_at")
-  reviewNote    String?                    @map("review_note")
-  createdAt     DateTime                   @default(now()) @map("created_at")
-  updatedAt     DateTime                   @updatedAt @map("updated_at")
-  staff         StaffProfile               @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  branch        Branch                     @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  requester     User                       @relation("ScheduleChangeRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
-  reviewer      User?                      @relation("ScheduleChangeReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
-
-  @@index([staffId, status, createdAt])
-  @@index([branchId, status, createdAt])
-  @@map("staff_schedule_change_requests")
 }
 
 model MediaFile {
@@ -1004,6 +875,11 @@ model BranchServiceOffering {
   @@index([branchId, status, deletedAt, createdAt])
   @@index([price])
   @@map("services")
+  refs_ServiceVariant_serviceId ServiceVariant[] @relation("Audit_ServiceVariant_serviceId")
+  refs_ServicePriceRule_serviceId ServicePriceRule[] @relation("Audit_ServicePriceRule_serviceId")
+  refs_ServiceDependency_serviceId ServiceDependency[] @relation("Audit_ServiceDependency_serviceId")
+  refs_ServiceDependency_requiredServiceId ServiceDependency[] @relation("Audit_ServiceDependency_requiredServiceId")
+  refs_WaitlistEntry_serviceId WaitlistEntry[] @relation("Audit_WaitlistEntry_serviceId")
 }
 
 model StaffService {
@@ -1098,6 +974,7 @@ model Promotion {
   @@index([startDate, endDate])
   @@index([businessId])
   @@map("promotions")
+  refs_PromotionRedemption_promotionId PromotionRedemption[] @relation("Audit_PromotionRedemption_promotionId")
 }
 
 model PromotionBusiness {
@@ -1204,6 +1081,15 @@ model Booking {
   @@index([status])
   @@index([status, pendingExpiresAt])
   @@map("bookings")
+  refs_PriceAdjustment_bookingId PriceAdjustment[] @relation("Audit_PriceAdjustment_bookingId")
+  refs_PromotionRedemption_bookingId PromotionRedemption[] @relation("Audit_PromotionRedemption_bookingId")
+  refs_VoucherRedemption_bookingId VoucherRedemption[] @relation("Audit_VoucherRedemption_bookingId")
+  refs_BookingServiceAdjustment_bookingId BookingServiceAdjustment[] @relation("Audit_BookingServiceAdjustment_bookingId")
+  refs_OperationalImpactItem_bookingId OperationalImpactItem[] @relation("Audit_OperationalImpactItem_bookingId")
+  refs_WaitlistEntry_bookingId WaitlistEntry? @relation("Audit_WaitlistEntry_bookingId")
+  refs_LoyaltyTransaction_bookingId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_bookingId")
+  refs_Invoice_bookingId Invoice[] @relation("Audit_Invoice_bookingId")
+  @@index([branchId, appointmentDate, status])
 }
 
 model BookingService {
@@ -1235,7 +1121,6 @@ model BookingService {
   canonicalService    CanonicalService?          @relation(fields: [canonicalServiceId], references: [id], onDelete: Restrict)
   staff               StaffProfile?              @relation(fields: [staffId], references: [id])
   reviewRating        ReviewServiceRating?
-  compensationEntries CompensationEntry[]
   refundAllocations   RefundAllocation[]
   packageEntitlement  PackageSessionEntitlement?
 
@@ -1245,6 +1130,8 @@ model BookingService {
   @@index([canonicalServiceId])
   @@index([staffId])
   @@map("booking_services")
+  refs_BookingServiceAdjustment_bookingServiceId BookingServiceAdjustment[] @relation("Audit_BookingServiceAdjustment_bookingServiceId")
+  refs_InvoiceLine_bookingServiceId InvoiceLine[] @relation("Audit_InvoiceLine_bookingServiceId")
 }
 
 model BookingStatusHistory {
@@ -1311,6 +1198,8 @@ model Payment {
   @@index([bookingId])
   @@index([status])
   @@map("payments")
+  refs_Invoice_paymentId Invoice[] @relation("Audit_Invoice_paymentId")
+  @@index([createdAt])
 }
 
 model RefundRequest {
@@ -1335,11 +1224,11 @@ model RefundRequest {
   allocations             RefundAllocation[]
   ledgerEntries           FinancialLedgerEntry[]
   platformFeeAdjustments  PlatformFeeAdjustment[]
-  compensationAdjustments CompensationAdjustment[]
 
   @@index([paymentId, status])
   @@index([requestedBy])
   @@map("refund_requests")
+  refs_LoyaltyTransaction_refundRequestId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_refundRequestId")
 }
 
 /// Immutable price evidence captured when a booking is created. Service prices
@@ -1728,6 +1617,8 @@ model Review {
   @@index([status])
   @@index([status, deletedAt, bookingId])
   @@map("reviews")
+  refs_ReviewModerationEvent_reviewId ReviewModerationEvent[] @relation("Audit_ReviewModerationEvent_reviewId")
+  refs_ReviewAppeal_reviewId ReviewAppeal[] @relation("Audit_ReviewAppeal_reviewId")
 }
 
 model ReviewServiceRating {
@@ -1791,6 +1682,7 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@map("notifications")
+  @@index([userId, isRead])
 }
 
 /// Transactional hand-off between a committed business operation and the
@@ -1868,8 +1760,10 @@ model CancellationPolicy {
   id                     String   @id @default(uuid())
   businessId             String   @unique @map("business_id")
   freeCancelHours        Int      @default(2) @map("free_cancel_hours")
-  lateCancelFeePercent   Int      @default(50) @map("late_cancel_fee_percent")
-  noShowFeePercent       Int      @default(100) @map("no_show_fee_percent")
+  // Retained for backwards-compatible reads of legacy records; fees are no
+  // longer part of the active cancellation/no-show workflow.
+  lateCancelFeePercent   Int      @default(0) @map("late_cancel_fee_percent")
+  noShowFeePercent       Int      @default(0) @map("no_show_fee_percent")
   rescheduleAllowedHours Int      @default(1) @map("reschedule_allowed_hours")
   notes                  String?
   updatedBy              String?  @map("updated_by")
@@ -1915,6 +1809,7 @@ model Voucher {
   @@index([startDate, endDate])
   @@index([businessId, scope])
   @@map("vouchers")
+  refs_VoucherRedemption_voucherId VoucherRedemption[] @relation("Audit_VoucherRedemption_voucherId")
 }
 
 model CustomerVoucher {
@@ -1933,6 +1828,7 @@ model CustomerVoucher {
   @@unique([voucherId, customerId])
   @@index([customerId])
   @@map("customer_vouchers")
+  refs_VoucherRedemption_customerVoucherId VoucherRedemption[] @relation("Audit_VoucherRedemption_customerVoucherId")
 }
 
 model AppointmentChangeRequest {
@@ -2104,8 +2000,6 @@ model BranchReviewRequest {
   branch           Branch             @relation(fields: [branchId], references: [id], onDelete: Cascade)
   requester        User               @relation("BranchReviewRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
   reviewer         User?              @relation("BranchReviewReviewer", fields: [assignedTo], references: [id], onDelete: SetNull)
-  business         Business?          @relation(fields: [businessId], references: [id])
-  businessId       String?
 
   @@index([branchId, submittedAt])
   @@index([status, submittedAt])
@@ -2158,368 +2052,6 @@ model ReviewReport {
   @@unique([reviewId, reporterId])
   @@index([reviewId, createdAt])
   @@map("review_reports")
-}
-
-model StaffAttendance {
-  id                 String                       @id @default(uuid())
-  businessId         String                       @map("business_id")
-  branchId           String                       @map("branch_id")
-  staffId            String                       @map("staff_id")
-  userId             String?                      @map("user_id")
-  workDate           DateTime                     @map("work_date") @db.Date
-  scheduledStartTime DateTime                     @map("scheduled_start_time") @db.Time(6)
-  scheduledEndTime   DateTime                     @map("scheduled_end_time") @db.Time(6)
-  scheduleVersionId  String?                      @map("schedule_version_id")
-  scheduleSnapshot   Json?                        @map("schedule_snapshot")
-  checkInAt          DateTime?                    @map("check_in_at")
-  checkOutAt         DateTime?                    @map("check_out_at")
-  checkInMethod      AttendanceMethod?            @map("check_in_method")
-  checkOutMethod     AttendanceMethod?            @map("check_out_method")
-  status             AttendanceStatus             @default(NOT_CHECKED_IN)
-  lateMinutes        Int                          @default(0) @map("late_minutes")
-  earlyLeaveMinutes  Int                          @default(0) @map("early_leave_minutes")
-  overtimeMinutes    Int                          @default(0) @map("overtime_minutes")
-  note               String?
-  adjustedBy         String?                      @map("adjusted_by")
-  adjustedAt         DateTime?                    @map("adjusted_at")
-  adjustmentReason   String?                      @map("adjustment_reason")
-  absentMarkedBy     String?                      @map("absent_marked_by")
-  absentMarkedAt     DateTime?                    @map("absent_marked_at")
-  createdAt          DateTime                     @default(now()) @map("created_at")
-  updatedAt          DateTime                     @updatedAt @map("updated_at")
-  business           Business                     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch             Branch                       @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff              StaffProfile                 @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  user               User?                        @relation("AttendanceUser", fields: [userId], references: [id])
-  adjuster           User?                        @relation("AttendanceAdjustedBy", fields: [adjustedBy], references: [id])
-  absentMarker       User?                        @relation("AttendanceAbsentMarker", fields: [absentMarkedBy], references: [id])
-  exceptionRequests  AttendanceExceptionRequest[]
-  events             AttendanceEvent[]
-  timesheet          Timesheet?
-  scheduleVersion    StaffScheduleVersion?        @relation(fields: [scheduleVersionId], references: [id], onDelete: SetNull)
-
-  @@unique([staffId, branchId, workDate])
-  @@index([businessId, workDate])
-  @@index([branchId, workDate, status])
-  @@index([scheduleVersionId])
-  @@map("staff_attendances")
-}
-
-model AttendanceExceptionRequest {
-  id           String                    @id @default(uuid())
-  attendanceId String?                   @map("attendance_id")
-  businessId   String                    @map("business_id")
-  branchId     String                    @map("branch_id")
-  staffId      String                    @map("staff_id")
-  requestedBy  String                    @map("requested_by")
-  type         AttendanceExceptionType
-  workDate     DateTime                  @map("work_date") @db.Date
-  proposedAt   DateTime                  @map("proposed_at")
-  reason       String
-  note         String?
-  status       AttendanceExceptionStatus @default(PENDING)
-  reviewedBy   String?                   @map("reviewed_by")
-  reviewedAt   DateTime?                 @map("reviewed_at")
-  reviewReason String?                   @map("review_reason")
-  createdAt    DateTime                  @default(now()) @map("created_at")
-  updatedAt    DateTime                  @updatedAt @map("updated_at")
-  attendance   StaffAttendance?          @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
-  business     Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch       Branch                    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff        StaffProfile              @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  requester    User                      @relation("AttendanceExceptionRequester", fields: [requestedBy], references: [id])
-  reviewer     User?                     @relation("AttendanceExceptionReviewer", fields: [reviewedBy], references: [id])
-
-  @@index([branchId, status, createdAt])
-  @@index([staffId, createdAt])
-  @@map("attendance_exception_requests")
-}
-
-model AttendanceQrToken {
-  nonce      String              @id
-  businessId String              @map("business_id")
-  branchId   String              @map("branch_id")
-  purpose    AttendanceQrPurpose
-  issuedAt   DateTime            @map("issued_at")
-  expiresAt  DateTime            @map("expires_at")
-  createdBy  String              @map("created_by")
-  createdAt  DateTime            @default(now()) @map("created_at")
-  business   Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch     Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  creator    User                @relation("AttendanceQrTokenCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  uses       AttendanceQrUse[]
-
-  @@index([branchId, expiresAt])
-  @@map("attendance_qr_tokens")
-}
-
-model AttendanceQrUse {
-  id         String                @id @default(uuid())
-  qrNonce    String                @map("qr_nonce")
-  staffId    String                @map("staff_id")
-  userId     String                @map("user_id")
-  action     AttendanceQrUseAction
-  deviceHash String?               @map("device_hash")
-  redeemedAt DateTime              @default(now()) @map("redeemed_at")
-  token      AttendanceQrToken     @relation(fields: [qrNonce], references: [nonce], onDelete: Cascade)
-  staff      StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  user       User                  @relation("AttendanceQrUser", fields: [userId], references: [id], onDelete: Restrict)
-
-  @@unique([qrNonce, staffId, action])
-  @@index([staffId, redeemedAt])
-  @@map("attendance_qr_uses")
-}
-
-model AttendanceEvent {
-  id           String              @id @default(uuid())
-  attendanceId String?             @map("attendance_id")
-  businessId   String              @map("business_id")
-  branchId     String              @map("branch_id")
-  staffId      String              @map("staff_id")
-  actorId      String              @map("actor_id")
-  eventType    AttendanceEventType @map("event_type")
-  eventAt      DateTime            @default(now()) @map("event_at")
-  originalData Json?               @map("original_data")
-  newData      Json?               @map("new_data")
-  reason       String?
-  source       String
-  attendance   StaffAttendance?    @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
-  business     Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch       Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff        StaffProfile        @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  actor        User                @relation("AttendanceEventActor", fields: [actorId], references: [id], onDelete: Restrict)
-
-  @@index([staffId, eventAt])
-  @@index([branchId, eventAt])
-  @@map("attendance_events")
-}
-
-/// Availability describes when a staff member can work. It is intentionally
-/// separate from published schedule versions and attendance.
-model StaffAvailability {
-  id            String                  @id @default(uuid())
-  businessId    String                  @map("business_id")
-  branchId      String                  @map("branch_id")
-  staffId       String                  @map("staff_id")
-  dayOfWeek     Int                     @map("day_of_week") @db.SmallInt
-  startTime     DateTime                @map("start_time") @db.Time(6)
-  endTime       DateTime                @map("end_time") @db.Time(6)
-  effectiveFrom DateTime                @map("effective_from") @db.Date
-  effectiveTo   DateTime?               @map("effective_to") @db.Date
-  status        StaffAvailabilityStatus @default(ACTIVE)
-  createdBy     String                  @map("created_by")
-  createdAt     DateTime                @default(now()) @map("created_at")
-  updatedAt     DateTime                @updatedAt @map("updated_at")
-  business      Business                @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch        Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff         StaffProfile            @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
-  @@index([staffId, branchId, dayOfWeek, effectiveFrom, effectiveTo])
-  @@index([businessId, status])
-  @@map("staff_availabilities")
-}
-
-model Timesheet {
-  id                  String                @id @default(uuid())
-  attendanceId        String                @unique @map("attendance_id")
-  businessId          String                @map("business_id")
-  branchId            String                @map("branch_id")
-  staffId             String                @map("staff_id")
-  workDate            DateTime              @map("work_date") @db.Date
-  scheduledMinutes    Int                   @default(0) @map("scheduled_minutes")
-  actualWorkedMinutes Int                   @default(0) @map("actual_worked_minutes")
-  breakMinutes        Int                   @default(0) @map("break_minutes")
-  approvedPaidMinutes Int?                  @map("approved_paid_minutes")
-  approvedBreakdown   Json?                 @map("approved_breakdown")
-  status              TimesheetStatus       @default(RAW)
-  generatedAt         DateTime              @default(now()) @map("generated_at")
-  submittedAt         DateTime?             @map("submitted_at")
-  approvedAt          DateTime?             @map("approved_at")
-  approvedBy          String?               @map("approved_by")
-  lockedAt            DateTime?             @map("locked_at")
-  createdAt           DateTime              @default(now()) @map("created_at")
-  updatedAt           DateTime              @updatedAt @map("updated_at")
-  attendance          StaffAttendance       @relation(fields: [attendanceId], references: [id], onDelete: Restrict)
-  business            Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch              Branch                @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  staff               StaffProfile          @relation(fields: [staffId], references: [id], onDelete: Restrict)
-  adjustments         TimesheetAdjustment[]
-  compensationEntries CompensationEntry[]
-  payRunItems         PayRunItem[]
-
-  @@unique([staffId, branchId, workDate])
-  @@index([businessId, workDate, status])
-  @@index([branchId, workDate, status])
-  @@map("timesheets")
-}
-
-model TimesheetAdjustment {
-  id           String                    @id @default(uuid())
-  timesheetId  String                    @map("timesheet_id")
-  proposedBy   String                    @map("proposed_by")
-  reason       String
-  oldData      Json                      @map("old_data")
-  newData      Json                      @map("new_data")
-  status       TimesheetAdjustmentStatus @default(PENDING)
-  reviewedBy   String?                   @map("reviewed_by")
-  reviewedAt   DateTime?                 @map("reviewed_at")
-  reviewReason String?                   @map("review_reason")
-  createdAt    DateTime                  @default(now()) @map("created_at")
-  timesheet    Timesheet                 @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
-
-  @@index([timesheetId, status, createdAt])
-  @@map("timesheet_adjustments")
-}
-
-model CompensationRule {
-  id               String                     @id @default(uuid())
-  businessId       String                     @map("business_id")
-  branchId         String?                    @map("branch_id")
-  name             String
-  type             CompensationRuleType
-  version          Int
-  status           PolicyVersionStatus        @default(ACTIVE)
-  calculationBasis CommissionCalculationBasis @default(APPROVED_PAID_TIME) @map("calculation_basis")
-  rate             Decimal?                   @db.Decimal(12, 4)
-  fixedAmount      Decimal?                   @map("fixed_amount") @db.Decimal(12, 2)
-  currency         String                     @default("VND")
-  effectiveFrom    DateTime                   @map("effective_from") @db.Date
-  effectiveTo      DateTime?                  @map("effective_to") @db.Date
-  createdBy        String                     @map("created_by")
-  createdAt        DateTime                   @default(now()) @map("created_at")
-  business         Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch           Branch?                    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  assignments      CompensationAssignment[]
-  entries          CompensationEntry[]
-
-  @@unique([businessId, branchId, name, version])
-  @@index([businessId, type, status, effectiveFrom, effectiveTo])
-  @@map("compensation_rules")
-}
-
-model CompensationAssignment {
-  id            String           @id @default(uuid())
-  ruleId        String           @map("rule_id")
-  staffId       String           @map("staff_id")
-  branchId      String           @map("branch_id")
-  roleCode      RoleCode?        @map("role_code")
-  effectiveFrom DateTime         @map("effective_from") @db.Date
-  effectiveTo   DateTime?        @map("effective_to") @db.Date
-  createdAt     DateTime         @default(now()) @map("created_at")
-  rule          CompensationRule @relation(fields: [ruleId], references: [id], onDelete: Restrict)
-  staff         StaffProfile     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  branch        Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  @@unique([ruleId, staffId, branchId, roleCode, effectiveFrom])
-  @@index([staffId, branchId, effectiveFrom, effectiveTo])
-  @@map("compensation_assignments")
-}
-
-/// Append-only earnings ledger. Historical entries keep a complete rule and
-/// basis snapshot so later rule edits cannot change past compensation.
-model CompensationEntry {
-  id                    String                   @id @default(uuid())
-  businessId            String                   @map("business_id")
-  branchId              String                   @map("branch_id")
-  staffId               String                   @map("staff_id")
-  timesheetId           String?                  @map("timesheet_id")
-  bookingServiceId      String?                  @map("booking_service_id")
-  ruleId                String?                  @map("rule_id")
-  payRunItemId          String?                  @map("pay_run_item_id")
-  originalEntryId       String?                  @map("original_entry_id")
-  type                  CompensationEntryType
-  status                CompensationEntryStatus  @default(EARNED)
-  amount                Decimal                  @db.Decimal(12, 2)
-  currency              String                   @default("VND")
-  calculationBasis      String                   @map("calculation_basis")
-  calculationSnapshot   Json                     @map("calculation_snapshot")
-  sourceType            String                   @map("source_type")
-  sourceId              String                   @map("source_id")
-  dedupeKey             String                   @unique @map("dedupe_key")
-  earnedAt              DateTime                 @map("earned_at")
-  createdAt             DateTime                 @default(now()) @map("created_at")
-  business              Business                 @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch                Branch                   @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  staff                 StaffProfile             @relation(fields: [staffId], references: [id], onDelete: Restrict)
-  timesheet             Timesheet?               @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
-  bookingService        BookingService?          @relation(fields: [bookingServiceId], references: [id], onDelete: Restrict)
-  rule                  CompensationRule?        @relation(fields: [ruleId], references: [id], onDelete: Restrict)
-  payRunItem            PayRunItem?              @relation(fields: [payRunItemId], references: [id], onDelete: Restrict)
-  originalEntry         CompensationEntry?       @relation("CompensationEntryReversal", fields: [originalEntryId], references: [id], onDelete: Restrict)
-  reversingEntries      CompensationEntry[]      @relation("CompensationEntryReversal")
-  adjustmentsAsOriginal CompensationAdjustment[] @relation("CompensationAdjustmentOriginal")
-  adjustmentsAsResult   CompensationAdjustment[] @relation("CompensationAdjustmentResult")
-
-  @@index([staffId, earnedAt, status])
-  @@index([businessId, earnedAt, type])
-  @@index([branchId, earnedAt])
-  @@index([sourceType, sourceId])
-  @@map("compensation_entries")
-}
-
-model CompensationAdjustment {
-  id               String            @id @default(uuid())
-  originalEntryId  String            @map("original_entry_id")
-  resultingEntryId String            @unique @map("resulting_entry_id")
-  refundId         String?           @map("refund_id")
-  reason           String
-  actorId          String            @map("actor_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  originalEntry    CompensationEntry @relation("CompensationAdjustmentOriginal", fields: [originalEntryId], references: [id], onDelete: Restrict)
-  resultingEntry   CompensationEntry @relation("CompensationAdjustmentResult", fields: [resultingEntryId], references: [id], onDelete: Restrict)
-  refund           RefundRequest?    @relation(fields: [refundId], references: [id], onDelete: Restrict)
-
-  @@index([originalEntryId, createdAt])
-  @@map("compensation_adjustments")
-}
-
-model PayRun {
-  id               String       @id @default(uuid())
-  businessId       String       @map("business_id")
-  periodStart      DateTime     @map("period_start") @db.Date
-  periodEnd        DateTime     @map("period_end") @db.Date
-  status           PayRunStatus @default(DRAFT)
-  currency         String       @default("VND")
-  grossAmount      Decimal      @default(0) @map("gross_amount") @db.Decimal(12, 2)
-  adjustmentAmount Decimal      @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
-  deductionAmount  Decimal      @default(0) @map("deduction_amount") @db.Decimal(12, 2)
-  netAmount        Decimal      @default(0) @map("net_amount") @db.Decimal(12, 2)
-  approvedBy       String?      @map("approved_by")
-  approvedAt       DateTime?    @map("approved_at")
-  lockedAt         DateTime?    @map("locked_at")
-  markedPaidAt     DateTime?    @map("marked_paid_at")
-  markedPaidBy     String?      @map("marked_paid_by")
-  exportReference  String?      @map("export_reference")
-  createdBy        String       @map("created_by")
-  createdAt        DateTime     @default(now()) @map("created_at")
-  updatedAt        DateTime     @updatedAt @map("updated_at")
-  business         Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  items            PayRunItem[]
-
-  @@unique([businessId, periodStart, periodEnd])
-  @@index([businessId, status, periodStart])
-  @@map("pay_runs")
-}
-
-model PayRunItem {
-  id                  String              @id @default(uuid())
-  payRunId            String              @map("pay_run_id")
-  staffId             String              @map("staff_id")
-  timesheetId         String?             @map("timesheet_id")
-  grossAmount         Decimal             @default(0) @map("gross_amount") @db.Decimal(12, 2)
-  adjustmentAmount    Decimal             @default(0) @map("adjustment_amount") @db.Decimal(12, 2)
-  deductionAmount     Decimal             @default(0) @map("deduction_amount") @db.Decimal(12, 2)
-  netAmount           Decimal             @default(0) @map("net_amount") @db.Decimal(12, 2)
-  status              PayRunStatus        @default(DRAFT)
-  externalReference   String?             @map("external_reference")
-  payRun              PayRun              @relation(fields: [payRunId], references: [id], onDelete: Cascade)
-  staff               StaffProfile        @relation(fields: [staffId], references: [id], onDelete: Restrict)
-  timesheet           Timesheet?          @relation(fields: [timesheetId], references: [id], onDelete: Restrict)
-  compensationEntries CompensationEntry[]
-
-  @@unique([payRunId, staffId])
-  @@index([staffId, status])
-  @@map("pay_run_items")
 }
 
 model SensitiveConsent {
@@ -2828,7 +2360,7 @@ model DataSubjectRequest {
 // ================================================================
 // Production business completion: pricing, operations and commerce
 // These records are append-only evidence or versioned configuration.
-// Parent foreign keys are enforced in the additive SQL migration.
+// Parent foreign keys are enforced by explicit relations and the 20260909 audit migration.
 // ================================================================
 
 model BranchStateTransition {
@@ -2848,6 +2380,8 @@ model BranchStateTransition {
   @@unique([branchId, version])
   @@index([branchId, createdAt])
   @@map("branch_state_transitions")
+  ref_branchId Branch @relation("Audit_BranchStateTransition_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_actorId User @relation("Audit_BranchStateTransition_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model PriceAdjustment {
@@ -2873,6 +2407,9 @@ model PriceAdjustment {
   @@index([branchId, createdAt])
   @@index([sourceId, status])
   @@map("price_adjustments")
+  ref_bookingId Booking? @relation("Audit_PriceAdjustment_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch @relation("Audit_PriceAdjustment_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile? @relation("Audit_PriceAdjustment_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model PromotionRedemption {
@@ -2894,6 +2431,10 @@ model PromotionRedemption {
   @@index([promotionId, status])
   @@index([customerId, createdAt])
   @@map("promotion_redemptions")
+  ref_promotionId Promotion @relation("Audit_PromotionRedemption_promotionId", fields: [promotionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking @relation("Audit_PromotionRedemption_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile @relation("Audit_PromotionRedemption_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch @relation("Audit_PromotionRedemption_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model VoucherRedemption {
@@ -2916,6 +2457,11 @@ model VoucherRedemption {
   @@index([voucherId, customerId, status])
   @@index([bookingId, status])
   @@map("voucher_redemptions")
+  ref_voucherId Voucher @relation("Audit_VoucherRedemption_voucherId", fields: [voucherId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerVoucherId CustomerVoucher? @relation("Audit_VoucherRedemption_customerVoucherId", fields: [customerVoucherId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile @relation("Audit_VoucherRedemption_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking @relation("Audit_VoucherRedemption_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch @relation("Audit_VoucherRedemption_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model ServiceVariant {
@@ -2942,6 +2488,8 @@ model ServiceVariant {
   @@unique([serviceId, code])
   @@index([serviceId, status, deletedAt])
   @@map("service_variants")
+  ref_serviceId BranchServiceOffering @relation("Audit_ServiceVariant_serviceId", fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_ServicePriceRule_variantId ServicePriceRule[] @relation("Audit_ServicePriceRule_variantId")
 }
 
 model ServicePriceRule {
@@ -2962,6 +2510,8 @@ model ServicePriceRule {
 
   @@index([serviceId, active, priority])
   @@map("service_price_rules")
+  ref_serviceId BranchServiceOffering @relation("Audit_ServicePriceRule_serviceId", fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_variantId ServiceVariant? @relation("Audit_ServicePriceRule_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model ServiceDependency {
@@ -2973,6 +2523,8 @@ model ServiceDependency {
 
   @@unique([serviceId, requiredServiceId, dependencyType])
   @@map("service_dependencies")
+  ref_serviceId BranchServiceOffering @relation("Audit_ServiceDependency_serviceId", fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_requiredServiceId BranchServiceOffering @relation("Audit_ServiceDependency_requiredServiceId", fields: [requiredServiceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model BookingServiceAdjustment {
@@ -2991,6 +2543,9 @@ model BookingServiceAdjustment {
   @@unique([bookingServiceId, version])
   @@index([bookingId, createdAt])
   @@map("booking_service_adjustments")
+  ref_bookingServiceId BookingService @relation("Audit_BookingServiceAdjustment_bookingServiceId", fields: [bookingServiceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking @relation("Audit_BookingServiceAdjustment_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_actorId User @relation("Audit_BookingServiceAdjustment_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model OperationalImpactCase {
@@ -3012,6 +2567,11 @@ model OperationalImpactCase {
   @@index([businessId, status, deadlineAt])
   @@index([subjectType, subjectId, status])
   @@map("operational_impact_cases")
+  ref_businessId Business @relation("Audit_OperationalImpactCase_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch? @relation("Audit_OperationalImpactCase_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_ownerId User @relation("Audit_OperationalImpactCase_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_createdBy User @relation("Audit_OperationalImpactCase_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_OperationalImpactItem_caseId OperationalImpactItem[] @relation("Audit_OperationalImpactItem_caseId")
 }
 
 model OperationalImpactItem {
@@ -3034,6 +2594,11 @@ model OperationalImpactItem {
   @@index([caseId, status])
   @@index([bookingId])
   @@map("operational_impact_items")
+  ref_caseId OperationalImpactCase @relation("Audit_OperationalImpactItem_caseId", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking @relation("Audit_OperationalImpactItem_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_replacementStaffId StaffProfile? @relation("Audit_OperationalImpactItem_replacementStaffId", fields: [replacementStaffId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_replacementBranchId Branch? @relation("Audit_OperationalImpactItem_replacementBranchId", fields: [replacementBranchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_resolvedBy User? @relation("Audit_OperationalImpactItem_resolvedBy", fields: [resolvedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model WaitlistEntry {
@@ -3060,6 +2625,12 @@ model WaitlistEntry {
   @@index([customerId, status])
   @@index([offerExpiresAt, status])
   @@map("waitlist_entries")
+  ref_customerId CustomerProfile @relation("Audit_WaitlistEntry_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_businessId Business @relation("Audit_WaitlistEntry_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch @relation("Audit_WaitlistEntry_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_serviceId BranchServiceOffering @relation("Audit_WaitlistEntry_serviceId", fields: [serviceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_staffId StaffProfile? @relation("Audit_WaitlistEntry_staffId", fields: [staffId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking? @relation("Audit_WaitlistEntry_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model ReviewModerationEvent {
@@ -3077,6 +2648,8 @@ model ReviewModerationEvent {
 
   @@index([reviewId, createdAt])
   @@map("review_moderation_events")
+  ref_reviewId Review @relation("Audit_ReviewModerationEvent_reviewId", fields: [reviewId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_actorId User @relation("Audit_ReviewModerationEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model ReviewAppeal {
@@ -3094,6 +2667,9 @@ model ReviewAppeal {
   @@index([reviewId, status])
   @@index([appellantId, createdAt])
   @@map("review_appeals")
+  ref_reviewId Review @relation("Audit_ReviewAppeal_reviewId", fields: [reviewId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_appellantId User @relation("Audit_ReviewAppeal_appellantId", fields: [appellantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_reviewedBy User? @relation("Audit_ReviewAppeal_reviewedBy", fields: [reviewedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model LoyaltyRule {
@@ -3114,6 +2690,9 @@ model LoyaltyRule {
   @@unique([businessId, branchId, version])
   @@index([businessId, active, validFrom])
   @@map("loyalty_rules")
+  ref_businessId Business @relation("Audit_LoyaltyRule_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch? @relation("Audit_LoyaltyRule_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_createdBy User @relation("Audit_LoyaltyRule_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model LoyaltyAccount {
@@ -3128,6 +2707,9 @@ model LoyaltyAccount {
   @@unique([businessId, customerId])
   @@index([customerId, updatedAt])
   @@map("loyalty_accounts")
+  ref_businessId Business @relation("Audit_LoyaltyAccount_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile @relation("Audit_LoyaltyAccount_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_LoyaltyTransaction_accountId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_accountId")
 }
 
 model LoyaltyTransaction {
@@ -3152,6 +2734,14 @@ model LoyaltyTransaction {
   @@index([businessId, customerId, createdAt])
   @@index([expiresAt, type])
   @@map("loyalty_transactions")
+  ref_accountId LoyaltyAccount @relation("Audit_LoyaltyTransaction_accountId", fields: [accountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_businessId Business @relation("Audit_LoyaltyTransaction_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile @relation("Audit_LoyaltyTransaction_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking? @relation("Audit_LoyaltyTransaction_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_refundRequestId RefundRequest? @relation("Audit_LoyaltyTransaction_refundRequestId", fields: [refundRequestId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_reversalOfId LoyaltyTransaction? @relation("Audit_LoyaltyTransaction_reversalOfId", fields: [reversalOfId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_LoyaltyTransaction_reversalOfId LoyaltyTransaction[] @relation("Audit_LoyaltyTransaction_reversalOfId")
+  ref_createdBy User? @relation("Audit_LoyaltyTransaction_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model Invoice {
@@ -3186,6 +2776,13 @@ model Invoice {
   @@index([branchId, status, createdAt])
   @@index([bookingId])
   @@map("invoices")
+  ref_businessId Business @relation("Audit_Invoice_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_branchId Branch @relation("Audit_Invoice_branchId", fields: [branchId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingId Booking? @relation("Audit_Invoice_bookingId", fields: [bookingId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_paymentId Payment? @relation("Audit_Invoice_paymentId", fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_createdBy User @relation("Audit_Invoice_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_InvoiceLine_invoiceId InvoiceLine[] @relation("Audit_InvoiceLine_invoiceId")
+  refs_InvoiceEvent_invoiceId InvoiceEvent[] @relation("Audit_InvoiceEvent_invoiceId")
 }
 
 model InvoiceInformationRequest {
@@ -3232,6 +2829,8 @@ model InvoiceLine {
 
   @@index([invoiceId])
   @@map("invoice_lines")
+  ref_invoiceId Invoice @relation("Audit_InvoiceLine_invoiceId", fields: [invoiceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_bookingServiceId BookingService? @relation("Audit_InvoiceLine_bookingServiceId", fields: [bookingServiceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model InvoiceEvent {
@@ -3245,47 +2844,8 @@ model InvoiceEvent {
 
   @@index([invoiceId, createdAt])
   @@map("invoice_events")
-}
-
-model CashShift {
-  id                     String          @id @default(uuid())
-  branchId               String          @map("branch_id")
-  openedBy               String          @map("opened_by")
-  closedBy               String?         @map("closed_by")
-  approvedBy             String?         @map("approved_by")
-  status                 CashShiftStatus @default(OPEN)
-  openKey                String?         @unique @map("open_key")
-  openingBalance         Decimal         @map("opening_balance") @db.Decimal(12, 2)
-  expectedClosingBalance Decimal?        @map("expected_closing_balance") @db.Decimal(12, 2)
-  actualClosingBalance   Decimal?        @map("actual_closing_balance") @db.Decimal(12, 2)
-  varianceAmount         Decimal?        @map("variance_amount") @db.Decimal(12, 2)
-  varianceReason         String?         @map("variance_reason")
-  openedAt               DateTime        @default(now()) @map("opened_at")
-  closedAt               DateTime?       @map("closed_at")
-  approvedAt             DateTime?       @map("approved_at")
-  createdAt              DateTime        @default(now()) @map("created_at")
-  updatedAt              DateTime        @updatedAt @map("updated_at")
-
-  @@index([branchId, status, openedAt])
-  @@map("cash_shifts")
-}
-
-model CashMovement {
-  id              String           @id @default(uuid())
-  cashShiftId     String           @map("cash_shift_id")
-  branchId        String           @map("branch_id")
-  paymentId       String?          @map("payment_id")
-  refundRequestId String?          @map("refund_request_id")
-  type            CashMovementType
-  amount          Decimal          @db.Decimal(12, 2)
-  reason          String
-  actorId         String           @map("actor_id")
-  idempotencyKey  String           @unique @map("idempotency_key")
-  createdAt       DateTime         @default(now()) @map("created_at")
-
-  @@index([cashShiftId, createdAt])
-  @@index([branchId, createdAt])
-  @@map("cash_movements")
+  ref_invoiceId Invoice @relation("Audit_InvoiceEvent_invoiceId", fields: [invoiceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_actorId User @relation("Audit_InvoiceEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model OwnershipTransfer {
@@ -3313,6 +2873,14 @@ model OwnershipTransfer {
   @@index([businessId, status, effectiveAt])
   @@index([newOwnerUserId, status])
   @@map("ownership_transfers")
+  ref_businessId Business @relation("Audit_OwnershipTransfer_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_oldOwnerId BusinessOwnerProfile @relation("Audit_OwnershipTransfer_oldOwnerId", fields: [oldOwnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_newOwnerUserId User @relation("Audit_OwnershipTransfer_newOwnerUserId", fields: [newOwnerUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_legalEntityVersionId LegalEntityVersion? @relation("Audit_OwnershipTransfer_legalEntityVersionId", fields: [legalEntityVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_payoutAccountVersionId PayoutAccountVersion? @relation("Audit_OwnershipTransfer_payoutAccountVersionId", fields: [payoutAccountVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_requestedBy User @relation("Audit_OwnershipTransfer_requestedBy", fields: [requestedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_approvedBy User? @relation("Audit_OwnershipTransfer_approvedBy", fields: [approvedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refs_OwnershipHistory_transferId OwnershipHistory[] @relation("Audit_OwnershipHistory_transferId")
 }
 
 model OwnershipHistory {
@@ -3326,6 +2894,9 @@ model OwnershipHistory {
 
   @@index([businessId, validFrom])
   @@map("ownership_history")
+  ref_businessId Business @relation("Audit_OwnershipHistory_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_ownerId BusinessOwnerProfile @relation("Audit_OwnershipHistory_ownerId", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_transferId OwnershipTransfer? @relation("Audit_OwnershipHistory_transferId", fields: [transferId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model LegalEntityVersion {
@@ -3346,6 +2917,9 @@ model LegalEntityVersion {
   @@unique([businessId, version])
   @@index([businessId, validFrom])
   @@map("legal_entity_versions")
+  refs_OwnershipTransfer_legalEntityVersionId OwnershipTransfer[] @relation("Audit_OwnershipTransfer_legalEntityVersionId")
+  ref_businessId Business @relation("Audit_LegalEntityVersion_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_createdBy User @relation("Audit_LegalEntityVersion_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model PayoutAccountVersion {
@@ -3369,6 +2943,9 @@ model PayoutAccountVersion {
   @@unique([businessId, version])
   @@index([businessId, validFrom])
   @@map("payout_account_versions")
+  refs_OwnershipTransfer_payoutAccountVersionId OwnershipTransfer[] @relation("Audit_OwnershipTransfer_payoutAccountVersionId")
+  ref_businessId Business @relation("Audit_PayoutAccountVersion_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_createdBy User @relation("Audit_PayoutAccountVersion_createdBy", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model CustomerSavedService {
@@ -3390,8 +2967,6 @@ model VoucherBranchScope {
   branchId   String    @map("branch_id")
   voucher    Voucher   @relation(fields: [voucherId], references: [id], onDelete: Restrict)
   branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  business   Business? @relation(fields: [businessId], references: [id])
-  businessId String?
 
   @@id([voucherId, branchId])
   @@index([branchId])
@@ -3432,6 +3007,9 @@ model CustomerBusinessSegment {
   @@unique([businessId, customerId, segment])
   @@index([businessId, segment])
   @@map("customer_business_segments")
+  ref_businessId Business @relation("Audit_CustomerBusinessSegment_businessId", fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_customerId CustomerProfile @relation("Audit_CustomerBusinessSegment_customerId", fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  ref_assignedBy User? @relation("Audit_CustomerBusinessSegment_assignedBy", fields: [assignedBy], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model MarketingPreference {
@@ -3601,19 +3179,6 @@ enum InvoiceRequestStatus {
   FULFILLED
   REJECTED
   CANCELLED
-}
-
-enum CashShiftStatus {
-  OPEN
-  PENDING_APPROVAL
-  CLOSED
-}
-
-enum CashMovementType {
-  PAYMENT
-  REFUND
-  MANUAL_IN
-  MANUAL_OUT
 }
 
 enum OwnershipTransferStatus {
@@ -3791,49 +3356,12 @@ enum StaffAssignmentStatus {
   ENDED
 }
 
-enum StaffScheduleStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum ScheduleSegmentType {
-  SHIFT
-  BREAK
-}
-
-enum StaffAvailabilityStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum StaffScheduleChangeType {
-  RECURRING_SCHEDULE
-  SINGLE_DAY
-  LEAVE
-}
-
-enum StaffScheduleRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
 enum StaffStatus {
   PROFILE_ONLY
   INVITED
   ACTIVE
   LOCKED
   INACTIVE
-  ON_LEAVE
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
 }
 
 enum ServiceStatus {
@@ -4157,119 +3685,6 @@ enum TrustActionType {
   SUSPENDED
   RESTORED
   NOTE_ADDED
-}
-
-enum AttendanceMethod {
-  QR
-  MANUAL_EXCEPTION
-  MANUAL_ADJUSTMENT
-}
-
-enum AttendanceStatus {
-  NOT_CHECKED_IN
-  CHECKED_IN
-  CHECKED_OUT
-  LATE
-  LEFT_EARLY
-  ABSENT
-  MISSING_CHECKOUT
-  MANUALLY_ADJUSTED
-}
-
-enum AttendanceExceptionType {
-  CHECK_IN
-  CHECK_OUT
-  ADJUST_TIME
-}
-
-enum AttendanceExceptionStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum AttendanceQrPurpose {
-  CHECK_IN
-  CHECK_OUT
-  BOTH
-}
-
-enum AttendanceQrUseAction {
-  CHECK_IN
-  CHECK_OUT
-}
-
-enum AttendanceEventType {
-  CHECK_IN
-  BREAK_START
-  BREAK_END
-  CHECK_OUT
-  ADJUSTMENT_REQUESTED
-  ADJUSTMENT_APPROVED
-  ADJUSTMENT_REJECTED
-  MANUAL_ADJUSTMENT
-  MARKED_ABSENT
-  ABSENCE_RESTORED
-}
-
-enum TimesheetStatus {
-  RAW
-  SUBMITTED
-  APPROVED
-  REJECTED
-  LOCKED
-}
-
-enum TimesheetAdjustmentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum CompensationRuleType {
-  HOURLY_WAGE
-  FIXED_COMPONENT
-  SERVICE_COMMISSION
-  PRODUCT_COMMISSION
-  BONUS
-  ALLOWANCE
-  DEDUCTION
-}
-
-enum CommissionCalculationBasis {
-  APPROVED_PAID_TIME
-  SERVICE_AMOUNT
-  AFTER_DISCOUNT
-  AFTER_VOUCHER
-  AFTER_REFUND
-  FIXED
-}
-
-enum CompensationEntryType {
-  HOURLY_WAGE
-  FIXED_COMPONENT
-  SERVICE_COMMISSION
-  PRODUCT_COMMISSION
-  BONUS
-  ALLOWANCE
-  ADJUSTMENT
-  DEDUCTION
-}
-
-enum CompensationEntryStatus {
-  EARNED
-  INCLUDED_IN_PAY_RUN
-  LOCKED
-  REVERSED
-}
-
-enum PayRunStatus {
-  DRAFT
-  REVIEW
-  APPROVED
-  LOCKED
-  EXPORTED
-  MARKED_PAID
 }
 
 enum SalonMemberRole {

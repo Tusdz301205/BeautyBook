@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { addDays, addMonths, addWeeks, subDays, subMonths, subWeeks } from 'date-fns';
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Filter, LayoutGrid, RefreshCw, Rows3, Search } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Filter, LayoutGrid, RefreshCw, Rows3, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import { bookingsApi } from '../../../api/apiClient';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking, normalizeSchedulerResponse } from '../../../utils/bookingCalendar.adapter';
+import { toUserFacingRequestError } from '../../../utils/requestError';
+import { bindSchedulerSocketEvents } from '../../../utils/schedulerSocketEvents';
 import {
   computeBookingStats,
   filterBookings,
@@ -29,7 +31,6 @@ const VIEW_OPTIONS = [
 ];
 
 const initialFilters = { query: '', staffId: '', serviceId: '', status: '' };
-const attendanceWarningLabels = { ABSENT: 'vắng', MISSING_CHECKOUT: 'thiếu check-out', LATE: 'đi muộn', NOT_CHECKED_IN: 'chưa check-in' };
 
 export default function SchedulerView({
   branchId,
@@ -43,17 +44,19 @@ export default function SchedulerView({
   onStatsChange,
 }) {
   const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore((state) => state.accessToken);
   const can = useAuthStore((state) => state.can);
   const [currentDate, setCurrentDate] = useState(selectedDate || new Date());
   const [staffList, setStaffList] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [filters, setFilters] = useState(initialFilters);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
   const [searchParams] = useSearchParams();
   const requestSequence = useRef(0);
+  const authorizationEpoch = useRef(0);
   const deepLinkHandled = useRef('');
 
   const activeBranchIds = useMemo(() => {
@@ -84,7 +87,7 @@ export default function SchedulerView({
       return;
     }
     if (!silent) setLoading(true);
-    setError('');
+    setError(null);
     try {
       const payloads = await Promise.all(scopedBranchIds.map(async (scopedBranchId) => ({
         branchId: scopedBranchId,
@@ -112,26 +115,30 @@ export default function SchedulerView({
       setBookings([...bookingById.values()]);
     } catch (requestError) {
       if (requestId !== requestSequence.current) return;
-      setError(requestError.message || 'Không thể tải lịch hẹn.');
+      setError(toUserFacingRequestError(requestError, 'Không thể tải dữ liệu lịch hẹn'));
     } finally {
       if (!silent && requestId === requestSequence.current) setLoading(false);
     }
   }, [branchKey, branchNames, range.end, range.start, refreshKey]);
 
   useEffect(() => {
-    setSelectedBooking(null);
-    setSelectedDay(null);
     fetchData();
   }, [fetchData]);
 
   useEffect(() => {
+    setSelectedBooking(null);
+    setSelectedDay(null);
+  }, [branchKey]);
+
+  useEffect(() => {
     const bookingId = searchParams.get('bookingId');
     if (!bookingId || deepLinkHandled.current === bookingId) return;
-    deepLinkHandled.current = bookingId;
     let active = true;
+    const epoch = authorizationEpoch.current;
     bookingsApi.getById(bookingId)
       .then((payload) => {
-        if (!active) return;
+        if (!active || epoch !== authorizationEpoch.current) return;
+        deepLinkHandled.current = bookingId;
         const normalized = normalizeBooking(payload);
         setSelectedBooking(normalized);
         if (normalized.startAt && !Number.isNaN(normalized.startAt.getTime())) {
@@ -140,10 +147,10 @@ export default function SchedulerView({
         }
       })
       .catch((requestError) => {
-        if (active) toast.error(requestError.message || 'Không thể mở lịch hẹn từ thông báo.');
+        if (active && epoch === authorizationEpoch.current) toast.error(requestError.message || 'Không thể mở lịch hẹn từ thông báo.');
       });
     return () => { active = false; };
-  }, [searchParams, setSelectedDate]);
+  }, [searchParams, setSelectedDate, accessToken]);
 
   useEffect(() => {
     if (!staffOnly || filters.staffId || staffList.length === 0) return;
@@ -152,17 +159,32 @@ export default function SchedulerView({
   }, [filters.staffId, staffList, staffOnly, user]);
 
   useEffect(() => {
+    if (!accessToken) return;
     const socketUrl = import.meta.env.VITE_WS_URL || window.location.origin;
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       auth: (callback) => callback({ token: useAuthStore.getState().accessToken }),
     });
     const refresh = () => fetchData({ silent: true });
-    socket.on('booking_updated', refresh);
-    socket.on('booking_created', refresh);
-    socket.on('booking_deleted', refresh);
-    return () => socket.disconnect();
-  }, [fetchData]);
+    const clearScopedData = () => {
+      authorizationEpoch.current += 1;
+      requestSequence.current += 1;
+      setBookings([]);
+      setStaffList([]);
+      setSelectedBooking(null);
+      setSelectedDay(null);
+      setLoading(false);
+    };
+    const authFailed = () => {
+      clearScopedData();
+      setError('Phiên hoặc quyền truy cập lịch đã thay đổi. Vui lòng tải lại hoặc đăng nhập lại.');
+    };
+    const unbind = bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed });
+    return () => {
+      unbind();
+      socket.disconnect();
+    };
+  }, [fetchData, accessToken]);
 
   const serviceOptions = useMemo(() => {
     const services = new Map();
@@ -173,17 +195,6 @@ export default function SchedulerView({
   }, [bookings]);
 
   const filteredBookings = useMemo(() => filterBookings(bookings, filters), [bookings, filters]);
-  const attendanceWarnings = useMemo(() => {
-    const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
-    const bookingStatuses = new Set(['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS']);
-    return staffList.flatMap((staff) => {
-      const rows = (staff.attendances || []).filter((attendance) => ['ABSENT', 'MISSING_CHECKOUT', 'LATE', 'NOT_CHECKED_IN'].includes(attendance.status));
-      const hasAttendanceToday = (staff.attendances || []).some((attendance) => String(attendance.workDate || '').slice(0, 10) === todayKey);
-      const hasBookingToday = bookings.some((booking) => booking.primaryStaffId === staff.id && bookingStatuses.has(booking.status) && new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(booking.startAt) === todayKey);
-      if (!hasAttendanceToday && hasBookingToday) rows.push({ status: 'NOT_CHECKED_IN', workDate: todayKey });
-      return rows.map((attendance) => ({ ...attendance, staffName: staff.name }));
-    });
-  }, [bookings, staffList]);
   const stats = useMemo(() => computeBookingStats(filteredBookings), [filteredBookings]);
   const platformWorkspace = user?.workspace === 'PLATFORM' || roleCodes.has('PLATFORM_ADMIN');
   const canUpdate = !platformWorkspace && !staffOnly && activeBranchIds.length === 1 && (can('booking:update:branch') || can('booking:update:tenant'));
@@ -264,7 +275,7 @@ export default function SchedulerView({
           <label className="relative min-w-[210px] flex-1 sm:max-w-[280px]">
             <span className="sr-only">Tìm khách hàng hoặc mã lịch</span>
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Khách hàng hoặc mã lịch" className="min-h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm font-medium text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-pink-400 focus:ring-2 focus:ring-pink-100" />
+            <input value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Khách hàng hoặc mã lịch" className="min-h-10 w-full rounded-lg border border-zinc-200 bg-white pl-9 pr-3 text-sm font-medium text-zinc-700 placeholder:text-zinc-400" />
           </label>
           <FilterSelect label={staffOnly ? 'Lịch cá nhân' : 'Tất cả nhân viên'} value={filters.staffId} disabled={staffOnly} onChange={(staffId) => setFilters((current) => ({ ...current, staffId }))} options={staffList.map((staff) => ({ id: staff.id, name: staff.name }))} />
           <FilterSelect label="Tất cả dịch vụ" value={filters.serviceId} onChange={(serviceId) => setFilters((current) => ({ ...current, serviceId }))} options={serviceOptions} />
@@ -272,11 +283,10 @@ export default function SchedulerView({
           {(filters.query || filters.serviceId || filters.status || (!staffOnly && filters.staffId)) && <button type="button" onClick={() => setFilters((current) => ({ ...initialFilters, staffId: staffOnly ? current.staffId : '' }))} className="min-h-10 px-2 text-sm font-semibold text-pink-700 hover:underline">Xóa lọc</button>}
           <span className="ml-auto text-xs font-medium text-zinc-500">{filteredBookings.length} lịch trong phạm vi đang xem</span>
         </div>
-        {attendanceWarnings.length > 0 && <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><span><strong>Cảnh báo chấm công:</strong> {attendanceWarnings.slice(0, 4).map((item) => `${item.staffName} (${attendanceWarningLabels[item.status] || item.status})`).join(', ')}{attendanceWarnings.length > 4 ? ` và ${attendanceWarnings.length - 4} trường hợp khác` : ''}. Hệ thống không tự hủy lịch; nhân viên đã đánh dấu vắng sẽ bị chặn nhận lịch mới trong ngày.</span></div>}
       </div>
 
       <div className="min-h-0 flex-1">
-        {loading ? <CalendarLoadingSkeleton /> : error ? <CalendarErrorState message={error} onRetry={() => fetchData()} /> : (
+        {loading ? <CalendarLoadingSkeleton /> : error ? <CalendarErrorState error={error} onRetry={() => fetchData()} /> : (
           <>
             {filteredBookings.length === 0 && <div role="status" className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-center text-xs font-medium text-zinc-600">Không có lịch hẹn phù hợp; khung thời gian vẫn được giữ để bạn xem lịch trống.</div>}
             {viewMode === 'day' && <SchedulerDayView currentDate={currentDate} staffList={staffList} bookings={filteredBookings} onBookingClick={setSelectedBooking} onMoveBooking={canUpdate ? moveBooking : undefined} onResizeBooking={canUpdate ? resizeBooking : undefined} />}
@@ -299,7 +309,7 @@ export default function SchedulerView({
 }
 
 function IconButton({ label, onClick, children }) {
-  return <button type="button" onClick={onClick} className="grid h-11 w-11 place-items-center rounded-xl text-zinc-600 transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" aria-label={label} title={label}>{children}</button>;
+  return <button type="button" onClick={onClick} className="grid h-11 w-11 place-items-center rounded-xl text-zinc-600 transition hover:bg-zinc-100" aria-label={label} title={label}>{children}</button>;
 }
 
 function FilterSelect({ label, value, onChange, options, disabled = false }) {

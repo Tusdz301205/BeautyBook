@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
 import { Observable, from, of, throwError } from 'rxjs';
-import { catchError, mergeMap, tap } from 'rxjs/operators';
+import { catchError, mergeMap } from 'rxjs/operators';
 
 interface IdempotencyRecord {
   fingerprint: string;
@@ -54,14 +54,16 @@ export function requiresIdempotency(method: string, route: string): boolean {
   if (method.toUpperCase() !== 'POST') return false;
   const normalized = `/${route}`.replace(/\/+/g, '/').replace(/\/$/, '');
   return [
-    /^\/(?:api\/v1\/)?bookings$/,
+    /^\/(?:api\/v1\/)?bookings(?:\/guest)?$/,
     /^\/(?:api\/v1\/)?bookings\/[^/]+\/(?:change-requests|refund)$/,
     /^\/(?:api\/v1\/)?payments\/collect$/,
+    /^\/(?:api\/v1\/)?payments\/intents$/,
     /^\/(?:api\/v1\/)?payments\/[^/]+\/refund-requests$/,
     /^\/(?:api\/v1\/)?payments\/refunds\/[^/]+\/process$/,
     /^\/(?:api\/v1\/)?payments\/packages\/[^/]+\/purchases$/,
     /^\/(?:api\/v1\/)?payments\/package-installments\/[^/]+\/pay$/,
     /^\/(?:api\/v1\/)?payments\/package-purchases\/[^/]+\/sessions\/reserve$/,
+    /^\/(?:api\/v1\/)?bookings\/[^/]+\/items$/,
     /^\/(?:api\/v1\/)?payments\/transactions\/[^/]+\/(?:verify|reverse)$/,
     /^\/(?:api\/v1\/)?payments\/platform-statements\/generate$/,
     /^\/(?:api\/v1\/)?vouchers\/[^/]+\/grant$/,
@@ -131,20 +133,19 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
         }
 
         return next.handle().pipe(
-          tap({
-            next: (responseBody) => {
-              void this.complete(
+          mergeMap((responseBody) =>
+            from(this.complete(
                 reservation.storeKey,
                 reservation.fingerprint,
                 res.statusCode,
                 responseBody,
-              );
-            },
-          }),
-          catchError((error) => {
-            void this.release(reservation.storeKey, reservation.fingerprint);
-            return throwError(() => error);
-          }),
+              )).pipe(mergeMap(() => of(responseBody))),
+          ),
+          catchError((error) =>
+            from(this.release(reservation.storeKey, reservation.fingerprint)).pipe(
+              mergeMap(() => throwError(() => error)),
+            ),
+          ),
         );
       }),
     );

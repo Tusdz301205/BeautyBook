@@ -29,12 +29,10 @@ import { PaymentsModule } from './payments/payments.module';
 import { HealthController } from './health.controller';
 import { UserAwareThrottlerGuard } from './common/guards/user-aware-throttler.guard';
 import { PlatformSettingsModule } from './platform-settings/platform-settings.module';
-import { AttendanceModule } from './attendance/attendance.module';
 import { MediaModule } from './media/media.module';
 import { CombosModule } from './combos/combos.module';
 import { RecurringModule } from './recurring/recurring.module';
 import { PrivacyModule } from './privacy/privacy.module';
-import { WorkforceModule } from './workforce/workforce.module';
 import { LoyaltyModule } from './loyalty/loyalty.module';
 import { FinanceModule } from './finance/finance.module';
 import { OperationsModule } from './operations/operations.module';
@@ -66,12 +64,10 @@ import { SavedServicesModule } from './saved-services/saved-services.module';
     NotificationsModule,
     ReviewsModule,
     PaymentsModule,
-    AttendanceModule,
     MediaModule,
     CombosModule,
     RecurringModule,
     PrivacyModule,
-    WorkforceModule,
     LoyaltyModule,
     FinanceModule,
     OperationsModule,

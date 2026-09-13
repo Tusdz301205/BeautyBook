@@ -3,7 +3,6 @@ import { Prisma } from '@prisma/client';
 type BookableStaffWhereOptions = {
   branchId?: string;
   publicOnly?: boolean;
-  requireSchedule?: boolean;
   serviceIds?: string[];
 };
 
@@ -15,7 +14,6 @@ type BookableStaffWhereOptions = {
 export function bookableStaffWhere({
   branchId,
   publicOnly = false,
-  requireSchedule = false,
   serviceIds = [],
 }: BookableStaffWhereOptions = {}): Prisma.StaffProfileWhereInput {
   return {
@@ -24,7 +22,6 @@ export function bookableStaffWhere({
     deletedAt: null,
     isBookable: true,
     ...(publicOnly ? { publicVisible: true } : {}),
-    ...(requireSchedule ? { workingHours: { some: { isOff: false } } } : {}),
     ...(serviceIds.length
       ? { staffServices: { some: { serviceId: { in: [...new Set(serviceIds)] } } } }
       : {}),

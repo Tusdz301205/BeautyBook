@@ -80,13 +80,13 @@ export function AdminUsers() {
           <Metric icon={CheckCircle2} label="Đang hoạt động" value={summary.active ?? '—'} tone="green" />
           <Metric icon={LockKeyhole} label="Đang bị khóa" value={summary.suspended ?? '—'} tone="red" />
           <Metric icon={UserRound} label="Khách hàng" value={summary.customers ?? '—'} tone="pink" />
-          <Metric icon={BriefcaseBusiness} label="Đội ngũ vận hành" value={summary.workforce ?? '—'} tone="blue" />
+          <Metric icon={BriefcaseBusiness} label="Thành viên doanh nghiệp" value={summary.teamMembers ?? '—'} tone="blue" />
         </section>
 
         <section className="mt-5 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           <div className="border-b border-zinc-200 p-4 sm:p-5">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-              <label className="relative min-w-0 flex-1"><span className="sr-only">Tìm người dùng</span><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên, email hoặc số điện thoại..." className="min-h-11 w-full rounded-xl border border-zinc-200 pl-10 pr-3 text-sm outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100" /></label>
+              <label className="relative min-w-0 flex-1"><span className="sr-only">Tìm người dùng</span><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tên, email hoặc số điện thoại..." className="min-h-11 w-full rounded-xl border border-zinc-200 pl-10 pr-3 text-sm" /></label>
               <Select value={role} onChange={(event) => { setRole(event.target.value); setPage(1); }} className="xl:w-60" aria-label="Lọc vai trò" searchable>{roleOptions.map(([value, label]) => <option key={value || 'all'} value={value}>{label}</option>)}</Select>
               <div className="flex rounded-xl bg-zinc-100 p-1" role="group" aria-label="Lọc trạng thái">{[['', 'Tất cả'], ['ACTIVE', 'Hoạt động'], ['SUSPENDED', 'Bị khóa']].map(([value, label]) => <button key={value || 'all'} type="button" aria-pressed={status === value} onClick={() => { setStatus(value); setPage(1); }} className={`min-h-9 rounded-lg px-3 text-sm font-semibold ${status === value ? 'bg-white text-zinc-950 shadow-sm' : 'text-zinc-600'}`}>{label}</button>)}</div>
             </div>

@@ -23,7 +23,7 @@ function timePart(value) {
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
-function combineDateTime(dateValue, timeValue) {
+export function combineDateTime(dateValue, timeValue) {
   const day = datePart(dateValue) || datePart(timeValue);
   const time = timePart(timeValue) || '00:00';
   if (!day) return null;
@@ -48,11 +48,15 @@ export function normalizeBooking(raw) {
     const service = item?.service ?? item;
     const staff = item?.staff ?? item?.staffProfile ?? null;
     return {
+      bookingServiceId: item?.id ?? null,
       id: service?.id ?? item?.serviceId ?? null,
       name: service?.name ?? item?.name ?? 'Dịch vụ',
       durationMinutes: asNumber(service?.durationMinutes ?? service?.duration ?? item?.durationMinutes ?? item?.duration),
       staffId: item?.staffId ?? staff?.id ?? null,
       staffName: staff?.fullName ?? staff?.user?.fullName ?? item?.staffName ?? null,
+      status: item?.status ?? 'SCHEDULED',
+      revision: item?.revision ?? 1,
+      priceAtBooking: asNumber(item?.priceAtBooking),
     };
   });
 
@@ -84,6 +88,7 @@ export function normalizeBooking(raw) {
     serviceNames: services.map((item) => item.name),
     primaryStaffId,
     primaryStaffName,
+    controlledOverbooking: Boolean(raw?.overbookingOverride) || (services.length > 0 && services.every((item) => !item.staffId)),
     startAt,
     endAt,
     totalAmount: asNumber(raw?.finalAmount ?? raw?.totalAmount ?? raw?.amount),
@@ -100,8 +105,6 @@ export function normalizeSchedulerResponse(payload) {
     userId: item.userId ?? item.user?.id ?? null,
     name: item.fullName ?? item.user?.fullName ?? 'Nhân viên',
     avatarUrl: item.user?.avatarMedia?.url ?? null,
-    workingHours: item.workingHours ?? [],
-    attendances: item.attendances ?? [],
   }));
 
   const bookings = (Array.isArray(payload?.bookings) ? payload.bookings : [])

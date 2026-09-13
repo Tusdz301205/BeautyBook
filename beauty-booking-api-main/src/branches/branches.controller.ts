@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -31,10 +32,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
 import {
   CreateBranchDraftDto,
+  PublicBranchReviewsQueryDto,
+  PublicBranchServicesQueryDto,
   SaveBranchOnboardingDto,
   UpdateBranchDto,
 } from './dto/branch.dto';
 import { BranchStateService, BranchTransitionAction } from './branch-state.service';
+import { canOnResource } from '../common/utils/policy';
 
 @Controller('branches')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -99,6 +103,24 @@ export class BranchesController {
   async findAccessibleOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     await assertBranchAccess(this.prisma, user, id);
     return this.branchesService.findOne(id);
+  }
+
+  @Get(':id/services')
+  @Public()
+  findPublicServices(
+    @Param('id') id: string,
+    @Query() query: PublicBranchServicesQueryDto,
+  ) {
+    return this.branchesService.findPublicServices(id, query);
+  }
+
+  @Get(':id/reviews')
+  @Public()
+  findPublicReviews(
+    @Param('id') id: string,
+    @Query() query: PublicBranchReviewsQueryDto,
+  ) {
+    return this.branchesService.findPublicReviews(id, query);
   }
 
   @Get(':id')
@@ -280,6 +302,7 @@ export class BranchesController {
    */
   @Patch(':id')
   @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @RequirePermission('branch:update:branch', 'branch:update:tenant')
   @RequireScope({
     roles: ['BUSINESS_OWNER', 'BRANCH_MANAGER'],
     scopeLevel: 'branch',
@@ -291,7 +314,12 @@ export class BranchesController {
     @Body() body: UpdateBranchDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    const businessId = await assertBranchAccess(this.prisma, user, id);
+    if (!['branch:update:branch', 'branch:update:tenant'].some((permission) =>
+      canOnResource(user, permission, { businessId, branchId: id }),
+    )) {
+      throw new ForbiddenException('Bạn không có quyền cập nhật chi nhánh này');
+    }
     return this.branchesService.update(id, body);
   }
 }

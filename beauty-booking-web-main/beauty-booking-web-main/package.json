@@ -5,7 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "node --test src/utils/businessCompletionRules.test.js src/utils/latestRequest.test.js src/store/bookingStore.test.js src/utils/schedulerSocketEvents.test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
+    "test:e2e:critical": "playwright test --project=chromium --grep @critical",
+    "test:e2e:rbac": "playwright test --project=chromium --grep @rbac",
+    "test:e2e:concurrency": "playwright test --project=chromium --grep @concurrency",
+    "test:e2e:responsive": "playwright test --grep @responsive"
   },
   "dependencies": {
     "date-fns": "^4.4.0",
@@ -21,6 +28,7 @@
     "zustand": "^4.5.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0-alpha-2026-08-31",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.5.2",
     "postcss": "^8.5.16",

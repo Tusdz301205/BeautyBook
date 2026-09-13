@@ -105,10 +105,10 @@ export class NotificationsController {
    * Xóa device token (đăng xuất).
    */
   @Post('device-token/remove')
-  removeDeviceToken(@Body() body: { token: string }) {
+  removeDeviceToken(@Body() body: { token: string }, @CurrentUser() user: AuthUser) {
     if (!body.token) {
       throw new BadRequestException('token là bắt buộc');
     }
-    return this.notificationsService.removeDeviceToken(body.token);
+    return this.notificationsService.removeDeviceToken(body.token, user.id);
   }
 }

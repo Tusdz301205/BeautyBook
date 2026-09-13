@@ -1,0 +1,96 @@
+@startuml sequence-cancel-booking
+title Quy trình Hủy Lịch hẹn & Giải phóng Tài nguyên (Cancellation Flow)
+autonumber
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam participantPadding 10
+skinparam boxPadding 10
+
+actor "Khách hàng / Salon\n(Customer / Salon)" as Actor
+participant "Giao diện Quản lý Lịch\n(Web UI)" as Web
+participant "BookingsController" as Controller
+participant "BookingsService" as Service
+participant "bookings.validation" as Validation
+participant "VouchersService & Loyalty" as Loyalty
+database "PostgreSQL\n(Prisma ORM)" as DB
+participant "SchedulerGateway\n(Socket.IO)" as WsGateway
+
+Actor -> Web : Chọn lịch hẹn & Bấm "Hủy lịch hẹn" (Cancel Booking)\nBody: { note: "Khách bận đột xuất", changedByType: "CUSTOMER" | "SALON" }
+Web -> Controller : PATCH /api/v1/bookings/{id}/status\nBody: { status: 'CANCELLED', note, changedByType }
+
+activate Controller
+Controller -> Service : updateStatus(id, updateStatusDto, currentUser)
+activate Service
+
+Service -> DB : prisma.booking.findUnique({ id })\ninclude: voucher, bookingServices, customer
+activate DB
+DB --> Service : Booking record (status, appointmentStartTime, customerId, branchId)
+deactivate DB
+
+== 1. Kiểm tra Quyền Hạn & Trạng thái Hợp lệ ==
+Service -> Validation : assertStatusTransition(booking.status, 'CANCELLED')
+note over Validation
+  Chỉ cho phép huỷ khi lịch đang ở:
+  PENDING, CONFIRMED, CHECKED_IN, IN_PROGRESS.
+  Không thể huỷ lịch đã COMPLETED, NO_SHOW, hoặc đã CANCELLED.
+end note
+
+Service -> Validation : assertActorStatusTransition(currentUser.roles, booking.status, 'CANCELLED')
+alt Role không có thẩm quyền huỷ trạng thái hiện tại
+  Validation --> Service : throw BadRequestException("Role không được phép huỷ lịch ở trạng thái này")
+  Service --> Controller : 400 Bad Request
+  Controller --> Web : Hiển thị lỗi từ chối thao tác
+end
+
+alt Khách hàng tự huỷ (Customer Cancel)
+  Service -> Validation : evaluateCancelPolicy(booking.appointmentStartTime, now)
+  alt Thời gian huỷ quá sát giờ hoặc đã qua giờ hẹn (diff < 0)
+    Validation --> Service : 'too_late'
+    Service --> Controller : throw BadRequestException("Không thể huỷ lịch hẹn đã qua giờ hoặc quá sát giờ")
+    Controller --> Web : 400 Bad Request
+  end
+end
+
+== 2. Giao dịch Hủy & Hoàn trả Tài nguyên ==
+Service -> DB : withSerializableTransaction(async (tx) => { ... })
+activate DB
+
+Service -> DB : tx.booking.update({\n  where: { id },\n  data: {\n    status: 'CANCELLED',\n    cancelledAt: now,\n    cancelledById: currentUser.id,\n    cancellationReason: note\n  }\n})
+
+Service -> DB : tx.bookingStatusHistory.create({\n  bookingId: id, fromStatus: booking.status,\n  toStatus: 'CANCELLED', changedBy: currentUser.id,\n  note\n})
+
+opt Lịch hẹn có áp dụng Voucher
+  Service -> DB : tx.voucher.update({\n  where: { id: booking.voucherId },\n  data: { usedCount: { decrement: 1 } }\n})
+end
+
+opt Lịch hẹn có sử dụng điểm thưởng Loyalty
+  Service -> DB : tx.loyaltyTransaction.create({\n  customerId: booking.customerId,\n  type: 'REFUND',\n  points: booking.loyaltyPointsUsed,\n  description: "Hoàn điểm do huỷ lịch #" + booking.bookingCode\n})\n+ Cập nhật loyaltyBalance trong customerProfile
+end
+
+Service -> DB : tx.notificationOutbox.create({\n  type: 'BOOKING_CANCELLED',\n  recipientId: (isSalon ? customerId : salonStaff),\n  payload: { bookingCode, reason: note }\n})
+
+DB --> Service : Giao dịch Hủy Commit thành công
+deactivate DB
+
+note over Service, DB
+  Sau khi status chuyển sang CANCELLED:
+  Booking không còn nằm trong BLOCKING_BOOKING_STATUSES.
+  Toàn bộ khung giờ của chuyên viên được giải phóng ngay lập tức!
+end note
+
+== 3. Phát sự kiện Real-time ==
+Service -> WsGateway : emit('booking:cancelled', { id, branchId, staffIds })
+activate WsGateway
+WsGateway --> Web : Cập nhật giải phóng ô lịch trên Calendar
+deactivate WsGateway
+
+Service --> Controller : Updated Booking DTO (status: 'CANCELLED')
+deactivate Service
+
+Controller --> Web : 200 OK\nBody: { id, status: 'CANCELLED', cancelledAt, ... }
+deactivate Controller
+
+Web --> Actor : Hiển thị xác nhận hủy lịch & cập nhật trạng thái
+
+@enduml

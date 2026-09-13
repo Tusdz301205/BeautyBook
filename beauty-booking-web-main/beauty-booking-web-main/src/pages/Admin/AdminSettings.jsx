@@ -8,9 +8,7 @@ const numberRules = {
   maxAdvanceBookingDays: [1, 365], minBookingLeadTimeHours: [0, 168], freeCancellationHours: [0, 168],
   maxRescheduleCountPerBooking: [0, 10], pendingHoldMinutes: [5, 1440], appointmentReminderBeforeHours: [0, 168],
   reviewReminderAfterHours: [0, 720], maxBranchesPerBusiness: [1, 1000], reviewMinLength: [0, 500],
-  autoHideReviewReportThreshold: [1, 100], violationSuspendThreshold: [1, 100], checkInEarlyWindowMinutes: [0, 180],
-  lateGraceMinutes: [0, 120], absentThresholdMinutes: [1, 720], checkOutEarlyGraceMinutes: [0, 120],
-  overtimeGraceMinutes: [0, 240], attendanceQrTtlSeconds: [30, 60],
+  autoHideReviewReportThreshold: [1, 100], violationSuspendThreshold: [1, 100],
 };
 
 const sections = [
@@ -32,11 +30,6 @@ const sections = [
   { title: 'Đánh giá & an toàn nền tảng', description: 'Áp dụng khi gửi đánh giá, báo cáo nội dung và xử lý vi phạm.', icon: ShieldCheck, fields: [
     ['reviewMinLength', 'Độ dài đánh giá tối thiểu', 'number', 'ký tự'], ['allowAnonymousReview', 'Cho phép đánh giá ẩn danh', 'boolean'],
     ['autoHideReviewReportThreshold', 'Ngưỡng báo cáo để tự động ẩn', 'number', 'báo cáo'], ['violationSuspendThreshold', 'Ngưỡng vi phạm cảnh báo', 'number', 'lần'],
-  ] },
-  { title: 'Chấm công QR', description: 'Khung thời gian vào ca, ngưỡng đi muộn hoặc về sớm và thời hạn mã QR động.', icon: ShieldCheck, fields: [
-    ['checkInEarlyWindowMinutes', 'Cho vào ca sớm', 'number', 'phút'], ['lateGraceMinutes', 'Ân hạn đi muộn', 'number', 'phút'],
-    ['absentThresholdMinutes', 'Ngưỡng cảnh báo vắng', 'number', 'phút'], ['checkOutEarlyGraceMinutes', 'Ân hạn về sớm', 'number', 'phút'],
-    ['overtimeGraceMinutes', 'Ân hạn làm thêm', 'number', 'phút'], ['attendanceQrTtlSeconds', 'QR tự làm mới', 'number', 'giây'],
   ] },
 ];
 

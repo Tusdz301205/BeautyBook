@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Banknote, BarChart3, Bell, CalendarCheck, ChevronRight, ClipboardCheck, Clock3, CreditCard, FileClock, Gift, LayoutDashboard, LogOut, Menu, QrCode, ShieldCheck, Sparkles, Star, Store, Tag, UserCog, Users, X } from 'lucide-react';
+import { BarChart3, Bell, Building2, CalendarCheck, ChevronRight, ClipboardCheck, CreditCard, FileClock, Gift, LayoutDashboard, LogOut, Menu, ShieldCheck, Sparkles, Star, Store, Tag, UserCog, Users, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { businessApi } from '../../api/apiClient';
 import { IconButton, cx } from '../ui';
@@ -21,14 +21,9 @@ const navigation = {
   salon: [
     ['', 'Tổng quan', LayoutDashboard, ['report:overview:tenant', 'report:overview:branch']],
     ['appointments', 'Lịch hẹn', CalendarCheck, ['booking:read:tenant', 'booking:read:branch']],
-    ['my-schedule', 'Lịch làm của tôi', CalendarCheck, ['staff_schedule:read:self']],
     ['services', 'Dịch vụ', Sparkles, ['business_service:update:tenant', 'branch_service_offering:status:branch', 'branch_service_offering:status:tenant']],
     ['combos', 'Combo dịch vụ', Gift, ['combo:manage:tenant']],
     ['staff', 'Đội ngũ', UserCog, ['user:read:tenant', 'user:read:branch']],
-    ['attendance/my', 'Chấm công của tôi', Clock3, ['attendance:read:self']],
-    ['attendance/qr-board', 'QR chấm công tại quầy', QrCode, ['attendance:qr_board:branch']],
-    ['attendance', 'Bảng công', Clock3, ['attendance:read:branch', 'attendance:read:tenant']],
-    ['workforce', 'Bảng công & thu nhập', Banknote, ['timesheet:read:self', 'timesheet:read:branch', 'timesheet:read:tenant', 'compensation:read:self', 'compensation:read:tenant']],
     ['audit', 'Nhật ký thao tác', FileClock, ['audit:read:branch', 'audit:read:tenant']],
     ['payments', 'Thanh toán', CreditCard, ['payment:read:branch', 'payment:read:tenant']],
     ['promotions', 'Khuyến mãi', Tag, ['promotion:manage:tenant']],
@@ -48,7 +43,7 @@ const navigation = {
     ['payments', 'Tài chính & hoàn tiền', CreditCard, ['payment:read:platform']],
     ['reports', 'Báo cáo', BarChart3, ['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']],
     ['reviews', 'Kiểm duyệt đánh giá', Star, ['review:moderate:platform']],
-    ['audit', 'Nhật ký kiểm toán', FileClock, ['audit:read:platform']],
+    ['ownership', 'Chuyển quyền sở hữu', Building2, ['business:review:platform']],
     ['notifications', 'Thông báo', Bell, ['notification:read:self']],
   ],
 };
@@ -56,16 +51,16 @@ const navigation = {
 const roleLabels = { PLATFORM_ADMIN: 'Quản trị hệ thống', BUSINESS_OWNER: 'Chủ doanh nghiệp', BRANCH_MANAGER: 'Quản lý chi nhánh', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng' };
 
 const roleNavigation = {
-  STAFF: new Set(['appointments', 'my-schedule', 'attendance/my', 'workforce', 'notifications', 'account', 'security']),
-  RECEPTIONIST: new Set(['appointments', 'staff', 'attendance/my', 'attendance/qr-board', 'payments', 'notifications', 'account', 'security']),
-  BRANCH_MANAGER: new Set(['', 'appointments', 'services', 'combos', 'staff', 'attendance/my', 'attendance/qr-board', 'attendance', 'workforce', 'audit', 'promotions', 'reviews', 'notifications', 'profile', 'account', 'security']),
+  STAFF: new Set(['appointments', 'notifications', 'account', 'security']),
+  RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security']),
+  BRANCH_MANAGER: new Set(['', 'appointments', 'operations', 'services', 'combos', 'staff', 'audit', 'promotions', 'reviews', 'notifications', 'profile', 'account', 'security']),
 };
 
 const roleSpaceTitles = {
   BUSINESS_OWNER: 'Không gian doanh nghiệp',
   BRANCH_MANAGER: 'Không gian chi nhánh',
   RECEPTIONIST: 'Quầy lễ tân',
-  STAFF: 'Lịch làm của tôi',
+  STAFF: 'Không gian chuyên viên',
   PLATFORM_ADMIN: 'Trung tâm vận hành nền tảng',
 };
 

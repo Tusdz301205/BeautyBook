@@ -26,7 +26,7 @@ describe('TrustSnapshotService fairness', () => {
       },
     } as unknown as PrismaService;
 
-    const metrics = await new TrustSnapshotService(prisma).computeForBusiness('biz-1');
+    const metrics = await new TrustSnapshotService(prisma, {} as never, {} as never).computeForBusiness('biz-1');
     expect(metrics.cancellationRate).toBe(0);
     expect(metrics.noShowRate).toBe(0.5);
     expect(metrics.trustScore).toBe(100);
@@ -66,6 +66,7 @@ describe('TrustSnapshotService fairness', () => {
     await new TrustSnapshotService(
       prisma as PrismaService,
       settings as never,
+      {} as never,
     ).performAction({
       actorId: 'admin-1',
       businessId: 'biz-1',

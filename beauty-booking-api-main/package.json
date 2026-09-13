@@ -19,6 +19,7 @@
     "openapi:generate": "node scripts/generate-openapi.mjs",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
+    "typecheck": "tsc --noEmit --incremental false --pretty false",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",

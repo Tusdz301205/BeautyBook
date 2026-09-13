@@ -7,7 +7,6 @@ import {
   CalendarClock,
   Check,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
   Copy,
   Eye,
@@ -18,7 +17,6 @@ import {
   Save,
   Scissors,
   Send,
-  ShieldCheck,
   Sparkles,
   Store,
   Trash2,
@@ -62,13 +60,15 @@ const steps = [
   ['Combo', Sparkles],
   ['Nhân viên & quản lý', Users],
   ['Chính sách đặt lịch', CalendarClock],
-  ['Chính sách chấm công', ClipboardCheck],
   ['Hình ảnh công khai', Image],
   ['Tài liệu', FileText],
-  ['Tư vấn khách hàng', ShieldCheck],
+  ['Thông tin vận hành', FileCheck2],
   ['Kiểm tra điều kiện', CheckCircle2],
   ['Gửi duyệt', Send],
 ];
+
+const WIZARD_VERSION = 2;
+const LEGACY_REMOVED_STEP = 9;
 
 const dayLabels = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 const today = () => new Date().toISOString().slice(0, 10);
@@ -115,17 +115,8 @@ const defaults = {
   allowWalkIn: true,
   allowCounterBooking: true,
   defaultBufferMinutes: 0,
-  useQr: true,
-  lateThresholdMinutes: 10,
-  earlyLeaveRule: 'Nhân viên gửi yêu cầu điều chỉnh; quản lý chi nhánh hoặc chủ doanh nghiệp xét duyệt.',
-  overtimeRule: 'Giờ làm thêm cần được quản lý chi nhánh hoặc chủ doanh nghiệp xác nhận.',
-  missingPunchWorkflow: 'Nhân viên gửi yêu cầu điều chỉnh, không tự sửa bảng công.',
-  consultation: {
-    note: '',
-    assignedStaffOnly: true,
-    expiryDays: 90,
-    breakGlass: false,
-  },
+  overbookingEnabled: false,
+  maxOverbookedSlots: 0,
 };
 
 const reviewTone = {
@@ -225,13 +216,20 @@ export default function BranchOnboardingWizard() {
       staffAssignmentMode: value.staffAssignmentMode || current.staffAssignmentMode,
       pendingHoldMinutes: value.pendingHoldMinutes ?? current.pendingHoldMinutes,
       ...(value.bookingPolicy || {}),
-      ...(value.attendancePolicy || {}),
-      consultation: { ...current.consultation, ...(draft.consultation || {}) },
     }));
-    setStep(Math.max(1, Math.min(14, value.onboardingProgress?.currentStep || 1)));
-    setCompletedSteps(Array.isArray(value.onboardingProgress?.completedSteps)
+    const legacyWizard = draft.wizardVersion !== WIZARD_VERSION;
+    const storedStep = Number(value.onboardingProgress?.currentStep) || 1;
+    const normalizedStep = legacyWizard && storedStep > LEGACY_REMOVED_STEP ? storedStep - 1 : storedStep;
+    const storedCompleted = Array.isArray(value.onboardingProgress?.completedSteps)
       ? value.onboardingProgress.completedSteps
-      : []);
+      : [];
+    const normalizedCompleted = legacyWizard
+      ? storedCompleted
+          .filter((item) => item !== LEGACY_REMOVED_STEP)
+          .map((item) => item > LEGACY_REMOVED_STEP ? item - 1 : item)
+      : storedCompleted;
+    setStep(Math.max(1, Math.min(steps.length, normalizedStep)));
+    setCompletedSteps([...new Set(normalizedCompleted)].filter((item) => item >= 1 && item <= steps.length));
   };
 
   const refreshBranch = async (id = branchId) => {
@@ -385,7 +383,7 @@ export default function BranchOnboardingWizard() {
         completedSteps: nextCompleted,
         branch: branchPatch(),
         draftData: {
-          consultation: form.consultation,
+          wizardVersion: WIZARD_VERSION,
           serviceAreas: form.serviceAreas,
           excludedServiceAreas: form.excludedServiceAreas,
         },
@@ -402,15 +400,8 @@ export default function BranchOnboardingWizard() {
             allowWalkIn: Boolean(form.allowWalkIn),
             allowCounterBooking: Boolean(form.allowCounterBooking),
             defaultBufferMinutes: Number(form.defaultBufferMinutes),
-          },
-        } : {}),
-        ...(step === 9 ? {
-          attendancePolicy: {
-            useQr: Boolean(form.useQr),
-            lateThresholdMinutes: Number(form.lateThresholdMinutes),
-            earlyLeaveRule: form.earlyLeaveRule,
-            overtimeRule: form.overtimeRule,
-            missingPunchWorkflow: form.missingPunchWorkflow,
+            overbookingEnabled: Boolean(form.overbookingEnabled),
+            maxOverbookedSlots: form.overbookingEnabled ? Number(form.maxOverbookedSlots) : 0,
           },
         } : {}),
       });
@@ -435,7 +426,7 @@ export default function BranchOnboardingWizard() {
       navigate('/register/business');
       return;
     }
-    const nextStep = Math.min(14, step + 1);
+    const nextStep = Math.min(steps.length, step + 1);
     const saved = await save({ nextStep, markComplete: true, silent: true });
     if (saved) {
       setStep(nextStep);
@@ -528,7 +519,7 @@ export default function BranchOnboardingWizard() {
   const submit = async () => {
     setSaving(true);
     try {
-      await save({ nextStep: 14, markComplete: true, silent: true });
+      await save({ nextStep: steps.length, markComplete: true, silent: true });
       await branchesApi.submit(branchId);
       toast.success('Đã gửi hồ sơ chi nhánh xét duyệt; chi nhánh chưa được công khai');
       navigate('/salon/profile');
@@ -539,7 +530,7 @@ export default function BranchOnboardingWizard() {
     }
   };
 
-  const progress = Math.round((completedSteps.length / 14) * 100);
+  const progress = Math.round((completedSteps.length / steps.length) * 100);
   const otherBranches = branches.filter((item) => item.id !== branchId);
   const staffAtBranch = staff.filter((item) =>
     item.branch?.id === branchId ||
@@ -617,7 +608,7 @@ export default function BranchOnboardingWizard() {
 
           <Card className="p-5 sm:p-6">
             <header className="mb-6">
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--bb-brand-strong)]">Bước {step}/14</p>
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--bb-brand-strong)]">Bước {step}/{steps.length}</p>
               <h2 className="mt-2 text-2xl font-bold">{steps[step - 1][0]}</h2>
             </header>
 
@@ -793,6 +784,8 @@ export default function BranchOnboardingWizard() {
                 <Field label="Đổi lịch trước (giờ)"><Input type="number" min="0" value={form.rescheduleHours} onChange={set('rescheduleHours')} /></Field>
                 <Field label="Grace period (phút)"><Input type="number" min="0" value={form.gracePeriodMinutes} onChange={set('gracePeriodMinutes')} /></Field>
                 <Field label="Buffer mặc định (phút)"><Input type="number" min="0" value={form.defaultBufferMinutes} onChange={set('defaultBufferMinutes')} /></Field>
+                <label className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-semibold"><input type="checkbox" checked={form.overbookingEnabled} onChange={set('overbookingEnabled')} />Bật overbooking có kiểm soát</label>
+                <Field label="Số lịch ngoại lệ tối đa cùng khung giờ"><Input type="number" min="0" max="5" disabled={!form.overbookingEnabled} value={form.maxOverbookedSlots} onChange={set('maxOverbookedSlots')} /></Field>
                 <Field label="Xử lý khách không đến" className="sm:col-span-2 lg:col-span-3"><Textarea value={form.noShowHandling} onChange={set('noShowHandling')} /></Field>
                 <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.allowWalkIn} onChange={set('allowWalkIn')} />Cho phép walk-in</label>
                 <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.allowCounterBooking} onChange={set('allowCounterBooking')} />Cho phép đặt tại quầy</label>
@@ -800,17 +793,6 @@ export default function BranchOnboardingWizard() {
             )}
 
             {step === 9 && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="flex items-center gap-2 rounded-xl border border-[var(--bb-border)] p-4 text-sm font-semibold"><input type="checkbox" checked={form.useQr} onChange={set('useQr')} />Dùng QR chấm công</label>
-                <Field label="Ngưỡng đi muộn (phút)"><Input type="number" min="0" value={form.lateThresholdMinutes} onChange={set('lateThresholdMinutes')} /></Field>
-                <Field label="Quy tắc về sớm"><Textarea value={form.earlyLeaveRule} onChange={set('earlyLeaveRule')} /></Field>
-                <Field label="Quy tắc overtime"><Textarea value={form.overtimeRule} onChange={set('overtimeRule')} /></Field>
-                <Field label="Thiếu giờ vào hoặc ra ca" className="sm:col-span-2"><Textarea value={form.missingPunchWorkflow} onChange={set('missingPunchWorkflow')} /></Field>
-                <InlineNotice tone="info"><span className="sm:col-span-2">Receptionist được mở QR và xem hiện diện, nhưng không được sửa bảng công.</span></InlineNotice>
-              </div>
-            )}
-
-            {step === 10 && (
               <div className="space-y-4">
                 {!branchId ? <InlineNotice tone="warning">Lưu bước 1 trước khi tải ảnh.</InlineNotice> : (
                   <FileUpload
@@ -828,7 +810,7 @@ export default function BranchOnboardingWizard() {
               </div>
             )}
 
-            {step === 11 && (
+            {step === 10 && (
               <div className="space-y-5">
                 {documentEditable ? <FileUpload
                   document
@@ -865,16 +847,14 @@ export default function BranchOnboardingWizard() {
               </div>
             )}
 
-            {step === 12 && (
+            {step === 11 && (
               <div className="space-y-4">
-                <InlineNotice tone="info">Chỉ cấu hình biểu mẫu tư vấn theo từng dịch vụ. Quyền đồng ý chia sẻ dữ liệu chỉ phát sinh khi khách chọn dịch vụ, tạo lịch hẹn, điền biểu mẫu và đồng ý cho đúng lịch hẹn tại chi nhánh.</InlineNotice>
-                <Field label="Ghi chú cấu hình form tư vấn"><Textarea value={form.consultation.note} onChange={(event) => { setForm((current) => ({ ...current, consultation: { ...current.consultation, note: event.target.value } })); setDirty(true); }} /></Field>
-                <Field label="Thời hạn truy cập (ngày)"><Input type="number" min="1" max="3650" value={form.consultation.expiryDays} onChange={(event) => { setForm((current) => ({ ...current, consultation: { ...current.consultation, expiryDays: Number(event.target.value) } })); setDirty(true); }} /></Field>
-                <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={form.consultation.assignedStaffOnly} onChange={(event) => { setForm((current) => ({ ...current, consultation: { ...current.consultation, assignedStaffOnly: event.target.checked } })); setDirty(true); }} />Chỉ nhân sự được phân công xem</label>
+                <InlineNotice tone="info">Lịch hẹn chỉ sử dụng thông tin liên hệ và dịch vụ đã chọn.</InlineNotice>
+                <InlineNotice tone="success">Không có dữ liệu nhạy cảm mới được thu thập ở bước này. Bạn có thể tiếp tục kiểm tra điều kiện vận hành.</InlineNotice>
               </div>
             )}
 
-            {step === 13 && (
+            {step === 12 && (
               <div className="space-y-5">
                 <div className="overflow-hidden rounded-2xl border border-[var(--bb-border)]">
                   <div className="grid min-h-40 place-items-center bg-[var(--bb-surface-subtle)] text-sm text-[var(--bb-muted)]">
@@ -892,7 +872,7 @@ export default function BranchOnboardingWizard() {
               </div>
             )}
 
-            {step === 14 && (
+            {step === 13 && (
               <div className="space-y-5">
                 <InlineNotice tone="warning">Gửi duyệt không đồng nghĩa với công khai. Quản trị nền tảng chỉ duyệt hồ sơ; chủ doanh nghiệp vẫn phải hoàn thành các điều kiện vận hành và bấm “Bật nhận đặt lịch”.</InlineNotice>
                 <dl className="grid gap-3 rounded-xl bg-[var(--bb-surface-subtle)] p-4 sm:grid-cols-3">
@@ -909,7 +889,7 @@ export default function BranchOnboardingWizard() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Button variant="secondary" disabled={step === 1} onClick={() => setStep((current) => current - 1)}><ArrowLeft size={16} />Quay lại</Button>
-            {step < 14 && <Button loading={saving} onClick={next}>Lưu và tiếp tục <ArrowRight size={16} /></Button>}
+            {step < steps.length && <Button loading={saving} onClick={next}>Lưu và tiếp tục <ArrowRight size={16} /></Button>}
           </div>
         </section>
       </div>

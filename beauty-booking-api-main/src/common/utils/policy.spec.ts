@@ -49,7 +49,6 @@ const PLATFORM_USER: AuthUser = {
     'booking:read:platform',
     'booking:cancel:platform',
     'audit:read:platform',
-    'health_record:read:sensitive',
   ],
 };
 
@@ -149,13 +148,9 @@ describe('policy.can — matrix', () => {
     expect(can(finance, 'payment:refund:platform')).toBe(true);
   });
 
-  test('Health record: separate ACL with sensitive permission', () => {
-    expect(can(STAFF_USER, 'health_record:read:branch', { branchId: 'br-1', tenantId: 'b-1' })).toBe(true);
-    expect(can(STAFF_USER, 'health_record:read:branch', { branchId: 'br-99' })).toBe(false);
-    expect(can(PLATFORM_USER, 'health_record:read:sensitive')).toBe(true);
-    expect(can(OWNER_USER, 'health_record:read:sensitive')).toBe(false);
-    expect(can(CUSTOMER_USER, 'health_record:read:self', { ownerId: 'u-1' })).toBe(true);
-    expect(can(CUSTOMER_USER, 'health_record:read:sensitive')).toBe(false);
+  test('Retired health-record permissions are denied', () => {
+    expect(can(STAFF_USER, 'health_record:read:branch', { branchId: 'br-1', tenantId: 'b-1' })).toBe(false);
+    expect(can(CUSTOMER_USER, 'health_record:read:self', { ownerId: 'u-1' })).toBe(false);
   });
 
   test('Unknown permission is denied (fail-closed)', () => {
@@ -234,20 +229,20 @@ describe('role / permission catalog helpers', () => {
     expect(roleGrantsPermission('CUSTOMER', 'booking:create:self')).toBe(true);
     expect(roleGrantsPermission('CUSTOMER', 'booking:create:tenant')).toBe(false);
     expect(roleGrantsPermission('PLATFORM_ADMIN', 'booking:cancel:platform')).toBe(true);
-    expect(roleGrantsPermission('STAFF', 'health_record:create:branch')).toBe(true);
+    expect(roleGrantsPermission('STAFF', 'health_record:create:branch')).toBe(false);
   });
 
   test('expandRolePermissions returns the union', () => {
     const perms = expandRolePermissions(['CUSTOMER']);
     expect(perms).toContain('booking:create:self');
-    expect(perms).toContain('health_record:consent:manage:self');
+    expect(perms).not.toContain('health_record:consent:manage:self');
   });
 
   test('every catalog code has at least one role grant', () => {
     const codes = allPermissionCodes();
     expect(codes.length).toBeGreaterThan(30);
     const allRoles = Object.keys(ROLE_PERMISSIONS);
-    const directOnlyPermissions = new Set(['staff_schedule:manage:self']);
+    const directOnlyPermissions = new Set<string>();
     const orphan = codes.find((c) => {
       // Platform capabilities may intentionally be direct-only grants.
       if (findPermission(c)?.defaultScope === 'PLATFORM') return false;

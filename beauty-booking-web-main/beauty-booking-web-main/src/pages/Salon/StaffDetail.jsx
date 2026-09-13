@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CalendarDays, Mail, Send, ShieldX } from 'lucide-react';
+import { ArrowLeft, Mail, Send, ShieldX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { staffApi } from '../../api/apiClient';
 import { Badge, Button, Card, Dialog, EmptyState, ErrorState, Field, Input, Page, PageHeader, Select, Skeleton } from '../../components/ui';
 
 const tabs = [
   ['profile', 'Tổng quan'], ['account', 'Tài khoản'], ['assignments', 'Vai trò & chi nhánh'],
-  ['services', 'Dịch vụ'], ['schedule', 'Lịch làm'], ['leave', 'Nghỉ phép'],
-  ['timesheets', 'Chấm công'], ['payroll', 'Bảng công & thu nhập'], ['documents', 'Tài liệu'], ['audit', 'Nhật ký'],
+  ['services', 'Dịch vụ'], ['documents', 'Tài liệu'], ['audit', 'Nhật ký'],
 ];
 const date = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—';
 const dateTime = (value) => value ? new Date(value).toLocaleString('vi-VN') : '—';
@@ -67,10 +66,6 @@ export default function StaffDetail() {
     if (active === 'account') return <AccountPanel staff={staff} onChanged={load} />;
     if (active === 'assignments') return <Rows rows={staff.branchAssignments} empty="Chưa có phân công chi nhánh." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-4"><strong>{item.branch?.name}</strong><span>{item.jobTitle || '—'}</span><span>{date(item.startDate)} → {date(item.endDate)}</span><Badge tone={item.status === 'ACTIVE' ? 'success' : 'neutral'}>{item.status}</Badge></div>} />;
     if (active === 'services') return <Rows rows={staff.staffServices} empty="Chưa được gán dịch vụ." render={(item) => <div key={item.id} className="flex items-center justify-between p-4 text-sm"><strong>{item.service?.name}</strong><span>{Number(item.service?.price || 0).toLocaleString('vi-VN')} ₫ · {item.service?.durationMinutes || 0} phút</span></div>} />;
-    if (active === 'schedule') return <Card className="p-5"><p className="text-sm text-[var(--bb-muted)]">Lịch làm được quản lý trong màn hình lịch nhân sự chuyên dụng.</p><Link className="mt-4 inline-flex" to={`/salon/staff/${staff.id}/schedule?branchId=${staff.branch?.id || ''}`}><Button><CalendarDays size={16} />Mở lịch nhân sự</Button></Link><div className="mt-4"><Rows rows={staff.scheduleVersions} empty="Chưa có phiên bản lịch." render={(item) => <div key={item.id} className="flex items-center justify-between p-4 text-sm"><span>Phiên bản {item.version} · từ {date(item.effectiveFrom)}</span><Badge>{item.status}</Badge></div>} /></div></Card>;
-    if (active === 'leave') return <Rows rows={staff.leaveRequests} empty="Chưa có yêu cầu nghỉ phép." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-3"><strong>{date(item.startDate)} – {date(item.endDate)}</strong><span>{item.reason || '—'}</span><Badge>{item.status}</Badge></div>} />;
-    if (active === 'timesheets') return <Rows rows={staff.timesheets} empty="Chưa có dữ liệu chấm công." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-4"><strong>{date(item.workDate)}</strong><span>{item.actualWorkedMinutes} phút thực tế</span><span>{item.approvedPaidMinutes ?? '—'} phút tính lương</span><Badge>{item.status}</Badge></div>} />;
-    if (active === 'payroll') return <div className="space-y-4"><Rows rows={staff.compensationAssignments} empty="Chưa có quy tắc thu nhập." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-3"><strong>{item.rule?.name}</strong><span>{item.rule?.type}</span><span>Từ {date(item.effectiveFrom)}</span></div>} /><Rows rows={staff.payRunItems} empty="Chưa có kỳ thanh toán." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-3"><strong>{date(item.payRun?.periodStart)} – {date(item.payRun?.periodEnd)}</strong><span>{Number(item.netAmount || 0).toLocaleString('vi-VN')} ₫</span><Badge>{item.status}</Badge></div>} /></div>;
     if (active === 'documents') return <EmptyState title="Chưa có tài liệu nhân sự" description="Hệ thống hiện chưa hỗ trợ lưu tài liệu riêng cho từng nhân viên." />;
     return <Rows rows={staff.auditTrail} empty="Chưa có sự kiện audit cho hồ sơ này." render={(item) => <div key={item.id} className="grid gap-2 p-4 text-sm sm:grid-cols-[150px_1fr_180px]"><Badge>{item.action}</Badge><span>{item.reason || item.entityType}</span><time>{dateTime(item.createdAt)}</time></div>} />;
   }, [active, staff]);

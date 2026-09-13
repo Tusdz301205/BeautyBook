@@ -34,11 +34,46 @@ import {
   toBookingInterval,
 } from '../common/utils/booking-datetime';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { reserveRecurringOccurrence } from '../recurring/recurring-creation-fence';
+import { assertBookingChannelAllowed } from './booking-channel-policy';
+import { CANCELLED_BOOKING_OUTCOMES, cancelUnfinishedBookingItems } from './booking-item-lifecycle';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { PaymentsService } from '../payments/payments.service';
 import { PricingEngineService } from '../promotions/pricing-engine.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { applyServicePriceRules } from '../services/service-price-rules';
+
+type BookingTimelineItem = {
+  id: string;
+  serviceId: string;
+  staffId: string | null;
+  itemStartAt: Date | null;
+  itemEndAt: Date | null;
+  durationMinutes: number;
+  transitionMinutes: number;
+  sortOrder: number;
+};
+
+function shiftBookingTimeline(
+  items: BookingTimelineItem[],
+  currentStart: Date,
+  nextStart: Date,
+) {
+  const shiftMs = nextStart.getTime() - currentStart.getTime();
+  let fallbackCursor = currentStart;
+  return [...items]
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id))
+    .map((item) => {
+      const oldStart = item.itemStartAt ?? fallbackCursor;
+      const oldEnd = item.itemEndAt ?? new Date(oldStart.getTime() + item.durationMinutes * 60_000);
+      fallbackCursor = new Date(oldEnd.getTime() + item.transitionMinutes * 60_000);
+      return {
+        ...item,
+        nextStart: new Date(oldStart.getTime() + shiftMs),
+        nextEnd: new Date(oldEnd.getTime() + shiftMs),
+      };
+    });
+}
 
 @Injectable()
 export class BookingsService {
@@ -52,17 +87,12 @@ export class BookingsService {
     @Optional() private readonly payments?: PaymentsService,
   ) {}
 
-  private async assertStaffNotAbsent(
-    staffId: string,
-    branchId: string,
-    workDate: Date,
-    db: PrismaService = this.prisma,
-  ) {
-    const absent = await db.staffAttendance.findFirst({
-      where: { staffId, branchId, workDate: appointmentDateFromInstant(workDate), status: 'ABSENT' },
-      select: { id: true },
-    });
-    if (absent) throw new ConflictException('Nhân viên vắng mặt trong ngày đã chọn');
+  /** Chỉ lịch còn trong vòng đời vận hành mới được đổi giờ, đổi thời lượng
+   * hoặc phân công lại nhân viên. Các trạng thái kết thúc là bất biến. */
+  private assertMutableScheduleStatus(status: string) {
+    if (!(BLOCKING_BOOKING_STATUSES as readonly string[]).includes(status)) {
+      throw new ConflictException('Lịch hẹn đã kết thúc hoặc không còn cho phép chỉnh sửa');
+    }
   }
 
   /**
@@ -430,6 +460,7 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+    this.assertMutableScheduleStatus(existing.status);
 
     if (
       mappedStatus === 'COMPLETED' &&
@@ -480,8 +511,8 @@ export class BookingsService {
       appointmentEndTime: interval.end,
     });
 
-    // Cancel policy cấp salon
-    let cancellationFeeAmount: number | null = null;
+    // Cancel policy cấp salon. Phí hủy/no-show đã được tắt; chỉ còn
+    // kiểm soát thời hạn hủy và ghi nhận lý do.
     if (mappedStatus === 'CANCELLED') {
       const platformPolicy = await this.platformSettings.getEffective();
       const policyDecision = await resolveCancellationPolicy(
@@ -502,9 +533,7 @@ export class BookingsService {
         );
       }
       if (policyDecision.policy === 'warn_late_cancel') {
-        cancellationFeeAmount = policyDecision.feeAmount;
-        const warningNote = `[Cảnh báo: ${policyDecision.notes ?? 'huỷ trễ, có tính phí'}] ${note ?? ''}`.trim();
-        note = warningNote;
+        note = `[Cảnh báo: ${policyDecision.notes ?? 'huỷ sát giờ'}] ${note ?? ''}`.trim();
       }
     }
 
@@ -524,7 +553,8 @@ export class BookingsService {
                   cancelledBy: changedBy,
                   cancelledByType: changedByType,
                   cancelReason: note,
-                  cancellationFeeAmount,
+                  // Clear any legacy fee snapshot; cancellation fees are retired.
+                  cancellationFeeAmount: null,
                 }
               : {}),
           },
@@ -533,6 +563,10 @@ export class BookingsService {
           throw new ConflictException(
             'Trạng thái lịch hẹn vừa thay đổi, vui lòng tải lại và thử lại',
           );
+        }
+
+        if (CANCELLED_BOOKING_OUTCOMES.includes(mappedStatus)) {
+          await cancelUnfinishedBookingItems(tx, id);
         }
 
         const updated = await tx.booking.findUnique({
@@ -669,7 +703,7 @@ export class BookingsService {
         entityType: 'Booking',
         entityId: id,
         oldData: { status: existing.status },
-        newData: { status: mappedStatus, cancellationFeeAmount },
+        newData: { status: mappedStatus },
         reason: note,
       });
     }
@@ -806,8 +840,8 @@ export class BookingsService {
       if (!servicesById.has(serviceId) || !variant || variant.id !== variantId) {
         throw new BadRequestException('Biến thể không thuộc dịch vụ đã chọn');
       }
-      if ((variant.consultationRequired || variant.priceType === 'QUOTE') && ['ONLINE_WEB', 'ONLINE_APP'].includes(data.source ?? 'ONLINE_WEB')) {
-        throw new ConflictException('Dịch vụ này cần được cơ sở tư vấn và báo giá trước khi đặt trực tuyến');
+      if (variant.priceType === 'QUOTE' && ['ONLINE_WEB', 'ONLINE_APP'].includes(data.source ?? 'ONLINE_WEB')) {
+        throw new ConflictException('Dịch vụ cần báo giá trước khi đặt trực tuyến');
       }
       const eligibility = (variant.eligibilityRules && typeof variant.eligibilityRules === 'object'
         ? variant.eligibilityRules
@@ -919,10 +953,24 @@ export class BookingsService {
         bookingConfirmationMode: true,
         staffAssignmentMode: true,
         pendingHoldMinutes: true,
-        bookingPolicy: { select: { overbookingEnabled: true, maxOverbookedSlots: true } },
+        bookingPolicy: {
+          select: {
+            overbookingEnabled: true,
+            maxOverbookedSlots: true,
+            allowWalkIn: true,
+            allowCounterBooking: true,
+          },
+        },
       },
     });
     if (!branch) throw new BadRequestException('Chi nhánh không hoạt động');
+
+    // Channel switches are business rules, not just onboarding preferences.
+    // Enforce them here so direct API calls and every caller of the booking
+    // service follow the same policy. Online customer bookings are unaffected;
+    // legacy records remain untouched because this check only runs on create.
+    const source = data.source ?? 'ONLINE_WEB';
+    assertBookingChannelAllowed(source, branch.bookingPolicy);
     const overbookingRequested = data.controlledOverbooking === true;
     if (overbookingRequested && data.staffId) {
       throw new BadRequestException('Overbooking không được dùng để bỏ qua xung đột cứng của nhân viên đã chọn');
@@ -933,15 +981,23 @@ export class BookingsService {
     if (overbookingRequested && !data.overbookingReason?.trim()) {
       throw new BadRequestException('Overbooking bắt buộc phải có lý do');
     }
-    const closedHoliday = await this.prisma.branchHoliday.findFirst({
-      where: {
-        branchId: data.branchId,
-        date: storedAppointment.appointmentDate,
-        isClosed: true,
-      },
-      select: { id: true },
-    });
-    if (closedHoliday) throw new BadRequestException('Chi nhánh đóng cửa trong ngày đã chọn');
+    const [closedHoliday, specialOpening] = await Promise.all([
+      this.prisma.branchHoliday.findFirst({
+        where: {
+          branchId: data.branchId,
+          date: storedAppointment.appointmentDate,
+          isClosed: true,
+        },
+        select: { id: true },
+      }),
+      this.prisma.specialWorkingDay.findFirst({
+        where: { branchId: data.branchId, date: storedAppointment.appointmentDate },
+        select: { id: true },
+      }),
+    ]);
+    if (closedHoliday && !specialOpening) {
+      throw new BadRequestException('Chi nhánh đóng cửa trong ngày đã chọn');
+    }
 
     // 4. Tính giá snapshot (KHÔNG tham chiếu services.price sau này)
     const originalSubtotal = timeline.reduce((sum, item) => sum + item.priceSnapshot, 0);
@@ -985,7 +1041,6 @@ export class BookingsService {
         deletedAt: null,
         isBookable: true,
         OR: [{ userId: null }, { user: { is: { isActive: true, deletedAt: null } } }],
-        attendances: { none: { workDate: storedAppointment.appointmentDate, status: 'ABSENT' } },
       },
       include: { staffServices: { where: { serviceId: { in: resolvedServiceIds } } } },
       orderBy: { id: 'asc' },
@@ -1041,6 +1096,27 @@ export class BookingsService {
     const bookingId = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
+        if (data.recurringPlanId) {
+          await reserveRecurringOccurrence(tx, data.recurringPlanId, data.customerId, data.branchId);
+        }
+        // Re-read inside the transaction: branch/channel settings may have
+        // changed while availability and pricing were being calculated.
+        const currentBranch = await tx.branch.findFirst({
+          where: {
+            id: data.branchId, status: 'ACTIVE', deletedAt: null,
+            business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
+          },
+          select: {
+            bookingPolicy: {
+              select: { allowWalkIn: true, allowCounterBooking: true, overbookingEnabled: true, maxOverbookedSlots: true },
+            },
+          },
+        });
+        if (!currentBranch) throw new ConflictException('Chi nhánh hiện không nhận lịch hẹn');
+        assertBookingChannelAllowed(source, currentBranch.bookingPolicy);
+        if (overbookingRequested && (!currentBranch.bookingPolicy?.overbookingEnabled || currentBranch.bookingPolicy.maxOverbookedSlots < 1)) {
+          throw new ConflictException('Chi nhánh hiện không cho phép overbooking có kiểm soát');
+        }
         // Pick a concrete eligible staff and reserve that staff in the same
         // serializable transaction. PENDING is a blocking status.
         const assignedStaffIds: Array<string | null> = [];
@@ -1084,7 +1160,7 @@ export class BookingsService {
               booking: { status: { in: [...BLOCKING_BOOKING_STATUSES] }, deletedAt: null },
             },
           });
-          const policyLimit = branch.bookingPolicy?.maxOverbookedSlots ?? 0;
+          const policyLimit = currentBranch.bookingPolicy?.maxOverbookedSlots ?? 0;
           if (currentOverrides >= policyLimit) {
             throw new ConflictException(`Đã đạt giới hạn ${policyLimit} lịch overbooking trong khung giờ này`);
           }
@@ -1111,6 +1187,61 @@ export class BookingsService {
           throw new ConflictException(
             'Khung giờ này vừa được người khác đặt. Vui lòng chọn giờ khác.',
           );
+        }
+
+        // Acquire every provider lock in a stable order before the customer
+        // lock. This prevents two multi-service requests from each holding a
+        // different provider and both losing while trying to acquire the
+        // other one. The database triggers take the same locks re-entrantly.
+        const providerIds = [...new Set(
+          assignedStaffIds.filter((id): id is string => Boolean(id)),
+        )].sort();
+        for (const providerId of providerIds) {
+          const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+            SELECT pg_try_advisory_xact_lock(
+              hashtext('beautybook_booking_staff_slot'),
+              hashtext(${providerId})
+            ) AS locked
+          `;
+          if (!lockRows[0]?.locked) {
+            throw new ConflictException(
+              'Khung giờ này đang được người khác giữ. Vui lòng thử lại.',
+            );
+          }
+        }
+        const customerLockRows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+          SELECT pg_try_advisory_xact_lock(
+            hashtext('beautybook_booking_customer_slot'),
+            hashtext(${data.customerId})
+          ) AS locked
+        `;
+        if (!customerLockRows[0]?.locked) {
+          throw new ConflictException(
+            'Một yêu cầu đặt lịch khác của bạn đang được xử lý. Vui lòng thử lại.',
+          );
+        }
+
+        const transactionClient = tx as unknown as PrismaService;
+        if (!isControlledOverflow) {
+          for (const item of timeline) {
+            const providerId = assignedStaffIds[item.sortOrder];
+            if (!providerId) continue;
+            await validateStaffForService(
+              transactionClient,
+              providerId,
+              item.service.id,
+              item.itemStartAt,
+              item.itemEndAt,
+              data.branchId,
+            );
+            await assertNoOverlap(
+              transactionClient,
+              providerId,
+              null,
+              item.itemStartAt,
+              item.itemEndAt,
+            );
+          }
         }
 
         const customerOverlap = await tx.booking.findFirst({
@@ -1172,7 +1303,7 @@ export class BookingsService {
               branchId: data.branchId,
               actorId: statusChangedBy,
               reason: data.overbookingReason!.trim(),
-              policyLimit: branch.bookingPolicy!.maxOverbookedSlots,
+              policyLimit: currentBranch.bookingPolicy!.maxOverbookedSlots,
               startAt: storedAppointment.appointmentStartTime,
               endAt: storedAppointment.appointmentEndTime,
             },
@@ -1186,7 +1317,7 @@ export class BookingsService {
               newData: {
                 branchId: data.branchId,
                 reason: data.overbookingReason!.trim(),
-                policyLimit: branch.bookingPolicy!.maxOverbookedSlots,
+                policyLimit: currentBranch.bookingPolicy!.maxOverbookedSlots,
               },
             },
           });
@@ -1350,6 +1481,7 @@ export class BookingsService {
         });
         if (claimed.count !== 1) continue;
         count += 1;
+        await cancelUnfinishedBookingItems(tx, item.id);
         await tx.bookingStatusHistory.create({
           data: { bookingId: item.id, status: 'EXPIRED', note: 'Hết thời gian giữ chỗ' },
         });
@@ -1445,6 +1577,7 @@ export class BookingsService {
           });
           if (claimed.count !== 1) continue;
           compensated += 1;
+          await cancelUnfinishedBookingItems(tx, row.id);
           await tx.bookingStatusHistory.create({
             data: {
               bookingId: row.id,
@@ -1536,7 +1669,7 @@ export class BookingsService {
           }
           const transitionNote =
             decision.policy === 'warn_late_cancel'
-              ? `[Cảnh báo: ${decision.notes ?? 'hủy trễ, có tính phí'}] ${reason}`
+              ? `[Cảnh báo: ${decision.notes ?? 'hủy sát giờ'}] ${reason}`
               : reason;
           const claimed = await tx.booking.updateMany({
             where: { id: row.id, status: row.status },
@@ -1547,10 +1680,7 @@ export class BookingsService {
               cancelledBy: changedBy,
               cancelledByType: 'CUSTOMER',
               cancelReason: transitionNote,
-              cancellationFeeAmount:
-                decision.policy === 'warn_late_cancel'
-                  ? decision.feeAmount
-                  : null,
+              cancellationFeeAmount: null,
             },
           });
           if (claimed.count !== 1) {
@@ -1558,6 +1688,7 @@ export class BookingsService {
               'Một kỳ trong chuỗi vừa thay đổi; chưa hủy kỳ nào',
             );
           }
+          await cancelUnfinishedBookingItems(tx, row.id);
           await tx.bookingStatusHistory.create({
             data: {
               bookingId: row.id,
@@ -1622,15 +1753,6 @@ export class BookingsService {
       },
       include: {
         user: { select: { id: true, fullName: true, avatarMedia: { select: { url: true } } } },
-        workingHours: true,
-        attendances: {
-          where: {
-            workDate: {
-              gte: appointmentDateFromInstant(rangeStart),
-              lte: appointmentDateFromInstant(rangeEnd),
-            },
-          },
-        },
       },
       orderBy: { user: { fullName: 'asc' } },
     });
@@ -1703,7 +1825,13 @@ export class BookingsService {
     if (!branchReady) throw new BadRequestException('Chi nhánh chưa sẵn sàng nhận lịch.');
 
     const services = await this.prisma.branchServiceOffering.findMany({
-      where: { id: { in: params.serviceIds }, branchId: params.branchId, status: 'ACTIVE', deletedAt: null },
+      where: {
+        id: { in: params.serviceIds },
+        branchId: params.branchId,
+        status: 'ACTIVE',
+        bookable: true,
+        deletedAt: null,
+      },
     });
     if (services.length === 0) {
       throw new BadRequestException('Dịch vụ này hiện không nhận đặt lịch tại chi nhánh đã chọn.');
@@ -1721,8 +1849,8 @@ export class BookingsService {
     const variantsByService = new Map(variants.map((variant) => [variant.serviceId, variant]));
     const totalDuration = services.reduce((sum, service) => {
       const variant = variantsByService.get(service.id);
-      if (variant && (variant.priceType === 'QUOTE' || variant.consultationRequired)) {
-        throw new BadRequestException('Lựa chọn này cần tư vấn trước khi đặt trực tuyến');
+      if (variant && variant.priceType === 'QUOTE') {
+        throw new BadRequestException('Lựa chọn này cần báo giá trước khi đặt trực tuyến');
       }
       return sum + Number(variant?.bufferBeforeMinutes ?? 0) +
         Number(variant?.durationMinutes ?? service.durationMinutes ?? 0) +
@@ -1741,19 +1869,37 @@ export class BookingsService {
     );
     if (Number.isNaN(day.getTime())) throw new BadRequestException('date không hợp lệ');
     const dayOfWeek = day.getUTCDay();
-    const absentRows = await this.prisma.staffAttendance.findMany({
-      where: { branchId: params.branchId, workDate: day, status: 'ABSENT' },
-      select: { staffId: true },
-    });
-    const absentStaffIds = new Set(absentRows.map((row) => row.staffId));
-
+    const [holiday, specialDay, branchWorkingHour] = await Promise.all([
+      this.prisma.branchHoliday.findUnique({
+        where: { branchId_date: { branchId: params.branchId, date: day } },
+      }),
+      this.prisma.specialWorkingDay.findFirst({
+        where: { branchId: params.branchId, date: day },
+      }),
+      this.prisma.branchWorkingHour.findUnique({
+        where: {
+          branchId_dayOfWeek: { branchId: params.branchId, dayOfWeek },
+        },
+      }),
+    ]);
+    if ((holiday?.isClosed && !specialDay) ||
+        (!specialDay && (!branchWorkingHour || branchWorkingHour.isClosed))) {
+      return { slots: [], message: 'Chi nhánh đóng cửa trong ngày đã chọn' };
+    }
+    const windowStart = combineAppointmentDateTime(
+      day,
+      specialDay?.startTime ?? branchWorkingHour!.openTime,
+    );
+    const windowEnd = combineAppointmentDateTime(
+      day,
+      specialDay?.endTime ?? branchWorkingHour!.closeTime,
+    );
     // Get staff(s) to check
     let staffList;
     if (params.staffId) {
       const staff = await this.prisma.staffProfile.findUnique({
         where: { id: params.staffId },
         include: {
-          workingHours: true,
           staffServices: true,
           user: { select: { fullName: true, isActive: true, deletedAt: true } },
         },
@@ -1767,13 +1913,9 @@ export class BookingsService {
       if (!staff.isBookable || (staff.userId && (!staff.user?.isActive || staff.user.deletedAt))) {
         throw new BadRequestException('Nhân sự này chưa được cấu hình nhận lịch');
       }
-      if (absentStaffIds.has(staff.id)) {
-        throw new BadRequestException('Nhân viên vắng mặt trong ngày đã chọn');
-      }
       staffList = [staff];
     } else {
       // Get all active staff for this branch who can do the requested services
-      const firstServiceId = params.serviceIds[0];
       staffList = await this.prisma.staffProfile.findMany({
         where: {
           branchId: params.branchId,
@@ -1786,7 +1928,6 @@ export class BookingsService {
           }
         },
         include: {
-          workingHours: true,
           staffServices: true,
           user: { select: { fullName: true, isActive: true, deletedAt: true } },
         },
@@ -1794,7 +1935,6 @@ export class BookingsService {
     }
 
     staffList = staffList.filter((staff) => {
-      if (absentStaffIds.has(staff.id)) return false;
       const skills = new Set(staff.staffServices.map((item) => item.serviceId));
       return params.serviceIds.every((serviceId) => skills.has(serviceId));
     });
@@ -1807,27 +1947,6 @@ export class BookingsService {
     const allSlots: { start: string; end: string; staffId: string; staffName: string }[] = [];
 
     for (const staff of staffList) {
-      const wh = staff.workingHours.find(
-        (w) => w.dayOfWeek === dayOfWeek && !w.isOff,
-      );
-      const [specialDay, branchWorkingHour] = await Promise.all([
-        this.prisma.specialWorkingDay.findFirst({
-          where: {
-            branchId: params.branchId,
-            date: day,
-            OR: [{ staffId: staff.id }, { staffId: null }],
-          },
-          orderBy: { staffId: 'desc' },
-        }),
-        this.prisma.branchWorkingHour.findUnique({
-          where: {
-            branchId_dayOfWeek: { branchId: params.branchId, dayOfWeek },
-          },
-        }),
-      ]);
-      if (!wh && !specialDay) continue;
-      if (branchWorkingHour?.isClosed && !specialDay) continue;
-
       // Get existing bookings for this staff
       const existingBookings = await this.prisma.bookingService.findMany({
         where: {
@@ -1848,18 +1967,6 @@ export class BookingsService {
           },
         },
       });
-
-      // Calculate working window
-      const staffStart = new Date(specialDay?.startTime ?? wh!.startTime);
-      const staffEnd = new Date(specialDay?.endTime ?? wh!.endTime);
-      let windowStart = combineAppointmentDateTime(day, staffStart);
-      let windowEnd = combineAppointmentDateTime(day, staffEnd);
-      if (branchWorkingHour && !specialDay) {
-        const branchStart = combineAppointmentDateTime(day, branchWorkingHour.openTime);
-        const branchEnd = combineAppointmentDateTime(day, branchWorkingHour.closeTime);
-        if (branchStart > windowStart) windowStart = branchStart;
-        if (branchEnd < windowEnd) windowEnd = branchEnd;
-      }
 
       let cursor = new Date(windowStart);
       while (cursor.getTime() + totalDuration * 60000 <= windowEnd.getTime()) {
@@ -1891,12 +1998,14 @@ export class BookingsService {
             cursor = new Date(cursor.getTime() + SLOT_STEP_MIN * 60000);
             continue;
           }
-          const hasOverlap = existingBookings.some((b) => {
-            const interval = toBookingInterval(
-              b.booking.appointmentDate,
-              b.booking.appointmentStartTime,
-              b.booking.appointmentEndTime,
-            );
+          const hasOverlap = existingBookings.some((item) => {
+            const interval = item.itemStartAt && item.itemEndAt
+              ? { start: item.itemStartAt, end: item.itemEndAt }
+              : toBookingInterval(
+                  item.booking.appointmentDate,
+                  item.booking.appointmentStartTime,
+                  item.booking.appointmentEndTime,
+                );
             return interval.start < slotEnd && interval.end > slotStart;
           });
           if (!hasOverlap) {
@@ -1958,35 +2067,41 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+    const existingInterval = toBookingInterval(
+      existing.appointmentDate,
+      existing.appointmentStartTime,
+      existing.appointmentEndTime,
+    );
+    if (
+      endTime.getTime() - startTime.getTime() !==
+      existingInterval.end.getTime() - existingInterval.start.getTime()
+    ) {
+      throw new BadRequestException('Di chuyển lịch phải giữ nguyên thời lượng; hãy dùng chức năng đổi thời lượng riêng');
+    }
 
     // Reschedule cutoff theo policy salon (mặc định 1h)
     const cutoffHours = await resolveRescheduleCutoffHours(
       this.prisma,
       existing.branch.businessId,
     );
-    const existingStart = combineAppointmentDateTime(
-      existing.appointmentDate,
-      existing.appointmentStartTime,
-    );
-    const diffMs = existingStart.getTime() - Date.now();
+    const diffMs = existingInterval.start.getTime() - Date.now();
     if (diffMs < cutoffHours * 60 * 60 * 1000) {
       throw new BadRequestException(
         `Chỉ có thể đổi lịch trước giờ hẹn ít nhất ${cutoffHours} giờ`,
       );
     }
 
-    if (existing.bookingServices[0]?.serviceId) {
+    for (const item of shiftBookingTimeline(existing.bookingServices, existingInterval.start, startTime)) {
       await validateStaffForService(
         this.prisma,
         newStaffId,
-        existing.bookingServices[0].serviceId,
-        startTime,
-        endTime,
+        item.serviceId,
+        item.nextStart,
+        item.nextEnd,
         existing.branchId,
       );
+      await assertNoOverlap(this.prisma, newStaffId, id, item.nextStart, item.nextEnd);
     }
-    await this.assertStaffNotAbsent(newStaffId, existing.branchId, startTime);
-    await assertNoOverlap(this.prisma, newStaffId, id, startTime, endTime);
     await assertCustomerNotDoubleBooked(
       this.prisma,
       existing.customerId,
@@ -2005,6 +2120,7 @@ export class BookingsService {
         },
       });
       if (!locked) throw new NotFoundException('Không tìm thấy lịch hẹn');
+      this.assertMutableScheduleStatus(locked.status);
 
       const lockedStart = combineAppointmentDateTime(
         locked.appointmentDate,
@@ -2016,30 +2132,36 @@ export class BookingsService {
         );
       }
 
+      const lockedInterval = toBookingInterval(
+        locked.appointmentDate,
+        locked.appointmentStartTime,
+        locked.appointmentEndTime,
+      );
+      if (
+        endTime.getTime() - startTime.getTime() !==
+        lockedInterval.end.getTime() - lockedInterval.start.getTime()
+      ) {
+        throw new ConflictException('Lịch hẹn đã đổi thời lượng; vui lòng tải lại');
+      }
       const transactionClient = tx as unknown as PrismaService;
-      if (locked.bookingServices[0]?.serviceId) {
+      const shiftedItems = shiftBookingTimeline(locked.bookingServices, lockedInterval.start, startTime);
+      for (const item of shiftedItems) {
         await validateStaffForService(
           transactionClient,
           newStaffId,
-          locked.bookingServices[0].serviceId,
-          startTime,
-          endTime,
+          item.serviceId,
+          item.nextStart,
+          item.nextEnd,
           locked.branchId,
         );
+        await assertNoOverlap(
+          transactionClient,
+          newStaffId,
+          id,
+          item.nextStart,
+          item.nextEnd,
+        );
       }
-      await this.assertStaffNotAbsent(
-        newStaffId,
-        locked.branchId,
-        startTime,
-        transactionClient,
-      );
-      await assertNoOverlap(
-        transactionClient,
-        newStaffId,
-        id,
-        startTime,
-        endTime,
-      );
       await assertCustomerNotDoubleBooked(
         transactionClient,
         locked.customerId,
@@ -2048,18 +2170,23 @@ export class BookingsService {
         endTime,
       );
 
+      for (const item of shiftedItems) {
+        await tx.bookingService.update({
+          where: { id: item.id },
+          data: {
+            staffId: newStaffId,
+            itemStartAt: item.nextStart,
+            itemEndAt: item.nextEnd,
+          },
+        });
+      }
+
       const updated = await tx.booking.update({
         where: { id },
         data: {
           appointmentDate: storedAppointment.appointmentDate,
           appointmentStartTime: storedAppointment.appointmentStartTime,
           appointmentEndTime: storedAppointment.appointmentEndTime,
-          bookingServices: {
-            updateMany: {
-              where: { bookingId: id },
-              data: { staffId: newStaffId },
-            },
-          },
         },
         include: {
           customer: { include: { user: { select: { id: true, fullName: true, email: true, phone: true, avatarMediaId: true } } } },
@@ -2102,6 +2229,13 @@ export class BookingsService {
       include: { bookingServices: true },
     });
     if (!bookingExisting) throw new NotFoundException('Booking not found');
+    this.assertMutableScheduleStatus(bookingExisting.status);
+    const activeItems = bookingExisting.bookingServices.filter((item) =>
+      ['SCHEDULED', 'IN_PROGRESS'].includes(item.status),
+    );
+    if (activeItems.length !== 1) {
+      throw new BadRequestException('Đổi thời lượng trực tiếp chỉ hỗ trợ lịch có một dịch vụ đang hoạt động');
+    }
 
     const existingInterval = toBookingInterval(
       bookingExisting.appointmentDate,
@@ -2116,13 +2250,23 @@ export class BookingsService {
       throw new BadRequestException('Booking qua ngày chưa được hỗ trợ');
     }
 
-    const staffId = bookingExisting.bookingServices[0]?.staffId;
+    const activeItem = activeItems[0];
+    const itemStart = activeItem.itemStartAt ?? existingInterval.start;
+    const staffId = activeItem.staffId;
     if (staffId) {
+      await validateStaffForService(
+        this.prisma,
+        staffId,
+        activeItem.serviceId,
+        itemStart,
+        newEnd,
+        bookingExisting.branchId,
+      );
       await assertNoOverlap(
         this.prisma,
         staffId,
         id,
-        existingInterval.start,
+        itemStart,
         newEnd,
       );
     }
@@ -2136,6 +2280,13 @@ export class BookingsService {
           include: { bookingServices: true },
         });
         if (!locked) throw new NotFoundException('Booking not found');
+        this.assertMutableScheduleStatus(locked.status);
+        const lockedActiveItems = locked.bookingServices.filter((item) =>
+          ['SCHEDULED', 'IN_PROGRESS'].includes(item.status),
+        );
+        if (lockedActiveItems.length !== 1) {
+          throw new ConflictException('Danh sách dịch vụ vừa thay đổi; vui lòng tải lại');
+        }
 
         const lockedInterval = toBookingInterval(
           locked.appointmentDate,
@@ -2151,14 +2302,24 @@ export class BookingsService {
           );
         }
 
-        const lockedStaffId = locked.bookingServices[0]?.staffId;
+        const lockedItem = lockedActiveItems[0];
+        const lockedItemStart = lockedItem.itemStartAt ?? lockedInterval.start;
+        const lockedStaffId = lockedItem.staffId;
         const transactionClient = tx as unknown as PrismaService;
         if (lockedStaffId) {
+          await validateStaffForService(
+            transactionClient,
+            lockedStaffId,
+            lockedItem.serviceId,
+            lockedItemStart,
+            newEnd,
+            locked.branchId,
+          );
           await assertNoOverlap(
             transactionClient,
             lockedStaffId,
             id,
-            lockedInterval.start,
+            lockedItemStart,
             newEnd,
           );
         }
@@ -2170,6 +2331,14 @@ export class BookingsService {
           newEnd,
         );
 
+        await tx.bookingService.update({
+          where: { id: lockedItem.id },
+          data: {
+            itemStartAt: lockedItemStart,
+            itemEndAt: newEnd,
+            durationMinutes: Math.ceil((newEnd.getTime() - lockedItemStart.getTime()) / 60_000),
+          },
+        });
         const updated = await tx.booking.update({
           where: { id },
           data: {
@@ -2211,32 +2380,27 @@ export class BookingsService {
       include: { bookingServices: true },
     });
     if (!bookingExisting) throw new NotFoundException('Booking not found');
+    this.assertMutableScheduleStatus(bookingExisting.status);
     const bookingInterval = toBookingInterval(
       bookingExisting.appointmentDate,
       bookingExisting.appointmentStartTime,
       bookingExisting.appointmentEndTime,
     );
 
-    // Validate staff phục vụ được dịch vụ + trong giờ làm
-    if (bookingExisting.bookingServices[0]?.serviceId) {
+    // Validate every service capability and its concrete timeline interval.
+    for (const item of bookingExisting.bookingServices) {
+      const itemStart = item.itemStartAt ?? bookingInterval.start;
+      const itemEnd = item.itemEndAt ?? new Date(itemStart.getTime() + item.durationMinutes * 60_000);
       await validateStaffForService(
         this.prisma,
         staffId,
-        bookingExisting.bookingServices[0].serviceId,
-        bookingInterval.start,
-        bookingInterval.end,
+        item.serviceId,
+        itemStart,
+        itemEnd,
         bookingExisting.branchId,
       );
+      await assertNoOverlap(this.prisma, staffId, id, itemStart, itemEnd);
     }
-    await this.assertStaffNotAbsent(staffId, bookingExisting.branchId, bookingInterval.start);
-
-    await assertNoOverlap(
-      this.prisma,
-      staffId,
-      id,
-      bookingInterval.start,
-      bookingInterval.end,
-    );
 
     const booking = await withSerializableTransaction(
       this.prisma,
@@ -2247,35 +2411,32 @@ export class BookingsService {
           include: { bookingServices: true },
         });
         if (!locked) throw new NotFoundException('Booking not found');
+        this.assertMutableScheduleStatus(locked.status);
         const lockedInterval = toBookingInterval(
           locked.appointmentDate,
           locked.appointmentStartTime,
           locked.appointmentEndTime,
         );
         const transactionClient = tx as unknown as PrismaService;
-        if (locked.bookingServices[0]?.serviceId) {
+        for (const item of locked.bookingServices) {
+          const itemStart = item.itemStartAt ?? lockedInterval.start;
+          const itemEnd = item.itemEndAt ?? new Date(itemStart.getTime() + item.durationMinutes * 60_000);
           await validateStaffForService(
             transactionClient,
             staffId,
-            locked.bookingServices[0].serviceId,
-            lockedInterval.start,
-            lockedInterval.end,
+            item.serviceId,
+            itemStart,
+            itemEnd,
             locked.branchId,
           );
+          await assertNoOverlap(
+            transactionClient,
+            staffId,
+            id,
+            itemStart,
+            itemEnd,
+          );
         }
-        await this.assertStaffNotAbsent(
-          staffId,
-          locked.branchId,
-          lockedInterval.start,
-          transactionClient,
-        );
-        await assertNoOverlap(
-          transactionClient,
-          staffId,
-          id,
-          lockedInterval.start,
-          lockedInterval.end,
-        );
 
         const updated = await tx.booking.update({
           where: { id },

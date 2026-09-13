@@ -1,6 +1,10 @@
 # BeautyBook
 
-Marketplace đặt lịch làm đẹp gồm NestJS/Prisma/PostgreSQL API và React/Vite web portal. Hệ thống dùng RBAC có scope platform → tenant → branch → self cho 11 vai trò, booking lifecycle, salon operations, onboarding/compliance, payment/refund, campaign/voucher, review và dữ liệu sức khỏe có consent.
+Marketplace đặt lịch làm đẹp gồm NestJS/Prisma/PostgreSQL API và React/Vite web portal. Hệ thống dùng RBAC có scope platform → tenant → branch → self cho 7 vai trò, quản lý lịch hẹn, doanh nghiệp/chi nhánh, dịch vụ, nhân sự, thu tiền thủ công, khuyến mãi/voucher và đánh giá.
+
+Mã nguồn API nằm trong `beauty-booking-api-main/`; frontend đang sử dụng nằm trong `beauty-booking-web-main/beauty-booking-web-main/`. File cấu hình Docker Compose nằm tại thư mục gốc.
+
+Hồ sơ sức khỏe, thanh toán online qua cổng trung gian và phí hủy/no-show không thuộc phạm vi hiện tại. Không dùng các tài liệu lịch sử để suy ra chức năng đang hoạt động.
 
 ## Chạy nhanh
 
@@ -57,16 +61,12 @@ Mật khẩu chung cho seed local: `Password123!`.
 | Vai trò | Email |
 |---|---|
 | Platform Admin | `admin@glowbook.vn` |
-| Compliance | `compliance@glowbook.vn` |
-| Support | `support@glowbook.vn` |
-| Marketing | `marketing@glowbook.vn` |
-| Finance | `finance@glowbook.vn` |
 | Business Owner | `lananh.owner@glowbook.vn` |
 | Branch Manager | `manager@glowbook.vn` |
 | Receptionist | `reception@glowbook.vn` |
 | Staff | `staff@glowbook.vn` |
 | Customer | `khach0001@glowbook.vn` |
-| Guest | Không cần tài khoản; dùng `/book` |
+| Guest | Xem thông tin công khai; đặt lịch trên web cần đăng nhập Customer |
 
 Không dùng mật khẩu hoặc JWT secret demo ở production.
 
@@ -78,7 +78,7 @@ Không dùng mật khẩu hoặc JWT secret demo ở production.
 - Response chỉ dùng projection whitelist cho User, không bao giờ serialize `passwordHash` qua relation.
 - POST yêu cầu `Idempotency-Key`; booking transaction dùng Serializable và voucher dùng conditional update.
 - Refund có reserved amount, four-eyes approval và idempotent processing.
-- Health record yêu cầu consent và mask payload sau khi consent bị thu hồi.
+- Access token được giữ trong bộ nhớ frontend; refresh token dùng cookie HttpOnly.
 - Endpoint public chỉ trả projection an toàn; scheduler nội bộ không public.
 
 ## Production checklist

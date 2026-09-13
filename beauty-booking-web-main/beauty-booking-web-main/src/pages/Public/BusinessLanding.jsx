@@ -5,7 +5,6 @@ import {
   Check,
   Clock3,
   FileCheck2,
-  ScanLine,
   Scissors,
   ShieldCheck,
   UsersRound,
@@ -16,8 +15,8 @@ import { PublicShell } from '../../components/layout/PublicShell';
 const capabilities = [
   [CalendarDays, 'Lịch hẹn trực quan', 'Vận hành theo ngày, tuần hoặc tháng; theo dõi trạng thái và xử lý thay đổi tại đúng lịch hẹn.'],
   [Scissors, 'Dịch vụ và gói liệu trình', 'Quản lý giá, thời lượng, chuyên môn nhân viên và những liệu trình nhiều bước trong cùng một lịch hẹn.'],
-  [UsersRound, 'Đội ngũ theo chi nhánh', 'Phân quyền quản lý, lễ tân và nhân viên; lịch làm việc luôn gắn với phạm vi thực tế.'],
-  [ScanLine, 'Chấm công tại quầy', 'QR ngắn hạn, đối chiếu ca làm và lưu lịch sử điều chỉnh để quản lý minh bạch.'],
+  [UsersRound, 'Đội ngũ theo chi nhánh', 'Phân quyền quản lý, lễ tân và chuyên viên; năng lực dịch vụ luôn gắn với đúng cơ sở.'],
+  [Clock3, 'Giữ chỗ an toàn', 'Kiểm tra giờ mở cửa và xung đột theo thời gian thực để tránh hai lịch dùng cùng một chuyên viên.'],
   [BarChart3, 'Báo cáo vận hành', 'Theo dõi lịch hẹn, doanh thu và hiệu suất từ dữ liệu phát sinh trong hệ thống.'],
   [ShieldCheck, 'Dữ liệu có kiểm soát', 'Phạm vi doanh nghiệp và chi nhánh được kiểm tra tại API, không chỉ ẩn nút trên giao diện.'],
 ];
