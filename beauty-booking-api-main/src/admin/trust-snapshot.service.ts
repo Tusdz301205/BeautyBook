@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from '../prisma/prisma.service';
 import { combineAppointmentDateTime } from '../common/utils/booking-datetime';
 import { auditLog } from '../common/utils/audit';
+import { businessOwnerRecipientIds } from '../common/utils/notify';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { BranchStateService } from '../branches/branch-state.service';
 
@@ -275,8 +276,8 @@ export class TrustSnapshotService {
         statusBefore, statusAfter, restoreOfActionId: restoreTarget?.id ?? null,
       } });
       if (['WARNING_SENT', 'EXPLANATION_REQUESTED', 'BOOKING_RESTRICTED', 'SUSPENDED', 'RESTORED'].includes(params.action)) {
-        const recipients = await tx.salonMember.findMany({ where: { businessId: business.id, isActive: true, deletedAt: null }, select: { userId: true } });
-        if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId }) => ({
+        const recipients = await businessOwnerRecipientIds(tx, business.id);
+        if (recipients.length) await tx.notification.createMany({ data: recipients.map((userId) => ({
           userId, type: 'SALON_VIOLATION_ALERT', title: params.action === 'RESTORED' ? 'Đã khôi phục hoạt động' : 'Thông báo Trust & Safety', body: params.reason.trim(),
         })) });
       }

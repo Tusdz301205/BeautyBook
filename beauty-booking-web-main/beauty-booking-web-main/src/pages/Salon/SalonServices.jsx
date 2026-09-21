@@ -168,7 +168,7 @@ export function SalonServices() {
   const [search, setSearch] = useState(''); const [serviceType, setServiceType] = useState('ALL'); const [status, setStatus] = useState('ALL'); const [branch, setBranch] = useState('ALL'); const [view, setView] = useState('grid');
   const canCreate = can('business_service:create:tenant');
   const canCatalogEdit = can('business_service:update:tenant');
-  const canBranchEdit = can('branch_service_offering:status:tenant') || can('branch_service_offering:status:branch');
+  const canBranchEdit = can('branch_service_offering:status:tenant');
   const canArchive = can('business_service:archive:tenant');
 
   const loadReference = async () => { const [canonicalData, branchData] = await Promise.all([servicesApi.getCanonical(), branchesApi.getAccessible()]); setCanonicals(Array.isArray(canonicalData) ? canonicalData : canonicalData?.data || []); setBranches(Array.isArray(branchData) ? branchData : branchData?.data || []); };

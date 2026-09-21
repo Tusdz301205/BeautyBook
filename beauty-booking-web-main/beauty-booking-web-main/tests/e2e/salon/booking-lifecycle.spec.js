@@ -3,7 +3,7 @@ import { credentialsFor, mutationGate } from '../helpers/environment.js';
 import { loginViaUi } from '../helpers/login.js';
 
 test('@critical salon scheduler keeps day, week and month calendar views', async ({ page }) => {
-  const salon = credentialsFor('receptionist') || credentialsFor('branchManager') || credentialsFor('businessOwner');
+  const salon = credentialsFor('receptionist') || credentialsFor('businessOwner');
   test.skip(!salon, 'Set a salon account with booking:read scope');
   await loginViaUi(page, salon);
   await page.goto('/salon/appointments');
@@ -28,7 +28,7 @@ test('@critical existing customer booking detail never renders epoch time', asyn
 });
 
 test('@critical salon status action is immediately reflected without refresh', async ({ page }) => {
-  const salon = credentialsFor('receptionist') || credentialsFor('branchManager');
+  const salon = credentialsFor('receptionist');
   const bookingId = process.env.PW_EXISTING_BOOKING_ID;
   test.skip(!mutationGate() || !salon || !bookingId, 'Requires an isolated lifecycle booking fixture');
   await loginViaUi(page, salon);

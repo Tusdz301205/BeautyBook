@@ -41,6 +41,7 @@ import {
   assertBusinessAccess,
   resolveBranchIdsForUser,
   resolveBusinessIdsForUser,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { ChangeRequestsService } from './change-requests.service';
@@ -52,11 +53,12 @@ import { randomUUID } from 'crypto';
 import { BookingItemsService } from './booking-items.service';
 import { applyServicePriceRules } from '../services/service-price-rules';
 import { assertBookingChannelAllowed, resolveBookingSource } from './booking-channel-policy';
+import { canOnResource, ensureCanOnResource } from '../common/utils/policy';
+import { assertCustomerPrincipal, isCustomerPrincipal } from '../auth/account-separation';
+import { readCustomerBookingPolicy } from './customer-booking-policy';
 
 /**
- * Routes that previously allowed the legacy role `ADMIN` keep that
- * compatibility — `ADMIN` is seeded as an alias of `PLATFORM_ADMIN`.
- * All other RBAC decisions go through @RequireScope + @RequirePermission +
+ * RBAC decisions go through @RequireScope + @RequirePermission +
  * BookingsAccessService at the service layer.
  */
 @Controller('bookings')
@@ -72,6 +74,20 @@ export class BookingsController {
     private readonly paymentsService: PaymentsService,
     private readonly bookingItemsService: BookingItemsService,
   ) {}
+
+  private async counterBranchIds(user: AuthUser, branchIds: string[]) {
+    if (!branchIds.length) return [];
+    const branches = await this.prisma.branch.findMany({
+      where: { id: { in: branchIds }, deletedAt: null },
+      select: { id: true, businessId: true },
+    });
+    return branches.filter((branch) => this.bookingsAccess.canReadBranch(user,
+      { businessId: branch.businessId, branchId: branch.id })).map((branch) => branch.id);
+  }
+
+  private administrativePrincipal(user: AuthUser): AuthUser {
+    return restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']);
+  }
 
   private customerBookingView(booking: any) {
     return {
@@ -144,6 +160,14 @@ export class BookingsController {
           : undefined,
       })),
       statusHistory: booking.statusHistory,
+      violationSummary: booking.violationSummary,
+      changeRequests: (booking.changeRequests ?? []).map((request: any) => ({
+        id: request.id, requestType: request.requestType, status: request.status,
+        reason: request.reason, reviewNote: request.reviewNote,
+        createdAt: request.createdAt, expiresAt: request.expiresAt,
+        violationEvent: request.violationEvent ? { kind: request.violationEvent.kind,
+          occurredAt: request.violationEvent.occurredAt, voidedAt: request.violationEvent.voidedAt } : null,
+      })),
       payments: (booking.payments ?? []).map((payment: any) => ({
         id: payment.id,
         amount: payment.amount,
@@ -158,6 +182,20 @@ export class BookingsController {
   }
 
   /** Compatibility endpoint kept for existing clients; online booking requires an authenticated customer. */
+  @Get('self-booking-policy')
+  @Roles('CUSTOMER')
+  @RequirePermission('booking:create:self')
+  async selfBookingPolicy(@Query('branchId') branchId: string, @CurrentUser() user: AuthUser) {
+    assertCustomerPrincipal(user);
+    if (!branchId) throw new BadRequestException('Cần chọn chi nhánh');
+    const branch = await this.prisma.branch.findFirst({ where: { id: branchId, status: 'ACTIVE', deletedAt: null,
+      business: { status: { in: ['APPROVED', 'ACTIVE'] }, deletedAt: null } },
+      select: { businessId: true, business: { select: { name: true } } } });
+    const customer = await this.prisma.customerProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
+    if (!branch || !customer) throw new BadRequestException('Chi nhánh hoặc hồ sơ khách hàng không hợp lệ');
+    return { ...await readCustomerBookingPolicy(this.prisma, customer.id, branch.businessId), businessName: branch.business.name };
+  }
+
   @Post('guest')
   @Roles('CUSTOMER')
   @RequirePermission('booking:create:self')
@@ -167,6 +205,7 @@ export class BookingsController {
     @Body() body: CreateGuestBookingDto,
     @CurrentUser() user: AuthUser,
   ) {
+    assertCustomerPrincipal(user);
     const profile = await this.prisma.customerProfile.findUnique({
       where: { userId: user.id },
       select: { id: true },
@@ -184,6 +223,7 @@ export class BookingsController {
       customerId: profile.id,
       createdBy: user.id,
       source: 'ONLINE_WEB',
+      violationAcknowledged: body.violationAcknowledged,
     });
     return this.customerBookingView(booking);
   }
@@ -196,17 +236,19 @@ export class BookingsController {
    */
   @Post()
   @Audited({ action: AuditAction.CREATE, entityType: 'Booking' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'CUSTOMER')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'CUSTOMER')
   @RequirePermission(
     'booking:create:self',
     'booking:create:tenant',
     'booking:create:branch',
   )
   async create(@Body() body: CreateBookingDto, @CurrentUser() user: AuthUser) {
-    await this.bookingsAccess.assertCustomerCreate(user, body.branchId);
-    const customerOnly = user.roles.includes('CUSTOMER') &&
-      !user.roles.some((role) => ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role));
-    const mayOverbook = user.roles.some((role) => ['BUSINESS_OWNER', 'BRANCH_MANAGER'].includes(role));
+    const businessId = await this.bookingsAccess.assertCustomerCreate(user, body.branchId);
+    const customerOnly = isCustomerPrincipal(user);
+    if (!customerOnly && !body.customerId && !body.guestName?.trim()) {
+      throw new ForbiddenException('Dùng tài khoản CUSTOMER riêng để tự đặt lịch; đặt tại quầy phải chọn khách hàng hoặc khách vãng lai.');
+    }
+    const mayOverbook = canOnResource(user, 'booking:create:tenant', { businessId, branchId: body.branchId });
     const requestedSource = resolveBookingSource(customerOnly, body.source, Boolean(body.guestName?.trim()));
     // Check the branch channel policy before creating a walk-in shadow
     // customer. The service repeats this check as defence in depth, while
@@ -219,7 +261,7 @@ export class BookingsController {
       assertBookingChannelAllowed(requestedSource, policy);
     }
     if (body.controlledOverbooking && !mayOverbook) {
-      throw new ForbiddenException('Chỉ chủ doanh nghiệp hoặc quản lý chi nhánh được phép overbooking có kiểm soát');
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp được phép overbooking có kiểm soát');
     }
     let customerId = body.customerId;
     if (customerOnly) {
@@ -372,7 +414,7 @@ export class BookingsController {
   /**
    * GET /api/bookings — role-aware list.
    * - PLATFORM_ADMIN: global read via explicit platform permission
-   * - BUSINESS_OWNER/BRANCH_MANAGER: tenant-scoped
+   * - BUSINESS_OWNER: tenant-scoped
    * - RECEPTIONIST/STAFF: branch-scoped
    * - CUSTOMER: own bookings only
    */
@@ -380,7 +422,6 @@ export class BookingsController {
   @Roles(
     'PLATFORM_ADMIN',
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'STAFF',
     'CUSTOMER',
@@ -411,7 +452,7 @@ export class BookingsController {
     if (
       user.scopes?.some((s) => s.code === 'CUSTOMER') &&
       !user.scopes?.some((s) =>
-        ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'].includes(
+        ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF'].includes(
           s.code,
         ),
       )
@@ -464,14 +505,14 @@ export class BookingsController {
 
     // Tenant/branch scope — resolve every explicit branch assignment. An empty
     // result must stay empty; treating [] as "no filter" would leak a tenant.
-    const allowed = [...new Set((await Promise.all(
+    let allowed = [...new Set((await Promise.all(
       allowedBusinessIds.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
     )).flatMap((ids) => ids ?? []))];
+    const counterBranches = await this.counterBranchIds(user, branchId ? allowed.filter((id) => id === branchId) : allowed);
+    const staffOnly = counterBranches.length === 0;
+    if (!staffOnly) allowed = counterBranches;
     const requestedBranchAllowed = !branchId || allowed.includes(branchId);
     const scopedRequestedBranchIds = requestedBranchIds?.filter((id) => allowed.includes(id));
-    const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
-      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role),
-    );
     const ownStaff = staffOnly
       ? await this.prisma.staffProfile.findFirst({
           where: { userId: user.id, branchId: { in: allowed }, status: 'ACTIVE' },
@@ -580,7 +621,7 @@ export class BookingsController {
         changeRequests: {
           orderBy: { createdAt: 'desc' },
           take: 1,
-          select: { id: true, requestType: true, status: true, reason: true, reviewNote: true, createdAt: true },
+          select: { id: true, requestType: true, status: true, reason: true, reviewNote: true, createdAt: true, expiresAt: true },
         },
       },
       orderBy: [
@@ -596,22 +637,20 @@ export class BookingsController {
    * Salon-side pending bookings + change requests.
    */
   @Get('salon-queue')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')
   @RequirePermission('booking:read:branch', 'booking:read:tenant')
   async salonQueue(@CurrentUser() user: AuthUser) {
     const allowedBusinessIds = await resolveBusinessIdsForUser(this.prisma, user);
-    const allowedBranchIds = (
+    let allowedBranchIds = (
       await Promise.all(
         allowedBusinessIds.map(async (businessId) =>
           (await resolveBranchIdsForUser(this.prisma, user, businessId)) ?? [],
         ),
       )
     ).flat();
-    const staffOnly =
-      user.roles.includes('STAFF') &&
-      !user.roles.some((role) =>
-        ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role),
-      );
+    const counterBranches = await this.counterBranchIds(user, allowedBranchIds);
+    const staffOnly = counterBranches.length === 0;
+    if (!staffOnly) allowedBranchIds = counterBranches;
     const ownStaff = staffOnly
       ? await this.prisma.staffProfile.findFirst({
           where: { userId: user.id, branchId: { in: allowedBranchIds } },
@@ -635,14 +674,15 @@ export class BookingsController {
 
   /**
    * GET /api/bookings/salon-violations
-   * Only platform roles can see forced cancels / escalations.
+   * Platform-wide audits or the owner's own business booking audits.
    */
   @Get('salon-violations')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN')
-  @RequirePermission('audit:read:branch', 'audit:read:tenant', 'audit:read:platform')
+  @Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')
+  @RequirePermission('audit:read:tenant', 'audit:read:platform')
   async salonViolations(@CurrentUser() user: AuthUser) {
+    user = this.administrativePrincipal(user);
     if (!isPlatformRole(user)) {
-      // Salon owner/managers can only see THEIR OWN violations, not the global list.
+      // Salon owners can only see THEIR OWN violations, not the global list.
       const allowedBusinessIds = await resolveBusinessIdsForUser(
         this.prisma,
         user,
@@ -711,7 +751,7 @@ export class BookingsController {
   }
 
   @Get('scheduler')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   async getSchedulerData(
     @Query('branchId') branchId: string,
@@ -722,12 +762,8 @@ export class BookingsController {
     if (!branchId || !startDate || !endDate) {
       throw new BadRequestException('branchId, startDate, endDate are required');
     }
-    await assertBranchAccess(this.prisma, user, branchId);
-    const staffOnly =
-      user.roles.includes('STAFF') &&
-      !user.roles.some((role) =>
-        ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role),
-      );
+    const businessId = await assertBranchAccess(this.prisma, user, branchId);
+    const staffOnly = !this.bookingsAccess.canReadBranch(user, { businessId, branchId });
     if (!staffOnly) {
       return this.bookingsService.getSchedulerData(branchId, startDate, endDate);
     }
@@ -746,10 +782,10 @@ export class BookingsController {
   @Roles(
     'PLATFORM_ADMIN',
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
   )
-  @RequirePermission('report:overview:branch', 'report:overview:tenant', 'report:overview:platform', 'report:revenue:platform')
+  @RequirePermission('report:overview:tenant', 'report:overview:platform', 'report:revenue:platform')
   async getStats(@CurrentUser() user: AuthUser) {
+    user = this.administrativePrincipal(user);
     if (isPlatformRole(user)) {
       return this.bookingsService.getStats();
     }
@@ -765,9 +801,10 @@ export class BookingsController {
   }
 
   @Get('by-category')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   async getByCategory(@Query('name') name: string, @CurrentUser() user: AuthUser) {
+    user = this.administrativePrincipal(user);
     if (isPlatformRole(user)) return this.bookingsService.getByCategory(name);
     const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
     const branchIds = [...new Set((await Promise.all(
@@ -777,10 +814,10 @@ export class BookingsController {
   }
 
   @Get('by-branch/:branchId')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   @RequireScope({
-    roles: ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN'],
+    roles: ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN'],
     scopeLevel: 'branch',
     permissions: ['booking:read:branch', 'booking:read:tenant', 'booking:read:platform'],
   })
@@ -796,7 +833,6 @@ export class BookingsController {
   @Roles(
     'PLATFORM_ADMIN',
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'CUSTOMER',
   )
@@ -810,7 +846,7 @@ export class BookingsController {
       user.scopes?.some((s) => s.code === 'CUSTOMER') &&
       !isPlatformRole(user) &&
       !user.scopes?.some((s) =>
-        ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(s.code),
+        ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(s.code),
       ) &&
       user.id !== userId
     ) {
@@ -824,14 +860,13 @@ export class BookingsController {
     const branchIds = [...new Set((await Promise.all(
       businessIds.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
     )).flatMap((ids) => ids ?? []))];
-    return this.bookingsService.getByCustomer(userId, branchIds);
+    return this.bookingsService.getByCustomer(userId, await this.counterBranchIds(user, branchIds));
   }
 
   @Get(':id')
   @Roles(
     'PLATFORM_ADMIN',
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'STAFF',
     'CUSTOMER',
@@ -843,12 +878,9 @@ export class BookingsController {
       ...(user.roles || []),
       ...(user.scopes || []).map((scope) => scope.code),
     ]);
-    const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
-      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role),
-    );
     const customerOnly =
       roleCodes.has('CUSTOMER') &&
-      !['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF']
+      !['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF']
         .some((role) => roleCodes.has(role));
     // Service-level access check via BookingsAccessService
     const isPlatform = isPlatformRole(user);
@@ -863,7 +895,7 @@ export class BookingsController {
         id,
         readPermission,
       );
-      if (staffOnly && info.staffUserId !== user.id) {
+      if (!customerOnly && !this.bookingsAccess.canReadBranch(user, info) && info.staffUserId !== user.id) {
         throw new BadRequestException('Nhân viên chỉ được xem lịch được phân công cho mình');
       }
     }
@@ -878,7 +910,6 @@ export class BookingsController {
   @Put(':id')
   @Roles(
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
   )
   @RequirePermission('booking:update:branch', 'booking:update:tenant')
@@ -888,7 +919,12 @@ export class BookingsController {
     @Body() body: BookingActionDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
+    const access = await this.bookingsAccess.assertWrite(user, id,
+      body.action === BookingAction.RESCHEDULE ? 'reschedule' : 'update');
+    if (body.action === BookingAction.RESCHEDULE && body.newStaffId) {
+      await this.bookingsAccess.assertWrite(user, id, 'assign');
+    }
+    const actorRoles = this.bookingsAccess.rolesAtResource(user, access);
     const changedByType = isPlatformRole(user) ? 'ADMIN' : 'SALON';
 
     switch (body.action) {
@@ -899,7 +935,7 @@ export class BookingsController {
           user.id,
           body.reason,
           changedByType,
-          user.roles,
+          actorRoles,
         );
 
       case BookingAction.AUTO_ACCEPT:
@@ -910,7 +946,7 @@ export class BookingsController {
           user.id,
           body.reason ?? 'auto_accept',
           changedByType,
-          user.roles,
+          actorRoles,
         );
 
       case BookingAction.REJECT:
@@ -920,7 +956,7 @@ export class BookingsController {
           user.id,
           body.reason ?? 'Salon từ chối lịch hẹn',
           changedByType,
-          user.roles,
+          actorRoles,
         );
 
       case BookingAction.RESCHEDULE: {
@@ -950,7 +986,6 @@ export class BookingsController {
   @Roles(
     'PLATFORM_ADMIN',
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'STAFF',
     'CUSTOMER',
@@ -963,17 +998,22 @@ export class BookingsController {
     @CurrentUser() user: AuthUser,
   ) {
     // Service asserts write access via BookingsAccessService.
+    const cancellation = ['CANCELLED', 'Đã huỷ'].includes(body.status);
     const intent =
-      body.status === 'CANCELLED' && isPlatformRole(user)
+      cancellation && isPlatformRole(user)
         ? 'force_cancel'
         : 'normal';
+    let actorRoles = user.roles;
     if (intent === 'force_cancel') {
       if (!body.note?.trim()) {
         throw new BadRequestException('Lý do force-cancel là bắt buộc');
       }
       await this.bookingsAccess.assertForceCancel(user, id);
     } else {
-      await this.bookingsAccess.assertWrite(user, id);
+      const access = await this.bookingsAccess.assertWrite(user, id,
+        cancellation ? 'cancel' : body.status === 'CHECKED_IN' ? 'check_in'
+          : ['COMPLETED', 'Hoàn thành'].includes(body.status) ? 'complete' : 'update');
+      actorRoles = this.bookingsAccess.rolesAtResource(user, access);
     }
 
     const changedByType =
@@ -988,7 +1028,8 @@ export class BookingsController {
       user.id,
       body.note,
       changedByType,
-      user.roles,
+      actorRoles,
+      body.noShowConfirmed,
     );
   }
 
@@ -1038,14 +1079,15 @@ export class BookingsController {
 
   @Patch(':id/move')
   @Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('booking:update:branch', 'booking:update:tenant')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
+  @RequirePermission('booking:reschedule:branch', 'booking:update:tenant')
   async moveBooking(
     @Param('id') id: string,
     @Body() body: MoveBookingDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
+    await this.bookingsAccess.assertWrite(user, id, 'reschedule');
+    if (body.newStaffId) await this.bookingsAccess.assertWrite(user, id, 'assign');
     return this.bookingsService.moveBooking(
       id,
       body.newStartTime,
@@ -1056,32 +1098,33 @@ export class BookingsController {
 
   @Patch(':id/resize')
   @Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER')
   @RequirePermission('booking:update:branch', 'booking:update:tenant')
   async resizeBooking(
     @Param('id') id: string,
     @Body() body: ResizeBookingDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
+    const access = await this.bookingsAccess.assertWrite(user, id);
+    ensureCanOnResource(user, 'booking:update:tenant', access);
     return this.bookingsService.resizeBooking(id, body.newEndTime);
   }
 
   @Patch(':id/assign')
   @Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
-  @RequirePermission('booking:update:branch', 'booking:update:tenant')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
+  @RequirePermission('booking:assign:branch', 'booking:assign:tenant')
   async assignStaff(
     @Param('id') id: string,
     @Body() body: AssignStaffDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
+    await this.bookingsAccess.assertWrite(user, id, 'assign');
     return this.bookingsService.assignStaff(id, body.staffId);
   }
 
   @Post(':id/items')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('booking:update:branch', 'booking:update:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BookingService' })
   async addBookingItem(
@@ -1096,12 +1139,21 @@ export class BookingsController {
     },
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
+    const access = await this.bookingsAccess.assertWrite(user, id);
+    const actorRoles = this.bookingsAccess.rolesAtResource(user, access);
+    const owner = actorRoles.includes('BUSINESS_OWNER');
+    if (!owner && !actorRoles.includes('RECEPTIONIST')) {
+      throw new ForbiddenException('Chỉ lễ tân tại chi nhánh hoặc chủ doanh nghiệp được thêm dịch vụ');
+    }
+    if (!owner && (body.price !== undefined || body.durationMinutes !== undefined)) {
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp được điều chỉnh giá hoặc thời lượng dịch vụ');
+    }
+    if (body.staffId) await this.bookingsAccess.assertWrite(user, id, 'assign');
     return this.bookingItemsService.add(id, user.id, body);
   }
 
   @Patch(':id/items/:itemId')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')
   @RequirePermission('booking:update:branch', 'booking:update:tenant', 'booking:complete:branch')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BookingService', idParam: 'itemId' })
   async updateBookingItem(
@@ -1117,14 +1169,24 @@ export class BookingsController {
     },
     @CurrentUser() user: AuthUser,
   ) {
-    await this.bookingsAccess.assertWrite(user, id);
-    const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
-      ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role),
-    );
+    const access = await this.bookingsAccess.assertWrite(user, id,
+      body.action === 'REASSIGN' ? 'assign' : ['REMOVE', 'SKIP'].includes(body.action) ? 'cancel'
+        : body.action === 'COMPLETE' ? 'complete' : 'update');
+    const actorRoles = this.bookingsAccess.rolesAtResource(user, access);
+    const owner = actorRoles.includes('BUSINESS_OWNER');
+    const staffOnly = actorRoles.includes('STAFF') && !owner && !actorRoles.includes('RECEPTIONIST');
     if (staffOnly && !['START', 'COMPLETE'].includes(body.action)) {
       throw new ForbiddenException('Nhân viên chỉ có thể bắt đầu hoặc hoàn thành dịch vụ được giao');
     }
-    return this.bookingItemsService.update(id, itemId, user.id, body);
+    if (['REPRICE', 'RESIZE'].includes(body.action) && !owner) {
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp được điều chỉnh giá hoặc thời lượng dịch vụ');
+    }
+    const serviceLifecycle = ['START', 'COMPLETE'].includes(body.action);
+    if (serviceLifecycle && !owner && !actorRoles.includes('STAFF')) {
+      throw new ForbiddenException('Chỉ nhân viên được giao hoặc chủ doanh nghiệp được thực hiện dịch vụ');
+    }
+    return this.bookingItemsService.update(id, itemId, user.id, body,
+      serviceLifecycle && !owner ? { assignedStaffUserId: user.id } : undefined);
   }
 
   // ============= CHANGE REQUESTS =============
@@ -1153,7 +1215,7 @@ export class BookingsController {
   }
 
   @Patch('change-requests/:reqId/approve')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'AppointmentChangeRequest', idParam: 'reqId' })
   async approveChangeRequest(
@@ -1165,12 +1227,13 @@ export class BookingsController {
       where: { id: reqId },
       select: { booking: { select: { branchId: true } } },
     });
-    await assertBranchAccess(this.prisma, user, request.booking.branchId);
+    const businessId = await assertBranchAccess(this.prisma, user, request.booking.branchId);
+    this.assertChangeRequestPermission(user, businessId, request.booking.branchId);
     return this.changeRequestsService.approve(reqId, user.id, body.reviewNote);
   }
 
   @Patch('change-requests/:reqId/reject')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'AppointmentChangeRequest', idParam: 'reqId' })
   async rejectChangeRequest(
@@ -1182,12 +1245,13 @@ export class BookingsController {
       where: { id: reqId },
       select: { booking: { select: { branchId: true } } },
     });
-    await assertBranchAccess(this.prisma, user, request.booking.branchId);
+    const businessId = await assertBranchAccess(this.prisma, user, request.booking.branchId);
+    this.assertChangeRequestPermission(user, businessId, request.booking.branchId);
     return this.changeRequestsService.reject(reqId, user.id, body.reviewNote);
   }
 
   @Get('change-requests/pending')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')
   async pendingChangeRequests(@CurrentUser() user: AuthUser) {
     const allowedBusinessIds = await resolveBusinessIdsForUser(this.prisma, user);
@@ -1198,7 +1262,13 @@ export class BookingsController {
         ),
       )
     ).flat();
-    return this.changeRequestsService.listPending(allowedBusinessIds, allowedBranchIds);
+    return this.changeRequestsService.listPending(allowedBusinessIds, await this.counterBranchIds(user, allowedBranchIds));
+  }
+
+  private assertChangeRequestPermission(user: AuthUser, businessId: string, branchId: string) {
+    if (!['change_request:approve:branch', 'change_request:approve:tenant'].some((permission) =>
+      canOnResource(user, permission, { businessId, branchId }),
+    )) throw new ForbiddenException('Bạn không có quyền xử lý yêu cầu thay đổi tại chi nhánh này');
   }
 
   /**
@@ -1234,10 +1304,10 @@ export class BookingsController {
    */
   @Post(':id/checkin')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Booking' })
-  @Roles('RECEPTIONIST', 'BRANCH_MANAGER', 'BUSINESS_OWNER')
+  @Roles('RECEPTIONIST', 'BUSINESS_OWNER')
   @RequirePermission('booking:check_in:branch', 'booking:check_in:tenant')
   async checkin(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    await this.bookingsAccess.assertWrite(user, id);
-    return this.bookingsService.checkin(id, user.id, user.roles);
+    const access = await this.bookingsAccess.assertWrite(user, id, 'check_in');
+    return this.bookingsService.checkin(id, user.id, this.bookingsAccess.rolesAtResource(user, access));
   }
 }

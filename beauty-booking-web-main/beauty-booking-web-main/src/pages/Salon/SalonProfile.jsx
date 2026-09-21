@@ -123,7 +123,7 @@ export function SalonProfile() {
   const [publishing, setPublishing] = useState('');
   const [branchImage, setBranchImage] = useState(null);
   const [businessLogo, setBusinessLogo] = useState(null);
-  const edit = can('branch:update:tenant') || can('branch:update:branch');
+  const edit = can('branch:update:tenant');
   const create = can('branch:create:tenant');
   const owner = [...(user?.roles || []), ...(user?.scopes || []).map((scope) => scope.code)].includes('BUSINESS_OWNER');
 
@@ -276,6 +276,10 @@ export function SalonProfile() {
                   }}>{branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
                 </div>
                 {!detail.readiness?.ready && <InlineNotice tone="warning" className="m-5"><strong>Chưa sẵn sàng nhận lịch.</strong><ul className="mt-2 list-disc pl-5">{detail.readiness?.reasons?.map((reason) => <li key={reason}>{reason}</li>)}</ul></InlineNotice>}
+                {owner && <div className="flex flex-wrap gap-3 px-5 pt-5">
+                  <Link to={`/explore/branches/${detail.id}`} target="_blank" rel="noopener noreferrer"><Button variant="secondary">Xem trang công khai</Button></Link>
+                  <Link to={`/salon/branches/${detail.id}/preview`} target="_blank" rel="noopener noreferrer"><Button variant="secondary">Xem trước</Button></Link>
+                </div>}
                 <form onSubmit={save} className="grid gap-5 p-5 sm:grid-cols-2">
                   {owner && detail.business?.id && <div className="sm:col-span-2"><FileUpload entityType="BUSINESS_LOGO" entityId={detail.business.id} businessId={detail.business.id} value={businessLogo} label="Logo doanh nghiệp" disabled={!edit} onUploaded={setBusinessLogo} onRemoved={() => setBusinessLogo(null)} /></div>}
                   <div className="sm:col-span-2"><FileUpload entityType="BRANCH_IMAGE" entityId={detail.id} businessId={detail.business?.id} branchId={detail.id} value={branchImage} label="Ảnh đại diện chi nhánh" disabled={!edit} onUploaded={setBranchImage} onRemoved={() => setBranchImage(null)} /></div>

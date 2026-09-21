@@ -1,3 +1,4 @@
+import { assertAccountRoleCompatible } from '../auth/account-separation';
 import {
   BadRequestException,
   ConflictException,
@@ -12,7 +13,13 @@ import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { auditLog } from '../common/utils/audit';
 
-type StaffRoleCode = 'BRANCH_MANAGER' | 'RECEPTIONIST' | 'STAFF';
+type StaffRoleCode = 'RECEPTIONIST' | 'STAFF';
+
+function assertInvitableRole(role: string): asserts role is StaffRoleCode {
+  if (role !== 'RECEPTIONIST' && role !== 'STAFF') {
+    throw new BadRequestException('Vai trò lời mời không còn được hỗ trợ');
+  }
+}
 
 @Injectable()
 export class StaffInvitationsService {
@@ -30,6 +37,7 @@ export class StaffInvitationsService {
     branchId: string;
     invitedBy: string;
   }) {
+    assertInvitableRole(input.roleCode);
     if (!input.email || !input.businessId || !input.branchId || !input.staffProfileId) {
       throw new BadRequestException('staffProfileId, email, businessId và branchId là bắt buộc');
     }
@@ -265,6 +273,8 @@ export class StaffInvitationsService {
       if (!invitation?.staffProfileId || !invitation.branchId) {
         throw new NotFoundException('Lời mời không còn hợp lệ');
       }
+      assertInvitableRole(invitation.roleCode);
+      await assertAccountRoleCompatible(tx, userId, invitation.roleCode);
       const profile = await tx.staffProfile.findUnique({ where: { id: invitation.staffProfileId } });
       if (!profile || (profile.userId && profile.userId !== userId)) {
         throw new ConflictException('Hồ sơ nhân sự đã liên kết tài khoản khác');
@@ -329,6 +339,7 @@ export class StaffInvitationsService {
       },
     });
     if (!invitation) throw new NotFoundException('Invitation không hợp lệ hoặc đã hết hạn');
+    assertInvitableRole(invitation.roleCode);
     return invitation;
   }
 

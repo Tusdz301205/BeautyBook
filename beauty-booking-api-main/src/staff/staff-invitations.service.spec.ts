@@ -10,6 +10,41 @@ describe('StaffInvitationsService', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
+  it.each(['BRANCH_MANAGER', 'MANAGER', 'BUSINESS_OWNER'])(
+    'rejects unsupported invitation role %s before loading profiles or writing data',
+    async (roleCode) => {
+      const prisma = {
+        staffProfile: { findFirst: jest.fn() },
+        $transaction: jest.fn(),
+      };
+      const service = new StaffInvitationsService(prisma as unknown as PrismaService, mail, config);
+      await expect(service.invite({
+        staffProfileId: 'staff-1', email: 'staff@example.test', roleCode: roleCode as never,
+        businessId: 'business-a', branchId: 'branch-a', invitedBy: 'owner-1',
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.staffProfile.findFirst).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(mail.sendMail).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a persisted pending Manager invitation during context lookup and acceptance', async () => {
+    const prisma = {
+      staffInvitation: { findFirst: jest.fn().mockResolvedValue({
+        id: 'legacy-invite', roleCode: 'BRANCH_MANAGER', status: 'PENDING',
+        businessId: 'business-a', branchId: 'branch-a', staffProfileId: 'staff-1',
+      }) },
+      $transaction: jest.fn(),
+    };
+    const service = new StaffInvitationsService(prisma as unknown as PrismaService, mail, config);
+    await expect(service.getContext('x'.repeat(64))).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.accept({
+      token: 'x'.repeat(64), fullName: 'Test Staff', password: 'Password123!',
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(mail.sendMail).not.toHaveBeenCalled();
+  });
+
   it('rejects a branch from another business', async () => {
     const prisma = {
       staffProfile: { findFirst: jest.fn().mockResolvedValue({

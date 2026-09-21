@@ -17,6 +17,8 @@ import {
   assertBranchAccess,
   assertBusinessAccess,
   resolveBusinessIdsForUser,
+  resolveBranchIdsForUser,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 import { auditLog } from '../common/utils/audit';
 import { PrismaService } from '../prisma/prisma.service';
@@ -59,13 +61,12 @@ export class PaymentsService {
       if (user.roles.includes('CUSTOMER')) {
         where.booking = { customer: { userId: user.id } };
       } else {
-        const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
-        const branchIds = (user.scopes ?? []).map((scope) => scope.branchId).filter(Boolean);
-        where.booking = {
-          branch: branchIds.length
-            ? { id: { in: branchIds } }
-            : { businessId: { in: businessIds } },
-        };
+        const operator = restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST']);
+        const businessIds = await resolveBusinessIdsForUser(this.prisma, operator);
+        const branchIds = (await Promise.all(businessIds.map((businessId) =>
+          resolveBranchIdsForUser(this.prisma, operator, businessId),
+        ))).flatMap((ids) => ids ?? []);
+        where.booking = { branchId: { in: branchIds } };
       }
     }
     const rows = await this.prisma.payment.findMany({
@@ -681,12 +682,7 @@ export class PaymentsService {
     if (!booking) throw new NotFoundException('Booking not found');
     const own = booking.customer.userId === user.id;
     if (!own) {
-      await assertBusinessAccess(this.prisma, user, booking.branch.businessId);
-      const branchScoped = user.scopes?.some((scope) => scope.branchId);
-      if (branchScoped) {
-        const allowed = user.scopes?.some((scope) => scope.branchId === booking.branchId);
-        if (!allowed) throw new ForbiddenException('Không có quyền xem checkout này');
-      }
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN']), booking.branchId);
     }
     const verified = booking.paymentTransactions
       .filter((item) => item.status === 'VERIFIED')
@@ -1077,9 +1073,9 @@ export class PaymentsService {
   }
 
   async createPaymentPolicy(user: AuthUser, body: CreatePaymentPolicyDto) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
     if (body.branchId) {
-      const businessId = await assertBranchAccess(this.prisma, user, body.branchId);
+      const businessId = await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
       if (businessId !== body.businessId) throw new BadRequestException('Chi nhánh không thuộc doanh nghiệp');
     }
     if (body.depositType === 'PERCENTAGE' && body.depositValue > 100) {
@@ -1124,7 +1120,7 @@ export class PaymentsService {
   }
 
   async listPaymentPolicies(user: AuthUser, businessId: string) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     return this.prisma.paymentPolicy.findMany({
       where: { businessId },
       include: {
@@ -1139,9 +1135,9 @@ export class PaymentsService {
     user: AuthUser,
     query: { businessId?: string; branchId?: string; bookingId?: string; from?: string; to?: string },
   ) {
-    if (query.businessId) await assertBusinessAccess(this.prisma, user, query.businessId);
-    if (query.branchId) await assertBranchAccess(this.prisma, user, query.branchId);
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
+    if (query.businessId) await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), query.businessId);
+    if (query.branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), query.branchId);
+    const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     return this.prisma.financialLedgerEntry.findMany({
       where: {
         businessId: query.businessId || (businessIds.includes(ALL_TENANTS) ? undefined : { in: businessIds }),
@@ -1245,8 +1241,8 @@ export class PaymentsService {
   }
 
   async listPlatformStatements(user: AuthUser, businessId?: string) {
-    if (businessId) await assertBusinessAccess(this.prisma, user, businessId);
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
+    if (businessId) await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId);
+    const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     return this.prisma.platformStatement.findMany({
       where: {
         businessId: businessId || (businessIds.includes(ALL_TENANTS) ? undefined : { in: businessIds }),
@@ -1319,9 +1315,9 @@ export class PaymentsService {
   }
 
   async createTreatmentPackage(user: AuthUser, body: CreateTreatmentPackageDto) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
     if (body.branchId) {
-      const businessId = await assertBranchAccess(this.prisma, user, body.branchId);
+      const businessId = await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
       if (businessId !== body.businessId) {
         throw new BadRequestException('Chi nhánh không thuộc doanh nghiệp');
       }
@@ -1374,7 +1370,7 @@ export class PaymentsService {
     }
     // Việc tạo gói và khoản phải thu là nghiệp vụ tại quầy, không phải
     // thanh toán online của khách hàng.
-    await assertBranchAccess(this.prisma, user, branch.id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST']), branch.id);
     const customerId = body.customerId;
     if (!customerId) throw new BadRequestException('Khách hàng là bắt buộc');
     const customer = await this.prisma.customerProfile.findFirst({
@@ -1461,8 +1457,8 @@ export class PaymentsService {
     if (customerOnly) {
       where = { customer: { userId: user.id } };
     } else {
-      if (businessId) await assertBusinessAccess(this.prisma, user, businessId);
-      const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
+      if (businessId) await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
+      const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']));
       where = {
         businessId: businessId ||
           (businessIds.includes(ALL_TENANTS) ? undefined : { in: businessIds }),

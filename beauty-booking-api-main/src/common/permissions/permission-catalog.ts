@@ -5,7 +5,7 @@
  *
  * Section 3 of the plan specifies the BOOKINGS matrix in detail; the patterns
  * below extend it to the other modules (branches, services, users, reviews,
- * payments, admin, reports, health records) using the same 3-layer actor model.
+ * payments, admin, reports) using the same 3-layer actor model.
  *
  * IMPORTANT: codes in this file are the single source of truth. Both
  *   - runtime guards/policies
@@ -44,14 +44,14 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
   { code: 'booking:create:self', resource: 'booking', action: 'create', defaultScope: 'SELF',
     description: 'Customer tạo lịch cho chính mình' },
   { code: 'booking:create:branch', resource: 'booking', action: 'create', defaultScope: 'BRANCH',
-    description: 'Receptionist/Manager tạo lịch hộ khách trong chi nhánh' },
+    description: 'Receptionist tạo lịch hộ khách trong chi nhánh' },
   { code: 'booking:create:tenant', resource: 'booking', action: 'create', defaultScope: 'TENANT',
     description: 'Owner tạo lịch thuộc bất kỳ chi nhánh nào trong tenant' },
 
   { code: 'booking:read:self', resource: 'booking', action: 'read', defaultScope: 'SELF',
     description: 'Customer xem lịch của chính mình' },
   { code: 'booking:read:branch', resource: 'booking', action: 'read', defaultScope: 'BRANCH',
-    description: 'Staff/Manager/Receptionist xem lịch thuộc chi nhánh' },
+    description: 'Staff/Receptionist xem lịch thuộc chi nhánh' },
   { code: 'booking:read:tenant', resource: 'booking', action: 'read', defaultScope: 'TENANT',
     description: 'Owner xem tất cả lịch trong tenant' },
   { code: 'booking:read:platform', resource: 'booking', action: 'read', defaultScope: 'PLATFORM',
@@ -60,12 +60,12 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
   { code: 'booking:update:self', resource: 'booking', action: 'update', defaultScope: 'SELF',
     description: 'Customer cập nhật lịch của mình (giờ, ghi chú)' },
   { code: 'booking:update:branch', resource: 'booking', action: 'update', defaultScope: 'BRANCH',
-    description: 'Staff/Manager cập nhật lịch trong chi nhánh' },
+    description: 'Staff/Receptionist cập nhật lịch trong chi nhánh' },
   { code: 'booking:update:tenant', resource: 'booking', action: 'update', defaultScope: 'TENANT',
     description: 'Owner cập nhật lịch trong tenant' },
 
   { code: 'booking:assign:branch', resource: 'booking', action: 'assign', defaultScope: 'BRANCH',
-    description: 'Manager gán staff cho booking trong chi nhánh' },
+    description: 'Receptionist gán staff cho booking trong chi nhánh' },
   { code: 'booking:assign:tenant', resource: 'booking', action: 'assign', defaultScope: 'TENANT',
     description: 'Owner gán staff cho booking trong tenant' },
 
@@ -114,8 +114,6 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
     description: 'Owner tạo chi nhánh mới trong tenant của mình' },
   { code: 'branch:update:tenant', resource: 'branch', action: 'update', defaultScope: 'TENANT',
     description: 'Owner cập nhật thông tin chi nhánh' },
-  { code: 'branch:update:branch', resource: 'branch', action: 'update', defaultScope: 'BRANCH',
-    description: 'Manager cập nhật thông tin chi nhánh được phân công' },
   { code: 'branch:status:platform', resource: 'branch', action: 'status', defaultScope: 'PLATFORM',
     description: 'Platform duyệt/từ chối chi nhánh' },
 
@@ -140,14 +138,10 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
     description: 'Owner lưu trữ dịch vụ cấp doanh nghiệp sau khi xử lý booking tương lai' },
   { code: 'branch_service_offering:status:tenant', resource: 'branch_service_offering', action: 'status', defaultScope: 'TENANT',
     description: 'Owner bật, tắt và đặt bookable cho offering trong doanh nghiệp' },
-  { code: 'branch_service_offering:status:branch', resource: 'branch_service_offering', action: 'status', defaultScope: 'BRANCH',
-    description: 'Manager vận hành trạng thái offering tại chi nhánh được phân công' },
   { code: 'branch_service_offering:pricing:tenant', resource: 'branch_service_offering', action: 'pricing', defaultScope: 'TENANT',
     description: 'Chỉ Owner sửa giá/thời lượng offering tại chi nhánh' },
   { code: 'staff_service:assign:tenant', resource: 'staff_service', action: 'assign', defaultScope: 'TENANT',
     description: 'Owner phân công năng lực dịch vụ cho nhân sự trong doanh nghiệp' },
-  { code: 'staff_service:assign:branch', resource: 'staff_service', action: 'assign', defaultScope: 'BRANCH',
-    description: 'Manager phân công năng lực dịch vụ cho nhân sự trong chi nhánh' },
   { code: 'combo:read:public', resource: 'combo', action: 'read', defaultScope: 'PUBLIC',
     description: 'Khách xem combo đang bán công khai' },
   { code: 'combo:read:platform', resource: 'combo', action: 'read', defaultScope: 'PLATFORM',
@@ -165,13 +159,11 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
   { code: 'user:read:tenant', resource: 'user', action: 'read', defaultScope: 'TENANT',
     description: 'Owner xem nhân viên thuộc tenant' },
   { code: 'user:read:branch', resource: 'user', action: 'read', defaultScope: 'BRANCH',
-    description: 'Manager/Receptionist xem nhân viên thuộc chi nhánh' },
+    description: 'Receptionist xem nhân viên thuộc chi nhánh' },
   { code: 'user:read:platform', resource: 'user', action: 'read', defaultScope: 'PLATFORM',
     description: 'Admin xem tất cả user' },
   { code: 'user:role_assign:tenant', resource: 'user', action: 'role_assign', defaultScope: 'TENANT',
     description: 'Owner gán role cho nhân viên thuộc tenant' },
-  { code: 'user:role_assign:branch', resource: 'user', action: 'role_assign', defaultScope: 'BRANCH',
-    description: 'Manager mời và quản lý nhân viên thuộc chi nhánh' },
   { code: 'user:role_assign:platform', resource: 'user', action: 'role_assign', defaultScope: 'PLATFORM',
     description: 'Admin gán role cho user' },
   { code: 'user:suspend:platform', resource: 'user', action: 'suspend', defaultScope: 'PLATFORM',
@@ -195,12 +187,8 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
     description: 'Xem review công khai' },
   { code: 'review:report:tenant', resource: 'review', action: 'report', defaultScope: 'TENANT',
     description: 'Owner báo cáo review thuộc doanh nghiệp để Platform kiểm duyệt' },
-  { code: 'review:report:branch', resource: 'review', action: 'report', defaultScope: 'BRANCH',
-    description: 'Manager báo cáo review thuộc chi nhánh để Platform kiểm duyệt' },
   { code: 'review:moderate:tenant', resource: 'review', action: 'moderate', defaultScope: 'TENANT',
     description: 'Owner duyệt/ẩn review thuộc tenant' },
-  { code: 'review:moderate:branch', resource: 'review', action: 'moderate', defaultScope: 'BRANCH',
-    description: 'Manager phản hồi và quản lý review thuộc chi nhánh' },
   { code: 'review:moderate:platform', resource: 'review', action: 'moderate', defaultScope: 'PLATFORM',
     description: 'Admin duyệt/ẩn review toàn hệ thống' },
 
@@ -247,10 +235,8 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
     description: 'Xem dashboard tổng quan platform' },
   { code: 'report:overview:tenant', resource: 'report', action: 'overview', defaultScope: 'TENANT',
     description: 'Owner xem dashboard vận hành trong tenant' },
-  { code: 'report:overview:branch', resource: 'report', action: 'overview', defaultScope: 'BRANCH',
-    description: 'Manager xem dashboard vận hành trong chi nhánh' },
   { code: 'report:revenue:branch', resource: 'report', action: 'revenue', defaultScope: 'BRANCH',
-    description: 'Manager xem doanh thu trong chi nhánh' },
+    description: 'Owner xem doanh thu trong chi nhánh' },
   { code: 'report:revenue:tenant', resource: 'report', action: 'revenue', defaultScope: 'TENANT',
     description: 'Owner xem doanh thu thuộc tenant' },
   { code: 'report:revenue:platform', resource: 'report', action: 'revenue', defaultScope: 'PLATFORM',
@@ -261,8 +247,6 @@ export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
     description: 'Admin đọc audit log' },
   { code: 'audit:read:tenant', resource: 'audit', action: 'read', defaultScope: 'TENANT',
     description: 'Owner đọc audit log trong tenant' },
-  { code: 'audit:read:branch', resource: 'audit', action: 'read', defaultScope: 'BRANCH',
-    description: 'Manager đọc audit vận hành của chi nhánh' },
 
   { code: 'privacy_request:manage:self', resource: 'privacy_request', action: 'manage', defaultScope: 'SELF',
     description: 'Customer tạo và theo dõi yêu cầu dữ liệu của mình' },
@@ -393,30 +377,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> =
     ],
 
     // Branch layer
-    BRANCH_MANAGER: [
-      'user:read:self', 'user:update:self', 'notification:read:self',
-      'user:read:branch', 'user:role_assign:branch',
-      'branch:read:branch',
-      'branch:update:branch',
-      'booking:create:branch', 'booking:read:branch', 'booking:update:branch',
-      'booking:cancel:branch', 'booking:assign:branch',
-      'booking:check_in:branch', 'booking:complete:branch',
-      'booking:reschedule:branch',
-      'booking:read_internal_note:branch',
-      'payment:read:branch', 'payment:create:branch',
-      'branch_service_offering:status:branch',
-      'staff_service:assign:branch',
-      'review:moderate:branch', 'review:report:branch',
-      'report:overview:branch', 'report:revenue:branch',
-      'audit:read:branch',
-      'change_request:approve:branch',
-    ],
     RECEPTIONIST: [
       'user:read:self', 'user:update:self', 'notification:read:self',
       'user:read:branch',
       'branch:read:branch',
       'booking:create:branch', 'booking:read:branch', 'booking:update:branch',
       'booking:check_in:branch',
+      'booking:cancel:branch', 'booking:assign:branch',
+      'booking:reschedule:branch', 'change_request:approve:branch',
       'booking:read_internal_note:branch',
       'payment:read:branch', 'payment:create:branch',
       'payment_transaction:verify:branch',
@@ -445,9 +413,6 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> =
       'change_request:create:self',
       'privacy_request:manage:self', 'marketing_preference:manage:self',
     ],
-    GUEST: [
-      'service:read:public', 'canonical_service:read:public', 'branch:read:public', 'combo:read:public', 'review:read:public',
-    ],
   });
 
 /** Role-level hint for each system role (matches `roles.level`). */
@@ -455,9 +420,7 @@ export const ROLE_LEVELS: Readonly<Record<string, 'PLATFORM' | 'TENANT' | 'BRANC
   Object.freeze({
     PLATFORM_ADMIN: 'PLATFORM',
     BUSINESS_OWNER: 'TENANT',
-    BRANCH_MANAGER: 'BRANCH',
     RECEPTIONIST: 'BRANCH',
     STAFF: 'BRANCH',
     CUSTOMER: 'CUSTOMER',
-    GUEST: 'CUSTOMER',
   });

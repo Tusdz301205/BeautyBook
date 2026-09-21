@@ -5,10 +5,10 @@ import { BookingsController } from '../../bookings/bookings.controller';
 import { BranchesController } from '../../branches/branches.controller';
 import { BusinessController } from '../../business/business.controller';
 
-const manager: AuthUser = {
-  id: 'manager', email: 'manager@example.test', roles: ['BRANCH_MANAGER', 'STAFF'], sessionType: 'salon',
+const receptionist: AuthUser = {
+  id: 'receptionist', email: 'receptionist@example.test', roles: ['RECEPTIONIST', 'STAFF'], sessionType: 'salon',
   scopes: [
-    { code: 'BRANCH_MANAGER', businessId: 'business-1', branchId: 'branch-1' },
+    { code: 'RECEPTIONIST', businessId: 'business-1', branchId: 'branch-1' },
     { code: 'STAFF', businessId: 'business-1', branchId: 'branch-2' },
   ],
 };
@@ -29,19 +29,19 @@ function prismaFixture() {
 }
 
 describe('Resource-bound controller permissions', () => {
-  test('manager sees their branch but cannot combine a manager role with staff membership elsewhere', async () => {
+  test('receptionist sees their branch but cannot combine a receptionist role with staff membership elsewhere', async () => {
     const access = new BookingsAccessService(prismaFixture() as never);
-    await expect(access.assertReadBranch(manager, 'branch-1')).resolves.toBeUndefined();
-    await expect(access.assertReadBranch(manager, 'branch-2')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(access.assertReadBranch(receptionist, 'branch-1')).resolves.toBeUndefined();
+    await expect(access.assertReadBranch(receptionist, 'branch-2')).rejects.toBeInstanceOf(ForbiddenException);
     await expect(access.assertReadBranch(owner, 'branch-2')).resolves.toBeUndefined();
     await expect(access.assertReadBranch({ ...owner, scopes: [{ code: 'BUSINESS_OWNER', businessId: 'other' }] }, 'branch-2'))
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  test('expired managerial grants cannot read the branch-wide list', async () => {
+  test('expired receptionist grants cannot read the branch-wide list', async () => {
     const access = new BookingsAccessService(prismaFixture() as never);
     await expect(access.assertReadBranch({
-      ...manager, scopes: [{ ...manager.scopes[0], expiresAt: new Date(0).toISOString() }],
+      ...receptionist, scopes: [{ ...receptionist.scopes[0], expiresAt: new Date(0).toISOString() }],
     }, 'branch-1')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -52,24 +52,24 @@ describe('Resource-bound controller permissions', () => {
       { getByBranch } as never, { assertReadBranch } as never, {} as never,
       {} as never, {} as never, {} as never, {} as never,
     );
-    await expect(controller.getByBranch('branch-2', manager)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(assertReadBranch).toHaveBeenCalledWith(manager, 'branch-2');
+    await expect(controller.getByBranch('branch-2', receptionist)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(assertReadBranch).toHaveBeenCalledWith(receptionist, 'branch-2');
     expect(getByBranch).not.toHaveBeenCalled();
   });
 
   test('branch edit checks the update permission at the target branch, not just membership', async () => {
     const update = jest.fn().mockResolvedValue({ id: 'branch-1' });
     const controller = new BranchesController({ update } as never, {} as never, prismaFixture() as never);
-    await expect(controller.update('branch-2', {}, manager)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.update('branch-2', {}, receptionist)).rejects.toBeInstanceOf(ForbiddenException);
     expect(update).not.toHaveBeenCalled();
-    await expect(controller.update('branch-1', {}, manager)).resolves.toMatchObject({ id: 'branch-1' });
+    await expect(controller.update('branch-1', {}, receptionist)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(controller.update('branch-2', {}, owner)).resolves.toBeDefined();
   });
 
   test('ordinary staff cannot read the business-wide membership/contact directory', async () => {
     const listByBusiness = jest.fn().mockResolvedValue([]);
     const controller = new BusinessController({} as never, { listByBusiness } as never, prismaFixture() as never, {} as never);
-    await expect(controller.listMembers('business-1', manager)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.listMembers('business-1', receptionist)).rejects.toBeInstanceOf(ForbiddenException);
     expect(listByBusiness).not.toHaveBeenCalled();
     await expect(controller.listMembers('business-1', owner)).resolves.toEqual([]);
   });

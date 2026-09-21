@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/utils/businessCompletionRules.test.js src/utils/latestRequest.test.js src/store/bookingStore.test.js src/utils/schedulerSocketEvents.test.js",
+    "test": "node --test src/utils/businessCompletionRules.test.js src/utils/latestRequest.test.js src/store/bookingStore.test.js src/utils/schedulerSocketEvents.test.js src/utils/authScope.test.js src/utils/operationsScope.test.js src/utils/customerCancellation.test.js",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
     "test:e2e:critical": "playwright test --project=chromium --grep @critical",

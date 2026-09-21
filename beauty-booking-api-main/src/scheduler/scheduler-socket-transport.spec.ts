@@ -16,8 +16,8 @@ describe('Scheduler authorization over a real local socket transport', () => {
     const strategy = { validate: jest.fn(async () => {
       if (revoked) throw new Error('revoked test session');
       return {
-        id: 'user-1', email: 'local@example.test', roles: ['BRANCH_MANAGER'],
-        scopes: [{ code: 'BRANCH_MANAGER', businessId: 'business-a', branchId: 'branch-a' }],
+        id: 'user-1', email: 'local@example.test', roles: ['RECEPTIONIST'],
+        scopes: [{ code: 'RECEPTIONIST', businessId: 'business-a', branchId: 'branch-a' }],
         permissions: ['booking:read:branch'], sessionType: 'salon',
       };
     }) };
@@ -40,7 +40,7 @@ describe('Scheduler authorization over a real local socket transport', () => {
       expect(hello[0]).toBe('0');
       const { sid } = JSON.parse(hello.slice(1));
       const endpoint = `${base}&sid=${encodeURIComponent(sid)}`;
-      const token = await jwt.signAsync({ sub: 'user-1', roles: ['BRANCH_MANAGER'], sessionType: 'salon' });
+      const token = await jwt.signAsync({ sub: 'user-1', roles: ['RECEPTIONIST'], sessionType: 'salon' });
       await request(endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: `40${JSON.stringify({ token })}` });
       const socket = await connected;
       expect(await (await request(endpoint)).text()).toContain('40');

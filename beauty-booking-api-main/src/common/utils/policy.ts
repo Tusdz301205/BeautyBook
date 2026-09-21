@@ -1,5 +1,7 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUser } from '../decorators/current-user.decorator';
+import { isCustomerPrincipal } from '../../auth/account-separation';
+import { customerCancellationMode } from '../../bookings/customer-cancellation-policy';
 import {
   PERMISSIONS,
   PERMISSION_CODE_SET,
@@ -24,24 +26,20 @@ export interface CancellationDecision {
  * this helper only determines whether the request is within the cutoff.
  */
 export async function resolveCancellationPolicy(
-  prisma: PrismaService,
-  businessId: string,
-  bookingTotalAmount: number,
+  _prisma: PrismaService,
+  _businessId: string,
+  _bookingTotalAmount: number,
   appointmentStartTime: Date,
   now: Date = new Date(),
-  defaultFreeCancelHours = 2,
+  _legacyDefaultFreeCancelHours = 4,
 ): Promise<CancellationDecision> {
-  const policy = await prisma.cancellationPolicy.findUnique({
-    where: { businessId },
-  });
-
-  const freeHours = policy?.freeCancelHours ?? defaultFreeCancelHours;
-  const rescheduleHours = policy?.rescheduleAllowedHours ?? 1;
-
+  // Legacy configurable cancellation cutoffs no longer govern self-cancel.
+  // Keep the call signature while old consumers migrate; no fee is charged.
+  const mode = customerCancellationMode(appointmentStartTime, now);
   const diffMs = appointmentStartTime.getTime() - now.getTime();
   const hoursBeforeStart = diffMs / (60 * 60 * 1000);
 
-  if (diffMs < 0) {
+  if (mode === 'too_late') {
     return {
       policy: 'too_late',
       feePercent: 0,
@@ -51,13 +49,13 @@ export async function resolveCancellationPolicy(
     };
   }
 
-  if (hoursBeforeStart < freeHours) {
+  if (mode === 'warn_late_cancel') {
     return {
       policy: 'warn_late_cancel',
       feePercent: 0,
       hoursBeforeStart,
       feeAmount: 0,
-      notes: `Huỷ trong vòng ${freeHours}h trước giờ hẹn. Vui lòng liên hệ cơ sở để được hỗ trợ. Reschedule phải trước ${rescheduleHours}h.`,
+      notes: 'Còn dưới 4 giờ. Khách cần gửi yêu cầu hủy sát giờ để cơ sở xử lý.',
     };
   }
 
@@ -66,9 +64,7 @@ export async function resolveCancellationPolicy(
     feePercent: 0,
     hoursBeforeStart,
     feeAmount: 0,
-    notes:
-      policy?.notes ??
-      `Huỷ miễn phí (trước ${freeHours}h). Reschedule phải trước ${rescheduleHours}h.`,
+    notes: 'Còn ít nhất 4 giờ: khách được tự hủy, không tính điểm vi phạm và không thu phí.',
   };
 }
 
@@ -131,13 +127,21 @@ export function can(user: AuthUser, code: string, ctx: PolicyContext = {}): bool
 
   const entry = findPermission(code);
   if (!entry) return false;
+  // Public visibility does not require a persisted GUEST account or role grant.
+  // Anonymous HTTP access remains explicitly marked with @Public on routes.
+  if (entry.defaultScope === 'PUBLIC') return true;
+  // Shared self profile/notifications remain usable in operational workspaces.
+  // Customer permissions cannot be borrowed from a legacy mixed-role principal.
+  if (entry.defaultScope === 'SELF' && ROLE_PERMISSIONS.CUSTOMER.includes(code) &&
+    !['user:read:self', 'user:update:self', 'notification:read:self'].includes(code) &&
+    !isCustomerPrincipal(user)) return false;
 
   const hasContext = !!(ctx.tenantId || ctx.branchId || ctx.ownerId);
   // Direct user grants are intentionally restricted to PLATFORM permissions.
   // Never use the flattened `permissions` list to bypass TENANT/BRANCH/SELF
   // checks because that list also contains permissions expanded from roles.
   if (
-    (!hasContext || entry.defaultScope === 'PLATFORM') &&
+    entry.defaultScope === 'PLATFORM' && user.roles.includes('PLATFORM_ADMIN') &&
     user.permissions?.includes(code)
   ) {
     return true;
@@ -146,8 +150,8 @@ export function can(user: AuthUser, code: string, ctx: PolicyContext = {}): bool
 
   const now = Date.now();
   const activeGrants = user.scopes.filter((sr) => {
-    if (sr.expiresAt && new Date(sr.expiresAt).getTime() <= now) return false;
-    return roleGrantsPermission(sr.code, code);
+    if (sr.expiresAt && !(new Date(sr.expiresAt).getTime() > now)) return false;
+    return user.roles.includes(sr.code) && roleGrantsPermission(sr.code, code);
   });
 
   // Guards frequently perform a coarse permission check before a controller
@@ -172,13 +176,11 @@ export function can(user: AuthUser, code: string, ctx: PolicyContext = {}): bool
         if (PLATFORM_LIKE.has(sr.code)) return true;
         if (sr.branchId && sr.branchId === ctx.branchId) return true;
         // Tenant-wide role on the same tenant still grants branch scope.
-        if (sr.businessId && sr.businessId === ctx.tenantId && !sr.branchId) return true;
+        if (sr.code === 'BUSINESS_OWNER' && sr.businessId && sr.businessId === ctx.tenantId && !sr.branchId) return true;
         break;
       case 'SELF':
         if (ctx.ownerId && ctx.ownerId === user.id) return true;
         break;
-      case 'PUBLIC':
-        return true;
     }
   }
   return false;

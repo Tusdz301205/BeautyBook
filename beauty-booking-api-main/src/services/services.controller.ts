@@ -27,6 +27,7 @@ import {
   assertBusinessAccess,
   resolveBranchIdsForUser,
   resolveBusinessIdsForUser,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -51,10 +52,10 @@ export class ServicesController {
   ) {}
 
   private async accessibleBranchIds(user: AuthUser): Promise<string[]> {
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']));
     const resolved = await Promise.all(
       businessIds.map(async (businessId) => {
-        const ids = await resolveBranchIdsForUser(this.prisma, user, businessId);
+        const ids = await resolveBranchIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
         if (ids) return ids;
         const branches = await this.prisma.branch.findMany({
           where: { businessId, deletedAt: null },
@@ -131,11 +132,11 @@ export class ServicesController {
   }
 
   @Get('categories/manage')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('service_category:manage:tenant', 'branch_service_offering:status:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('service_category:manage:tenant')
   async getBusinessCategories(@CurrentUser() user: AuthUser) {
     return this.servicesService.getBusinessCategories(
-      await resolveBusinessIdsForUser(this.prisma, user),
+      await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER'])),
     );
   }
 
@@ -144,7 +145,7 @@ export class ServicesController {
   @RequirePermission('service_category:manage:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'ServiceCategory' })
   async createCategory(@Body() body: CreateServiceCategoryDto, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
     return this.servicesService.createCategory(body);
   }
 
@@ -159,26 +160,26 @@ export class ServicesController {
   }
 
   @Get('manage')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('business_service:update:tenant', 'branch_service_offering:status:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business_service:update:tenant')
   async findAllForManagement(
     @CurrentUser() user: AuthUser,
     @Query('branchId') branchId?: string,
   ) {
     if (branchId) {
-      await assertBranchAccess(this.prisma, user, branchId);
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
       return this.servicesService.findAll(branchId);
     }
     return this.servicesService.findAll(undefined, false, await this.accessibleBranchIds(user));
   }
 
   @Get('workspace/manage')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('business_service:update:tenant', 'branch_service_offering:status:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business_service:update:tenant')
   async workspace(@CurrentUser() user: AuthUser, @Query('branchId') branchId?: string) {
     const allowedBranchIds = await this.accessibleBranchIds(user);
     if (branchId && !allowedBranchIds.includes(branchId)) {
-      await assertBranchAccess(this.prisma, user, branchId);
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     }
     return this.servicesService.findWorkspace(allowedBranchIds, branchId);
   }
@@ -189,7 +190,7 @@ export class ServicesController {
   @Audited({ action: AuditAction.CREATE, entityType: 'BusinessService' })
   async createCatalog(@Body() body: CreateBusinessServiceDto, @CurrentUser() user: AuthUser) {
     const targets = [...new Set([body.branchId, ...(body.branchIds ?? [])])];
-    for (const branchId of targets) await assertBranchAccess(this.prisma, user, branchId);
+    for (const branchId of targets) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.servicesService.createCatalog(body);
   }
 
@@ -206,7 +207,7 @@ export class ServicesController {
       where: { id },
       select: { businessId: true },
     });
-    await assertBusinessAccess(this.prisma, user, catalog.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), catalog.businessId);
     return this.servicesService.updateCatalog(id, body);
   }
 
@@ -219,13 +220,13 @@ export class ServicesController {
       where: { id },
       select: { businessId: true },
     });
-    await assertBusinessAccess(this.prisma, user, catalog.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), catalog.businessId);
     return this.servicesService.archiveCatalog(id);
   }
 
   @Post('catalog/:id/branches/:branchId/:action')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch_service_offering:status:tenant', 'branch_service_offering:status:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:status:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOffering' })
   async setBranchAvailability(
     @Param('id') id: string,
@@ -236,7 +237,7 @@ export class ServicesController {
     if (!['apply', 'pause', 'reactivate'].includes(action)) {
       throw new BadRequestException('Action phải là apply, pause hoặc reactivate');
     }
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.servicesService.setBranchAvailability(
       id,
       branchId,
@@ -245,8 +246,8 @@ export class ServicesController {
   }
 
   @Patch('offerings/:id/status')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch_service_offering:status:tenant', 'branch_service_offering:status:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:status:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOfferingStatus' })
   async updateOfferingStatus(
     @Param('id') id: string,
@@ -257,7 +258,7 @@ export class ServicesController {
       where: { id },
       select: { branchId: true },
     });
-    await assertBranchAccess(this.prisma, user, offering.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.updateOfferingStatus(id, body);
   }
 
@@ -274,7 +275,7 @@ export class ServicesController {
       where: { id },
       select: { branch: { select: { businessId: true } } },
     });
-    await assertBusinessAccess(this.prisma, user, offering.branch.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branch.businessId);
     return this.servicesService.updateOfferingPricing(id, body);
   }
 
@@ -301,7 +302,7 @@ export class ServicesController {
     @CurrentUser() user: AuthUser,
   ) {
     const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, offering.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.createVariant(id, body);
   }
 
@@ -319,7 +320,7 @@ export class ServicesController {
       select: { serviceId: true },
     });
     const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id: variant.serviceId }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, offering.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.updateVariant(variantId, body);
   }
 
@@ -333,7 +334,7 @@ export class ServicesController {
     @CurrentUser() user: AuthUser,
   ) {
     const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, offering.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.addDependency(id, body.requiredServiceId, body.dependencyType);
   }
 
@@ -347,7 +348,7 @@ export class ServicesController {
     @CurrentUser() user: AuthUser,
   ) {
     const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
-    await assertBranchAccess(this.prisma, user, offering.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.createPriceRule(id, body);
   }
 
@@ -363,7 +364,7 @@ export class ServicesController {
   @RequirePermission('business_service:create:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'BranchServiceOffering' })
   async create(@Body() body: CreateServiceDto, @CurrentUser() user: AuthUser) {
-    await assertBranchAccess(this.prisma, user, body.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
     return this.servicesService.create(body);
   }
 
@@ -381,7 +382,7 @@ export class ServicesController {
       where: { id },
       select: { branch: { select: { businessId: true } } },
     });
-    await assertBusinessAccess(this.prisma, user, offering.branch.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branch.businessId);
     if (body.price !== undefined || body.durationMinutes !== undefined) {
       await this.servicesService.updateOfferingPricing(id, body);
     }
@@ -400,7 +401,7 @@ export class ServicesController {
       where: { id },
       select: { branch: { select: { businessId: true } } },
     });
-    await assertBusinessAccess(this.prisma, user, offering.branch.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branch.businessId);
     return this.servicesService.softDelete(id);
   }
 }

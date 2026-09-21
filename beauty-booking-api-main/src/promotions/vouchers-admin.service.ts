@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { ALL_TENANTS, assertBusinessAccess, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
+import { ALL_TENANTS, assertBusinessAccess, resolveBusinessIdsForUser, restrictToRoles } from '../common/utils/multi-tenancy';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 
@@ -71,7 +71,7 @@ export class VouchersAdminService {
   async findAll(user: AuthUser, filters?: { status?: string }) {
     const where: any = { deletedAt: null };
     if (filters?.status) where.status = filters.status;
-    const allowedIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const allowedIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     if (!allowedIds.includes(ALL_TENANTS)) where.businessId = { in: allowedIds };
 
     const vouchers = await this.prisma.voucher.findMany({
@@ -160,7 +160,7 @@ export class VouchersAdminService {
         (data.discountType === 'PERCENTAGE' && data.discountValue > 100)) {
       throw new BadRequestException('Giá trị giảm và số lượng voucher không hợp lệ');
     }
-    if (businessId) await assertBusinessAccess(this.prisma, user, businessId);
+    if (businessId) await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId);
     const code = data.code.trim().toUpperCase();
     // Check unique code
     const existing = await this.prisma.voucher.findUnique({
@@ -329,14 +329,10 @@ export class VouchersAdminService {
       throw new BadRequestException('Voucher không còn hoạt động');
     }
     if (voucher.businessId) {
-      const branchIds = user.roles.includes('BRANCH_MANAGER')
-        ? (user.scopes ?? []).map((scope) => scope.branchId).filter((id): id is string => Boolean(id))
-        : null;
       const related = await this.prisma.booking.findFirst({
         where: {
           customerId,
           branch: { businessId: voucher.businessId },
-          ...(branchIds ? { branchId: { in: branchIds } } : {}),
           deletedAt: null,
         },
         select: { id: true },
@@ -441,10 +437,10 @@ export class VouchersAdminService {
       }
       return;
     }
-    const allowedIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const allowedIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     if (!voucher.businessId || voucher.createdByPlatform || !allowedIds.includes(voucher.businessId)) {
       throw new ForbiddenException('Không có quyền quản lý voucher này');
     }
-    await assertBusinessAccess(this.prisma, user, voucher.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), voucher.businessId);
   }
 }

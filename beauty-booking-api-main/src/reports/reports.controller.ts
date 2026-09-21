@@ -11,6 +11,7 @@ import { isPlatformRole } from '../common/utils/scope-helpers';
 import {
   assertBranchAccess,
   resolveBusinessIdsForUser,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 
 @Controller('reports')
@@ -22,21 +23,19 @@ export class ReportsController {
   ) {}
 
   @Get('overview')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
   @RequirePermission(
     'report:overview:platform',
     'report:overview:tenant',
-    'report:overview:branch',
   )
   async getDashboardOverview(@CurrentUser() user: AuthUser) {
     return this.reportsService.getDashboardOverview(await this.scopeFor(user));
   }
 
   @Get('owner-dashboard')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER')
   @RequirePermission(
     'report:overview:tenant',
-    'report:overview:branch',
     'report:overview:platform',
   )
   async getOwnerDashboard(
@@ -51,7 +50,7 @@ export class ReportsController {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
       throw new BadRequestException('Khoảng ngày không hợp lệ');
     }
-    if (branchId) await assertBranchAccess(this.prisma, user, branchId);
+    if (branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), branchId);
     return this.reportsService.getOwnerDashboard({
       scope: await this.scopeFor(user),
       branchId,
@@ -74,7 +73,7 @@ export class ReportsController {
   }
 
   @Get('financial-summary')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
   @RequirePermission('report:revenue:platform', 'report:revenue:tenant', 'report:revenue:branch')
   async getFinancialSummary(
     @CurrentUser() user: AuthUser,
@@ -83,7 +82,7 @@ export class ReportsController {
     @Query('branchId') branchId?: string,
   ) {
     if (!from || !to) throw new BadRequestException('from và to là bắt buộc');
-    if (branchId) await assertBranchAccess(this.prisma, user, branchId);
+    if (branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), branchId);
     const scope = await this.scopeFor(user);
     return this.reportsService.getFinancialSummary(
       branchId ? { ...scope, branchIds: [branchId] } : scope,
@@ -93,15 +92,15 @@ export class ReportsController {
   }
 
   @Get('categories')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('report:overview:platform', 'report:overview:tenant', 'report:overview:branch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
+  @RequirePermission('report:overview:platform', 'report:overview:tenant')
   async getCategoryStats(@CurrentUser() user: AuthUser) {
     return this.reportsService.getCategoryStats(await this.scopeFor(user));
   }
 
   @Get('services')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('report:overview:platform', 'report:overview:tenant', 'report:overview:branch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
+  @RequirePermission('report:overview:platform', 'report:overview:tenant')
   async getServiceStats(@CurrentUser() user: AuthUser) {
     return this.reportsService.getServiceStats(await this.scopeFor(user));
   }
@@ -123,8 +122,8 @@ export class ReportsController {
   }
 
   @Get('staff-performance')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('report:overview:platform', 'report:overview:tenant', 'report:overview:branch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
+  @RequirePermission('report:overview:platform', 'report:overview:tenant')
   async getStaffPerformance(@CurrentUser() user: AuthUser) {
     return this.reportsService.getStaffPerformance(await this.scopeFor(user));
   }
@@ -132,18 +131,7 @@ export class ReportsController {
   private async scopeFor(user: AuthUser): Promise<ReportScope> {
     if (isPlatformRole(user)) return {};
 
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
-    const branchIds = [...new Set(
-      (user.scopes ?? [])
-        .filter((scope) =>
-          !scope.expiresAt || new Date(scope.expiresAt).getTime() > Date.now(),
-        )
-        .map((scope) => scope.branchId)
-        .filter((branchId): branchId is string => !!branchId),
-    )];
-
-    return branchIds.length > 0
-      ? { businessIds, branchIds }
-      : { businessIds };
+    const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']));
+    return { businessIds };
   }
 }

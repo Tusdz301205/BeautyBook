@@ -7,6 +7,8 @@ datasource db {
 }
 
 model User {
+  recordedBookingViolations BookingViolationEvent[] @relation("BookingViolationActor")
+  voidedBookingViolations BookingViolationEvent[] @relation("BookingViolationVoider")
   id                       String                       @id @default(uuid())
   email                    String                       @unique
   phone                    String?                      @unique
@@ -106,18 +108,18 @@ model UserSession {
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
-  @@index([userId, workspace, businessId, branchId, revokedAt])
+  @@index([userId, workspace, businessId, branchId, revokedAt], map: "user_sessions_user_id_workspace_business_id_branch_id_revoked_i")
   @@index([expiresAt])
   @@map("user_sessions")
 }
 
 model PlatformSetting {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key       String   @unique
   value     Json
-  updatedBy String?  @map("updated_by")
+  updatedBy String?  @map("updated_by") @db.Uuid
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("platform_settings")
 }
@@ -137,7 +139,7 @@ model StaffInvitation {
   acceptedBy     String?          @map("accepted_by")
   revokedAt      DateTime?        @map("revoked_at")
   createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
   staffProfile   StaffProfile?    @relation(fields: [staffProfileId], references: [id], onDelete: Restrict)
 
   @@index([email, status])
@@ -232,6 +234,8 @@ model UserRole {
 }
 
 model CustomerProfile {
+  bookingPolicies CustomerBookingPolicy[]
+  bookingViolations BookingViolationEvent[]
   id                      String                      @id @default(uuid())
   userId                  String                      @unique @map("user_id")
   address                 String?
@@ -239,16 +243,12 @@ model CustomerProfile {
   createdAt               DateTime                    @default(now()) @map("created_at")
   updatedAt               DateTime                    @updatedAt @map("updated_at")
   deletedAt               DateTime?                   @map("deleted_at")
-  healthRecords           BookingHealthRecord[]
   bookings                Booking[]
   comments                BusinessComment[]
   user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
   customerVouchers        CustomerVoucher[]
   recurringPlans          RecurringBookingPlan[]
   reviews                 Review[]
-  consents                SensitiveConsent[]
-  consultationSubmissions ConsultationSubmission[]
-  consentEvents           ConsentEvent[]
   dataSubjectRequests     DataSubjectRequest[]
   marketingPreference     MarketingPreference?
   privacyExportPackages   PrivacyExportPackage[]
@@ -374,6 +374,8 @@ model District {
 }
 
 model Business {
+  customerBookingPolicies CustomerBookingPolicy[]
+  bookingViolations BookingViolationEvent[]
   id                        String                       @id @default(uuid())
   ownerId                   String                       @map("owner_id")
   name                      String
@@ -415,11 +417,6 @@ model Business {
   reviewEvents              BusinessReviewEvent[]
   documents                 BusinessDocument[]
   combos                    Combo[]
-  consultationTemplates     ConsultationFormTemplate[]
-  consultationSubmissions   ConsultationSubmission[]
-  consultationConsentEvents ConsentEvent[]
-  sensitiveAccessEvents     SensitiveDataAccessEvent[]
-  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
   paymentPolicies           PaymentPolicy[]
   pricingSnapshots          PricingSnapshot[]
   paymentPolicySnapshots    PaymentPolicySnapshot[]
@@ -492,7 +489,7 @@ model Branch {
   images                    BranchImage[]
   workingHours              BranchWorkingHour[]
   business                  Business                     @relation(fields: [businessId], references: [id])
-  district                  District?                    @relation(fields: [districtId], references: [id])
+  district                  District?                    @relation(fields: [districtId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   combos                    Combo[]
   promotionLinks            PromotionBranch[]
   recurringPlans            RecurringBookingPlan[]
@@ -503,11 +500,6 @@ model Branch {
   holidays                  BranchHoliday[]
   specialDays               SpecialWorkingDay[]
   trustActions              TrustAction[]
-  consultationTemplates     ConsultationFormTemplate[]
-  consultationSubmissions   ConsultationSubmission[]
-  consultationConsentEvents ConsentEvent[]
-  sensitiveAccessEvents     SensitiveDataAccessEvent[]
-  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
   onboardingProgress        BranchOnboardingProgress?
   bookingPolicy             BranchBookingPolicy?
   documents                 BranchDocument[]
@@ -633,6 +625,7 @@ model SpecialWorkingDay {
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   @@unique([branchId, date])
+  @@index([branchId, date], map: "special_working_days_branch_id_date_idx")
   @@map("special_working_days")
 }
 
@@ -674,7 +667,7 @@ model MediaFile {
   entityId                 String?                   @map("entity_id")
   visibility               MediaVisibility           @default(PUBLIC)
   createdAt                DateTime                  @default(now()) @map("created_at")
-  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  updatedAt                DateTime                  @default(now()) @updatedAt @map("updated_at")
   branchImages             BranchImage[]
   businessImages           BusinessImage[]
   businessLogos            Business[]                @relation("BusinessLogo")
@@ -793,10 +786,10 @@ model CanonicalService {
   synonyms               String[]               @default([])
   status                 CanonicalServiceStatus @default(ACTIVE)
   createdAt              DateTime               @default(now()) @map("created_at")
-  updatedAt              DateTime               @updatedAt @map("updated_at")
+  updatedAt              DateTime               @default(now()) @updatedAt @map("updated_at")
   parent                 CanonicalService?      @relation("CanonicalTree", fields: [parentId], references: [id])
   children               CanonicalService[]     @relation("CanonicalTree")
-  replacement            CanonicalService?      @relation("CanonicalReplacement", fields: [replacementCanonicalId], references: [id])
+  replacement            CanonicalService?      @relation("CanonicalReplacement", fields: [replacementCanonicalId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   replacedCanonicals     CanonicalService[]     @relation("CanonicalReplacement")
   businessServices       BusinessService[]
   bookingServices        BookingService[]
@@ -860,9 +853,6 @@ model BranchServiceOffering {
   businessService           BusinessService                 @relation(fields: [businessServiceId], references: [id])
   category                  ServiceCategory                 @relation(fields: [categoryId], references: [id])
   staffServices             StaffService[]
-  consultationRequirement   ServiceConsultationRequirement?
-  consultationSubmissions   ConsultationSubmission[]
-  consultationConsentEvents ConsentEvent[]
   paymentPolicies           PaymentPolicy[]
   savedByCustomers          CustomerSavedService[]
   voucherScopes             VoucherServiceScope[]
@@ -1022,6 +1012,7 @@ model PromotionCombo {
 }
 
 model Booking {
+  violationEvents BookingViolationEvent[]
   id                        String                      @id @default(uuid())
   customerId                String                      @map("customer_id")
   branchId                  String                      @map("branch_id")
@@ -1048,7 +1039,6 @@ model Booking {
   voucherId                 String?                     @map("voucher_id")
   sensitiveDataConsent      Boolean                     @default(false) @map("sensitive_data_consent")
   changeRequests            AppointmentChangeRequest[]
-  healthRecords             BookingHealthRecord[]
   bookingServices           BookingService[]
   statusHistory             BookingStatusHistory[]
   branch                    Branch                      @relation(fields: [branchId], references: [id])
@@ -1061,10 +1051,6 @@ model Booking {
   payments                  Payment[]
   review                    Review?
   contact                   BookingContact?
-  consultationSubmissions   ConsultationSubmission[]
-  consultationConsentEvents ConsentEvent[]
-  sensitiveAccessEvents     SensitiveDataAccessEvent[]
-  sensitiveBreakGlassGrants SensitiveBreakGlassGrant[]
   pricingSnapshot           PricingSnapshot?
   paymentPolicySnapshot     PaymentPolicySnapshot?
   paymentIntents            PaymentIntent[]
@@ -1153,11 +1139,11 @@ model RecurringBookingPlan {
   customerId             String              @map("customer_id")
   branchId               String              @map("branch_id")
   frequency              RecurrenceFrequency
-  serviceIds             Json                @map("service_ids")
+  serviceIds             Json                @default("[]") @map("service_ids")
   comboId                String?             @map("combo_id")
   staffId                String?             @map("staff_id")
   staffMode              RecurringStaffMode  @default(ANY_AVAILABLE) @map("staff_mode")
-  preferredTime          String              @map("preferred_time")
+  preferredTime          String              @default("09:00") @map("preferred_time")
   occurrenceCount        Int                 @default(1) @map("occurrence_count")
   createdOccurrenceCount Int                 @default(0) @map("created_occurrence_count")
   failureReason          String?             @map("failure_reason")
@@ -1832,6 +1818,7 @@ model CustomerVoucher {
 }
 
 model AppointmentChangeRequest {
+  violationEvent BookingViolationEvent?
   id                String              @id @default(uuid())
   bookingId         String              @map("booking_id")
   requestedBy       String              @map("requested_by")
@@ -1856,6 +1843,62 @@ model AppointmentChangeRequest {
   @@index([bookingId])
   @@index([status])
   @@map("appointment_change_requests")
+}
+
+enum BookingViolationKind {
+  LATE_CANCELLATION
+  NO_SHOW
+}
+
+// Event history is authoritative. Never backfill legacy statuses without evidence.
+model BookingViolationEvent {
+  triggeredPolicy CustomerBookingPolicy?
+  id                 String @id @default(uuid())
+  bookingId          String @map("booking_id")
+  customerId         String @map("customer_id")
+  businessId         String @map("business_id")
+  sourceRequestId    String? @unique @map("source_request_id")
+  kind               BookingViolationKind
+  occurredAt         DateTime @map("occurred_at")
+  appointmentStartAt DateTime @map("appointment_start_at")
+  recordedById       String @map("recorded_by_id")
+  policyVersion      String @map("policy_version")
+  createdAt          DateTime @default(now()) @map("created_at")
+  voidedAt           DateTime? @map("voided_at")
+  voidedById         String? @map("voided_by_id")
+  voidReason         String? @map("void_reason")
+  booking            Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  customer           CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sourceRequest      AppointmentChangeRequest? @relation(fields: [sourceRequestId], references: [id], onDelete: Restrict)
+  recordedBy         User @relation("BookingViolationActor", fields: [recordedById], references: [id], onDelete: Restrict)
+  voidedBy           User? @relation("BookingViolationVoider", fields: [voidedById], references: [id], onDelete: Restrict)
+
+  // One active event per booking is enforced by a partial unique SQL index.
+  @@index([bookingId])
+  @@index([customerId, businessId, occurredAt], map: "booking_violation_events_customer_id_business_id_occurred_at_id")
+  @@map("booking_violation_events")
+}
+
+/// One row per customer/business. Revision is a transaction fence, never a score.
+/// Null dates mean no restriction; expired dates are retained, not restarted on GET.
+model CustomerBookingPolicy {
+  id String @id @default(uuid())
+  customerId String @map("customer_id")
+  businessId String @map("business_id")
+  revision Int @default(0)
+  startsAt DateTime? @map("starts_at")
+  endsAt DateTime? @map("ends_at")
+  triggeredByViolationEventId String? @unique @map("triggered_by_violation_event_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  customer CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  triggeredByViolationEvent BookingViolationEvent? @relation(fields: [triggeredByViolationEventId], references: [id], onDelete: Restrict)
+
+  @@unique([customerId, businessId])
+  @@index([businessId, endsAt])
+  @@map("customer_booking_policies")
 }
 
 model SalonTrustSnapshot {
@@ -1922,7 +1965,7 @@ model BusinessDocument {
   status         BusinessDocumentStatus    @default(DRAFT)
   currentVersion Int                       @default(1) @map("current_version")
   createdAt      DateTime                  @default(now()) @map("created_at")
-  updatedAt      DateTime                  @updatedAt @map("updated_at")
+  updatedAt      DateTime                  @default(now()) @updatedAt @map("updated_at")
   business       Business                  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   versions       BusinessDocumentVersion[]
   reviewEvents   DocumentReviewEvent[]
@@ -2054,287 +2097,17 @@ model ReviewReport {
   @@map("review_reports")
 }
 
-model SensitiveConsent {
-  id            String                @id @default(uuid())
-  customerId    String                @map("customer_id")
-  scope         ConsentScope
-  granted       Boolean               @default(true)
-  grantedAt     DateTime              @default(now()) @map("granted_at")
-  revokedAt     DateTime?             @map("revoked_at")
-  policyVersion String                @default("pdpa-vn-91/2025") @map("policy_version")
-  ip            String?
-  healthRecords BookingHealthRecord[]
-  customer      CustomerProfile       @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  @@unique([customerId, scope])
-  @@index([customerId])
-  @@map("sensitive_consents")
-}
 
-model BookingHealthRecord {
-  id             String             @id @default(uuid())
-  bookingId      String             @map("booking_id")
-  customerId     String             @map("customer_id")
-  consentId      String             @map("consent_id")
-  field          SensitiveDataField
-  /// free-form JSON payload — never returned verbatim to non-privileged callers
-  payload        Json
-  createdAt      DateTime           @default(now()) @map("created_at")
-  /// who last read this record (last access log row)
-  lastAccessedAt DateTime?          @map("last_accessed_at")
-  lastAccessedBy String?            @map("last_accessed_by")
-  booking        Booking            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  consent        SensitiveConsent   @relation(fields: [consentId], references: [id])
-  customer       CustomerProfile    @relation(fields: [customerId], references: [id])
 
-  @@unique([bookingId, field])
-  @@index([customerId])
-  @@index([consentId])
-  @@map("booking_health_records")
-}
 
-model HealthRecordAccessLog {
-  id         String   @id @default(uuid())
-  actorId    String?  @map("actor_id")
-  actorRole  String?  @map("actor_role")
-  recordId   String?  @map("record_id")
-  bookingId  String?  @map("booking_id")
-  customerId String?  @map("customer_id")
-  businessId String?  @map("business_id")
-  branchId   String?  @map("branch_id")
-  consentId  String?  @map("consent_id")
-  purpose    String
-  action     String
-  result     String
-  ipAddress  String?  @map("ip_address")
-  userAgent  String?  @map("user_agent")
-  createdAt  DateTime @default(now()) @map("created_at")
 
-  @@index([recordId, createdAt])
-  @@index([actorId, createdAt])
-  @@index([customerId, createdAt])
-  @@index([businessId, branchId, createdAt])
-  @@map("health_record_access_logs")
-}
 
-model ConsultationFormTemplate {
-  id           String                           @id @default(uuid())
-  businessId   String                           @map("business_id")
-  branchId     String?                          @map("branch_id")
-  name         String
-  description  String?
-  status       ConsultationTemplateStatus       @default(DRAFT)
-  createdBy    String                           @map("created_by")
-  createdAt    DateTime                         @default(now()) @map("created_at")
-  updatedAt    DateTime                         @updatedAt @map("updated_at")
-  versions     ConsultationFormVersion[]
-  requirements ServiceConsultationRequirement[]
-  business     Business                         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  branch       Branch?                          @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  @@index([businessId, status])
-  @@index([branchId, status])
-  @@map("consultation_form_templates")
-}
 
-model ConsultationFormVersion {
-  id                   String                   @id @default(uuid())
-  templateId           String                   @map("template_id")
-  version              Int
-  noticeVersion        String                   @map("notice_version")
-  noticeHash           String                   @map("notice_hash")
-  noticeContent        String                   @map("notice_content")
-  purpose              String
-  recipientDescription String                   @map("recipient_description")
-  retentionDays        Int                      @default(365) @map("retention_days")
-  publishedAt          DateTime?                @map("published_at")
-  createdAt            DateTime                 @default(now()) @map("created_at")
-  template             ConsultationFormTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  fields               ConsultationFormField[]
-  submissions          ConsultationSubmission[]
 
-  @@unique([templateId, version])
-  @@index([templateId, publishedAt])
-  @@map("consultation_form_versions")
-}
 
-model ConsultationFormField {
-  id            String                  @id @default(uuid())
-  versionId     String                  @map("version_id")
-  fieldKey      String                  @map("field_key")
-  label         String
-  description   String?
-  fieldType     ConsultationFieldType   @map("field_type")
-  dataCategory  SensitiveDataField?     @map("data_category")
-  required      Boolean                 @default(false)
-  options       Json?
-  sortOrder     Int                     @default(0) @map("sort_order")
-  maxLength     Int?                    @map("max_length")
-  version       ConsultationFormVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  answers       SensitiveAnswer[]
-  consentEvents ConsentEvent[]
 
-  @@unique([versionId, fieldKey])
-  @@index([versionId, sortOrder])
-  @@map("consultation_form_fields")
-}
-
-model ServiceConsultationRequirement {
-  id         String                       @id @default(uuid())
-  serviceId  String                       @unique @map("service_id")
-  templateId String                       @map("template_id")
-  required   Boolean                      @default(true)
-  timing     ConsultationCompletionTiming @default(BEFORE_APPOINTMENT)
-  createdAt  DateTime                     @default(now()) @map("created_at")
-  updatedAt  DateTime                     @updatedAt @map("updated_at")
-  template   ConsultationFormTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  service    BranchServiceOffering        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-
-  @@index([templateId])
-  @@map("service_consultation_requirements")
-}
-
-model ConsultationSubmission {
-  id              String                       @id @default(uuid())
-  customerId      String                       @map("customer_id")
-  businessId      String                       @map("business_id")
-  branchId        String                       @map("branch_id")
-  bookingId       String                       @map("booking_id")
-  serviceId       String                       @map("service_id")
-  versionId       String                       @map("version_id")
-  status          ConsultationSubmissionStatus @default(DRAFT)
-  requiresReview  Boolean                      @default(false) @map("requires_review")
-  submittedAt     DateTime?                    @map("submitted_at")
-  retentionUntil  DateTime                     @map("retention_until")
-  legalHoldReason String?                      @map("legal_hold_reason")
-  createdAt       DateTime                     @default(now()) @map("created_at")
-  updatedAt       DateTime                     @updatedAt @map("updated_at")
-  version         ConsultationFormVersion      @relation(fields: [versionId], references: [id])
-  answers         SensitiveAnswer[]
-  consentEvents   ConsentEvent[]
-  accessEvents    SensitiveDataAccessEvent[]
-  customer        CustomerProfile              @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  business        Business                     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch          Branch                       @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  booking         Booking                      @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  service         BranchServiceOffering        @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-
-  @@unique([bookingId, serviceId])
-  @@index([customerId, createdAt])
-  @@index([businessId, branchId, status])
-  @@index([retentionUntil, legalHoldReason])
-  @@map("consultation_submissions")
-}
-
-model SensitiveAnswer {
-  id                String                     @id @default(uuid())
-  submissionId      String                     @map("submission_id")
-  fieldId           String                     @map("field_id")
-  dataCategory      SensitiveDataField?        @map("data_category")
-  valueType         SensitiveAnswerValueType   @map("value_type")
-  valueCiphertext   String                     @map("value_ciphertext")
-  encryptionIv      String                     @map("encryption_iv")
-  authenticationTag String                     @map("authentication_tag")
-  keyVersion        String                     @map("key_version")
-  createdAt         DateTime                   @default(now()) @map("created_at")
-  updatedAt         DateTime                   @updatedAt @map("updated_at")
-  submission        ConsultationSubmission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  field             ConsultationFormField      @relation(fields: [fieldId], references: [id])
-  accessEvents      SensitiveDataAccessEvent[]
-
-  @@unique([submissionId, fieldId])
-  @@index([dataCategory])
-  @@map("sensitive_answers")
-}
-
-model ConsentEvent {
-  id              String                 @id @default(uuid())
-  customerId      String                 @map("customer_id")
-  businessId      String                 @map("business_id")
-  branchId        String                 @map("branch_id")
-  bookingId       String                 @map("booking_id")
-  serviceId       String                 @map("service_id")
-  submissionId    String                 @map("submission_id")
-  fieldId         String?                @map("field_id")
-  dataCategory    SensitiveDataField?    @map("data_category")
-  action          ConsentEventAction
-  purpose         String
-  recipientType   ConsentRecipientType   @map("recipient_type")
-  recipientId     String?                @map("recipient_id")
-  assignedStaffId String?                @map("assigned_staff_id")
-  noticeVersion   String                 @map("notice_version")
-  noticeHash      String                 @map("notice_hash")
-  expiresAt       DateTime               @map("expires_at")
-  revokeOfEventId String?                @unique @map("revoke_of_event_id")
-  ipAddress       String?                @map("ip_address")
-  userAgent       String?                @map("user_agent")
-  createdAt       DateTime               @default(now()) @map("created_at")
-  submission      ConsultationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  field           ConsultationFormField? @relation(fields: [fieldId], references: [id])
-  revokeOf        ConsentEvent?          @relation("ConsentEventRevocation", fields: [revokeOfEventId], references: [id], onDelete: SetNull)
-  revokedBy       ConsentEvent?          @relation("ConsentEventRevocation")
-  customer        CustomerProfile        @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  business        Business               @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch          Branch                 @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  booking         Booking                @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  service         BranchServiceOffering  @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-
-  @@index([customerId, createdAt])
-  @@index([bookingId, serviceId, createdAt])
-  @@index([businessId, branchId, createdAt])
-  @@index([submissionId, action])
-  @@map("consent_events")
-}
-
-model SensitiveDataAccessEvent {
-  id                String                    @id @default(uuid())
-  submissionId      String                    @map("submission_id")
-  answerId          String?                   @map("answer_id")
-  actorId           String                    @map("actor_id")
-  actorRole         String                    @map("actor_role")
-  businessId        String                    @map("business_id")
-  branchId          String                    @map("branch_id")
-  bookingId         String                    @map("booking_id")
-  purpose           String
-  result            SensitiveAccessResult
-  breakGlassGrantId String?                   @map("break_glass_grant_id")
-  ipAddress         String?                   @map("ip_address")
-  userAgent         String?                   @map("user_agent")
-  createdAt         DateTime                  @default(now()) @map("created_at")
-  submission        ConsultationSubmission    @relation(fields: [submissionId], references: [id], onDelete: Restrict)
-  answer            SensitiveAnswer?          @relation(fields: [answerId], references: [id], onDelete: SetNull)
-  business          Business                  @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch            Branch                    @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  booking           Booking                   @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  breakGlassGrant   SensitiveBreakGlassGrant? @relation(fields: [breakGlassGrantId], references: [id], onDelete: SetNull)
-
-  @@index([submissionId, createdAt])
-  @@index([actorId, createdAt])
-  @@index([businessId, branchId, createdAt])
-  @@map("sensitive_data_access_events")
-}
-
-model SensitiveBreakGlassGrant {
-  id           String                     @id @default(uuid())
-  actorId      String                     @map("actor_id")
-  businessId   String                     @map("business_id")
-  branchId     String                     @map("branch_id")
-  bookingId    String                     @map("booking_id")
-  reason       String
-  explanation  String
-  grantedBy    String?                    @map("granted_by")
-  expiresAt    DateTime                   @map("expires_at")
-  revokedAt    DateTime?                  @map("revoked_at")
-  createdAt    DateTime                   @default(now()) @map("created_at")
-  business     Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  branch       Branch                     @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  booking      Booking                    @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  accessEvents SensitiveDataAccessEvent[]
-
-  @@index([actorId, bookingId, expiresAt])
-  @@index([businessId, branchId, createdAt])
-  @@map("sensitive_break_glass_grants")
-}
 
 model DataSubjectRequest {
   id                 String                   @id @default(uuid())
@@ -3260,7 +3033,6 @@ enum BookingLifecycleStatus {
 enum RoleCode {
   PLATFORM_ADMIN
   BUSINESS_OWNER
-  BRANCH_MANAGER
   RECEPTIONIST
   STAFF
   CUSTOMER
@@ -3689,7 +3461,6 @@ enum TrustActionType {
 
 enum SalonMemberRole {
   OWNER
-  MANAGER
   RECEPTIONIST
 }
 
@@ -3729,63 +3500,14 @@ enum VoucherScope {
   CAMPAIGN
 }
 
-enum ConsentScope {
-  SKIN_CONDITION
-  ALLERGY
-  MEDICATION
-  PREGNANCY
-  GENERAL_HEALTH
-}
 
-enum ConsultationTemplateStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
 
-enum ConsultationFieldType {
-  TEXT
-  TEXTAREA
-  BOOLEAN
-  SINGLE_SELECT
-  MULTI_SELECT
-  DATE
-}
 
-enum ConsultationCompletionTiming {
-  BEFORE_APPOINTMENT
-  AT_CHECK_IN
-  BEFORE_SERVICE
-}
 
-enum ConsultationSubmissionStatus {
-  DRAFT
-  SUBMITTED
-  REVOKED
-}
 
-enum SensitiveAnswerValueType {
-  TEXT
-  BOOLEAN
-  STRING_LIST
-  DATE
-}
 
-enum ConsentEventAction {
-  GRANTED
-  REVOKED
-}
 
-enum ConsentRecipientType {
-  ASSIGNED_STAFF
-  BRANCH_SPECIALIST
-}
 
-enum SensitiveAccessResult {
-  GRANTED
-  DENIED
-  REDACTED
-}
 
 enum DataSubjectRequestType {
   EXPORT
@@ -3802,13 +3524,4 @@ enum DataSubjectRequestStatus {
   IN_PROGRESS
   COMPLETED
   REJECTED
-}
-
-enum SensitiveDataField {
-  SKIN_CONDITION
-  ALLERGY
-  MEDICATION
-  PREGNANCY
-  GENERAL_HEALTH
-  OTHER
 }

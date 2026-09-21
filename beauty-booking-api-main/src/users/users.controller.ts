@@ -30,14 +30,14 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me/profile')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
   @RequirePermission('user:read:self')
   me(@CurrentUser() user: AuthUser) {
     return this.usersService.getSelf(user.id);
   }
 
   @Patch('me/profile')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
   @RequirePermission('user:update:self')
   updateMe(
     @CurrentUser() user: AuthUser,
@@ -95,7 +95,6 @@ export class UsersController {
     
     
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'STAFF',
     'CUSTOMER',

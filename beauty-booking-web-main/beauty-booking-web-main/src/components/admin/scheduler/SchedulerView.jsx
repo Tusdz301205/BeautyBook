@@ -4,12 +4,13 @@ import { addDays, addMonths, addWeeks, subDays, subMonths, subWeeks } from 'date
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, LayoutGrid, RefreshCw, Rows3, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
-import { bookingsApi } from '../../../api/apiClient';
+import { bookingsApi, refreshSession } from '../../../api/apiClient';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking, normalizeSchedulerResponse } from '../../../utils/bookingCalendar.adapter';
 import { toUserFacingRequestError } from '../../../utils/requestError';
 import { bindSchedulerSocketEvents } from '../../../utils/schedulerSocketEvents';
+import { bookingCapabilities } from '../../../utils/authScope';
 import {
   computeBookingStats,
   filterBookings,
@@ -69,7 +70,7 @@ export default function SchedulerView({
     ...(user?.roles || []),
     ...(user?.scopes || []).map((scope) => scope.code),
   ]), [user]);
-  const staffOnly = roleCodes.has('STAFF') && !['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].some((role) => roleCodes.has(role));
+  const staffOnly = roleCodes.has('STAFF') && !['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST'].some((role) => roleCodes.has(role));
 
   useEffect(() => {
     if (selectedDate) setCurrentDate(selectedDate);
@@ -154,8 +155,8 @@ export default function SchedulerView({
 
   useEffect(() => {
     if (!staffOnly || filters.staffId || staffList.length === 0) return;
-    const ownProfile = staffList.find((staff) => staff.userId === user.id) || staffList[0];
-    if (ownProfile) setFilters((current) => ({ ...current, staffId: ownProfile.id }));
+    const ownProfile = staffList.find((staff) => staff.userId === user.id);
+    setFilters((current) => ({ ...current, staffId: ownProfile?.id || '__none__' }));
   }, [filters.staffId, staffList, staffOnly, user]);
 
   useEffect(() => {
@@ -179,7 +180,14 @@ export default function SchedulerView({
       clearScopedData();
       setError('Phiên hoặc quyền truy cập lịch đã thay đổi. Vui lòng tải lại hoặc đăng nhập lại.');
     };
-    const unbind = bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed });
+    const authorizationChanged = async () => {
+      clearScopedData();
+      try {
+        const result = await refreshSession();
+        if (!useAuthStore.getState().setSession(result)) authFailed();
+      } catch { authFailed(); useAuthStore.getState().clearSession(); }
+    };
+    const unbind = bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed, authorizationChanged });
     return () => {
       unbind();
       socket.disconnect();
@@ -194,10 +202,18 @@ export default function SchedulerView({
     return [...services].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [bookings]);
 
-  const filteredBookings = useMemo(() => filterBookings(bookings, filters), [bookings, filters]);
+  const filteredBookings = useMemo(() => {
+    const ownIds = new Set(staffList.filter((staff) => staff.userId === user?.id).map((staff) => staff.id));
+    const visible = staffOnly ? bookings.filter((booking) => booking.services.some((item) => item.staffUserId === user?.id || ownIds.has(item.staffId))) : bookings;
+    return filterBookings(visible, filters);
+  }, [bookings, filters, staffList, staffOnly, user]);
   const stats = useMemo(() => computeBookingStats(filteredBookings), [filteredBookings]);
   const platformWorkspace = user?.workspace === 'PLATFORM' || roleCodes.has('PLATFORM_ADMIN');
-  const canUpdate = !platformWorkspace && !staffOnly && activeBranchIds.length === 1 && (can('booking:update:branch') || can('booking:update:tenant'));
+  const selectedBranch = branches.find((branch) => branch.id === activeBranchIds[0]);
+  const selectedRights = bookingCapabilities(user, { branchId: activeBranchIds[0], businessId: selectedBranch?.businessId });
+  const canMove = !platformWorkspace && activeBranchIds.length === 1 && selectedRights.canAssign
+    && (selectedRights.owner || can('booking:reschedule:branch', selectedRights.ctx));
+  const canResize = !platformWorkspace && activeBranchIds.length === 1 && selectedRights.owner && selectedRights.canUpdate;
 
   useEffect(() => {
     onStatsChange?.(stats, formatCalendarPeriod(viewMode, currentDate));
@@ -218,6 +234,7 @@ export default function SchedulerView({
   };
 
   const moveBooking = async (booking, startAt, endAt, staffId) => {
+    if (!canMove) return;
     const previous = bookings;
     setBookings((items) => items.map((item) => item.id === booking.id
       ? { ...item, startAt, endAt, primaryStaffId: staffId, primaryStaffName: staffList.find((staff) => staff.id === staffId)?.name }
@@ -233,6 +250,7 @@ export default function SchedulerView({
   };
 
   const resizeBooking = async (booking, endAt) => {
+    if (!canResize) return;
     const previous = bookings;
     setBookings((items) => items.map((item) => item.id === booking.id ? { ...item, endAt } : item));
     try {
@@ -289,7 +307,7 @@ export default function SchedulerView({
         {loading ? <CalendarLoadingSkeleton /> : error ? <CalendarErrorState error={error} onRetry={() => fetchData()} /> : (
           <>
             {filteredBookings.length === 0 && <div role="status" className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-center text-xs font-medium text-zinc-600">Không có lịch hẹn phù hợp; khung thời gian vẫn được giữ để bạn xem lịch trống.</div>}
-            {viewMode === 'day' && <SchedulerDayView currentDate={currentDate} staffList={staffList} bookings={filteredBookings} onBookingClick={setSelectedBooking} onMoveBooking={canUpdate ? moveBooking : undefined} onResizeBooking={canUpdate ? resizeBooking : undefined} />}
+            {viewMode === 'day' && <SchedulerDayView currentDate={currentDate} staffList={staffList} bookings={filteredBookings} onBookingClick={setSelectedBooking} onMoveBooking={canMove ? moveBooking : undefined} onResizeBooking={canResize ? resizeBooking : undefined} />}
             {viewMode === 'week' && <SchedulerWeekView currentDate={currentDate} bookings={filteredBookings} onBookingClick={setSelectedBooking} />}
             {viewMode === 'month' && <SchedulerMonthView currentDate={currentDate} bookings={filteredBookings} onDateClick={openDay} />}
           </>

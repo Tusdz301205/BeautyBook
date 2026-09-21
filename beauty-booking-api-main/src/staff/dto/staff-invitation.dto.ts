@@ -7,8 +7,8 @@ export class InviteStaffDto {
   @IsEmail()
   email!: string;
 
-  @IsIn(['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'])
-  roleCode!: 'BRANCH_MANAGER' | 'RECEPTIONIST' | 'STAFF';
+  @IsIn(['RECEPTIONIST', 'STAFF'])
+  roleCode!: 'RECEPTIONIST' | 'STAFF';
 
   @IsUUID()
   businessId!: string;

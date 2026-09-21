@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { CUSTOMER_CANCELLATION_HOURS } from '../../bookings/customer-cancellation-policy';
 
 // CancellationPolicy hour fields use PostgreSQL's signed 32-bit integer type.
 export const MAX_CANCELLATION_POLICY_HOURS = 2147483647;
@@ -9,8 +10,8 @@ export class UpdateCancellationPolicyDto {
   @ValidateIf((_object, value) => value !== undefined)
   @Transform(({ obj, key }) => obj[key])
   @IsInt()
-  @Min(0)
-  @Max(MAX_CANCELLATION_POLICY_HOURS)
+  @Min(CUSTOMER_CANCELLATION_HOURS)
+  @Max(CUSTOMER_CANCELLATION_HOURS)
   freeCancelHours?: number;
 
   @ValidateIf((_object, value) => value !== undefined)

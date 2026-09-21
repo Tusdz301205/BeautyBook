@@ -8,6 +8,7 @@ import { PublicShell } from '../../components/layout/PublicShell';
 import { HomeMedia } from '../../components/public/HomeMedia';
 import { getHomeMedia, homeMediaRatios } from '../../config/homeMedia';
 import { EmptyState, ErrorState, Skeleton } from '../../components/ui';
+import { CUSTOMER_ACCOUNT_REQUIRED } from '../../utils/authScope';
 
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
 const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
@@ -89,9 +90,9 @@ function ReviewList({ data }) {
   );
 }
 
-function ServiceDirectory({ services = [], savedIds = new Set(), onToggleSaved }) {
+function ServiceDirectory({ services = [], savedIds = new Set(), onToggleSaved, preview = false }) {
   if (!services.length) return <div className="bb-detail-empty"><Scissors size={21} /><p>Chưa có dịch vụ công khai đang nhận lịch.</p></div>;
-  return <div className="bb-detail-directory">{services.map((service) => <Link key={service.id} to={`/explore/services/${service.id}`}><div><span>{service.category?.name || 'Dịch vụ'}</span><h3>{service.name}</h3><p>{service.durationMinutes ? `${service.durationMinutes} phút` : 'Thời lượng đang cập nhật'}</p></div><strong>{money(service.price)}</strong><button type="button" aria-label={savedIds.has(service.id) ? `Bỏ lưu ${service.name}` : `Lưu ${service.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggleSaved?.(service.id); }}><Heart size={17} fill={savedIds.has(service.id) ? 'currentColor' : 'none'} /></button><ArrowRight size={17} aria-hidden="true" /></Link>)}</div>;
+  return <div className="bb-detail-directory">{services.map((service) => <Link key={service.id} to={`/explore/services/${service.id}`} aria-disabled={preview} onClick={preview ? (event) => event.preventDefault() : undefined}><div><span>{service.category?.name || 'Dịch vụ'}</span><h3>{service.name}</h3><p>{service.durationMinutes ? `${service.durationMinutes} phút` : 'Thời lượng đang cập nhật'}</p></div><strong>{money(service.price)}</strong><button type="button" disabled={preview || !onToggleSaved} aria-label={savedIds.has(service.id) ? `Bỏ lưu ${service.name}` : `Lưu ${service.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onToggleSaved?.(service.id); }}><Heart size={17} fill={savedIds.has(service.id) ? 'currentColor' : 'none'} /></button><ArrowRight size={17} aria-hidden="true" /></Link>)}</div>;
 }
 
 function StaffDirectory({ staff = [] }) {
@@ -99,10 +100,11 @@ function StaffDirectory({ staff = [] }) {
   return <div className="bb-detail-staff-grid">{staff.map((item) => { const specialties = item.specialties?.length ? item.specialties : item.staffServices?.map((entry) => entry.service?.name).filter(Boolean); return <Link key={item.id} to={`/explore/staff/${item.id}`} className="bb-detail-staff-card"><span className="bb-detail-staff-card__avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" loading="lazy" /> : <UserRound size={22} />}</span><span className="bb-detail-staff-card__copy"><small>{item.professionalTitle || 'Chuyên viên làm đẹp'}</small><strong>{item.fullName || 'Chuyên viên'}</strong><span>{specialties?.join(' · ') || 'Chuyên môn đang cập nhật'}</span>{item.ratingCount ? <span className="bb-detail-staff-card__rating"><Star size={14} fill="currentColor" /> {item.rating} · {item.ratingCount} đánh giá</span> : null}</span><ArrowRight size={17} aria-hidden="true" /></Link>; })}</div>;
 }
 
-export function PublicBranchDetail() {
+export function PublicBranchDetail({ preview = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const authenticated = useAuthStore((state) => state.isAuthenticated());
+  const customer = useAuthStore((state) => state.isCustomer());
   const [branch, setBranch] = useState(null);
   const [reviews, setReviews] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,31 +113,33 @@ export function PublicBranchDetail() {
   const load = async () => {
     setLoading(true); setError('');
     try {
-      const item = await branchesApi.getById(id);
+      const item = await (preview ? branchesApi.getPreview(id) : branchesApi.getById(id));
       if (!item) throw new Error('Không tìm thấy cơ sở đang hoạt động.');
       setBranch(item);
-      try { setReviews(await reviewsApi.getByBusiness(item.businessId)); } catch { setReviews(null); }
-      if (authenticated) {
+      setReviews({ data: item.recentReviews || [], summary: { averageRating: item.stats?.averageRating, totalReviews: item.stats?.totalReviews } });
+      if (!preview && authenticated && customer) {
         try { setSavedIds(new Set((await savedServicesApi.list()).map((saved) => saved.branchServiceOfferingId))); }
         catch { setSavedIds(new Set()); }
       }
     } catch (requestError) { setError(requestError.message || 'Không thể tải chi tiết cơ sở.'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [id, preview, authenticated, customer]);
   const toggleSaved = async (serviceId) => {
+    if (preview) return;
     if (!authenticated) { navigate('/login', { state: { from: `/explore/branches/${id}` } }); return; }
+    if (!customer) { toast.error(CUSTOMER_ACCOUNT_REQUIRED); return; }
     const wasSaved = savedIds.has(serviceId);
     setSavedIds((current) => { const next = new Set(current); if (wasSaved) next.delete(serviceId); else next.add(serviceId); return next; });
     try { if (wasSaved) await savedServicesApi.remove(serviceId); else await savedServicesApi.save(serviceId); toast.success(wasSaved ? 'Đã bỏ lưu dịch vụ' : 'Đã lưu dịch vụ'); }
     catch (requestError) { setSavedIds((current) => { const next = new Set(current); if (wasSaved) next.add(serviceId); else next.delete(serviceId); return next; }); toast.error(requestError.message); }
   };
   const address = branch ? [branch.addressLine, branch.district?.name, branch.district?.province?.name].filter(Boolean).join(', ') : '';
-  return <PublicShell><DetailState loading={loading} error={error} retry={load}>{branch ? <article className="bb-detail-document">
+  return <PublicShell preview={preview}><DetailState loading={loading} error={error} retry={load}>{branch ? <article className="bb-detail-document">
     <DetailHero type="cơ sở" eyebrow="Cơ sở làm đẹp" title={branch.name} description={branch.business?.description || 'Thông tin giới thiệu đang được cơ sở cập nhật.'} media={firstMedia(branch.images, getHomeMedia('details', 'branch'))} mediaAlt={`Không gian tại ${branch.name}`} facts={[{ label: 'Thương hiệu', value: branch.business?.name }, { label: 'Địa chỉ', value: address }]} bookingTo={`/book?branchId=${branch.id}`} bookingLabel="Đặt lịch tại cơ sở" />
     <BookingDock to={`/book?branchId=${branch.id}`} label="Chọn dịch vụ" title={branch.name} meta={address} />
     <Section index={1} eyebrow="Thông tin ghé thăm" title="Một địa chỉ, mọi thông tin cần thiết" intro="Giờ hoạt động được lấy trực tiếp từ hồ sơ cơ sở."><div className="bb-detail-address"><MapPin size={20} /><div><strong>{address || 'Địa chỉ đang cập nhật'}</strong><span>{branch.business?.name}</span></div></div><div className="bb-detail-hours">{branch.workingHours?.length ? branch.workingHours.map((row) => <div key={row.id || row.dayOfWeek}><strong>{days[row.dayOfWeek]}</strong><span>{row.isClosed ? 'Đóng cửa' : `${clock(row.openTime)} – ${clock(row.closeTime)}`}</span></div>) : <div className="bb-detail-empty"><Clock3 size={21} /><p>Giờ mở cửa đang được cập nhật.</p></div>}</div></Section>
-    <Section index={2} eyebrow="Danh mục" title="Dịch vụ đang nhận lịch"><ServiceDirectory services={branch.services} savedIds={savedIds} onToggleSaved={toggleSaved} /></Section>
+    <Section index={2} eyebrow="Danh mục" title={preview ? 'Dịch vụ trong bản xem trước' : 'Dịch vụ đang nhận lịch'}><ServiceDirectory services={branch.services} savedIds={savedIds} onToggleSaved={toggleSaved} preview={preview} /></Section>
     <Section index={3} eyebrow="Đội ngũ" title="Chọn người phù hợp"><StaffDirectory staff={branch.staff} /></Section>
     <Section index={4} eyebrow="Không gian" title="Hình ảnh do cơ sở cung cấp"><Gallery images={branch.images} label={`Hình ảnh ${branch.name}`} /></Section>
     <Section index={5} eyebrow="Trải nghiệm thật" title="Đánh giá đã được duyệt"><ReviewList data={reviews} /></Section>
@@ -151,6 +155,7 @@ export function PublicServiceDetail() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const authenticated = useAuthStore((state) => state.isAuthenticated());
+  const customer = useAuthStore((state) => state.isCustomer());
   const load = async () => {
     setLoading(true); setError('');
     try {
@@ -158,7 +163,7 @@ export function PublicServiceDetail() {
       if (!item) throw new Error('Dịch vụ không còn nhận lịch.');
       setService(item);
       try { setReviews(await reviewsApi.getByService(id)); } catch { setReviews(null); }
-      if (authenticated) {
+      if (authenticated && customer) {
         try {
           const savedItems = await savedServicesApi.list();
           setSaved(savedItems.some((savedItem) => savedItem.branchServiceOfferingId === item.id));
@@ -167,14 +172,14 @@ export function PublicServiceDetail() {
     } catch (requestError) { setError(requestError.message || 'Không thể tải dịch vụ.'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [id, authenticated, customer]);
   const team = service?.staffServices?.map((entry) => entry.staff).filter(Boolean) || [];
   const onlineBookable = !service?.variants?.length || service.variants.some((variant) => variant.priceType !== 'QUOTE');
   return <PublicShell><DetailState loading={loading} error={error} retry={load}>{service ? <article className="bb-detail-document">
     <DetailHero type="dịch vụ" eyebrow={service.category?.name || 'Dịch vụ làm đẹp'} title={service.name} description={service.description || 'Thông tin mô tả đang được cơ sở cập nhật.'} media={firstMedia(service.images, getHomeMedia('details', 'service'))} mediaAlt={`Dịch vụ ${service.name}`} facts={[{ label: 'Giá', value: service.priceDisplay || money(service.price) }, { label: 'Thời lượng', value: service.durationMinutes ? `${service.durationMinutes} phút` : null }, { label: 'Địa điểm', value: [service.branch?.business?.name, service.branch?.name].filter(Boolean).join(' · ') }]} />
     {onlineBookable ? <BookingDock to={`/book?branchId=${service.branchId}&serviceId=${service.id}`} label="Đặt dịch vụ này" title={service.name} meta={`${service.priceDisplay || money(service.price)}${service.durationMinutes ? ` · ${service.durationMinutes} phút` : ''}`} /> : <aside className="bb-detail-booking-dock"><div><CalendarCheck size={20} /><span><small>Cần tư vấn trước</small><strong>{service.name}</strong></span></div><p>Cơ sở sẽ xác nhận điều kiện, thời lượng và báo giá trước khi tạo lịch.</p></aside>}
     <div className="flex flex-wrap gap-3">
-      {authenticated ? <button type="button" className="bb-home-button bb-home-button--secondary" disabled={saving} onClick={async () => { const previous = saved; setSaved(!previous); setSaving(true); try { if (previous) await savedServicesApi.remove(service.id); else await savedServicesApi.save(service.id); toast.success(previous ? 'Đã bỏ lưu dịch vụ' : 'Đã lưu dịch vụ'); } catch (requestError) { setSaved(previous); toast.error(requestError.message); } finally { setSaving(false); } }}><Heart size={16} fill={saved ? 'currentColor' : 'none'} />{saving ? 'Đang cập nhật…' : saved ? 'Đã lưu' : 'Lưu dịch vụ'}</button> : <Link className="bb-home-button bb-home-button--secondary" to="/login" state={{ from: `/explore/services/${service.id}` }}><Heart size={16} />Đăng nhập để lưu</Link>}
+      {authenticated ? <button type="button" className="bb-home-button bb-home-button--secondary" disabled={saving} onClick={async () => { if (!customer) { toast.error(CUSTOMER_ACCOUNT_REQUIRED); return; } const previous = saved; setSaved(!previous); setSaving(true); try { if (previous) await savedServicesApi.remove(service.id); else await savedServicesApi.save(service.id); toast.success(previous ? 'Đã bỏ lưu dịch vụ' : 'Đã lưu dịch vụ'); } catch (requestError) { setSaved(previous); toast.error(requestError.message); } finally { setSaving(false); } }}><Heart size={16} fill={saved ? 'currentColor' : 'none'} />{saving ? 'Đang cập nhật…' : saved ? 'Đã lưu' : 'Lưu dịch vụ'}</button> : <Link className="bb-home-button bb-home-button--secondary" to="/login" state={{ from: `/explore/services/${service.id}` }}><Heart size={16} />Đăng nhập để lưu</Link>}
       {authenticated && <Link className="bb-home-button bb-home-button--secondary" to={`/customer/benefits?waitlistServiceId=${service.id}&branchId=${service.branchId}`}><BellRing size={16} />Nhận chỗ trống</Link>}
     </div>
     {service.variants?.length ? <Section index={1} eyebrow="Lựa chọn" title="Giá và thời lượng theo nhu cầu"><div className="bb-detail-directory">{service.variants.map((variant) => <article key={variant.id} className="rounded-2xl border border-[var(--bb-border)] p-4"><span className="text-xs font-bold uppercase tracking-wider text-[var(--bb-brand-strong)]">{variant.priceType === 'QUOTE' ? 'Cần báo giá' : 'Có thể đặt lịch'}</span><h3 className="mt-2 font-bold">{variant.name}</h3><p className="mt-1 text-sm text-[var(--bb-muted)]">{variant.priceDisplay} · {variant.durationMinutes || 0}{variant.maxDurationMinutes ? `–${variant.maxDurationMinutes}` : ''} phút</p>{variant.eligibilityRules && <p className="mt-2 text-xs text-amber-700">Cơ sở sẽ xác nhận điều kiện trước khi thực hiện.</p>}</article>)}</div></Section> : null}

@@ -1,6 +1,7 @@
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import {
   bookingRoomsForUser,
+  mayReceiveBookingEvent,
   buildBookingRealtimeDispatch,
   resolveWebSocketCorsOrigins,
   SchedulerGateway,
@@ -19,6 +20,14 @@ function user(overrides: Partial<AuthUser> = {}): AuthUser {
 }
 
 describe('SchedulerGateway security', () => {
+  test('staff get no booking details through a branch room, including mixed-role scopes', () => {
+    const mixed = user({ roles: ['RECEPTIONIST', 'STAFF'], sessionType: 'salon', scopes: [
+      { code: 'RECEPTIONIST', businessId: 'business-a', branchId: 'branch-a' },
+      { code: 'STAFF', businessId: 'business-a', branchId: 'branch-b' },
+    ] });
+    expect(mayReceiveBookingEvent(mixed, { id: 'booking-a', businessId: 'business-a', branchId: 'branch-a' })).toBe(true);
+    expect(mayReceiveBookingEvent(mixed, { id: 'booking-b', businessId: 'business-a', branchId: 'branch-b' })).toBe(false);
+  });
   test('production CORS rejects wildcard origins', () => {
     expect(() =>
       resolveWebSocketCorsOrigins({ NODE_ENV: 'production', CORS_ORIGINS: '*' }),

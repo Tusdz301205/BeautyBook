@@ -27,21 +27,17 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 const ROLE_NAMES: Record<string, string> = {
   PLATFORM_ADMIN: 'Quản trị nền tảng',
   BUSINESS_OWNER: 'Chủ Salon',
-  BRANCH_MANAGER: 'Quản lý chi nhánh',
   RECEPTIONIST: 'Lễ tân',
   STAFF: 'Nhân viên / Thợ',
   CUSTOMER: 'Khách hàng',
-  GUEST: 'Khách vãng lai',
 };
 
 const OFFICIAL_ROLE_CODES = new Set([
   'PLATFORM_ADMIN',
   'BUSINESS_OWNER',
-  'BRANCH_MANAGER',
   'RECEPTIONIST',
   'STAFF',
   'CUSTOMER',
-  'GUEST',
 ]);
 
 async function main(): Promise<void> {
@@ -93,6 +89,7 @@ async function main(): Promise<void> {
 
   let rpInserted = 0;
   for (const [roleCode, permCodes] of Object.entries(ROLE_PERMISSIONS)) {
+    if (!OFFICIAL_ROLE_CODES.has(roleCode)) continue;
     const role = await prisma.role.findUnique({ where: { code: roleCode as any } });
     if (!role) {
       console.warn(`[seed-permissions] role ${roleCode} missing; skipping`);

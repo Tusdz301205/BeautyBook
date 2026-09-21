@@ -84,7 +84,7 @@ export function SalonOverview() {
         ['overview', reportsApi.getOverview()],
         ['dashboard', reportsApi.getOwnerDashboard({ branchId: selectedBranch, from, to })],
       ] : []),
-      ...(can('review:moderate:tenant') || can('review:moderate:branch') ? [['reviews', reviewsApi.getForManagement({ branchId: selectedBranch, status: 'PENDING', page: 1, limit: 20 })]] : []),
+      ...(can('review:moderate:tenant') ? [['reviews', reviewsApi.getForManagement({ branchId: selectedBranch, status: 'PENDING', page: 1, limit: 20 })]] : []),
     ];
     const results = await Promise.allSettled(tasks.map(([, promise]) => promise));
     const next = { bookings: [], services: [], staff: [], reviews: [], payments: [], overview: null, dashboard: null };

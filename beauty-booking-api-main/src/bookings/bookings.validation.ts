@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { customerCancellationMode } from './customer-cancellation-policy';
 import {
   appointmentDateFromInstant,
   appointmentTimeFromInstant,
@@ -34,13 +35,13 @@ const ACTOR_STATUS_TRANSITIONS: Record<string, Record<string, string[]>> = {
   },
   RECEPTIONIST: {
     PENDING: ['CONFIRMED', 'CANCELLED', 'REJECTED'],
-    CONFIRMED: ['CHECKED_IN', 'CANCELLED'],
+    CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
   },
   STAFF: {
     CHECKED_IN: ['IN_PROGRESS'],
     IN_PROGRESS: ['COMPLETED'],
   },
-  BRANCH_MANAGER: {
+  BUSINESS_OWNER: {
     PENDING: ['CONFIRMED', 'CANCELLED', 'REJECTED'],
     CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
     CHECKED_IN: ['IN_PROGRESS', 'CANCELLED'],
@@ -53,12 +54,13 @@ export function assertActorStatusTransition(
   from: string,
   to: string,
 ): void {
+  if (to === 'NO_SHOW' && (roles.includes('PLATFORM_ADMIN') || roles.includes('CUSTOMER') ||
+    !roles.some((role) => ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(role)))) {
+    throw new BadRequestException('Chỉ Chủ doanh nghiệp hoặc Lễ tân được xác nhận khách không đến');
+  }
   if (roles.includes('PLATFORM_ADMIN')) return;
 
-  const effectiveRoles = roles.flatMap((role) =>
-    role === 'BUSINESS_OWNER' ? ['BRANCH_MANAGER'] : [role],
-  );
-  const allowed = effectiveRoles.some((role) =>
+  const allowed = roles.some((role) =>
     (ACTOR_STATUS_TRANSITIONS[role]?.[from] ?? []).includes(to),
   );
   if (!allowed) {
@@ -118,11 +120,7 @@ export function evaluateCancelPolicy(
   appointmentStartTime: Date,
   now: Date = new Date(),
 ): CancelPolicy {
-  const diffMs = appointmentStartTime.getTime() - now.getTime();
-  const TWO_HOURS = 2 * 60 * 60 * 1000;
-  if (diffMs < 0) return 'too_late';
-  if (diffMs < TWO_HOURS) return 'warn_late_cancel';
-  return 'allowed';
+  return customerCancellationMode(appointmentStartTime, now);
 }
 
 /**
@@ -216,7 +214,7 @@ export async function validateStaffForService(
 export const BOOKING_TIME_RULES = Object.freeze({
   earlyCheckInMinutes: Number(process.env.BOOKING_EARLY_CHECK_IN_MINUTES ?? 30),
   startGraceMinutes: Number(process.env.BOOKING_START_GRACE_MINUTES ?? 0),
-  noShowGraceMinutes: Number(process.env.BOOKING_NO_SHOW_GRACE_MINUTES ?? 15),
+  noShowGraceMinutes: 15,
 });
 
 export interface TimeTransitionInput {
@@ -227,6 +225,7 @@ export interface TimeTransitionInput {
   now?: Date;
   earlyCheckInMinutes?: number;
   startGraceMinutes?: number;
+  /** @deprecated Compatibility only; no-show grace is fixed at 15 minutes. */
   noShowGraceMinutes?: number;
 }
 
@@ -249,7 +248,6 @@ export function evaluateTimeAllowedForStatusTransition({
   now = new Date(),
   earlyCheckInMinutes = BOOKING_TIME_RULES.earlyCheckInMinutes,
   startGraceMinutes = BOOKING_TIME_RULES.startGraceMinutes,
-  noShowGraceMinutes = BOOKING_TIME_RULES.noShowGraceMinutes,
 }: TimeTransitionInput): TimeTransitionDecision {
   const minute = 60_000;
   let allowedAt: Date | null = null;
@@ -265,7 +263,7 @@ export function evaluateTimeAllowedForStatusTransition({
     allowedAt = appointmentEndTime;
     reason = 'Chưa thể hoàn thành vì lịch hẹn chưa diễn ra.';
   } else if (fromStatus === 'CONFIRMED' && toStatus === 'NO_SHOW') {
-    allowedAt = new Date(appointmentStartTime.getTime() + noShowGraceMinutes * minute);
+    allowedAt = new Date(appointmentStartTime.getTime() + BOOKING_TIME_RULES.noShowGraceMinutes * minute);
     reason = 'Chưa thể đánh dấu vắng mặt trước khi hết thời gian chờ.';
   }
 

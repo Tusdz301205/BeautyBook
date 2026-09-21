@@ -28,10 +28,10 @@ function makeContext({
     id: 'u-1',
     email: 'a@b.com',
     roles,
-    scopes,
+    scopes: scopes.length ? scopes : roles.map((code) => ({ code, businessId: null, branchId: null })),
     businessId: scopes[0]?.businessId ?? null,
     branchId: scopes[0]?.branchId ?? null,
-    sessionType: 'salon',
+    sessionType: roles.length === 1 && roles[0] === 'CUSTOMER' ? 'customer' : 'salon',
     permissions,
   };
   const handler = { name: 'm' } as any;
@@ -89,13 +89,17 @@ describe('PolicyGuard', () => {
     expect(guard.canActivate(makeContext({}))).toBe(true);
   });
 
-  it('passes when the permission is present', () => {
+  it('passes when the permission is backed by a supported scoped role', () => {
     const guard = new PolicyGuard(
       reflectorWith({ [REQUIRES_PERMISSION_KEY]: ['booking:read:branch'] }),
     );
     expect(
       guard.canActivate(
-        makeContext({ permissions: ['booking:read:branch'] }),
+        makeContext({
+          roles: ['RECEPTIONIST'],
+          scopes: [{ code: 'RECEPTIONIST', businessId: 'biz-1', branchId: 'branch-1' }],
+          permissions: ['booking:read:branch'],
+        }),
       ),
     ).toBe(true);
   });
@@ -107,6 +111,17 @@ describe('PolicyGuard', () => {
     expect(() => guard.canActivate(makeContext({ permissions: [] }))).toThrow(
       ForbiddenException,
     );
+  });
+
+  it('does not authorize a retired Manager using a stale flattened permission', () => {
+    const guard = new PolicyGuard(
+      reflectorWith({ [REQUIRES_PERMISSION_KEY]: ['booking:read:branch'] }),
+    );
+    expect(() => guard.canActivate(makeContext({
+      roles: ['BRANCH_MANAGER'],
+      scopes: [{ code: 'BRANCH_MANAGER', businessId: 'biz-1', branchId: 'branch-1' }],
+      permissions: ['booking:read:branch'],
+    }))).toThrow(ForbiddenException);
   });
 });
 
@@ -120,7 +135,7 @@ describe('ScopeGuard', () => {
     const guard = new ScopeGuard(
       reflectorWith({
         [SCOPES_KEY]: {
-          roles: ['BRANCH_MANAGER'],
+          roles: ['RECEPTIONIST'],
           scopeLevel: 'branch',
         },
       }),

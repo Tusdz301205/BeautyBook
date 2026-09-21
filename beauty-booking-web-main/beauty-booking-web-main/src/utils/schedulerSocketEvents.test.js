@@ -44,3 +44,16 @@ test('booking events still refresh the scheduler and cleanup prevents late callb
   socket.emit('scheduler_access_changed');
   assert.equal(calls.length, 3);
 });
+
+test('authorization change refreshes the session model before any scoped data request', () => {
+  const socket = new EventEmitter();
+  const calls = [];
+  bindSchedulerSocketEvents(socket, {
+    refresh: () => calls.push('stale-data-request'),
+    clearScopedData: () => calls.push('clear'),
+    authFailed: () => calls.push('auth-failed'),
+    authorizationChanged: () => calls.push('refresh-session-model'),
+  });
+  socket.emit('scheduler_access_changed');
+  assert.deepEqual(calls, ['refresh-session-model']);
+});

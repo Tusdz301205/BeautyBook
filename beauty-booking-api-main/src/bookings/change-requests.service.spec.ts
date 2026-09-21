@@ -5,7 +5,12 @@ import { ChangeRequestsService } from './change-requests.service';
 describe('ChangeRequestsService expiration and concurrency', () => {
   test('does not create a second active pending request for one booking', async () => {
     const prisma = {
-      booking: { findUnique: jest.fn().mockResolvedValue({ id: 'booking-1', status: 'CONFIRMED' }) },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+      $transaction: jest.fn(async (operation) => operation(prisma)),
+      booking: { findUnique: jest.fn().mockResolvedValue({
+        id: 'booking-1', status: 'CONFIRMED', customer: { userId: 'customer-1' },
+        appointmentDate: new Date('2099-01-01'), appointmentStartTime: new Date('1970-01-01T09:00:00Z'),
+      }) },
       appointmentChangeRequest: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         findFirst: jest.fn().mockResolvedValue({ id: 'pending-1' }),
@@ -83,6 +88,7 @@ describe('ChangeRequestsService expiration and concurrency', () => {
       appointmentStartTime: new Date('1970-01-01T09:00:00Z'), totalAmount: 100,
     };
     const tx: any = {
+      bookingViolationEvent: { findUnique: jest.fn().mockResolvedValue(null) },
       $queryRaw: jest.fn().mockResolvedValue([]),
       appointmentChangeRequest: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
       cancellationPolicy: { findUnique: jest.fn().mockResolvedValue(null) },

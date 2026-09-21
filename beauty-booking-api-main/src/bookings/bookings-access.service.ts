@@ -9,8 +9,9 @@ import {
   canOnResource,
   ensureCanOnResource,
 } from '../common/utils/policy';
-import { resolveBusinessIdByBranch } from '../common/utils/multi-tenancy';
+import { resolveBusinessIdByBranch, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PLATFORM_ROLE_CODES } from '../common/utils/scope-helpers';
+import { isCustomerPrincipal } from '../auth/account-separation';
 
 interface BookingRow {
   id: string;
@@ -38,21 +39,19 @@ export class BookingsAccessService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Branch-wide lists expose all appointments, not just a provider's assigned
-   * work. Evaluate managerial permissions on the requested branch, rather than
-   * combining a manager role in branch A with a staff membership in branch B. */
+   * work. Evaluate counter-operation permissions on the requested branch, rather than
+   * combining a receptionist role in branch A with a staff membership in branch B. */
   async assertReadBranch(user: AuthUser, branchId: string): Promise<void> {
     const businessId = await resolveBusinessIdByBranch(this.prisma, branchId);
-    const principal = {
-      ...user,
-      scopes: (user.scopes ?? []).filter((scope) =>
-        ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER'].includes(scope.code),
-      ),
-    };
-    if (!['booking:read:branch', 'booking:read:tenant', 'booking:read:platform'].some((permission) =>
-      canOnResource(principal, permission, { businessId, branchId }),
-    )) {
+    if (!this.canReadBranch(user, { businessId, branchId })) {
       throw new ForbiddenException('Bạn không có quyền xem toàn bộ lịch hẹn của chi nhánh này');
     }
+  }
+
+  canReadBranch(user: AuthUser, resource: { businessId: string; branchId: string }): boolean {
+    const principal = restrictToRoles(user, ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST']);
+    return ['booking:read:branch', 'booking:read:tenant', 'booking:read:platform'].some((permission) =>
+      canOnResource(principal, permission, resource));
   }
 
   /**
@@ -127,6 +126,7 @@ export class BookingsAccessService {
   async assertWrite(
     user: AuthUser,
     bookingId: string,
+    action: 'update' | 'cancel' | 'assign' | 'reschedule' | 'check_in' | 'complete' = 'update',
   ): Promise<{
     bookingId: string;
     businessId: string;
@@ -134,21 +134,6 @@ export class BookingsAccessService {
     customerUserId: string;
     staffUserId: string | null;
   }> {
-    const staffOnly = user.roles.includes('STAFF') && !user.roles.some((role) =>
-      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role),
-    );
-    if (staffOnly) {
-      const info = await this.loadAndAssert(user, bookingId, 'booking:read:branch');
-      if (info.staffUserId !== user.id) {
-        throw new ForbiddenException('Nhân viên chỉ được thao tác lịch được phân công cho mình');
-      }
-      ensureCanOnResource(user, 'booking:update:branch', {
-        businessId: info.businessId,
-        branchId: info.branchId,
-        staffUserId: info.staffUserId,
-      });
-      return info;
-    }
     const isPlatform = user.scopes?.some((s) =>
       PLATFORM_ROLE_CODES.has(s.code),
     );
@@ -168,12 +153,20 @@ export class BookingsAccessService {
     for (const code of attempts) {
       try {
         const info = await this.loadAndAssert(user, bookingId, code);
-        // Translate read→write permission check explicitly:
-        const writeCode = code.replace(':read:', ':update:') as
-          | 'booking:update:self'
-          | 'booking:update:own'
-          | 'booking:update:branch'
-          | 'booking:update:tenant';
+        // Owner retains its tenant-wide editing authority for service lifecycle
+        // and rescheduling; counter actions use their exact branch permission.
+        const scope = code.split(':')[2];
+        const writeAction = scope === 'tenant' && ['reschedule', 'complete'].includes(action)
+          ? 'update'
+          : action;
+        const writeCode = `booking:${writeAction}:${scope}`;
+        const actorRoles = this.rolesAtResource(user, info);
+        const counter = actorRoles.some((role) => ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(role));
+        if (scope === 'branch' && !counter && actorRoles.includes('STAFF')) {
+          if (info.staffUserId !== user.id || !['update', 'complete'].includes(action)) {
+            throw new ForbiddenException('Nhân viên chỉ được thao tác dịch vụ được phân công cho mình');
+          }
+        }
         ensureCanOnResource(user, writeCode, {
           businessId: info.businessId,
           branchId: info.branchId,
@@ -186,6 +179,17 @@ export class BookingsAccessService {
       }
     }
     throw lastErr ?? new ForbiddenException('Forbidden');
+  }
+
+  /** Keep lifecycle authority bound to the booking, including multi-role users. */
+  rolesAtResource(user: AuthUser, resource: { businessId: string; branchId: string }): string[] {
+    return [...new Set((user.scopes ?? []).filter((scope) =>
+      user.roles.includes(scope.code) &&
+      (!scope.expiresAt || new Date(scope.expiresAt).getTime() > Date.now()) &&
+      (scope.code === 'CUSTOMER' || scope.code === 'PLATFORM_ADMIN' ||
+        (scope.businessId === resource.businessId &&
+          (scope.code === 'BUSINESS_OWNER' ? !scope.branchId : scope.branchId === resource.branchId))),
+    ).map((scope) => scope.code))];
   }
 
   /**
@@ -203,9 +207,7 @@ export class BookingsAccessService {
         'Platform chỉ được quan sát lịch hẹn; không được tạo lịch vận hành cho doanh nghiệp',
       );
     }
-    const customerOnly = user.roles.includes('CUSTOMER') && !user.roles.some((role) =>
-      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role),
-    );
+    const customerOnly = isCustomerPrincipal(user);
     if (customerOnly) {
       // No explicit business access needed to BOOK, but verify branch exists
       // (already done by resolveBusinessIdByBranch). Customer role holders

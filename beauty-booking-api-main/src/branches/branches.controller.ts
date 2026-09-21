@@ -27,6 +27,7 @@ import {
   assertBranchAccess,
   assertBusinessAccess,
   resolveBusinessIdByBranch,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
@@ -91,18 +92,25 @@ export class BranchesController {
   }
 
   @Get('accessible')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('branch:read:tenant', 'branch:read:branch', 'branch:read:platform')
   findAccessible(@CurrentUser() user: AuthUser) {
     return this.branchesService.findAccessible(user);
   }
 
   @Get('accessible/:id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('branch:read:tenant', 'branch:read:branch', 'branch:read:platform')
   async findAccessibleOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     await assertBranchAccess(this.prisma, user, id);
     return this.branchesService.findOne(id);
+  }
+
+  @Get(':id/preview')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:read:tenant')
+  preview(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.branchesService.previewPublic(id, user);
   }
 
   @Get(':id/services')
@@ -160,30 +168,27 @@ export class BranchesController {
    * Tenant-scoped: BUSINESS_OWNER may create branches in their own business.
    */
   @Post()
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER')
   @RequirePermission('branch:create:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'Branch' })
   async create(
     @Body() body: CreateBranchDraftDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
-    const assignCreatorAsManager =
-      user.roles.includes('BRANCH_MANAGER') &&
-      (user.permissions ?? []).includes('branch:create:tenant');
-    return this.branchesService.create(body, user.id, assignCreatorAsManager);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
+    return this.branchesService.create(body, user.id);
   }
 
   @Patch(':id/onboarding')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:tenant', 'branch:update:branch', 'branch:create:tenant')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant', 'branch:create:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BranchOnboarding' })
   async saveOnboarding(
     @Param('id') id: string,
     @Body() body: SaveBranchOnboardingDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), id);
     return this.branchesService.saveOnboarding(id, body);
   }
 
@@ -196,14 +201,15 @@ export class BranchesController {
     @Body() body: { sourceBranchId: string; serviceIds: string[] },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
-    await assertBranchAccess(this.prisma, user, body.sourceBranchId);
+    const owner = restrictToRoles(user, ['BUSINESS_OWNER']);
+    await assertBranchAccess(this.prisma, owner, id);
+    await assertBranchAccess(this.prisma, owner, body.sourceBranchId);
     return this.branchesService.copyServices(id, body.sourceBranchId, body.serviceIds ?? []);
   }
 
   @Post(':id/documents')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:tenant', 'branch:update:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'BranchDocument' })
   async attachDocument(
     @Param('id') id: string,
@@ -219,32 +225,32 @@ export class BranchesController {
     },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), id);
     return this.branchesService.attachDocument(id, user.id, body);
   }
 
   @Delete(':id/documents/:documentId')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:tenant', 'branch:update:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant')
   @Audited({ action: AuditAction.DELETE, entityType: 'BranchDocument', idParam: 'documentId' })
   async archiveDocument(
     @Param('id') id: string,
     @Param('documentId') documentId: string,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), id);
     return this.branchesService.archiveDocument(id, documentId, user.id);
   }
 
   @Post(':id/submit')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:create:tenant', 'branch:update:tenant', 'branch:update:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:create:tenant', 'branch:update:tenant')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BranchReview' })
   async submit(
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), id);
     return this.branchesService.submit(id, user.id);
   }
 
@@ -280,20 +286,20 @@ export class BranchesController {
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), id);
     return this.branchesService.publish(id, user.id);
   }
 
   @Post(':id/transition')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:status:platform', 'branch:update:tenant', 'branch:update:branch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
+  @RequirePermission('branch:status:platform', 'branch:update:tenant')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Branch' })
   async transition(
     @Param('id') id: string,
     @Body() body: { action: BranchTransitionAction; reason: string },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, id);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), id);
     return this.branchStateService.transition(id, body.action, user.id, body.reason);
   }
 
@@ -301,12 +307,12 @@ export class BranchesController {
    * PATCH /api/branches/:id — edit tenant/branch address/contact.
    */
   @Patch(':id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:branch', 'branch:update:tenant')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant')
   @RequireScope({
-    roles: ['BUSINESS_OWNER', 'BRANCH_MANAGER'],
+    roles: ['BUSINESS_OWNER'],
     scopeLevel: 'branch',
-    permissions: ['branch:update:branch', 'branch:update:tenant'],
+    permissions: ['branch:update:tenant'],
   })
   @Audited({ action: AuditAction.UPDATE, entityType: 'Branch' })
   async update(
@@ -315,7 +321,7 @@ export class BranchesController {
     @CurrentUser() user: AuthUser,
   ) {
     const businessId = await assertBranchAccess(this.prisma, user, id);
-    if (!['branch:update:branch', 'branch:update:tenant'].some((permission) =>
+    if (!['branch:update:tenant'].some((permission) =>
       canOnResource(user, permission, { businessId, branchId: id }),
     )) {
       throw new ForbiddenException('Bạn không có quyền cập nhật chi nhánh này');

@@ -74,7 +74,7 @@ describe('Cancellation policy validation', () => {
       await expectRejectedWithoutPersistence({ [field]: value });
     });
 
-    test.each([0, 1, MAX_CANCELLATION_POLICY_HOURS])('accepts integer hours %i', async (value) => {
+    test.each(field === 'freeCancelHours' ? [4] : [0, 1, MAX_CANCELLATION_POLICY_HOURS])('accepts supported integer hours %i', async (value) => {
       const body = await validateBody({ [field]: value });
       const { service, prisma } = setup();
       await service.update('business-1', 'owner-1', body);
@@ -97,7 +97,7 @@ describe('Cancellation policy validation', () => {
     { noShowFeePercent: 10 },
     { unknownSetting: true },
   ])('rejects protected, retired, or unknown fields: %j', async (extra) => {
-    await expectRejectedWithoutPersistence({ freeCancelHours: 2, ...extra });
+    await expectRejectedWithoutPersistence({ freeCancelHours: 4, ...extra });
   });
 
   test.each([
@@ -135,20 +135,31 @@ describe('Cancellation policy validation', () => {
 
   it('keeps omitted fields unchanged, retains legacy fee data privately, and audits the actor', async () => {
     const { service, prisma } = setup();
-    const after = await service.update('business-1', 'owner-1', { freeCancelHours: 0 });
+    const after = await service.update('business-1', 'owner-1', { freeCancelHours: 4 });
     expect(after).toEqual({
-      id: 'policy-1', businessId: 'business-1', freeCancelHours: 0,
+      id: 'policy-1', businessId: 'business-1', freeCancelHours: 4,
       rescheduleAllowedHours: 1, notes: null,
     });
     expect(prisma.cancellationPolicy.upsert).toHaveBeenCalledWith({
       where: { businessId: 'business-1' },
-      create: { businessId: 'business-1', freeCancelHours: 0 },
-      update: { freeCancelHours: 0 },
+      create: { businessId: 'business-1', freeCancelHours: 4 },
+      update: { freeCancelHours: 4 },
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ userId: 'owner-1', entityId: 'policy-1', action: 'POLICY_OVERRIDE' }),
     });
     expect(await service.getOrCreate('business-1')).not.toHaveProperty('lateCancelFeePercent');
     expect(await service.getOrCreate('business-1')).not.toHaveProperty('noShowFeePercent');
+  });
+
+  test.each([0, 1, 2, 3, 5, 24, MAX_CANCELLATION_POLICY_HOURS])('cannot override the fixed 4-hour cutoff with %i', async (value) => {
+    await expectRejectedWithoutPersistence({ freeCancelHours: value });
+  });
+
+  it('projects the fixed cutoff without rewriting historical policy rows', async () => {
+    const { service, prisma } = setup();
+    expect(await service.getOrCreate('business-1')).toMatchObject({ freeCancelHours: 4 });
+    expect(prisma.cancellationPolicy.upsert).not.toHaveBeenCalled();
+    expect(prisma.cancellationPolicy.create).not.toHaveBeenCalled();
   });
 });

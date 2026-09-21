@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'rea
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { businessApi } from './api/apiClient';
+import { CUSTOMER_ACCOUNT_REQUIRED, isCustomerAccount } from './utils/authScope';
 
 import { PlatformShell } from './components/layout/PlatformShell';
 import { SalonShell } from './components/layout/SalonShell';
@@ -105,6 +106,9 @@ function ProtectedRoute({ children, roles, can: canCode, scope }) {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
+  if (roles?.includes('customer') && !isCustomerAccount(user)) {
+    return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Cần tài khoản khách hàng riêng</h1><p className="my-4">{CUSTOMER_ACCOUNT_REQUIRED}</p><a className="underline" href="/explore">Tiếp tục xem nội dung công khai</a></main>;
+  }
   if (roles && roles.length && !roles.includes(user?.sessionType)) {
     return <Navigate to={user?.sessionType === 'admin' ? '/admin' : user?.sessionType === 'salon' ? '/salon' : '/customer/appointments'} replace />;
   }
@@ -123,7 +127,7 @@ function PermissionGate({ anyOf, fallback, children }) {
 
 function SalonLanding() {
   const can = useAuthStore((state) => state.can);
-  if (can('report:overview:tenant') || can('report:overview:branch')) return <SalonOverview />;
+  if (can('report:overview:tenant')) return <SalonOverview />;
   if (can('booking:read:tenant') || can('booking:read:branch')) return <Navigate to="/salon/appointments" replace />;
   if (can('user:read:tenant') || can('user:read:branch')) return <Navigate to="/salon/staff" replace />;
   return <Navigate to="/salon/account" replace />;
@@ -197,6 +201,7 @@ export default function App() {
         <Route path="/accept-invitation" element={<AcceptInvitation />} />
         <Route path="/explore" element={<PublicHome exploreMode />} />
         <Route path="/explore/branches/:id" element={<PublicBranchDetail />} />
+        <Route path="/salon/branches/:id/preview" element={<ProtectedRoute roles={['salon']}><PermissionGate fallback="/salon/profile" anyOf={['branch:read:tenant']}><PublicBranchDetail preview /></PermissionGate></ProtectedRoute>} />
         <Route path="/explore/services/:id" element={<PublicServiceDetail />} />
         <Route path="/explore/staff/:id" element={<PublicStaffDetail />} />
 
@@ -245,7 +250,7 @@ export default function App() {
                   <Route path="account" element={<ProfileSettings />} />
                   <Route element={<ApprovedBusinessGate />}>
                     <Route index element={<SalonLanding />} />
-                    <Route path="services" element={<PermissionGate fallback="/salon" anyOf={['business_service:update:tenant', 'branch_service_offering:status:branch', 'branch_service_offering:status:tenant']}><SalonServices /></PermissionGate>} />
+                    <Route path="services" element={<PermissionGate fallback="/salon" anyOf={['business_service:update:tenant', 'branch_service_offering:status:tenant']}><SalonServices /></PermissionGate>} />
                     <Route path="combos" element={<PermissionGate fallback="/salon" anyOf={['combo:manage:tenant']}><SalonCombos /></PermissionGate>} />
                     <Route path="appointments" element={<PermissionGate fallback="/salon" anyOf={['booking:read:tenant', 'booking:read:branch']}><SalonAppointments /></PermissionGate>} />
                     <Route path="staff" element={<PermissionGate fallback="/salon" anyOf={['user:read:tenant', 'user:read:branch']}><SalonStaffManagement /></PermissionGate>} />
@@ -253,14 +258,14 @@ export default function App() {
                     <Route path="staff/schedule" element={<Navigate to="/salon/appointments" replace />} />
                     <Route path="staff/:staffId" element={<PermissionGate fallback="/salon" anyOf={['user:read:tenant', 'user:read:branch', 'user:read:self']}><StaffDetail /></PermissionGate>} />
                     <Route path="branches/new" element={<PermissionGate fallback="/salon/profile" anyOf={['branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />
-                    <Route path="branches/:branchId/setup" element={<PermissionGate fallback="/salon/profile" anyOf={['branch:update:tenant', 'branch:update:branch', 'branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />
+                    <Route path="branches/:branchId/setup" element={<PermissionGate fallback="/salon/profile" anyOf={['branch:update:tenant', 'branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />
                     <Route path="promotions" element={<PermissionGate fallback="/salon" anyOf={['promotion:manage:tenant']}><SalonPromotions /></PermissionGate>} />
-                    <Route path="reviews" element={<PermissionGate fallback="/salon" anyOf={['review:moderate:tenant', 'review:moderate:branch']}><SalonReviews /></PermissionGate>} />
+                    <Route path="reviews" element={<PermissionGate fallback="/salon" anyOf={['review:moderate:tenant']}><SalonReviews /></PermissionGate>} />
                     <Route path="stats" element={<PermissionGate fallback="/salon" anyOf={['report:revenue:tenant', 'report:revenue:branch']}><SalonStats /></PermissionGate>} />
-                    <Route path="profile" element={<PermissionGate fallback="/salon" anyOf={['branch:update:tenant', 'branch:update:branch']}><SalonProfile /></PermissionGate>} />
+                    <Route path="profile" element={<PermissionGate fallback="/salon" anyOf={['branch:update:tenant']}><SalonProfile /></PermissionGate>} />
                     <Route path="payments" element={<PermissionGate fallback="/salon" anyOf={['payment:read:branch', 'payment:read:tenant']}><PaymentsWorkspace /></PermissionGate>} />
                     <Route path="operations" element={<PermissionGate fallback="/salon" anyOf={['booking:read:tenant', 'booking:read:branch', 'payment:read:tenant', 'payment:read:branch']}><SalonOperations /></PermissionGate>} />
-                    <Route path="audit" element={<PermissionGate fallback="/salon" anyOf={['audit:read:branch', 'audit:read:tenant']}><SalonAudit /></PermissionGate>} />
+                    <Route path="audit" element={<PermissionGate fallback="/salon" anyOf={['audit:read:tenant']}><SalonAudit /></PermissionGate>} />
                   </Route>
                   <Route path="*" element={<Navigate to="/salon" replace />} />
                 </Routes>

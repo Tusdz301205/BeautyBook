@@ -1,11 +1,11 @@
-export function bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed }) {
+export function bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed, authorizationChanged }) {
   const handlers = {
     connect: refresh,
     booking_updated: refresh,
     booking_created: refresh,
     booking_deleted: refresh,
     scheduler_resync: refresh,
-    scheduler_access_changed: () => { clearScopedData(); refresh(); },
+    scheduler_access_changed: authorizationChanged || (() => { clearScopedData(); refresh(); }),
     scheduler_auth_failed: authFailed,
     connect_error: (error) => {
       if (error?.data?.code === 'WS_AUTH_FAILED') authFailed();

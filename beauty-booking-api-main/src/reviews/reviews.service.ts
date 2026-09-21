@@ -1,14 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
+import { assertCustomerPrincipal } from '../auth/account-separation';
 import {
   resolveBusinessIdsForUser,
+  restrictToRoles,
   resolveBranchIdsForUser,
   ALL_TENANTS,
 } from '../common/utils/multi-tenancy';
 import { can } from '../common/utils/policy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
+import { businessOwnerRecipientIds } from '../common/utils/notify';
 
 type ReviewerIdentity = {
   isAnonymous: boolean;
@@ -120,7 +123,7 @@ export class ReviewsService {
    * Lấy đánh giá cho salon quản lý (tất cả trạng thái, scoped).
    */
   async findForManagement(user: AuthUser, filters?: { status?: string; branchId?: string }) {
-    const allowedIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const allowedIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     let allowedBranchIds: string[] | null = null;
 
     const where: any = { deletedAt: null };
@@ -128,7 +131,7 @@ export class ReviewsService {
 
     if (!allowedIds.includes(ALL_TENANTS)) {
       allowedBranchIds = (await Promise.all(
-        allowedIds.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
+        allowedIds.map((businessId) => resolveBranchIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId)),
       )).flatMap((ids) => ids ?? []);
       where.booking = {
         branch: { businessId: { in: allowedIds } },
@@ -286,7 +289,8 @@ export class ReviewsService {
       rating: number;
       comment?: string;
     }>;
-  }) {
+  }, actor: AuthUser) {
+    assertCustomerPrincipal(actor);
     const policy = await this.platformSettings.getEffective();
     const comment = data.comment?.trim() ?? '';
     if (comment.length < policy.reviewMinLength) {
@@ -300,12 +304,13 @@ export class ReviewsService {
       where: { id: data.bookingId },
       include: {
         review: { select: { id: true } },
+        customer: { select: { userId: true } },
         bookingServices: { select: { id: true, staffId: true } },
       },
     });
 
     if (!booking) throw new NotFoundException('Booking không tồn tại');
-    if (booking.customerId !== data.customerId) {
+    if (booking.customerId !== data.customerId || booking.customer.userId !== actor.id) {
       throw new ForbiddenException('Bạn không có quyền đánh giá booking này');
     }
     if (booking.status !== 'COMPLETED') {
@@ -398,11 +403,8 @@ export class ReviewsService {
           severity,
         },
       });
-      const memberIds = await tx.salonMember.findMany({
-        where: { businessId: review.booking.branch.businessId, isActive: true, deletedAt: null },
-        select: { userId: true },
-      });
-      const recipients = [...new Set([review.customer.userId, ...memberIds.map((member) => member.userId)])];
+      const ownerIds = await businessOwnerRecipientIds(tx, review.booking.branch.businessId);
+      const recipients = [...new Set([review.customer.userId, ...ownerIds])];
       if (recipients.length) await tx.notification.createMany({ data: recipients.map((userId) => ({
         userId,
         type: 'SYSTEM',
@@ -448,8 +450,7 @@ export class ReviewsService {
       throw new ForbiddenException('Bạn không có quyền trả lời đánh giá này');
     }
     const context = { tenantId: businessId, branchId: review.booking.branch.id };
-    if (!can(user, 'review:moderate:branch', context) &&
-        !can(user, 'review:moderate:tenant', context)) {
+    if (!can(user, 'review:moderate:tenant', context)) {
       throw new ForbiddenException('Không có quyền trả lời đánh giá của chi nhánh này');
     }
 
@@ -521,7 +522,7 @@ export class ReviewsService {
     });
     if (!review) throw new NotFoundException('Đánh giá không tồn tại');
     const businessAccess = await this.prisma.userRole.findFirst({
-      where: { userId: appellantId, businessId: review.booking.branch.businessId, role: { code: { in: ['BUSINESS_OWNER', 'BRANCH_MANAGER'] } } },
+      where: { userId: appellantId, businessId: review.booking.branch.businessId, role: { code: { in: ['BUSINESS_OWNER'] } } },
       select: { id: true },
     });
     if (review.customer.userId !== appellantId && !businessAccess) throw new ForbiddenException('Không có quyền khiếu nại đánh giá này');

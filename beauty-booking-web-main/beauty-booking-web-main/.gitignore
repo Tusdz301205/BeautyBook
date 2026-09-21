@@ -25,6 +25,7 @@ dist-ssr
 
 # Playwright artifacts and authenticated browser state
 test-results/
+test-results-*/
 playwright-report/
 blob-report/
 .playwright/

@@ -15,7 +15,7 @@ describe('Review moderation lifecycle', () => {
       review: { findUnique: jest.fn().mockResolvedValue(review), update: jest.fn().mockResolvedValue({ ...review, status: 'HIDDEN' }) },
       reviewReport: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn(), count: jest.fn().mockResolvedValue(1) },
       reviewModerationEvent: { create: jest.fn() },
-      salonMember: { findMany: jest.fn().mockResolvedValue([{ userId: 'owner-user' }]) },
+      userRole: { findMany: jest.fn().mockResolvedValue([{ userId: 'owner-user' }]) },
       notification: { createMany: jest.fn() },
       auditLog: { create: jest.fn() },
     };

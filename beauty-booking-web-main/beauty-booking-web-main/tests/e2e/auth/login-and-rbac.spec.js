@@ -6,7 +6,6 @@ const roles = [
   'customer',
   'staff',
   'receptionist',
-  'branchManager',
   'businessOwner',
   'platformAdmin',
 ];
@@ -66,14 +65,23 @@ test('@rbac customer cannot open salon or platform routes directly', async ({ pa
 });
 
 test('@rbac branch-scoped salon account cannot open platform or customer routes', async ({ page }) => {
-  const credential = credentialsFor('receptionist') || credentialsFor('branchManager') || credentialsFor('staff');
+  const credential = credentialsFor('receptionist') || credentialsFor('staff');
   test.skip(!credential, 'Set one branch-scoped salon credential');
   await loginViaUi(page, credential);
 
   await page.goto('/admin/users');
   await expect(page).toHaveURL(/\/salon(?:[/?#]|$)/);
+  const customerRequests = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/v1/bookings/my-appointments')) {
+      customerRequests.push(request.url());
+    }
+  });
   await page.goto('/customer/appointments');
-  await expect(page).toHaveURL(/\/salon(?:[/?#]|$)/);
+  await expect(page.getByRole('heading', { name: 'Cần tài khoản khách hàng riêng' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Điều hướng khách hàng' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Tiếp tục xem nội dung công khai' })).toHaveAttribute('href', '/explore');
+  expect(customerRequests).toEqual([]);
 });
 
 test('@rbac platform admin is not forced into a business workspace', async ({ page }) => {

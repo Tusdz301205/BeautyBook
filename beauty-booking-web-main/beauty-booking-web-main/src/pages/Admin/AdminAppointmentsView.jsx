@@ -6,6 +6,7 @@ import SchedulerStats from '../../components/admin/scheduler/SchedulerStats';
 import SchedulerView from '../../components/admin/scheduler/SchedulerView';
 import { Select } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
+import AppointmentQueues from '../../components/appointments/AppointmentQueues';
 
 const emptyStats = {
   total: 0,
@@ -38,7 +39,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
     ...(user?.roles || []),
     ...(user?.scopes || []).map((scope) => scope.code),
   ]), [user]);
-  const staffOnly = roleCodes.has('STAFF') && !hasAnyRole(roleCodes, ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST']);
+  const staffOnly = roleCodes.has('STAFF') && !hasAnyRole(roleCodes, ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST']);
   const owner = roleCodes.has('BUSINESS_OWNER');
   const dayFirst = staffOnly || roleCodes.has('RECEPTIONIST') || (typeof window !== 'undefined' && window.innerWidth < 640);
 
@@ -75,7 +76,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
     } finally {
       setBranchesLoading(false);
     }
-  }, [isPlatform, owner]);
+  }, [isPlatform, owner, user]);
 
   useEffect(() => { fetchBranches(); }, [fetchBranches]);
 
@@ -110,11 +111,13 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
   );
   const tabs = useMemo(() => [
     { id: 'calendar', label: 'Lịch hẹn', icon: CalendarDays },
+    ...(zone === 'salon' && !staffOnly && (can('change_request:approve:branch') || can('change_request:approve:tenant'))
+      ? [{ id: 'queue', label: 'Hàng chờ & yêu cầu', icon: List }] : []),
     ...(!staffOnly ? [
       { id: 'list', label: 'Danh sách', icon: List },
       { id: 'stats', label: 'Thống kê', icon: BarChart3 },
     ] : []),
-  ], [staffOnly]);
+  ], [can, staffOnly, user, zone]);
 
   const handleStatsChange = useCallback((nextStats, period) => {
     setStats(nextStats);
@@ -129,9 +132,8 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
 
   const multiBranchSelection = activeBranchIds.length > 1;
   const receptionist = roleCodes.has('RECEPTIONIST') && !staffOnly;
-  const branchManager = roleCodes.has('BRANCH_MANAGER') && !owner;
   const title = zone === 'salon'
-    ? staffOnly ? 'Lịch của tôi' : owner ? 'Lịch hẹn toàn doanh nghiệp' : branchManager ? 'Lịch hẹn chi nhánh' : receptionist ? 'Lịch hẹn tại quầy' : 'Lịch hẹn vận hành'
+    ? staffOnly ? 'Lịch của tôi' : owner ? 'Lịch hẹn toàn doanh nghiệp'  : receptionist ? 'Lịch hẹn tại quầy' : 'Lịch hẹn vận hành'
     : 'Quản lý lịch hẹn';
   const description = zone === 'salon'
     ? staffOnly
@@ -212,6 +214,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
           <div className="grid h-full place-items-center px-6 text-center"><div><MapPin className="mx-auto text-zinc-400" /><p className="mt-3 font-semibold text-zinc-900">Chưa có chi nhánh trong phạm vi quyền của bạn</p></div></div>
         )}
         {activeTab === 'calendar' && activeBranchIds.length > 0 && <SchedulerView branchId={multiBranchSelection ? undefined : activeBranchIds[0]} branchIds={activeBranchIds} branches={visibleBranches} refreshKey={`${calendarRefreshKey}-${externalRefreshKey}`} viewMode={viewMode} setViewMode={setViewMode} selectedDate={selectedDate} setSelectedDate={setSelectedDate} onStatsChange={handleStatsChange} />}
+        {activeTab === 'queue' && tabs.some((tab) => tab.id === 'queue') && activeBranchIds.length > 0 && <AppointmentQueues branchIds={activeBranchIds} branches={visibleBranches} onChanged={() => setCalendarRefreshKey((value) => value + 1)} />}
         {activeTab === 'list' && selectedBranch && <SchedulerListView zone={zone} branchId={multiBranchSelection ? undefined : selectedBranch} branchIds={activeBranchIds} />}
         {activeTab === 'stats' && selectedBranch && <SchedulerStats branchId={multiBranchSelection ? undefined : selectedBranch} branchIds={activeBranchIds} />}
       </section>

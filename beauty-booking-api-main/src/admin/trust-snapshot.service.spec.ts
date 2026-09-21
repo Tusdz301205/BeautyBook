@@ -52,7 +52,7 @@ describe('TrustSnapshotService fairness', () => {
         create: trustActionCreate,
         findMany: jest.fn().mockResolvedValue([]),
       },
-      salonMember: { findMany: jest.fn().mockResolvedValue([]) },
+      userRole: { findMany: jest.fn().mockResolvedValue([]) },
     };
     prisma.$transaction = jest.fn(
       async (operation: (tx: unknown) => Promise<unknown>) => operation(prisma),

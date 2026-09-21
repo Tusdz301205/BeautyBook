@@ -24,6 +24,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import {
   assertBusinessAccess,
   assertBranchAccess,
+  restrictToRoles,
 } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
@@ -46,25 +47,23 @@ export class StaffController {
     private readonly invitations: StaffInvitationsService,
   ) {}
 
-  private async assertStaffResourceAccess(user: AuthUser, staffId: string, requestedBranchId?: string) {
+  private async assertStaffResourceAccess(user: AuthUser, staffId: string, allowReceptionist = true) {
     const staff = await this.prisma.staffProfile.findUnique({
       where: { id: staffId },
       select: { branchId: true, userId: true },
     });
-    if (!staff) {
-      return this.staffService.getBranchIdByStaff(staffId);
-    }
-    const staffOnly =
-      user.roles.includes('STAFF') &&
-      !user.roles.some((role) =>
-        ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN'].includes(role),
-      );
-    if (staffOnly && staff.userId !== user.id) {
+    if (!staff) return this.staffService.getBranchIdByStaff(staffId);
+    const allowedRoles = allowReceptionist
+      ? ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN']
+      : ['BUSINESS_OWNER', 'PLATFORM_ADMIN'];
+    // Staff authority applies only to the current user's own profile.
+    if (staff.userId === user.id) allowedRoles.push('STAFF');
+    const principal = restrictToRoles(user, allowedRoles);
+    if (principal.roles.length === 0) {
       throw new ForbiddenException('Nhân viên chỉ được xem dữ liệu của chính mình');
     }
-    const targetBranchId = requestedBranchId || staff.branchId;
-    await assertBranchAccess(this.prisma, user, targetBranchId);
-    return targetBranchId;
+    await assertBranchAccess(this.prisma, principal, staff.branchId);
+    return staff.branchId;
   }
 
   private async assertInvitationAccess(user: AuthUser, invitationId: string) {
@@ -73,25 +72,25 @@ export class StaffController {
       select: { businessId: true, branchId: true },
     });
     if (!invitation) throw new BadRequestException('Lời mời không tồn tại');
-    await assertBusinessAccess(this.prisma, user, invitation.businessId);
-    if (invitation.branchId) await assertBranchAccess(this.prisma, user, invitation.branchId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), invitation.businessId);
+    if (invitation.branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), invitation.branchId);
   }
 
   @Post('invitations')
   @Audited({ action: AuditAction.CREATE, entityType: 'StaffInvitation' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   async invite(
     @Body() body: InviteStaffDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
-    if (body.branchId) await assertBranchAccess(this.prisma, user, body.branchId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
+    if (body.branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
     return this.invitations.invite({ ...body, invitedBy: user.id });
   }
 
   @Get('invitations')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER')
   @RequirePermission('user:read:tenant', 'user:read:branch')
   async listInvitations(
     @Query('businessId') businessId: string,
@@ -99,8 +98,8 @@ export class StaffController {
     @CurrentUser() user: AuthUser,
   ) {
     if (!businessId) throw new BadRequestException('businessId là bắt buộc');
-    await assertBusinessAccess(this.prisma, user, businessId);
-    if (branchId) await assertBranchAccess(this.prisma, user, branchId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
+    if (branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.invitations.list({ businessId, branchId });
   }
 
@@ -128,8 +127,8 @@ export class StaffController {
   }
 
   @Post('invitations/:invitationId/resend')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   async resendInvitation(
     @Param('invitationId') invitationId: string,
     @CurrentUser() user: AuthUser,
@@ -139,8 +138,8 @@ export class StaffController {
   }
 
   @Patch('invitations/:invitationId/email')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   async changeInvitationEmail(
     @Param('invitationId') invitationId: string,
     @Body() body: ChangeStaffInvitationEmailDto,
@@ -151,8 +150,8 @@ export class StaffController {
   }
 
   @Delete('invitations/:invitationId')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   async revokeInvitation(
     @Param('invitationId') invitationId: string,
     @CurrentUser() user: AuthUser,
@@ -179,7 +178,7 @@ export class StaffController {
   }
 
   @Get('me')
-  @Roles('STAFF', 'BRANCH_MANAGER', 'RECEPTIONIST', 'BUSINESS_OWNER')
+  @Roles('STAFF', 'RECEPTIONIST', 'BUSINESS_OWNER')
   @RequirePermission('user:read:self')
   findMine(@CurrentUser() user: AuthUser) {
     return this.staffService.findMine(user.id);
@@ -191,12 +190,13 @@ export class StaffController {
    * Query: ?branchId=xxx
    */
   @Get()
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN')
   @RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:platform')
   async findAll(
     @CurrentUser() user: AuthUser,
     @Query('branchId') branchId?: string,
   ) {
+    user = restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN']);
     // If branchId specified, verify access
     if (branchId) {
       await assertBranchAccess(this.prisma, user, branchId);
@@ -209,7 +209,7 @@ export class StaffController {
    * Chi tiết nhân viên.
    */
   @Get(':id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:self', 'user:read:platform')
   async findOne(
     @Param('id') id: string,
@@ -224,8 +224,8 @@ export class StaffController {
    * Thêm nhân viên mới vào chi nhánh.
    */
   @Post()
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'StaffProfile' })
   async create(
     @Body() body: {
@@ -243,7 +243,7 @@ export class StaffController {
     if (!body.branchId || !body.fullName) {
       throw new BadRequestException('branchId và fullName là bắt buộc');
     }
-    await assertBranchAccess(this.prisma, user, body.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
     return this.staffService.create(body);
   }
 
@@ -252,8 +252,8 @@ export class StaffController {
    * Cập nhật hồ sơ nhân viên.
    */
   @Patch(':id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'StaffProfile' })
   async update(
     @Param('id') id: string,
@@ -268,13 +268,13 @@ export class StaffController {
     @CurrentUser() user: AuthUser,
   ) {
     const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.update(id, body);
   }
 
   @Post(':id/branch-assignments')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'StaffBranchAssignment' })
   async assignBranch(
     @Param('id') id: string,
@@ -289,8 +289,8 @@ export class StaffController {
     @CurrentUser() user: AuthUser,
   ) {
     const currentBranchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, currentBranchId);
-    await assertBranchAccess(this.prisma, user, body.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), currentBranchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.branchId);
     return this.staffService.assignBranch(id, body);
   }
 
@@ -299,8 +299,8 @@ export class StaffController {
    * Khóa nhân viên (deactivate, không xóa cứng).
    */
   @Delete(':id')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('user:role_assign:tenant', 'user:role_assign:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('user:role_assign:tenant')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'StaffProfile' })
   async deactivate(
     @Param('id') id: string,
@@ -308,45 +308,45 @@ export class StaffController {
     @CurrentUser() user: AuthUser,
   ) {
     const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.deactivate(id, body, user.id);
   }
 
   @Get(':id/offboarding-impact')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
+  @Roles('BUSINESS_OWNER')
   @RequirePermission('user:read:tenant', 'user:read:branch')
   async offboardingImpact(
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
   ) {
     const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.offboardingImpact(id);
   }
 
   @Patch('branches/:branchId/holidays')
   @Audited({ action: AuditAction.UPDATE, entityType: 'BranchHoliday', idParam: 'branchId' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:tenant', 'branch:update:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant')
   async upsertHoliday(
     @Param('branchId') branchId: string,
     @Body() body: { date: string; name: string; isClosed?: boolean },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.upsertHoliday(branchId, body);
   }
 
   @Post('branches/:branchId/special-days')
   @Audited({ action: AuditAction.CREATE, entityType: 'SpecialWorkingDay', idParam: 'branchId' })
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('branch:update:tenant', 'branch:update:branch')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch:update:tenant')
   async createSpecialDay(
     @Param('branchId') branchId: string,
     @Body() body: { date: string; startTime: string; endTime: string },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.createSpecialDay(branchId, body);
   }
 
@@ -359,7 +359,7 @@ export class StaffController {
    * Danh sách dịch vụ đã gán.
    */
   @Get(':id/services')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:self', 'user:read:platform')
   async getAssignedServices(
     @Param('id') id: string,
@@ -374,8 +374,8 @@ export class StaffController {
    * Gán dịch vụ cho nhân viên (replace all).
    */
   @Patch(':id/services')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('staff_service:assign:branch', 'staff_service:assign:tenant')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('staff_service:assign:tenant')
   @Audited({ action: AuditAction.UPDATE, entityType: 'StaffService' })
   async assignServices(
     @Param('id') id: string,
@@ -386,7 +386,7 @@ export class StaffController {
       throw new BadRequestException('serviceIds phải là một mảng');
     }
     const branchId = await this.staffService.getBranchIdByStaff(id);
-    await assertBranchAccess(this.prisma, user, branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), branchId);
     return this.staffService.assignServices(id, body.serviceIds);
   }
 
@@ -397,10 +397,10 @@ export class StaffController {
   /**
    * GET /api/staff/:id/commission
    * Xem hoa hồng nhân viên.
-   * Staff chỉ xem của mình, Manager/Owner xem được team.
+   * Staff chỉ xem của mình, Owner xem được team.
    */
   @Get(':id/commission')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   async getCommission(
     @Param('id') id: string,
@@ -408,7 +408,7 @@ export class StaffController {
     @Query('endDate') endDate?: string,
     @CurrentUser() user?: AuthUser,
   ) {
-    await this.assertStaffResourceAccess(user!, id);
+    await this.assertStaffResourceAccess(user!, id, false);
     return this.staffService.getCommission(id, { startDate, endDate });
   }
 }

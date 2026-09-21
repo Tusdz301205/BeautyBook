@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { auditLog } from '../common/utils/audit';
+import { CUSTOMER_CANCELLATION_HOURS } from '../bookings/customer-cancellation-policy';
 
 export const PLATFORM_DEFAULTS = Object.freeze({
   maxAdvanceBookingDays: 30,
   minBookingLeadTimeHours: 2,
-  freeCancellationHours: 2,
+  freeCancellationHours: CUSTOMER_CANCELLATION_HOURS,
   allowRescheduleRequests: true,
   maxRescheduleCountPerBooking: 2,
   pendingHoldMinutes: 30,
@@ -44,7 +45,7 @@ const LEGACY_ALIASES: Record<string, keyof PlatformSettings> = {
 const INTEGER_RULES: Record<string, [number, number]> = {
   maxAdvanceBookingDays: [1, 365],
   minBookingLeadTimeHours: [0, 168],
-  freeCancellationHours: [0, 168],
+  freeCancellationHours: [CUSTOMER_CANCELLATION_HOURS, CUSTOMER_CANCELLATION_HOURS],
   maxRescheduleCountPerBooking: [0, 10],
   pendingHoldMinutes: [5, 1440],
   appointmentReminderBeforeHours: [0, 168],
@@ -100,12 +101,12 @@ export class PlatformSettingsService {
   }
 
   async getEffective(): Promise<PlatformSettings> {
-    return { ...PLATFORM_DEFAULTS, ...(await this.getConfigured()) } as PlatformSettings;
+    return { ...PLATFORM_DEFAULTS, ...(await this.getConfigured()), freeCancellationHours: CUSTOMER_CANCELLATION_HOURS } as PlatformSettings;
   }
 
   async getView() {
     const configured = await this.getConfigured();
-    return { configured, defaults: PLATFORM_DEFAULTS, effective: { ...PLATFORM_DEFAULTS, ...configured } };
+    return { configured, defaults: PLATFORM_DEFAULTS, effective: { ...PLATFORM_DEFAULTS, ...configured, freeCancellationHours: CUSTOMER_CANCELLATION_HOURS } };
   }
 
   async update(settings: Record<string, unknown>, actorId: string) {

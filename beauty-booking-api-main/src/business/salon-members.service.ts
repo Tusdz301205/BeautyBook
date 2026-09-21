@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -21,13 +21,23 @@ export class SalonMembersService {
   }
 
   /**
-   * Thêm member mới (gán owner/manager/receptionist cho salon).
+   * Compatibility membership metadata; authorization comes from UserRole.
    */
   async addMember(businessId: string, params: {
     userId: string;
-    role: 'OWNER' | 'MANAGER' | 'RECEPTIONIST';
+    role: 'OWNER' | 'RECEPTIONIST';
     branchId?: string;
   }) {
+    if (!['OWNER', 'RECEPTIONIST'].includes(params.role)) {
+      throw new BadRequestException('Vai trò thành viên không còn được hỗ trợ');
+    }
+    if (params.role === 'RECEPTIONIST' && !params.branchId) {
+      throw new BadRequestException('Lễ tân bắt buộc có chi nhánh');
+    }
+    if (params.branchId) {
+      const branch = await this.prisma.branch.findFirst({ where: { id: params.branchId, businessId, deletedAt: null } });
+      if (!branch) throw new BadRequestException('Chi nhánh không thuộc doanh nghiệp');
+    }
     return this.prisma.salonMember.upsert({
       where: { userId_businessId: { userId: params.userId, businessId } },
       create: {

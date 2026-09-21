@@ -3,9 +3,10 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoyaltyService } from './loyalty.service';
+import { assertCustomerPrincipal } from '../auth/account-separation';
 
 @Controller('loyalty')
 export class LoyaltyController {
@@ -15,6 +16,7 @@ export class LoyaltyController {
   @Roles('CUSTOMER')
   @RequirePermission('user:read:self')
   async mine(@CurrentUser() user: AuthUser) {
+    assertCustomerPrincipal(user);
     const customer = await this.prisma.customerProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
     if (!customer) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
     return this.loyalty.listCustomer(customer.id);
@@ -24,7 +26,7 @@ export class LoyaltyController {
   @Roles('BUSINESS_OWNER')
   @RequirePermission('promotion:manage:tenant')
   async configure(@Body() body: any, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, body.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
     return this.loyalty.configureRule(body.businessId, user.id, body);
   }
 
@@ -32,7 +34,7 @@ export class LoyaltyController {
   @Roles('BUSINESS_OWNER')
   @RequirePermission('report:revenue:tenant')
   async liability(@Query('businessId') businessId: string, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     const [accounts, rule] = await Promise.all([
       this.prisma.loyaltyAccount.aggregate({ where: { businessId }, _sum: { balance: true }, _count: true }),
       this.prisma.loyaltyRule.findFirst({ where: { businessId, active: true }, orderBy: { version: 'desc' } }),

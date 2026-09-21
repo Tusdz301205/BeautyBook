@@ -13,21 +13,21 @@ export class SavedServicesController {
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
-    return this.savedServices.list(user.id);
+    return this.savedServices.list(user);
   }
 
   @Post()
   save(@Body() body: { serviceId: string }, @CurrentUser() user: AuthUser) {
-    return this.savedServices.save(user.id, body.serviceId);
+    return this.savedServices.save(user, body.serviceId);
   }
 
   @Post(':serviceId')
   saveByPath(@Param('serviceId') serviceId: string, @CurrentUser() user: AuthUser) {
-    return this.savedServices.save(user.id, serviceId);
+    return this.savedServices.save(user, serviceId);
   }
 
   @Delete(':serviceId')
   remove(@Param('serviceId') serviceId: string, @CurrentUser() user: AuthUser) {
-    return this.savedServices.remove(user.id, serviceId);
+    return this.savedServices.remove(user, serviceId);
   }
 }

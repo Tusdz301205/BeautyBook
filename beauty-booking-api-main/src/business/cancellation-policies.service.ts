@@ -4,6 +4,7 @@ import { validateSync } from 'class-validator';
 import { PrismaService } from '../prisma/prisma.service';
 import { auditLog } from '../common/utils/audit';
 import { UpdateCancellationPolicyDto } from './dto/cancellation-policy.dto';
+import { CUSTOMER_CANCELLATION_HOURS } from '../bookings/customer-cancellation-policy';
 
 const EDITABLE_POLICY_FIELDS = new Set(['freeCancelHours', 'rescheduleAllowedHours', 'notes']);
 
@@ -18,7 +19,7 @@ export class CancellationPoliciesService {
    */
   private activePolicy(policy: any) {
     const { lateCancelFeePercent: _lateFee, noShowFeePercent: _noShowFee, ...active } = policy;
-    return active;
+    return { ...active, freeCancelHours: CUSTOMER_CANCELLATION_HOURS };
   }
 
   private validateUpdate(params: UpdateCancellationPolicyDto) {
@@ -52,7 +53,7 @@ export class CancellationPoliciesService {
     });
     if (!policy) {
       policy = await this.prisma.cancellationPolicy.create({
-        data: { businessId },
+        data: { businessId, freeCancelHours: CUSTOMER_CANCELLATION_HOURS },
       });
     }
     return this.activePolicy(policy);

@@ -28,15 +28,24 @@ function mkUser(
     email: `${id}@example.com`,
     roles: roleCodes,
     scopes,
-    sessionType: 'salon',
+    sessionType: roleCodes.length === 1 && roleCodes[0] === 'CUSTOMER' ? 'customer' : 'salon',
     permissions: expandRolePermissions(roleCodes),
   };
 }
 
 describe('policy engine integration', () => {
   test('coarse checks use the catalog role grant', () => {
-    expect(can(mkUser(['BRANCH_MANAGER']), 'booking:read:branch')).toBe(true);
+    expect(can(mkUser(['RECEPTIONIST']), 'booking:read:branch')).toBe(true);
     expect(can(mkUser(['CUSTOMER']), 'booking:read:branch')).toBe(false);
+  });
+
+  test('retired Manager role grants no permissions even with a valid branch scope', () => {
+    const retired = mkUser([
+      { code: 'BRANCH_MANAGER', businessId: 'biz-1', branchId: 'branch-1' },
+    ]);
+    expect(retired.permissions).toEqual([]);
+    expect(can(retired, 'booking:read:branch', { tenantId: 'biz-1', branchId: 'branch-1' })).toBe(false);
+    expect(ROLE_PERMISSIONS).not.toHaveProperty('BRANCH_MANAGER');
   });
 
   test('tenant checks reject another business', () => {

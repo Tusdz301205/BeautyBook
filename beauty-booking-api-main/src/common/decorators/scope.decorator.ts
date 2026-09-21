@@ -16,7 +16,7 @@ export const SCOPES_KEY = SCOPE_KEY;
  *
  *   // BACK-COMPAT — explicit allow-list of roles + optional permission
  *   // codes + scope level for the early-pass short-circuit.
- *   @RequireScope({ roles: ['OWNER', 'BRANCH_MANAGER'],
+ *   @RequireScope({ roles: ['BUSINESS_OWNER', 'RECEPTIONIST'],
  *                   scopeLevel: 'branch',
  *                   permissions: ['booking:read:branch'] })
  */

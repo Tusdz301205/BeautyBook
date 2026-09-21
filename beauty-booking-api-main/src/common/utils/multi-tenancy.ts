@@ -5,7 +5,32 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthUser } from '../decorators/current-user.decorator';
 import type { ScopedRole } from '../../auth/jwt.strategy';
-import type { RoleCode } from '@prisma/client';
+
+const SALON_ROLES = new Set(['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF']);
+
+/** Keep role and scope together when a capability accepts only some roles. */
+export function restrictToRoles(user: AuthUser, allowedRoles: readonly string[]): AuthUser {
+  const roles = user.roles.filter((role) => allowedRoles.includes(role));
+  return { ...user, roles, scopes: (user.scopes ?? []).filter((scope) => roles.includes(scope.code)) };
+}
+
+function activeSalonScopes(user: AuthUser): ScopedRole[] {
+  return (user.scopes ?? []).filter((scope) =>
+    SALON_ROLES.has(scope.code) && user.roles.includes(scope.code) &&
+    (!scope.expiresAt || new Date(scope.expiresAt).getTime() > Date.now()),
+  );
+}
+
+async function onboardingOwnerBusinessIds(prisma: PrismaService, user: AuthUser): Promise<string[]> {
+  if (!activeSalonScopes(user).some((scope) =>
+    scope.code === 'BUSINESS_OWNER' && !scope.businessId && !scope.branchId,
+  )) return [];
+  const owner = await prisma.businessOwnerProfile.findUnique({
+    where: { userId: user.id },
+    select: { businesses: { where: { deletedAt: null }, select: { id: true } } },
+  });
+  return (owner?.businesses ?? []).map((business) => business.id);
+}
 
 /**
  * Marker returned by `resolveBusinessIdsForUser` to mean "ALL tenants".
@@ -19,7 +44,7 @@ export const ALL_TENANTS = '__ALL__';
  *
  * Quy tắc (RBAC + Scope aware):
  *  - PLATFORM_* roles: trả marker `__ALL__`.
- *  - BUSINESS_OWNER / BRANCH_MANAGER / RECEPTIONIST / STAFF: BUỘC có
+ *  - BUSINESS_OWNER / RECEPTIONIST / STAFF: BUỘC có
  *    `UserRole` (scoped) cho tenant đó.
  *  - CUSTOMER: không có business scope.
  *
@@ -38,45 +63,17 @@ export async function resolveBusinessIdsForUser(
 
   const tenantRoles = new Set([
     'BUSINESS_OWNER',
-    'BRANCH_MANAGER',
     'RECEPTIONIST',
     'STAFF',
   ]);
   if (user.roles.some((r) => tenantRoles.has(r))) {
     const tenantIds = new Set<string>();
-    for (const s of user.scopes ?? []) {
-      if (s.businessId) tenantIds.add(s.businessId);
+    for (const s of activeSalonScopes(user)) {
+      if (s.businessId && (s.code === 'BUSINESS_OWNER' || s.branchId)) tenantIds.add(s.businessId);
     }
-    if (tenantIds.size === 0) {
-      // A newly registered owner receives a role before their draft business
-      // exists, so the JWT scope is temporarily empty. Resolve ownership from
-      // the database as well as legacy memberships; both relations are bound
-      // to the authenticated user and therefore preserve tenant isolation.
-      const ownerLookup = user.roles.includes('BUSINESS_OWNER')
-        ? prisma.businessOwnerProfile.findUnique({
-            where: { userId: user.id },
-            select: {
-              businesses: {
-                where: { deletedAt: null },
-                select: { id: true },
-              },
-            },
-          })
-        : Promise.resolve(null);
-      const [memberships, owner] = await Promise.all([
-        prisma.salonMember.findMany({
-          where: { userId: user.id, isActive: true, deletedAt: null },
-          select: { businessId: true },
-        }),
-        ownerLookup,
-      ]);
-      return [
-        ...new Set([
-          ...memberships.map((membership) => membership.businessId),
-          ...(owner?.businesses ?? []).map((business) => business.id),
-        ]),
-      ];
-    }
+    // An onboarding owner can also have an unrelated branch role. Verify
+    // ownership independently; never treat that branch membership as ownership.
+    for (const id of await onboardingOwnerBusinessIds(prisma, user)) tenantIds.add(id);
     return [...tenantIds];
   }
 
@@ -150,7 +147,7 @@ export function tenantScope(
   }
   // Caller must wire `branch: { businessId: { in: allowedIds } }` themselves
   // because Prisma where shapes differ per model.
-  return { ...base, _allowedBusinessIds: allowedIds } as Record<string, unknown>;
+  return { ...base, _allowedBusinessIds: allowedIds };
 }
 
 /**
@@ -166,11 +163,8 @@ export async function tenantBranchScope(
   const allowed = await resolveBusinessIdsForUser(prisma, user);
   if (allowed.includes(ALL_TENANTS)) return extra;
   if (allowed.length === 0) return { ...extra, id: { in: [] } };
-  const branches = await prisma.branch.findMany({
-    where: { businessId: { in: allowed }, deletedAt: null },
-    select: { id: true },
-  });
-  return { ...extra, id: { in: branches.map((b) => b.id) } };
+  const branches = await Promise.all(allowed.map((id) => resolveBranchIdsForUser(prisma, user, id)));
+  return { ...extra, id: { in: branches.flatMap((ids) => ids ?? []) } };
 }
 
 /**
@@ -189,49 +183,22 @@ export async function resolveBranchIdsForUser(
   if (user.roles.some((r) => platformRoles.has(r))) {
     return null; // null = no filter (full access)
   }
-  const branchScoped = new Set(['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF']);
-  const tenantWide = new Set(['BUSINESS_OWNER']);
-  if (user.roles.some((r) => branchScoped.has(r))) {
-    const userBranches = new Set<string>();
-    for (const s of user.scopes ?? []) {
-      if (s.branchId && s.businessId === businessId) userBranches.add(s.branchId);
-    }
-    // Merge current database scopes so a newly granted branch assignment is
-    // effective immediately, without waiting for the access token to rotate.
-    const [roleScopes, memberships] = await Promise.all([
-      prisma.userRole.findMany({
-        where: {
-          userId: user.id,
-          businessId,
-          branchId: { not: null },
-          role: { code: { in: [...branchScoped] as RoleCode[] } },
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-        select: { branchId: true },
-      }),
-      prisma.salonMember.findMany({
-        where: {
-          userId: user.id,
-          businessId,
-          isActive: true,
-          deletedAt: null,
-          branchId: { not: null },
-        },
-        select: { branchId: true },
-      }),
-    ]);
-    for (const scope of roleScopes) if (scope.branchId) userBranches.add(scope.branchId);
-    for (const membership of memberships) if (membership.branchId) userBranches.add(membership.branchId);
-    return [...userBranches];
-  }
-  if (user.roles.some((r) => tenantWide.has(r))) {
+  // Auth reloads UserRole on every request. Do not merge legacy memberships
+  // or an unrelated role from another workspace/business into this scope.
+  const active = activeSalonScopes(user);
+  const scopes = active.filter((scope) => scope.businessId === businessId);
+  const verifiedOnboardingOwner = (await onboardingOwnerBusinessIds(prisma, user)).includes(businessId);
+  if (verifiedOnboardingOwner || scopes.some((scope) => scope.code === 'BUSINESS_OWNER' && !scope.branchId)) {
     const branches = await prisma.branch.findMany({
       where: { businessId, deletedAt: null },
       select: { id: true },
     });
     return branches.map((b) => b.id);
   }
-  return [];
+  return [...new Set(scopes
+    .filter((scope) => scope.code === 'RECEPTIONIST' || scope.code === 'STAFF')
+    .map((scope) => scope.branchId)
+    .filter((id): id is string => Boolean(id)))];
 }
 
 /**

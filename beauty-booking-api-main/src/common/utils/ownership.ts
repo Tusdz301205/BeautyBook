@@ -22,7 +22,7 @@ export interface BookingScopeHint {
  *
  * Rules:
  *  - Customer: own booking only.
- *  - Staff/Receptionist/Manager: branch-scoped role AND branch belongs
+ *  - Staff/Receptionist: branch-scoped role AND branch belongs
  *    to a tenant the user has access to.
  *  - Owner: tenant-scoped role covering the booking's branch.
  *  - Platform roles: always allowed (PLATFORM_ADMIN etc).
@@ -50,7 +50,7 @@ export async function assertCanAccessBooking(
   if (
     user.roles.includes('CUSTOMER') &&
     !user.roles.some((r) =>
-      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'].includes(
+      ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF'].includes(
         r,
       ),
     )

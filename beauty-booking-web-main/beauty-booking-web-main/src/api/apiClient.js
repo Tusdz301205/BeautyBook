@@ -51,7 +51,7 @@ export async function refreshSession() {
  */
 async function request(endpoint, options = {}, _isRetry = false) {
   const url = `${API_BASE}${endpoint}`;
-  const { accessToken, user, setAccessToken, clearSession } =
+  const { accessToken, user, setSession, clearSession } =
     useAuthStore.getState();
 
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -86,7 +86,7 @@ async function request(endpoint, options = {}, _isRetry = false) {
   if (response.status === 401 && user && !_isRetry && endpoint !== '/auth/refresh') {
     try {
       const data = await refreshSession();
-      setAccessToken(data.accessToken);
+      if (!setSession(data)) throw new Error('Phiên đăng nhập không còn quyền truy cập.');
       const retryOptions = {
         ...options,
         headers: {
@@ -178,6 +178,7 @@ const STATUS_LABEL_TO_ENUM = {
 };
 
 export const bookingsApi = {
+  selfBookingPolicy: (branchId) => request(`/bookings/self-booking-policy?branchId=${encodeURIComponent(branchId)}`),
   getAll: (params = {}) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -206,12 +207,12 @@ export const bookingsApi = {
 
   getByCustomer: (userId) => request(`/bookings/by-customer/${userId}`),
 
-  updateStatus: (id, status, changedBy, note) => {
+  updateStatus: (id, status, changedBy, note, noShowConfirmed) => {
     // Convert label to enum if needed
     const mappedStatus = STATUS_LABEL_TO_ENUM[status] || status;
     return request(`/bookings/${id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status: mappedStatus, changedBy, note }),
+      body: JSON.stringify({ status: mappedStatus, changedBy, note, noShowConfirmed }),
     });
   },
 
@@ -376,6 +377,7 @@ export const branchesApi = {
 
   getAccessible: () => request('/branches/accessible'),
   getAccessibleById: (id) => request(`/branches/accessible/${id}`),
+  getPreview: (id) => request(`/branches/${id}/preview`),
   getDistricts: () => request('/branches/locations/districts'),
   createDraft: (data) => request('/branches', {
     method: 'POST',
@@ -885,12 +887,6 @@ export const financeOperationsApi = {
   issueInvoice: (data) => request('/finance-operations/invoices', { method: 'POST', body: JSON.stringify(data) }),
   cancelInvoice: (id, reason) => request(`/finance-operations/invoices/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
   reissueInvoice: (id, data) => request(`/finance-operations/invoices/${id}/reissue`, { method: 'POST', body: JSON.stringify(data) }),
-  shifts: (branchId) => request(`/finance-operations/cash-shifts${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),
-  shift: (id) => request(`/finance-operations/cash-shifts/${id}`),
-  openShift: (branchId, openingBalance) => request('/finance-operations/cash-shifts', { method: 'POST', body: JSON.stringify({ branchId, openingBalance }) }),
-  addMovement: (id, data) => request(`/finance-operations/cash-shifts/${id}/movements`, { method: 'POST', body: JSON.stringify(data) }),
-  closeShift: (id, data) => request(`/finance-operations/cash-shifts/${id}/close`, { method: 'PATCH', body: JSON.stringify(data) }),
-  approveShift: (id) => request(`/finance-operations/cash-shifts/${id}/approve`, { method: 'PATCH' }),
 };
 
 export const impactApi = {

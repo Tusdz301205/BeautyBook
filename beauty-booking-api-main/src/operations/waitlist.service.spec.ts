@@ -39,7 +39,7 @@ function waitlistPrisma(overlap: boolean) {
 describe('Waitlist offer claiming', () => {
   it('creates one expiring offer with a hashed claim token and slot key', async () => {
     const prisma = waitlistPrisma(false);
-    const result = await new WaitlistService(prisma as PrismaService, {} as any).offer('wait-1', 'manager-1', {
+    const result = await new WaitlistService(prisma as PrismaService, {} as any).offer('wait-1', 'receptionist-1', {
       startAt: '2030-01-01T09:00:00Z', staffId: 'staff-1', ttlMinutes: 10,
     });
     expect(result.claimToken).toHaveLength(64);
@@ -51,7 +51,7 @@ describe('Waitlist offer claiming', () => {
 
   it('does not offer a slot that conflicts with staff capacity', async () => {
     const prisma = waitlistPrisma(true);
-    await expect(new WaitlistService(prisma as PrismaService, {} as any).offer('wait-1', 'manager-1', {
+    await expect(new WaitlistService(prisma as PrismaService, {} as any).offer('wait-1', 'receptionist-1', {
       startAt: '2030-01-01T09:00:00Z', staffId: 'staff-1',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.waitlistEntry.update).not.toHaveBeenCalled();

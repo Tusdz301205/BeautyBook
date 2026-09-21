@@ -3,7 +3,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { OwnershipService } from './ownership.service';
 
@@ -16,7 +16,7 @@ export class OwnershipController {
   @RequirePermission('business:update:tenant')
   async create(@Body() body: any, @CurrentUser() user: AuthUser) {
     if (!body.businessId) throw new BadRequestException('businessId là bắt buộc');
-    await assertBusinessAccess(this.prisma, user, body.businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), body.businessId);
     return this.ownership.create(body.businessId, user.id, body);
   }
 
@@ -49,7 +49,7 @@ export class OwnershipController {
   @RequirePermission('business:update:tenant', 'business:review:platform')
   async list(@Query('businessId') businessId: string, @CurrentUser() user: AuthUser) {
     if (!businessId) throw new BadRequestException('businessId là bắt buộc');
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId);
     return this.ownership.list(businessId);
   }
 
@@ -92,7 +92,7 @@ export class OwnershipController {
   @Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')
   @RequirePermission('business:update:tenant', 'business:review:platform')
   async versions(@Param('businessId') businessId: string, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId);
     return this.ownership.versions(businessId);
   }
 
@@ -100,7 +100,7 @@ export class OwnershipController {
   @Roles('BUSINESS_OWNER')
   @RequirePermission('business:update:tenant')
   async legal(@Param('businessId') businessId: string, @Body() body: any, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     return this.ownership.createLegalVersion(businessId, user.id, body);
   }
 
@@ -108,7 +108,7 @@ export class OwnershipController {
   @Roles('BUSINESS_OWNER')
   @RequirePermission('business:update:tenant')
   async payout(@Param('businessId') businessId: string, @Body() body: any, @CurrentUser() user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     return this.ownership.createPayoutVersion(businessId, user.id, body);
   }
 }

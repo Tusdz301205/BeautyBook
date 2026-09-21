@@ -1,6 +1,26 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { BookingsController } from './bookings.controller';
 
+describe('Customer booking request projection', () => {
+  test('preserves pending request metadata without exposing actor internals', async () => {
+    const request = { id: 'request', requestType: 'CANCEL', status: 'PENDING',
+      reason: 'Cannot attend', reviewNote: null, expiresAt: '2026-09-21T10:00:00Z',
+      createdAt: '2026-09-20T10:00:00Z', requestedBy: 'private-actor', reviewedBy: 'private-reviewer' };
+    const service = { findOne: jest.fn().mockResolvedValue({ id: 'booking', status: 'CONFIRMED',
+      internalNote: 'private', changeRequests: [request] }) };
+    const access = { loadAndAssert: jest.fn().mockResolvedValue({}) };
+    const controller = new BookingsController(service as never, access as never, {} as never,
+      {} as never, {} as never, {} as never, {} as never);
+    const result = await controller.findOne('booking', { id: 'customer', roles: ['CUSTOMER'],
+      scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer' } as any);
+    expect(access.loadAndAssert).toHaveBeenCalledWith(expect.anything(), 'booking', 'booking:read:self');
+    expect(result.changeRequests).toEqual([{ id: request.id, requestType: request.requestType,
+      status: request.status, reason: request.reason, reviewNote: request.reviewNote,
+      expiresAt: request.expiresAt, createdAt: request.createdAt, violationEvent: null }]);
+    expect(result).not.toHaveProperty('internalNote');
+  });
+});
+
 describe('BookingsController authenticated customer checkout', () => {
   const buildController = (profile: { id: string } | null = { id: 'customer-1' }) => {
     const bookingsService = {
@@ -50,7 +70,7 @@ describe('BookingsController authenticated customer checkout', () => {
   it('customer booking uses the authenticated profile and online source regardless of client fields', async () => {
     const { controller, bookingsService } = buildController();
     await controller.create({ ...counterRequest, source: 'STAFF_CREATED', customerId: 'someone-else' }, {
-      id: 'customer-user', roles: ['CUSTOMER'],
+      id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
     } as any);
     expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_WEB' }));
   });
@@ -61,7 +81,7 @@ describe('BookingsController authenticated customer checkout', () => {
       id: 'item-1', serviceId: 'service-1', status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60,
       priceAtBooking: 100000, service: { id: 'service-1', name: 'Tên đã đổi' },
     }] } as any);
-    const result = await controller.createGuest(counterRequest, { id: 'customer-user', roles: ['CUSTOMER'] } as any);
+    const result = await controller.createGuest(counterRequest, { id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer' } as any);
     expect(result.branchId).toBe('branch-1');
     expect(result.bookingServices[0]).toMatchObject({ status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60 });
   });
@@ -83,6 +103,7 @@ describe('BookingsController authenticated customer checkout', () => {
       id: 'user-1',
       email: 'customer@example.com',
       roles: ['CUSTOMER'],
+      scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
       permissions: ['booking:create:self'],
     } as any)).resolves.toMatchObject({ id: 'booking-1' });
 
@@ -117,6 +138,7 @@ describe('BookingsController authenticated customer checkout', () => {
         id: 'user-1',
         email: 'customer@example.com',
         roles: ['CUSTOMER'],
+        scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
         permissions: ['booking:create:self'],
       } as any),
     ).rejects.toBeInstanceOf(BadRequestException);

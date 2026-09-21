@@ -102,7 +102,8 @@ describe('policy.can — matrix', () => {
     expect(can(manager, 'business_service:update:tenant', { tenantId: 'b-1' })).toBe(false);
     expect(can(manager, 'branch_service_offering:pricing:tenant', { tenantId: 'b-1' })).toBe(false);
     expect(can(manager, 'service_category:manage:tenant', { tenantId: 'b-1' })).toBe(false);
-    expect(can(manager, 'branch_service_offering:status:branch', { tenantId: 'b-1', branchId: 'br-1' })).toBe(true);
+    expect(can(manager, 'branch_service_offering:status:branch', { tenantId: 'b-1', branchId: 'br-1' })).toBe(false);
+    expect(can({ ...manager, permissions: ['booking:update:branch'] }, 'booking:update:branch')).toBe(false);
     expect(can(PLATFORM_USER, 'business_service:update:tenant', { tenantId: 'b-1' })).toBe(false);
     expect(can(PLATFORM_USER, 'branch_service_offering:pricing:tenant', { tenantId: 'b-1' })).toBe(false);
   });
@@ -179,8 +180,8 @@ describe('policy.can — matrix', () => {
     const guest: AuthUser = {
       id: 'g-1',
       email: 'g@x.com',
-      roles: ['GUEST'],
-      scopes: [{ code: 'GUEST' }],
+      roles: [],
+      scopes: [],
       sessionType: 'customer',
     };
     expect(can(guest, 'branch:read:public')).toBe(true);

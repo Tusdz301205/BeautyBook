@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { authApi } from '../api/apiClient';
 import { useBookingStore } from './bookingStore';
+import { activeContextFor, activeScopes, canAt, isCustomerAccount, roleAt, sessionState } from '../utils/authScope';
 
 /**
  * RBAC + Scope shape carried from the backend. Each scoped role holds
@@ -13,7 +14,6 @@ const PLATFORM_LIKE = new Set([
 
 const TENANT_WIDE = new Set(['BUSINESS_OWNER']);
 const BRANCH_SCOPED = new Set([
-  'BRANCH_MANAGER',
   'RECEPTIONIST',
   'STAFF',
 ]);
@@ -39,7 +39,7 @@ export const useAuthStore = create(
       isAuthenticated: () => !!get().accessToken,
       isAdmin: () => get().user?.sessionType === 'admin',
       isSalon: () => get().user?.sessionType === 'salon',
-      isCustomer: () => get().user?.sessionType === 'customer',
+      isCustomer: () => isCustomerAccount(get().user),
 
       /**
        * RBAC + Scope check on the client.
@@ -50,54 +50,14 @@ export const useAuthStore = create(
        * Use to drive UI affordances; the backend will still enforce.
        */
       can(code, ctx = {}) {
-        const user = get().user;
-        if (!user || !user.scopes || user.scopes.length === 0) return false;
-        if (!user.permissions?.includes(code)) return false;
-
-        const parts = code.split(':');
-        const defaultScope = parts.length >= 3 ? parts[parts.length - 1] : 'platform';
-        const hasContext = !!(ctx.tenantId || ctx.branchId || ctx.ownerUserId);
-        if (!hasContext) return true;
-
-        for (const sr of user.scopes) {
-          if (sr.expiresAt && new Date(sr.expiresAt).getTime() <= Date.now()) continue;
-
-          switch (defaultScope) {
-            case 'platform':
-              if (PLATFORM_LIKE.has(sr.code)) return true;
-              break;
-            case 'tenant':
-              if (PLATFORM_LIKE.has(sr.code)) return true;
-              if (sr.businessId && sr.businessId === ctx.tenantId) return true;
-              break;
-            case 'branch':
-              if (PLATFORM_LIKE.has(sr.code)) return true;
-              if (sr.branchId && sr.branchId === ctx.branchId) return true;
-              if (sr.businessId && sr.businessId === ctx.tenantId && !sr.branchId) return true;
-              break;
-            case 'self':
-            case 'own':
-              if (ctx.ownerUserId && ctx.ownerUserId === user.id) return true;
-              break;
-            case 'public':
-              return true;
-          }
-        }
-        return false;
+        return canAt(get().user, code, ctx);
       },
 
       /**
        * Helper: does the user hold the role at the given scope?
        */
       hasRoleAt(roleCode, tenantId = null, branchId = null) {
-        const user = get().user;
-        if (!user?.scopes) return false;
-        return user.scopes.some(
-          (s) =>
-            s.code === roleCode &&
-            (tenantId == null || s.businessId === tenantId) &&
-            (branchId == null || s.branchId === branchId),
-        );
+        return roleAt(get().user, roleCode, tenantId, branchId);
       },
 
       /**
@@ -109,7 +69,7 @@ export const useAuthStore = create(
         if (!user?.scopes) return [];
         const ids = new Set();
         let hasPlatform = false;
-        for (const s of user.scopes) {
+        for (const s of activeScopes(user)) {
           if (PLATFORM_LIKE.has(s.code)) hasPlatform = true;
           if (TENANT_WIDE.has(s.code) || BRANCH_SCOPED.has(s.code)) {
             if (s.businessId) ids.add(s.businessId);
@@ -124,32 +84,23 @@ export const useAuthStore = create(
        * UI (X-Business-Id, X-Branch-Id headers). Returns null if no scope.
        */
       activeContext() {
-        const user = get().user;
-        if (!user?.scopes || user.scopes.length === 0) {
-          return { tenantId: null, branchId: null };
-        }
-        const first = user.scopes[0];
-        return { tenantId: first.businessId ?? null, branchId: first.branchId ?? null };
+        return activeContextFor(get().user);
       },
 
       login: async (email, password, context = {}) => {
         const res = await authApi.login(email, password, context);
-        set({
-          user: res.user,
-          accessToken: res.accessToken,
-          initialized: true,
-        });
-        return res.user;
+        const state = sessionState(res);
+        set(state);
+        if (!state.user) throw new Error('Tài khoản không còn quyền truy cập không gian này.');
+        return state.user;
       },
 
       register: async (data) => {
         const res = await authApi.register(data);
-        set({
-          user: res.user,
-          accessToken: res.accessToken,
-          initialized: true,
-        });
-        return res.user;
+        const state = sessionState(res);
+        set(state);
+        if (!state.user) throw new Error('Tài khoản không còn quyền truy cập không gian này.');
+        return state.user;
       },
 
       clearSession: () => {
@@ -169,15 +120,17 @@ export const useAuthStore = create(
       },
 
       setAccessToken: (token) => set({ accessToken: token }),
+      setSession: (result) => {
+        const state = sessionState(result);
+        if (!state.user) useBookingStore.getState().reset();
+        set(state);
+        return state.user;
+      },
       initialize: async () => {
         if (get().initialized) return;
         try {
           const result = await authApi.refresh();
-          set({
-            user: result.user,
-            accessToken: result.accessToken,
-            initialized: true,
-          });
+          get().setSession(result);
         } catch {
           set({ user: null, accessToken: null, initialized: true });
         }

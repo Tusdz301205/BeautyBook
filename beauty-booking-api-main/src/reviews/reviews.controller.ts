@@ -57,8 +57,8 @@ export class ReviewsController {
    * Đánh giá cho salon quản lý (scoped, mọi trạng thái).
    */
   @Get('manage')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN')
-  @RequirePermission('review:moderate:branch', 'review:moderate:tenant', 'review:moderate:platform')
+  @Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')
+  @RequirePermission('review:moderate:tenant', 'review:moderate:platform')
   findForManagement(
     @CurrentUser() user: AuthUser,
     @Query('status') status?: string,
@@ -72,7 +72,7 @@ export class ReviewsController {
    * Đánh giá về 1 nhân viên.
    */
   @Get('staff/:staffId')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'STAFF', 'PLATFORM_ADMIN')
+  @Roles('BUSINESS_OWNER', 'STAFF', 'PLATFORM_ADMIN')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
   async findByStaff(@Param('staffId') staffId: string, @CurrentUser() user: AuthUser) {
     const staff = await this.prisma.staffProfile.findUnique({
@@ -141,12 +141,12 @@ export class ReviewsController {
     return this.reviewsService.create({
       ...body,
       customerId: customer.id,
-    });
+    }, user);
   }
 
   @Post(':id/report')
-  @Roles('CUSTOMER', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('review:read:public', 'review:report:tenant', 'review:report:branch')
+  @Roles('CUSTOMER', 'BUSINESS_OWNER')
+  @RequirePermission('review:read:public', 'review:report:tenant')
   @Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewReport' })
   report(
     @Param('id') id: string,
@@ -161,8 +161,8 @@ export class ReviewsController {
    * Salon trả lời đánh giá.
    */
   @Post(':id/reply')
-  @Roles('BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('review:moderate:branch', 'review:moderate:tenant')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('review:moderate:tenant')
   @Audited({ action: AuditAction.CREATE, entityType: 'ReviewReply' })
   async reply(
     @Param('id') id: string,
@@ -202,8 +202,8 @@ export class ReviewsController {
   }
 
   @Post(':id/appeals')
-  @Roles('CUSTOMER', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('review:create:self', 'review:moderate:tenant', 'review:moderate:branch')
+  @Roles('CUSTOMER', 'BUSINESS_OWNER')
+  @RequirePermission('review:create:self', 'review:moderate:tenant')
   @Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewAppeal' })
   appeal(
     @Param('id') id: string,

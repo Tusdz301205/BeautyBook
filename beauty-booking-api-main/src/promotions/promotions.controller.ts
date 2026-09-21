@@ -22,7 +22,7 @@ import { Audited } from '../common/decorators/audit.decorator';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { assertBranchAccess, assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBranchAccess, assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
 import { isPlatformRole } from '../common/utils/scope-helpers';
@@ -51,10 +51,10 @@ export class PromotionsController {
     @Query('status') status?: string,
   ) {
     if (businessId) {
-      await assertBusinessAccess(this.prisma, user, businessId);
+      await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), businessId);
     }
     if (branchId) {
-      await assertBranchAccess(this.prisma, user, branchId);
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), branchId);
     }
     return this.promotionsService.findAll(user, { businessId, branchId, status });
   }
@@ -73,7 +73,6 @@ export class PromotionsController {
    * POST /api/promotions
    * Tạo khuyến mãi mới.
    * - Owner: tạo cho salon mình.
-   * - Manager: tạo cho chi nhánh mình.
    * - Marketing/Admin: tạo toàn platform.
    */
   @Post()
@@ -95,11 +94,11 @@ export class PromotionsController {
     // Verify business access for each linked business
     if (body.businessIds) {
       for (const bizId of body.businessIds) {
-        await assertBusinessAccess(this.prisma, user, bizId);
+        await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), bizId);
       }
     }
     for (const branchId of body.branchIds ?? []) {
-      await assertBranchAccess(this.prisma, user, branchId);
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), branchId);
     }
     for (const serviceId of body.serviceIds ?? []) {
       const service = await this.prisma.branchServiceOffering.findUnique({
@@ -107,12 +106,12 @@ export class PromotionsController {
         select: { branchId: true },
       });
       if (!service) throw new BadRequestException('Dịch vụ không tồn tại');
-      await assertBranchAccess(this.prisma, user, service.branchId);
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), service.branchId);
     }
     for (const comboId of body.comboIds ?? []) {
       const combo = await this.prisma.combo.findUnique({ where: { id: comboId }, select: { businessId: true } });
       if (!combo) throw new BadRequestException('Combo không tồn tại');
-      await assertBusinessAccess(this.prisma, user, combo.businessId);
+      await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), combo.businessId);
     }
     const ownerBusinessId = isPlatformRole(user) ? null : body.businessIds?.[0];
     if (!isPlatformRole(user) && !ownerBusinessId) {

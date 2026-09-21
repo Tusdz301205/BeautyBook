@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import {
   resolveBusinessIdsForUser,
+  restrictToRoles,
+  assertBranchAccess,
   ALL_TENANTS,
 } from '../common/utils/multi-tenancy';
 import { can } from '../common/utils/policy';
@@ -17,19 +19,14 @@ export class PromotionsService {
    * Lấy danh sách khuyến mãi (scoped theo tenant).
    */
   async findAll(user: AuthUser, filters?: { businessId?: string; branchId?: string; status?: string }) {
-    const allowedIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const allowedIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
     const where: any = { deletedAt: null };
 
     if (filters?.status) where.status = filters.status;
 
     // Scope filtering
     if (!allowedIds.includes(ALL_TENANTS)) {
-      const branchIds = (user.scopes ?? []).map((scope) => scope.branchId).filter((id): id is string => Boolean(id));
-      if (user.roles.includes('BRANCH_MANAGER')) {
-        where.branchLinks = { some: { branchId: { in: branchIds } } };
-      } else {
-        where.businessLinks = { some: { businessId: { in: allowedIds } } };
-      }
+      where.businessLinks = { some: { businessId: { in: allowedIds } } };
     }
 
     if (filters?.businessId) {
@@ -41,11 +38,7 @@ export class PromotionsService {
       };
     }
     if (filters?.branchId) {
-      const allowedBranchIds = (user.scopes ?? []).map((scope) => scope.branchId).filter(Boolean);
-      if (!allowedIds.includes(ALL_TENANTS) && user.roles.includes('BRANCH_MANAGER') &&
-          !allowedBranchIds.includes(filters.branchId)) {
-        throw new ForbiddenException('Không có quyền xem campaign của chi nhánh này');
-      }
+      await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), filters.branchId);
       where.branchLinks = { some: { branchId: filters.branchId } };
     }
 

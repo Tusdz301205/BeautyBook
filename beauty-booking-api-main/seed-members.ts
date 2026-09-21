@@ -1,14 +1,14 @@
 import { Pool } from 'pg';
 
 const pool = new Pool({
-  connectionString: 'postgresql://postgres:123@localhost:5432/glowbook_db?schema=public',
+  connectionString: process.env.DATABASE_URL,
 });
 
 async function main() {
   console.log('=== STEP 1: Create salon_members table ===');
   await pool.query(`
     DO $$ BEGIN
-      CREATE TYPE "SalonMemberRole" AS ENUM ('OWNER', 'MANAGER', 'RECEPTIONIST');
+      CREATE TYPE "SalonMemberRole" AS ENUM ('OWNER', 'RECEPTIONIST');
     EXCEPTION WHEN duplicate_object THEN null; END $$;
   `);
 

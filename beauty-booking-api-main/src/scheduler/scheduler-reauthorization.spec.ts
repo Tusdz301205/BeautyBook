@@ -3,8 +3,8 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { SchedulerGateway, SOCKET_AUTHORIZATION_TIMEOUT_MS, SOCKET_REAUTHORIZE_INTERVAL_MS } from './scheduler.gateway';
 
 const principal = (branchId = 'branch-a'): AuthUser => ({
-  id: 'user-1', email: 'private@example.com', roles: ['BRANCH_MANAGER'],
-  scopes: [{ code: 'BRANCH_MANAGER', businessId: 'business-a', branchId }],
+  id: 'user-1', email: 'private@example.com', roles: ['RECEPTIONIST'],
+  scopes: [{ code: 'RECEPTIONIST', businessId: 'business-a', branchId }],
   permissions: ['booking:read:branch'], sessionType: 'salon',
 });
 const booking = (branchId = 'branch-a') => ({ id: 'booking-1', branchId, businessId: 'business-a', status: 'CONFIRMED' });
@@ -39,11 +39,23 @@ describe('Scheduler socket authorization renewal', () => {
 
   it('delivers once to an authorized socket even if several target rooms match', async () => {
     const f = fixture(); gateway = f.gateway;
-    f.strategy.validate.mockResolvedValue({ ...principal(), scopes: [{ code: 'PLATFORM_ADMIN' }], permissions: ['booking:read:platform'] });
+    f.strategy.validate.mockResolvedValue({ ...principal(), roles: ['PLATFORM_ADMIN'], scopes: [{ code: 'PLATFORM_ADMIN' }], permissions: ['booking:read:platform'] });
     expect(await f.connect()).toHaveBeenCalledWith();
     gateway.notifyBookingUpdated({ ...booking(), customerUserId: 'user-1' });
     expect(f.client.emit).toHaveBeenCalledTimes(1);
     expect(f.client.emit).toHaveBeenCalledWith('booking_updated', { id: 'booking-1', status: 'CONFIRMED', branchId: 'branch-a', updatedAt: null });
+  });
+
+  it('sends staff only a resync signal rather than another booking payload', async () => {
+    const f = fixture(); gateway = f.gateway;
+    f.strategy.validate.mockResolvedValue({ ...principal(), roles: ['STAFF'], scopes: [
+      { code: 'STAFF', businessId: 'business-a', branchId: 'branch-a' },
+    ] });
+    await f.connect();
+    gateway.notifyBookingUpdated(booking());
+    expect(f.client.emit).toHaveBeenCalledTimes(1);
+    expect(f.client.emit).toHaveBeenCalledWith('scheduler_resync');
+    expect(f.client.emit).not.toHaveBeenCalledWith('booking_updated', expect.anything());
   });
 
   it('rechecks the current session and disconnects a revoked socket at the next interval', async () => {

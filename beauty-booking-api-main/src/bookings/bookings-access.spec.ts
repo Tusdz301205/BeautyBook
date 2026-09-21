@@ -172,7 +172,7 @@ describe('BookingsAccessService — cross-tenant blocking', () => {
       .rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  test.each(['RECEPTIONIST', 'BRANCH_MANAGER'])('%s cannot create at another branch of the same business', async (role) => {
+  test.each(['RECEPTIONIST'])('%s cannot create at another branch of the same business', async (role) => {
     const user = { ...STAFF, roles: [role], scopes: [{ code: role, businessId: 'biz-1', branchId: 'br-1' }] } as AuthUser;
     const service = new BookingsAccessService(fakePrisma(null));
     await expect(service.assertCustomerCreate(user, 'br-1')).resolves.toBe('biz-1');

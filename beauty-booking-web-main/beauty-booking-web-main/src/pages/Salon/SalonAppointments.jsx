@@ -9,7 +9,8 @@ import { useAuthStore } from '../../store/authStore';
 
 const initialForm = { branchId: '', serviceId: '', staffId: '', guestName: '', guestPhone: '', date: format(new Date(), 'yyyy-MM-dd'), appointmentDate: '', manualStart: '', controlledOverbooking: false, overbookingReason: '', note: '' };
 
-function WalkInDialog({ open, onClose, onCreated, canOverbook }) {
+function WalkInDialog({ open, onClose, onCreated }) {
+  const hasRoleAt = useAuthStore((state) => state.hasRoleAt);
   const [form, setForm] = useState(initialForm);
   const [branches, setBranches] = useState([]);
   const [services, setServices] = useState([]);
@@ -56,11 +57,15 @@ function WalkInDialog({ open, onClose, onCreated, canOverbook }) {
 
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const selectedBranch = branches.find((branch) => branch.id === form.branchId);
+  const canOverbook = !!selectedBranch?.businessId && hasRoleAt('BUSINESS_OWNER', selectedBranch.businessId);
   const walkInAllowed = selectedBranch?.bookingPolicy?.allowWalkIn !== false;
   const submit = async (event) => {
     event.preventDefault();
     if (!walkInAllowed) {
       toast.error('Chi nhánh hiện không nhận khách vãng lai'); return;
+    }
+    if (form.controlledOverbooking && !canOverbook) {
+      toast.error('Chỉ chủ doanh nghiệp được duyệt overbooking trong doanh nghiệp của mình.'); return;
     }
     const selectedStart = form.controlledOverbooking ? form.manualStart : form.appointmentDate;
     if (!form.branchId || !form.serviceId || !form.guestName.trim() || !selectedStart) {
@@ -109,14 +114,12 @@ function WalkInDialog({ open, onClose, onCreated, canOverbook }) {
 
 export function SalonAppointments() {
   const can = useAuthStore((state) => state.can);
-  const hasRoleAt = useAuthStore((state) => state.hasRoleAt);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const canCreateWalkIn = can('booking:create:branch') || can('booking:create:tenant') || can('booking:create:platform');
-  const canOverbook = hasRoleAt('BUSINESS_OWNER') || hasRoleAt('BRANCH_MANAGER');
   return <>
     <AppointmentCalendarWorkspace zone="salon" externalRefreshKey={refreshKey} headerAction={canCreateWalkIn ? <Button onClick={() => setWalkInOpen(true)}><Plus size={16} />Tạo lịch tại quầy</Button> : null} />
-    {canCreateWalkIn && <WalkInDialog open={walkInOpen} canOverbook={canOverbook} onClose={() => setWalkInOpen(false)} onCreated={() => { setWalkInOpen(false); setRefreshKey((value) => value + 1); }} />}
+    {canCreateWalkIn && <WalkInDialog open={walkInOpen} onClose={() => setWalkInOpen(false)} onCreated={() => { setWalkInOpen(false); setRefreshKey((value) => value + 1); }} />}
   </>;
 }
 

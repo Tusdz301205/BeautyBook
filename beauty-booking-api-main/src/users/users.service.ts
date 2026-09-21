@@ -1,3 +1,4 @@
+import { assertAccountRoleCompatible } from '../auth/account-separation';
 import {
   BadRequestException,
   ConflictException,
@@ -10,8 +11,9 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { canOnResource } from '../common/utils/policy';
 import { TokenBlacklistService } from '../auth/token-blacklist.service';
-import { assertBusinessAccess, resolveBusinessIdByBranch } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, resolveBusinessIdByBranch, restrictToRoles } from '../common/utils/multi-tenancy';
 import { auditLog } from '../common/utils/audit';
+import { ROLE_LEVELS } from '../common/permissions/permission-catalog';
 
 const RETIRED_PLATFORM_ROLES = new Set([
   'ADMIN',
@@ -136,7 +138,7 @@ export class UsersService {
       this.prisma.user.count({ where: { ...baseWhere, isActive: true } }),
       this.prisma.user.count({ where: { ...baseWhere, isActive: false } }),
       this.prisma.user.count({ where: { ...baseWhere, userRoles: { some: { role: { code: 'CUSTOMER' } } } } }),
-      this.prisma.user.count({ where: { ...baseWhere, userRoles: { some: { role: { code: { in: ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'] } } } } } }),
+      this.prisma.user.count({ where: { ...baseWhere, userRoles: { some: { role: { code: { in: ['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF'] } } } } } }),
     ]);
 
     return {
@@ -272,9 +274,9 @@ export class UsersService {
     },
     actor: AuthUser,
   ) {
-    if (RETIRED_PLATFORM_ROLES.has(input.roleCode)) {
+    if (RETIRED_PLATFORM_ROLES.has(input.roleCode) || !Object.hasOwn(ROLE_LEVELS, input.roleCode)) {
       throw new BadRequestException(
-        'Role nền tảng cũ đã ngừng cấp. Hãy dùng PLATFORM_ADMIN và gán quyền trực tiếp.',
+        'Vai trò không còn được hỗ trợ để cấp quyền.',
       );
     }
     const [target, role] = await Promise.all([
@@ -285,6 +287,7 @@ export class UsersService {
     if (!role) throw new BadRequestException('Role không tồn tại');
 
     await this.assertRoleAssignmentScope(actor, input.roleCode, input.businessId, input.branchId);
+    await assertAccountRoleCompatible(this.prisma, userId, input.roleCode);
     const existing = await this.prisma.userRole.findFirst({
       where: {
         userId,
@@ -485,7 +488,7 @@ export class UsersService {
     businessId?: string,
     branchId?: string,
   ): Promise<void> {
-    const branchRoles = ['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'];
+    const branchRoles = ['RECEPTIONIST', 'STAFF'];
     if (branchRoles.includes(roleCode) && !branchId) {
       throw new BadRequestException('Role nhân sự chi nhánh bắt buộc có branchId');
     }
@@ -507,6 +510,6 @@ export class UsersService {
     if (!branchRoles.includes(roleCode)) {
       throw new ForbiddenException('Owner chỉ được gán role nhân sự chi nhánh');
     }
-    await assertBusinessAccess(this.prisma, actor, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(actor, ['BUSINESS_OWNER']), businessId);
   }
 }

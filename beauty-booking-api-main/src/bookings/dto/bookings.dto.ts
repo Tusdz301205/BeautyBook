@@ -46,6 +46,11 @@ export type BookingStatusEnum =
 
 export class CreateBookingDto {
   @IsOptional()
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  violationAcknowledged?: boolean;
+
+  @IsOptional()
   @IsUUID('4', { message: 'customerId không hợp lệ' })
   customerId?: string;
 
@@ -120,6 +125,11 @@ export class UpdateStatusDto {
   )
   status!: BookingStatusEnum;
 
+  // Required by the service for NO_SHOW; never inferred from an absent request.
+  @IsOptional()
+  @IsBoolean()
+  noShowConfirmed?: boolean;
+
   @IsOptional()
   @IsString()
   note?: string;
@@ -174,6 +184,11 @@ const normalizeVietnamesePhone = ({ value }: { value: unknown }) => {
  * choose an identity, forge audit ownership or apply account-bound credit.
  */
 export class CreateGuestBookingDto {
+  @IsOptional()
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  violationAcknowledged?: boolean;
+
   @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
   @IsString()
   @IsNotEmpty()

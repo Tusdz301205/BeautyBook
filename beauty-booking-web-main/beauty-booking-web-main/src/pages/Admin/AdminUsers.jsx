@@ -9,11 +9,11 @@ import { Button, Dialog, Drawer, Field, Select, Textarea } from '../../component
 
 const roleLabels = {
   PLATFORM_ADMIN: 'Quản trị nền tảng',
-  BUSINESS_OWNER: 'Chủ doanh nghiệp', BRANCH_MANAGER: 'Quản lý chi nhánh', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng',
+  BUSINESS_OWNER: 'Chủ doanh nghiệp', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng',
 };
 
 const roleOptions = [
-  ['', 'Tất cả vai trò'], ['CUSTOMER', 'Khách hàng'], ['BUSINESS_OWNER', 'Chủ doanh nghiệp'], ['BRANCH_MANAGER', 'Quản lý chi nhánh'], ['RECEPTIONIST', 'Lễ tân'], ['STAFF', 'Nhân viên'], ['PLATFORM_ADMIN', 'Quản trị nền tảng'],
+  ['', 'Tất cả vai trò'], ['CUSTOMER', 'Khách hàng'], ['BUSINESS_OWNER', 'Chủ doanh nghiệp'], ['RECEPTIONIST', 'Lễ tân'], ['STAFF', 'Nhân viên'], ['PLATFORM_ADMIN', 'Quản trị nền tảng'],
 ];
 
 export function AdminUsers() {

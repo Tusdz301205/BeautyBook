@@ -34,7 +34,7 @@ test('@rbac removed HR API roots return 404 rather than crash', async ({ request
 });
 
 test('@rbac removed HR routes never render for an authenticated salon user', async ({ page }) => {
-  const credential = credentialsFor('branchManager') || credentialsFor('businessOwner') || credentialsFor('staff');
+  const credential = credentialsFor('receptionist') || credentialsFor('businessOwner') || credentialsFor('staff');
   test.skip(!credential, 'Set a salon role credential');
   const requestedHrApis = [];
   page.on('request', (request) => {

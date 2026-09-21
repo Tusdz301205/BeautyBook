@@ -48,15 +48,16 @@ async function createRace(accounts, payload, size) {
   const actors = [];
   for (const account of accounts.slice(0, size)) actors.push(await authenticatedActor(account));
   try {
-    const responses = await Promise.all(actors.map((actor) => actor.context.post(apiUrl('/bookings'), {
+    const responses = await Promise.all(actors.map((actor, index) => actor.context.post(apiUrl('/bookings'), {
       headers: {
         Authorization: `Bearer ${actor.token}`,
         'Idempotency-Key': crypto.randomUUID(),
+        'X-Forwarded-For': `127.0.1.${index + 1}`,
       },
       data: payload,
     })));
     const statuses = responses.map((response) => response.status());
-    expect(statuses.filter((status) => status >= 200 && status < 300)).toHaveLength(1);
+    expect(statuses.filter((status) => status >= 200 && status < 300), `HTTP statuses: ${statuses.join(',')}`).toHaveLength(1);
     expect(statuses.filter((status) => status === 409)).toHaveLength(size - 1);
     expect(statuses.every((status) => status < 500)).toBeTruthy();
     const winner = responses.find((response) => response.ok());
@@ -125,21 +126,32 @@ async function runPreparedRace(environmentName) {
   const actors = [];
   for (const account of scenario.actors) actors.push(await authenticatedActor(account));
   try {
-    const responses = await Promise.all(scenario.requests.map((operation) => {
+    const responses = await Promise.all(scenario.requests.map((operation, index) => {
       const actor = actors[operation.actor];
       return actor.context.fetch(apiUrl(operation.path), {
         method: operation.method,
         headers: {
           Authorization: `Bearer ${actor.token}`,
           'Idempotency-Key': operation.idempotencyKey || crypto.randomUUID(),
+          'X-Forwarded-For': `127.0.2.${index + 1}`,
           ...(operation.headers || {}),
         },
         data: operation.data,
       });
     }));
     const statuses = responses.map((response) => response.status());
-    expect(statuses.every((status) => status < 500)).toBeTruthy();
-    expect(statuses.filter((status) => status >= 200 && status < 300)).toHaveLength(scenario.expectedSuccesses ?? 1);
+    const responseDetails = await Promise.all(responses.map(async (response) => response.ok() ? '' : await response.text()));
+    expect(statuses.every((status) => status < 500), `HTTP statuses: ${statuses.join(',')} ${responseDetails.join(' | ')}`).toBeTruthy();
+    if (scenario.allowedOutcomes) {
+      const outcome = {
+        successes: statuses.filter((status) => status >= 200 && status < 300).length,
+        conflicts: statuses.filter((status) => status === 409).length,
+      };
+      expect(scenario.allowedOutcomes).toContainEqual(outcome);
+      if (scenario.expectedStatuses) expect(statuses).toEqual(scenario.expectedStatuses);
+      return;
+    }
+    expect(statuses.filter((status) => status >= 200 && status < 300), `HTTP statuses: ${statuses.join(',')} ${responseDetails.join(' | ')}`).toHaveLength(scenario.expectedSuccesses ?? 1);
     expect(statuses.filter((status) => status === 409)).toHaveLength(scenario.expectedConflicts ?? statuses.length - 1);
     if (scenario.expectedStatuses) expect(statuses).toEqual(scenario.expectedStatuses);
   } finally {

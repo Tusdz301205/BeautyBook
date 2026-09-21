@@ -8,7 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { ALL_TENANTS, resolveBranchIdsForUser, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
+import { ALL_TENANTS, assertBranchAccess, restrictToRoles, resolveBranchIdsForUser, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { bookableStaffWhere, professionalTitle, staffRating } from '../staff/bookable-staff';
 import { BranchStateService } from './branch-state.service';
@@ -224,7 +224,7 @@ export class BranchesService {
 
     let where: any = { deletedAt: null };
     if (!businessIds.includes(ALL_TENANTS)) {
-      const branchScoped = user.roles.some((role) => ['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'].includes(role));
+      const branchScoped = user.roles.some((role) => ['RECEPTIONIST', 'STAFF'].includes(role));
       if (branchScoped) {
         const branchIds = (await Promise.all(
           businessIds.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
@@ -344,16 +344,31 @@ export class BranchesService {
   }
 
   async findPublic(id: string) {
+    return this.publicPresentation(id, false);
+  }
+
+  async previewPublic(id: string, user: AuthUser) {
+    const owner = restrictToRoles(user, ['BUSINESS_OWNER']);
+    if (!owner.roles.length || user.sessionType !== 'salon') {
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp được xem trước chi nhánh của mình');
+    }
+    await assertBranchAccess(this.prisma, owner, id);
+    return this.publicPresentation(id, true);
+  }
+
+  /** Same projection in both modes; only publication filters differ. Never
+   * return management documents, internal notes or private media URLs. */
+  private async publicPresentation(id: string, preview: boolean) {
     const branch = await this.prisma.branch.findFirst({
       where: {
         id,
-        status: 'ACTIVE',
-        reviewStatus: 'APPROVED',
-        operationalStatus: 'ACTIVE',
         deletedAt: null,
-        business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
-        services: { some: { status: 'ACTIVE', deletedAt: null } },
-        staff: { some: bookableStaffWhere({ publicOnly: true }) },
+        ...(preview ? { business: { deletedAt: null } } : {
+          status: 'ACTIVE', reviewStatus: 'APPROVED', operationalStatus: 'ACTIVE',
+          business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
+          services: { some: { status: 'ACTIVE', deletedAt: null } },
+          staff: { some: bookableStaffWhere({ publicOnly: true }) },
+        }),
       },
       select: {
         id: true,
@@ -379,16 +394,16 @@ export class BranchesService {
           select: { id: true, sortOrder: true, media: { select: { id: true, url: true, fileType: true } } },
         },
         services: {
-          where: { status: 'ACTIVE', deletedAt: null },
+          where: { ...(preview ? {} : { status: 'ACTIVE' as const }), deletedAt: null },
           include: { category: true },
         },
         staff: {
-          where: bookableStaffWhere({ publicOnly: true }),
+          where: preview ? { deletedAt: null, publicVisible: true } : bookableStaffWhere({ publicOnly: true }),
           select: {
             id: true, fullName: true, position: true, bio: true, experienceYears: true,
             user: { select: { avatarMedia: { select: { url: true, visibility: true } } } },
             staffServices: {
-              where: { service: { status: 'ACTIVE', deletedAt: null } },
+              where: { service: { ...(preview ? {} : { status: 'ACTIVE' as const }), deletedAt: null } },
               select: { service: { select: { id: true, name: true } } },
             },
             images: {
@@ -651,7 +666,7 @@ export class BranchesService {
     latitude?: number;
     longitude?: number;
     phone?: string;
-  }, actorId?: string, assignCreatorAsManager = false) {
+  }, actorId?: string) {
     if (data.sameLegalEntity === false) {
       return {
         created: false,
@@ -740,33 +755,6 @@ export class BranchesService {
             },
           },
         });
-      }
-      if (actorId && assignCreatorAsManager) {
-        const managerRole = await tx.role.findUnique({
-          where: { code: 'BRANCH_MANAGER' },
-          select: { id: true },
-        });
-        if (!managerRole) throw new ConflictException('Vai trò quản lý chi nhánh chưa được cấu hình');
-        const existingScope = await tx.userRole.findFirst({
-          where: {
-            userId: actorId,
-            roleId: managerRole.id,
-            businessId: branch.businessId,
-            branchId: branch.id,
-          },
-          select: { id: true },
-        });
-        if (!existingScope) {
-          await tx.userRole.create({
-            data: {
-              userId: actorId,
-              roleId: managerRole.id,
-              businessId: branch.businessId,
-              branchId: branch.id,
-              grantedBy: actorId,
-            },
-          });
-        }
       }
       return branch;
     });

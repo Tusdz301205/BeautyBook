@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SensitiveDataCipherService } from '../privacy/sensitive-data-cipher.service';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { auditLog } from '../common/utils/audit';
+import { assertAccountRoleCompatible } from '../auth/account-separation';
 
 @Injectable()
 export class OwnershipService {
@@ -21,6 +22,7 @@ export class OwnershipService {
     const newOwner = await this.prisma.user.findUnique({ where: { email: input.newOwnerEmail.trim().toLowerCase() }, select: { id: true, email: true, fullName: true, isActive: true } });
     if (!newOwner?.isActive) throw new BadRequestException('Chủ mới cần có tài khoản đang hoạt động');
     if (newOwner.id === requesterId) throw new BadRequestException('Chủ mới phải khác chủ hiện tại');
+    await assertAccountRoleCompatible(this.prisma, newOwner.id, 'BUSINESS_OWNER');
     const duplicate = await this.prisma.ownershipTransfer.findFirst({ where: { businessId, status: { in: ['DRAFT', 'PENDING_NEW_OWNER_ACCEPTANCE', 'UNDER_REVIEW', 'NEED_MORE_INFO', 'APPROVED', 'SCHEDULED', 'EXECUTING'] } } });
     if (duplicate) throw new ConflictException('Doanh nghiệp đang có yêu cầu chuyển giao chưa kết thúc');
     const impact = await this.impactPreview(businessId, effectiveAt);
@@ -158,6 +160,7 @@ export class OwnershipService {
       await tx.ownershipTransfer.update({ where: { id: transferId }, data: { status: 'EXECUTING' } });
       const business = await tx.business.findUniqueOrThrow({ where: { id: transfer.businessId }, include: { owner: true } });
       if (business.ownerId !== transfer.oldOwnerId) throw new ConflictException('Chủ doanh nghiệp đã thay đổi ngoài workflow');
+      await assertAccountRoleCompatible(tx, transfer.newOwnerUserId, 'BUSINESS_OWNER');
       const newOwner = await tx.businessOwnerProfile.upsert({
         where: { userId: transfer.newOwnerUserId },
         create: { userId: transfer.newOwnerUserId }, update: {},

@@ -1,40 +1,34 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { ForbiddenException, Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { assertBranchAccess, assertBusinessAccess, resolveBranchIdsForUser, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, resolveBusinessIdsForUser, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { ImpactService } from './impact.service';
 
 @Controller('operational-impacts')
-@Roles('BUSINESS_OWNER', 'BRANCH_MANAGER', 'PLATFORM_ADMIN')
-@RequirePermission('booking:update:tenant', 'booking:update:branch', 'booking:read:platform')
+@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')
+@RequirePermission('booking:update:tenant', 'booking:read:platform')
 export class ImpactController {
   constructor(private readonly impacts: ImpactService, private readonly prisma: PrismaService) {}
 
   private async assertImpactAccess(id: string, user: AuthUser) {
+    if (!user.roles.some((role) => ['BUSINESS_OWNER', 'PLATFORM_ADMIN'].includes(role))) {
+      throw new ForbiddenException('Chỉ chủ doanh nghiệp hoặc quản trị nền tảng được quản lý ảnh hưởng vận hành');
+    }
     const impact = await this.prisma.operationalImpactCase.findUniqueOrThrow({
       where: { id },
       select: { businessId: true, branchId: true },
     });
-    const branchOnly = user.roles.includes('BRANCH_MANAGER') && !user.roles.includes('BUSINESS_OWNER') && !user.roles.includes('PLATFORM_ADMIN');
-    if (branchOnly) {
-      if (!impact.branchId) throw new BadRequestException('Impact case cấp doanh nghiệp chỉ dành cho chủ doanh nghiệp');
-      await assertBranchAccess(this.prisma, user, impact.branchId);
-    } else {
-      await assertBusinessAccess(this.prisma, user, impact.businessId);
-    }
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), impact.businessId);
     return impact;
   }
 
   @Get()
   async list(@CurrentUser() user: AuthUser) {
-    const businessIds = await resolveBusinessIdsForUser(this.prisma, user);
-    const branchIds = user.roles.includes('BRANCH_MANAGER')
-      ? (await Promise.all(businessIds.map((id) => resolveBranchIdsForUser(this.prisma, user, id)))).flatMap((ids) => ids ?? [])
-      : undefined;
-    return this.impacts.list(businessIds, branchIds);
+    const businessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
+    return this.impacts.list(businessIds);
   }
 
   @Get(':id')

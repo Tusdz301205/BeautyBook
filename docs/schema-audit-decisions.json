@@ -1,0 +1,714 @@
+{
+  "status": "FINAL_AUDIT_COMPLETE",
+  "mainDeployment": {
+    "date": "2026-09-20",
+    "mainApplied": true,
+    "migrationCount": 5,
+    "activeModels": 121,
+    "activeEnums": 92,
+    "consentsPreserved": 2,
+    "fkCount": 395,
+    "orphans": 0,
+    "postMainBackendSuites": 103,
+    "postMainBackendTests": 943,
+    "postMainBackendSkipped": 0,
+    "frontendTests": 58,
+    "browserActorRbacBookingResponsive": 66,
+    "browserConcurrencyAndNegative": 12,
+    "browserRegression": "PASS",
+    "finalAuditComplete": true,
+    "evidence": "DATABASE_SCHEMA_AUDIT_FINAL.md",
+    "olderEntriesBelowAreHistorical": true
+  },
+  "rehearsalDelta": {
+    "date": "2026-09-19",
+    "sourceSha256": "8c958f45eee21645ed4fa0aaa4b22196899bb315d3f2ba3bdd77dfd62d81e15e",
+    "activeModels": 121,
+    "activeEnums": 92,
+    "archivedModelsOnCopy": 12,
+    "archivedEnumsOnCopy": 10,
+    "database": "beautybook_test_restriction_2026091903",
+    "archiveSchema": "archive_health_20260919",
+    "mainApplied": false,
+    "finalAuditApproved": false,
+    "baselineCountsBelowArePreArchive": true
+  },
+  "date": "2026-09-19",
+  "sourceSha256": "76c01a6018f921ea6d49705f3cd6b80ca13569c340e44c8ac0ff0697300a4997",
+  "baselineDate": "2026-09-15",
+  "reviewMethod": "Incremental policy-impact review; prior 131-model evidence retained. Cleanup remains a proposal, not deletion authority.",
+  "counts": {
+    "KEEP": 93,
+    "MERGE_CANDIDATE": 1,
+    "REMOVE_CANDIDATE": 12,
+    "REFACTOR": 25,
+    "NEEDS_REVIEW": 2
+  },
+  "models": {
+    "User": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Tài khoản đăng nhập; soft delete giữ lịch sử, isActive khóa đăng nhập không đồng nghĩa đã xóa."
+    },
+    "AccountToken": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Token xác minh/khôi phục có hash, hạn dùng và dấu đã sử dụng; không gộp với phiên đăng nhập."
+    },
+    "RolePermission": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Bảng nối role–permission; được dùng qua nested rolePermissions, không được xóa vì không gọi delegate trực tiếp."
+    },
+    "UserRole": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Cấp vai trò theo scope và thời hạn; unique theo scope nullable và trigger kiểm tra branch/business đã tồn tại."
+    },
+    "BusinessOwnerProfile": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Danh tính chủ doanh nghiệp khác tài khoản và khác pháp nhân theo phiên bản."
+    },
+    "DeviceToken": {
+      "domain": "AUTH / USER",
+      "action": "KEEP",
+      "reason": "Định danh thiết bị nhận thông báo; hiện rỗng không có nghĩa là dead."
+    },
+    "UserSession": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "Giữ quản lý phiên/thu hồi. businessId và branchId là scalar không FK; cần xác nhận snapshot scope hay tham chiếu sống trước khi thêm FK."
+    },
+    "StaffInvitation": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "Giữ invitation chỉ Receptionist/Staff; businessId, branchId, invitedBy, acceptedBy chưa có FK trong Prisma."
+    },
+    "Role": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "Manager đã loại; GUEST còn definition nhưng 0 assignment. Public access không tự chứng minh cần persisted GUEST."
+    },
+    "Permission": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "113 code runtime nhưng DB có 137 definitions: 24 code ngoài catalog cần archive/dọn riêng sau kiểm tra grant."
+    },
+    "UserPermission": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "Có 69 bản ghi; 8 grant trỏ code ngoài catalog. Runtime fail closed với code lạ, cần lưu lịch sử trước khi dọn."
+    },
+    "CustomerProfile": {
+      "domain": "AUTH / USER",
+      "action": "REFACTOR",
+      "reason": "Giữ định danh khách cho booking. address có ở cả User và CustomerProfile; cần chốt nguồn chuẩn và ý nghĩa note."
+    },
+    "PlatformSetting": {
+      "domain": "SYSTEM / INFRASTRUCTURE",
+      "action": "NEEDS_REVIEW",
+      "reason": "Key/value JSON đang dùng qua PlatformSettingsService. Kiểm kê từng key và quyền sửa; updatedBy chưa là FK, không thêm schema theo suy đoán."
+    },
+    "Province": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Danh mục vùng cho tìm kiếm/địa chỉ; không phải bảng HR."
+    },
+    "District": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Địa chỉ theo Province; FK và dữ liệu thực đang dùng."
+    },
+    "BranchWorkingHour": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Giờ mở cửa chi nhánh phục vụ availability; không phải phân ca nhân viên."
+    },
+    "BranchOnboardingProgress": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Tiến độ/draft onboarding chi nhánh, không đồng nghĩa hồ sơ đã duyệt."
+    },
+    "BranchHoliday": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Ngoại lệ ngày đóng cửa phục vụ booking; không phải nghỉ phép nhân viên."
+    },
+    "SpecialWorkingDay": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Giờ mở cửa đặc biệt của chi nhánh; giữ để kiểm tra availability."
+    },
+    "BusinessReviewEvent": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Lịch sử xét duyệt doanh nghiệp; khác bản ghi trạng thái hiện tại."
+    },
+    "BusinessDocument": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Thông tin tài liệu và con trỏ phiên bản; có backend onboarding."
+    },
+    "BusinessDocumentVersion": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Nội dung từng lần nộp dùng qua nested versions; không gộp mất lịch sử."
+    },
+    "BranchDocument": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Tài liệu riêng chi nhánh; không gộp với giấy tờ doanh nghiệp."
+    },
+    "BranchDocumentVersion": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Phiên bản tài liệu chi nhánh được tạo/đọc nested versions."
+    },
+    "BranchReviewRequest": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Yêu cầu duyệt với snapshot hồ sơ, tài liệu, phân công và thời hạn."
+    },
+    "BranchReviewEvent": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Lịch sử thay đổi xét duyệt chi nhánh."
+    },
+    "DocumentReviewEvent": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Lịch sử xét duyệt tài liệu doanh nghiệp; không chỉ audit tổng quát."
+    },
+    "BranchStateTransition": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "KEEP",
+      "reason": "Chuyển trạng thái có actor, lý do, version; phục vụ kiểm tra tác động booking."
+    },
+    "Business": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "REFACTOR",
+      "reason": "Giữ entity tenant. legalDocuments/onboardingData JSON có thể chồng với Document/Version; cần xác định canonical fields và compatibility."
+    },
+    "Branch": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "REFACTOR",
+      "reason": "Giữ scope. status/reviewStatus/operationalStatus biểu diễn ba khía cạnh; cần chốt state matrix, không gộp thành một status. managerName chỉ là người liên hệ."
+    },
+    "BranchBookingPolicy": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "REFACTOR",
+      "reason": "Giữ lead time, horizon, buffer, walk-in và cutoff cấp branch. depositPolicy là JSON legacy cần tách khỏi phạm vi online đã bỏ."
+    },
+    "SalonMember": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "MERGE_CANDIDATE",
+      "reason": "Metadata membership cũ, không còn là nguồn phân quyền. Sau refactor thông báo, chỉ còn service compatibility; cần rà route/caller trước khi hợp nhất vào UserRole."
+    },
+    "CancellationPolicy": {
+      "domain": "BUSINESS / BRANCH",
+      "action": "REFACTOR",
+      "reason": "Dừng đề xuất gộp: cancellation cố định 4h, reschedule vẫn có resolver riêng; tách field legacy khỏi policy đang hoạt động trước khi quyết định merge. Không dùng bảng này để cấu hình điểm hoặc thời hạn hạn chế mới."
+    },
+    "StaffProfile": {
+      "domain": "STAFF",
+      "action": "REFACTOR",
+      "reason": "Giữ nhân sự cung cấp dịch vụ và lịch sử booking. branchId là chi nhánh gốc, StaffBranchAssignment là phân công có thời hạn; cần chốt primary branch khi đa chi nhánh."
+    },
+    "StaffBranchAssignment": {
+      "domain": "STAFF",
+      "action": "KEEP",
+      "reason": "Nhân sự–chi nhánh có hiệu lực, status, bookability; không phải ca làm/attendance."
+    },
+    "StaffService": {
+      "domain": "STAFF",
+      "action": "KEEP",
+      "reason": "Năng lực nhân sự đối với offering cụ thể, khác StaffBranchAssignment; bắt buộc cho phân công booking."
+    },
+    "MediaFile": {
+      "domain": "MEDIA",
+      "action": "REFACTOR",
+      "reason": "Giữ tệp/visibility. entityType/entityId là polymorphic; businessId/branchId chưa FK. Không thêm FK entityId cố định; kiểm tra scope tại service."
+    },
+    "BusinessImage": {
+      "domain": "MEDIA",
+      "action": "KEEP",
+      "reason": "Bảng nối ảnh doanh nghiệp, có cover/sort order."
+    },
+    "BranchImage": {
+      "domain": "MEDIA",
+      "action": "KEEP",
+      "reason": "Bảng nối ảnh chi nhánh và thứ tự."
+    },
+    "ServiceImage": {
+      "domain": "MEDIA",
+      "action": "KEEP",
+      "reason": "Ảnh offering; không cùng nghĩa ảnh doanh nghiệp."
+    },
+    "ComboImage": {
+      "domain": "MEDIA",
+      "action": "KEEP",
+      "reason": "Ảnh combo đang có endpoint media."
+    },
+    "StaffImage": {
+      "domain": "MEDIA",
+      "action": "KEEP",
+      "reason": "Ảnh hồ sơ người cung cấp dịch vụ."
+    },
+    "ServiceCategory": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Danh mục riêng business có cây parent; không gộp với taxonomy chuẩn."
+    },
+    "CanonicalService": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Taxonomy nền tảng, có merge/replacement; dùng chuẩn hóa và tìm kiếm."
+    },
+    "BusinessService": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Định nghĩa dịch vụ cấp tenant; khác offering/giá triển khai tại branch."
+    },
+    "BranchServiceOffering": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Offering cấp branch. Giá/thời lượng riêng là chủ đích, có trigger branch–business service cùng tenant."
+    },
+    "Combo": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Gói nhiều dịch vụ cùng lần đặt, không phải TreatmentPackage nhiều buổi."
+    },
+    "ComboService": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Cấu phần combo với quantity, sort, snapshot và transition; quan hệ N–N có thuộc tính."
+    },
+    "ServicePriceRule": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Quy tắc giá động, priority/conditions/version; không gộp giá lịch sử vào đây."
+    },
+    "ServiceDependency": {
+      "domain": "SERVICE",
+      "action": "KEEP",
+      "reason": "Dịch vụ tiên quyết/xung đột có backend kiểm tra; cần giữ quan hệ có kiểu."
+    },
+    "ServiceVariant": {
+      "domain": "SERVICE",
+      "action": "REFACTOR",
+      "reason": "Biến thể giá/thời lượng/buffer có backend. consultationRequired đang bị ép false; eligibilityRules cần phân biệt với sức khỏe đã bỏ."
+    },
+    "BookingContact": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Snapshot người liên hệ theo booking, có thể khác hồ sơ khách đăng nhập."
+    },
+    "BookingStatusHistory": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Timeline trạng thái bất biến theo sự kiện, không gộp vào Booking.updatedAt."
+    },
+    "AppointmentChangeRequest": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Nguồn late cancellation tại requestedAt; FK từ BookingViolationEvent. Request hết hạn vẫn giữ +1, approve không ghi thêm điểm, không cho reject valid late request. Không cần tạo CancellationRequest trùng nghĩa."
+    },
+    "BookingServiceAdjustment": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Before/after snapshot từng thao tác item và số lần sửa, cần cho audit."
+    },
+    "Booking": {
+      "domain": "BOOKING",
+      "action": "REFACTOR",
+      "reason": "Giữ aggregate, ngày/giờ wall-clock, nguồn, hold và status. cancellationFeeAmount/sensitiveDataConsent là cột legacy cần archive hoặc compatibility có chủ đích."
+    },
+    "BookingService": {
+      "domain": "BOOKING",
+      "action": "REFACTOR",
+      "reason": "Giữ từng dịch vụ, giá/tên/thời lượng snapshot, assignment và slot. variantId hiện chưa FK; cần kiểm tra orphan trước khi ràng buộc."
+    },
+    "OverbookingOverride": {
+      "domain": "BOOKING",
+      "action": "REFACTOR",
+      "reason": "Bằng chứng override có lý do/actor; không xóa bảo vệ concurrency. branchId/actorId hiện chưa FK."
+    },
+    "RecurringBookingPlan": {
+      "domain": "BOOKING",
+      "action": "REFACTOR",
+      "reason": "Luồng định kỳ có recovery worker. serviceIds JSON cần validation và snapshot/version rõ; không coi là join table tự do."
+    },
+    "OperationalImpactCase": {
+      "domain": "OPERATIONS",
+      "action": "KEEP",
+      "reason": "Điều phối booking bị ảnh hưởng khi khóa staff/branch/service, không phải HR."
+    },
+    "OperationalImpactItem": {
+      "domain": "OPERATIONS",
+      "action": "KEEP",
+      "reason": "Phương án giải quyết từng booking, linked với case và replacement."
+    },
+    "WaitlistEntry": {
+      "domain": "OPERATIONS",
+      "action": "KEEP",
+      "reason": "Danh sách chờ/offer có hạn, token hash và booking được nhận; khác recurring."
+    },
+    "Promotion": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Khuyến mãi tự áp dụng, quota/audience/stacking/version có backend pricing."
+    },
+    "PromotionBusiness": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Scope đa business tạo/đọc qua nested businessLinks; hiện có 1 dòng, không phải dead table."
+    },
+    "PromotionBranch": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Giới hạn branch cho promotion."
+    },
+    "PromotionService": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Giới hạn offering cho promotion."
+    },
+    "PromotionCombo": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Giới hạn combo cho promotion."
+    },
+    "Voucher": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Mã ưu đãi và điều kiện phát hành/áp dụng; khác promotion tự động."
+    },
+    "PriceAdjustment": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Snapshot mức giảm và allocation ở booking; không thay thế bản định nghĩa promotion/voucher."
+    },
+    "PromotionRedemption": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Giữ reservation/usage/release/reversal chống vượt quota; không chỉ đếm usedCount."
+    },
+    "VoucherRedemption": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Lịch sử áp dụng voucher theo booking/khách; hỗ trợ reserve/release."
+    },
+    "VoucherBranchScope": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Bảng nối phạm vi chi nhánh; composite PK."
+    },
+    "VoucherServiceScope": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Bảng nối phạm vi dịch vụ; composite PK."
+    },
+    "VoucherComboScope": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Bảng nối phạm vi combo; composite PK."
+    },
+    "CustomerBusinessSegment": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "KEEP",
+      "reason": "Phân nhóm khách theo tenant phục vụ audience; không phải profile toàn hệ thống."
+    },
+    "CustomerVoucher": {
+      "domain": "PROMOTION / VOUCHER",
+      "action": "REFACTOR",
+      "reason": "Quyền sở hữu voucher của khách, có reserve/use; usedBookingId chưa FK. Cần kiểm tra state/expiry riêng với trạng thái voucher định nghĩa."
+    },
+    "Payment": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Thanh toán gắn booking vẫn dùng cho thu tiền tại quầy/báo cáo; không xóa 4.000 dòng vì online retired."
+    },
+    "PricingSnapshot": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Snapshot bất biến giá lúc phát sinh thanh toán; khác giá hiện tại của service."
+    },
+    "FinancialLedgerEntry": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Sổ bút toán CREDIT/DEBIT append-only có idempotency; không bỏ theo tên payment."
+    },
+    "RefundAllocation": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Phân bổ hoàn theo dịch vụ dùng qua nested allocations; tránh hoàn vượt phần được trả."
+    },
+    "PlatformFeeEntry": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Phí nền tảng theo booking, khác phí hủy; nghiệp vụ tài chính đang có service."
+    },
+    "PlatformFeeAdjustment": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Điều chỉnh phí nền tảng liên quan refund, giữ dấu vết."
+    },
+    "PlatformStatement": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Kỳ đối soát/phát hành/khóa; có trigger bảo vệ sau phát hành."
+    },
+    "PlatformStatementLine": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Dòng bảng kê tạo/đọc qua nested lines; không có delegate call không phải không dùng."
+    },
+    "TreatmentPackage": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Gói nhiều buổi/liệu trình; khác Combo cùng booking, có route thực."
+    },
+    "PackagePurchase": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Quyền mua gói theo khách/business, snapshot giá và hạn dùng."
+    },
+    "PackageSessionEntitlement": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Quyền sử dụng từng buổi, trạng thái reserve/redeem theo booking item."
+    },
+    "Invoice": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Chứng từ của hệ thống có phiên bản/replaces; không khẳng định là hóa đơn điện tử hợp pháp."
+    },
+    "InvoiceLine": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Dòng chứng từ theo booking service, thuế và chiết khấu snapshot."
+    },
+    "InvoiceEvent": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "KEEP",
+      "reason": "Lịch sử phát hành/hủy/thay thế chứng từ, khác AuditLog tổng quát."
+    },
+    "RefundRequest": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Luồng hoàn thủ công còn hoạt động; requestedBy/reviewedBy/processedBy chưa FK, cần bảo toàn bằng chứng cũ."
+    },
+    "PaymentPolicy": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Chính sách deposit/split/installment còn API nhưng phạm vi online đã bỏ; cần phân biệt chính sách thu tại quầy và cấu hình cũ."
+    },
+    "PaymentPolicySnapshot": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "4.000 snapshot lịch sử phải giữ kể cả policy online ngừng sử dụng."
+    },
+    "PaymentIntent": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Không chỉ online: đang tạo qua luồng quầy và có 4.000 dòng. provider/metadata/expiry cần phân loại legacy, không drop."
+    },
+    "PaymentTransaction": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Giao dịch kiểm chứng, có trigger immutable; verifiedBy/createdBy-related metadata cần ràng buộc actor rõ."
+    },
+    "PackageInstallment": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Trả góp gói tại quầy vẫn có service; paymentIntentId chưa FK dù tồn tại PaymentIntent.packageInstallmentId."
+    },
+    "InvoiceInformationRequest": {
+      "domain": "PAYMENT / FINANCE",
+      "action": "REFACTOR",
+      "reason": "Yêu cầu thông tin hóa đơn có openKey/idempotency; resolvedBy chưa FK."
+    },
+    "Review": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Đánh giá sau booking, gắn CustomerProfile và Booking; không có model sentiment đã tích hợp."
+    },
+    "ReviewServiceRating": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Điểm theo dịch vụ/nhân sự trong booking; không gộp mất chi tiết."
+    },
+    "BusinessComment": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Bình luận/phản hồi business, có parent và review optional; khác review sau mua."
+    },
+    "ReviewReport": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Báo cáo review, unique người báo cáo/review."
+    },
+    "ReviewModerationEvent": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Lịch sử moderation với actor, lý do và state trước/sau."
+    },
+    "ReviewAppeal": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Khiếu nại review có workflow và thời điểm giải quyết."
+    },
+    "SalonTrustSnapshot": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Ảnh chụp chỉ số vận hành/trust, không phải sentiment AI."
+    },
+    "TrustAction": {
+      "domain": "REVIEW / TRUST",
+      "action": "KEEP",
+      "reason": "Hành động Trust & Safety và restore link, không đồng nghĩa state business hiện tại."
+    },
+    "Notification": {
+      "domain": "NOTIFICATION / AUDIT",
+      "action": "KEEP",
+      "reason": "Thông báo in-app theo người dùng với read state và target."
+    },
+    "NotificationOutbox": {
+      "domain": "NOTIFICATION / AUDIT",
+      "action": "KEEP",
+      "reason": "Hàng đợi durable có dedupe/retry; không gộp với Notification vì trạng thái giao nhận khác."
+    },
+    "AuditLog": {
+      "domain": "NOTIFICATION / AUDIT",
+      "action": "KEEP",
+      "reason": "Lịch sử thao tác actor/entity và before/after; giữ cả khi ẩn menu audit."
+    },
+    "LoyaltyRule": {
+      "domain": "LOYALTY / CUSTOMER",
+      "action": "KEEP",
+      "reason": "Quy tắc điểm theo business/branch có version; không phải HR thưởng lương."
+    },
+    "LoyaltyAccount": {
+      "domain": "LOYALTY / CUSTOMER",
+      "action": "KEEP",
+      "reason": "Số dư điểm theo customer–business và version chống cập nhật mất."
+    },
+    "LoyaltyTransaction": {
+      "domain": "LOYALTY / CUSTOMER",
+      "action": "KEEP",
+      "reason": "Lịch sử điểm có idempotency/reversal và số dư sau; không gộp với account."
+    },
+    "CustomerSavedService": {
+      "domain": "LOYALTY / CUSTOMER",
+      "action": "KEEP",
+      "reason": "Dịch vụ khách lưu xem sau, unique customer–offering; có API thực."
+    },
+    "OwnershipTransfer": {
+      "domain": "OWNERSHIP",
+      "action": "KEEP",
+      "reason": "Chuyển chủ có approval/effectiveAt/snapshot, không dùng sửa thẳng ownerId."
+    },
+    "OwnershipHistory": {
+      "domain": "OWNERSHIP",
+      "action": "KEEP",
+      "reason": "Khoảng hiệu lực chủ sở hữu, giữ trách nhiệm lịch sử."
+    },
+    "LegalEntityVersion": {
+      "domain": "OWNERSHIP",
+      "action": "KEEP",
+      "reason": "Phiên bản pháp nhân, khác tài khoản owner và giấy tờ onboarding."
+    },
+    "PayoutAccountVersion": {
+      "domain": "OWNERSHIP",
+      "action": "NEEDS_REVIEW",
+      "reason": "Tài khoản nhận tiền mã hóa còn dùng trong ownership. Bỏ online không tự động đồng nghĩa bỏ thông tin đối soát; chưa drop."
+    },
+    "DataSubjectRequest": {
+      "domain": "PRIVACY",
+      "action": "KEEP",
+      "reason": "Yêu cầu dữ liệu cá nhân nói chung; không phải hồ sơ sức khỏe."
+    },
+    "MarketingPreference": {
+      "domain": "PRIVACY",
+      "action": "KEEP",
+      "reason": "Tùy chọn tiếp thị của khách, không phải consent sức khỏe."
+    },
+    "PrivacyExportPackage": {
+      "domain": "PRIVACY",
+      "action": "KEEP",
+      "reason": "Gói xuất dữ liệu mã hóa/one-time download; giữ công cụ bảo vệ dữ liệu dù health retired."
+    },
+    "SensitiveConsent": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "Feature đã bỏ; hiện còn 2 dòng consent. Chỉ đề xuất chuyển archive bảo toàn dữ liệu, không xóa cứng."
+    },
+    "BookingHealthRecord": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "Không có runtime delegate hoặc API nghiệp vụ sức khỏe, hiện 0 dòng; kiểm tra quan hệ trước archive."
+    },
+    "HealthRecordAccessLog": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng nhưng có trigger cấm UPDATE/DELETE; archive nguyên bảng/trigger, không vô hiệu bảo vệ để dọn."
+    },
+    "ConsultationFormTemplate": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; domain consultation đã retired. Archive cùng graph, không đụng core booking."
+    },
+    "ConsultationFormVersion": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; phiên bản form retired, giữ quan hệ nội bộ khi archive."
+    },
+    "ConsultationFormField": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; field definition consultation retired."
+    },
+    "ServiceConsultationRequirement": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; yêu cầu consultation không còn gate booking; bỏ khỏi active schema sau kiểm chứng nested refs."
+    },
+    "ConsultationSubmission": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; có retention/legalHold nên không áp dụng xóa payload tự động trên DB khác."
+    },
+    "SensitiveAnswer": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; cấu trúc mã hóa/phiên bản key phải giữ nguyên nếu archive có dữ liệu."
+    },
+    "ConsentEvent": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; consent append/history của feature retired, không gộp với marketing."
+    },
+    "SensitiveDataAccessEvent": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; lịch sử truy cập consultation retired."
+    },
+    "BookingViolationEvent": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Lịch sử sự kiện là nguồn điểm rolling 90d Customer+Business; late +1/no-show +2; SQL partial unique ngăn trùng; VOID có evidence/audit, FK Restrict bảo toàn history."
+    },
+    "CustomerBookingPolicy": {
+      "domain": "BOOKING",
+      "action": "KEEP",
+      "reason": "Một row Customer+Business cho serialization fence và restriction 30d; revision không phải điểm. FK trigger-event, unique pair, audit trước/sau. GET không tạo/gia hạn restriction; salon-created booking không bị chặn."
+    },
+    "SensitiveBreakGlassGrant": {
+      "domain": "HEALTH (RETIRED)",
+      "action": "REMOVE_CANDIDATE",
+      "reason": "0 dòng; quyền truy cập khẩn cấp health đã bỏ, không còn cấp runtime."
+    }
+  }
+}

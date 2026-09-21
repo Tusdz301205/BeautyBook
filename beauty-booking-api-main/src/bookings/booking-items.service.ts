@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertNoOverlap, validateStaffForService } from './bookings.validation';
@@ -89,7 +89,7 @@ export class BookingItemsService {
     staffId?: string;
     durationMinutes?: number;
     price?: number;
-  }) {
+  }, authorization?: { assignedStaffUserId: string }) {
     if (typeof input.reason !== 'string' || !input.reason.trim()) throw new BadRequestException('Lý do thay đổi là bắt buộc');
     if (input.action === 'REPRICE') assertItemPrice(input.price);
     if (input.action === 'RESIZE') assertItemDuration(input.durationMinutes);
@@ -103,6 +103,17 @@ export class BookingItemsService {
         include: { booking: true },
       });
       if (!item) throw new NotFoundException('Không tìm thấy dịch vụ trong lịch hẹn');
+      // Check the exact item after its row lock, so a concurrent reassignment
+      // cannot let a provider operate another provider's service.
+      if (authorization) {
+        const assigned = item.staffId && await tx.staffProfile.findFirst({
+          where: { id: item.staffId, userId: authorization.assignedStaffUserId, status: 'ACTIVE', deletedAt: null },
+          select: { id: true },
+        });
+        if (!assigned || !['START', 'COMPLETE'].includes(input.action)) {
+          throw new ForbiddenException('Nhân viên chỉ được bắt đầu hoặc hoàn thành dịch vụ được giao cho mình');
+        }
+      }
       if (item.revision !== input.expectedRevision) {
         throw new ConflictException('Dịch vụ vừa được người khác chỉnh sửa; vui lòng tải lại');
       }

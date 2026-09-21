@@ -42,6 +42,9 @@ import { PaymentsService } from '../payments/payments.service';
 import { PricingEngineService } from '../promotions/pricing-engine.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { applyServicePriceRules } from '../services/service-price-rules';
+import { assertCustomerDirectCancellation } from './customer-cancellation-policy';
+import { bookingViolationSummary, recordBookingViolation } from './booking-violation-policy';
+import { assertCustomerSelfBookingAllowed } from './customer-booking-policy';
 
 type BookingTimelineItem = {
   id: string;
@@ -365,6 +368,12 @@ export class BookingsService {
         statusHistory: {
           orderBy: { createdAt: 'desc' },
         },
+        changeRequests: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { id: true, requestType: true, status: true, reason: true, reviewNote: true, createdAt: true, expiresAt: true,
+            violationEvent: { select: { kind: true, occurredAt: true, voidedAt: true } } },
+        },
         payments: true,
         review: true,
       },
@@ -384,8 +393,10 @@ export class BookingsService {
       IN_PROGRESS: 'COMPLETED',
     };
     const candidate = candidateByStatus[booking.status];
+    const violationSummary = await bookingViolationSummary(this.prisma, booking.customerId, booking.branch.businessId);
     return {
       ...booking,
+      violationSummary,
       transitionAvailability: candidate
         ? {
             [candidate]: evaluateTimeAllowedForStatusTransition({
@@ -415,6 +426,7 @@ export class BookingsService {
     note?: string,
     changedByType: 'CUSTOMER' | 'SALON' | 'ADMIN' | 'SYSTEM' = 'SALON',
     actorRoles: string[] = [],
+    noShowConfirmed = false,
   ) {
     const statusMap: Record<string, string> = {
       'Mới': 'PENDING',
@@ -499,6 +511,12 @@ export class BookingsService {
 
     assertStatusTransition(existing.status, mappedStatus);
     assertActorStatusTransition(actorRoles, existing.status, mappedStatus);
+    if (mappedStatus === 'NO_SHOW' && (!changedBy || changedByType !== 'SALON' || noShowConfirmed !== true)) {
+      throw new BadRequestException({
+        code: 'NO_SHOW_CONFIRMATION_REQUIRED',
+        message: 'Cần xác nhận khách chưa đến và chưa báo hủy hoặc báo trễ cho cơ sở',
+      });
+    }
     const interval = toBookingInterval(
       existing.appointmentDate,
       existing.appointmentStartTime,
@@ -514,6 +532,9 @@ export class BookingsService {
     // Cancel policy cấp salon. Phí hủy/no-show đã được tắt; chỉ còn
     // kiểm soát thời hạn hủy và ghi nhận lý do.
     if (mappedStatus === 'CANCELLED') {
+      if (changedByType === 'CUSTOMER' || actorRoles.includes('CUSTOMER')) {
+        assertCustomerDirectCancellation(interval.start);
+      }
       const platformPolicy = await this.platformSettings.getEffective();
       const policyDecision = await resolveCancellationPolicy(
         this.prisma,
@@ -540,6 +561,71 @@ export class BookingsService {
     const updatedBooking = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
+        if (mappedStatus === 'NO_SHOW') {
+          // Serialize with cancellation requests, check-in and rescheduling.
+          await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
+          const locked = await tx.booking.findUnique({
+            where: { id },
+            select: {
+              status: true, deletedAt: true, appointmentDate: true,
+              customerId: true, branch: { select: { businessId: true } },
+              appointmentStartTime: true, appointmentEndTime: true,
+              bookingServices: { select: { status: true } },
+            },
+          });
+          if (!locked || locked.deletedAt || locked.status !== existing.status) {
+            throw new ConflictException('Lịch hẹn vừa thay đổi, vui lòng tải lại và thử lại');
+          }
+          const lockedInterval = toBookingInterval(locked.appointmentDate, locked.appointmentStartTime, locked.appointmentEndTime);
+          assertTimeAllowedForStatusTransition({
+            fromStatus: locked.status, toStatus: 'NO_SHOW',
+            appointmentStartTime: lockedInterval.start, appointmentEndTime: lockedInterval.end,
+          });
+          const cancellationRequest = await tx.appointmentChangeRequest.findFirst({
+            where: { bookingId: id, requestType: 'CANCEL', OR: [
+              { violationEvent: { is: null } },
+              { violationEvent: { is: { voidedAt: null } } },
+            ] }, select: { id: true },
+          });
+          if (cancellationRequest) {
+            throw new ConflictException({ code: 'NO_SHOW_CANCELLATION_REPORTED',
+              message: 'Khách đã gửi yêu cầu hủy; không được ghi nhận là khách không báo và không đến' });
+          }
+          const arrival = await tx.bookingStatusHistory.findFirst({
+            where: { bookingId: id, status: { in: ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] } },
+            select: { id: true },
+          });
+          if (arrival || locked.bookingServices.some((item) => ['IN_PROGRESS', 'COMPLETED'].includes(item.status))) {
+            throw new ConflictException('Lịch đã có bằng chứng khách đến hoặc sử dụng dịch vụ; không thể đánh dấu không đến');
+          }
+          // Mandatory evidence is atomic with the status; do not use best-effort logging.
+          await tx.auditLog.create({ data: {
+            userId: changedBy, action: 'STATUS_CHANGE', entityType: 'Booking', entityId: id,
+            oldData: { status: locked.status },
+            newData: { status: 'NO_SHOW', noShowConfirmed: true, policyVersion: '2026-09-17',
+              appointmentStartAt: lockedInterval.start.toISOString(), graceMinutes: 15,
+              confirmedAt: new Date().toISOString(), noCancellationRequest: true },
+            reason: note || 'Cơ sở xác nhận khách chưa đến và chưa báo hủy hoặc báo trễ',
+          } });
+          await recordBookingViolation(tx, {
+            bookingId: id, customerId: locked.customerId, businessId: locked.branch.businessId,
+            kind: 'NO_SHOW', occurredAt: new Date(), appointmentStartAt: lockedInterval.start,
+            recordedById: changedBy!,
+          });
+        }
+        // Re-read after locking: a concurrent reschedule must not let a
+        // previously eligible cancellation bypass the four-hour cutoff.
+        if (mappedStatus === 'CANCELLED' && (changedByType === 'CUSTOMER' || actorRoles.includes('CUSTOMER'))) {
+          await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
+          const locked = await tx.booking.findUnique({
+            where: { id },
+            select: { status: true, appointmentDate: true, appointmentStartTime: true },
+          });
+          if (!locked || locked.status !== existing.status) {
+            throw new ConflictException('Lịch hẹn vừa thay đổi, vui lòng tải lại và thử lại');
+          }
+          assertCustomerDirectCancellation(combineAppointmentDateTime(locked.appointmentDate, locked.appointmentStartTime));
+        }
         // Compare-and-set inside SERIALIZABLE prevents two concurrent
         // transitions from both committing from the same stale status.
         const claimed = await tx.booking.updateMany({
@@ -739,6 +825,7 @@ export class BookingsService {
     variantSelections?: Record<string, string>;
     comboId?: string;
     recurringPlanId?: string;
+    violationAcknowledged?: boolean;
     appointmentDate: string;
     note?: string;
     createdBy?: string;
@@ -1099,11 +1186,14 @@ export class BookingsService {
         if (data.recurringPlanId) {
           await reserveRecurringOccurrence(tx, data.recurringPlanId, data.customerId, data.branchId);
         }
+        if (source === 'ONLINE_WEB' || source === 'ONLINE_APP') {
+          await assertCustomerSelfBookingAllowed(tx, data.customerId, branch.businessId, data.violationAcknowledged, statusChangedBy);
+        }
         // Re-read inside the transaction: branch/channel settings may have
         // changed while availability and pricing were being calculated.
         const currentBranch = await tx.branch.findFirst({
           where: {
-            id: data.branchId, status: 'ACTIVE', deletedAt: null,
+            id: data.branchId, businessId: branch.businessId, status: 'ACTIVE', deletedAt: null,
             business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
           },
           select: {
@@ -1607,7 +1697,6 @@ export class BookingsService {
     changedBy: string,
     reason: string,
   ): Promise<number> {
-    const platformPolicy = await this.platformSettings.getEffective();
     const cancelledIds = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
@@ -1650,27 +1739,8 @@ export class BookingsService {
             row.status,
             'CANCELLED',
           );
-          const decision = await resolveCancellationPolicy(
-            tx as unknown as PrismaService,
-            row.branch.businessId,
-            Number(row.totalAmount),
-            combineAppointmentDateTime(
-              row.appointmentDate,
-              row.appointmentStartTime,
-            ),
-            new Date(),
-            platformPolicy.freeCancellationHours,
-          );
-          if (decision.policy === 'too_late') {
-            throw new BadRequestException(
-              decision.notes ??
-                'Có kỳ đã qua hạn hủy; chuỗi chưa được thay đổi',
-            );
-          }
-          const transitionNote =
-            decision.policy === 'warn_late_cancel'
-              ? `[Cảnh báo: ${decision.notes ?? 'hủy sát giờ'}] ${reason}`
-              : reason;
+          assertCustomerDirectCancellation(combineAppointmentDateTime(row.appointmentDate, row.appointmentStartTime));
+          const transitionNote = reason;
           const claimed = await tx.booking.updateMany({
             where: { id: row.id, status: row.status },
             data: {
@@ -1943,7 +2013,10 @@ export class BookingsService {
       return { slots: [], message: 'Không có nhân viên khả dụng cho dịch vụ này' };
     }
 
+    const bookingPolicy = await this.platformSettings.getEffective();
     const now = new Date();
+    const earliestStart = now.getTime() + bookingPolicy.minBookingLeadTimeHours * 60 * 60 * 1000;
+    const latestStart = now.getTime() + bookingPolicy.maxAdvanceBookingDays * 24 * 60 * 60 * 1000;
     const allSlots: { start: string; end: string; staffId: string; staffName: string }[] = [];
 
     for (const staff of staffList) {
@@ -1973,8 +2046,8 @@ export class BookingsService {
         const slotStart = new Date(cursor);
         const slotEnd = new Date(cursor.getTime() + totalDuration * 60000);
 
-        // Skip past slots
-        if (slotStart > now) {
+        // Offer only starts accepted by create(), including both policy boundaries.
+        if (slotStart > now && slotStart.getTime() >= earliestStart && slotStart.getTime() <= latestStart) {
           let validByDomainRules = true;
           for (const serviceId of params.serviceIds) {
             try {

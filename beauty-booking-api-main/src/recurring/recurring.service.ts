@@ -80,6 +80,7 @@ export class RecurringService {
           note: input.note,
           createdBy: user.id,
           source: 'ONLINE_WEB',
+          violationAcknowledged: input.violationAcknowledged,
         });
         createdIds.push(booking.id);
       }

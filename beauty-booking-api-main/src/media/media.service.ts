@@ -10,7 +10,7 @@ import { extname, join, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { assertBranchAccess, assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBranchAccess, assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import type { UploadMediaDto } from './dto/media.dto';
 import { auditLog } from '../common/utils/audit';
 import { canAccessStoredMedia } from './media-access';
@@ -243,8 +243,9 @@ export class MediaService {
     if (input.branchId && input.branchId !== branchId) {
       throw new BadRequestException('Chi nhánh gửi lên không khớp thực thể đích');
     }
-    if (branchId) await assertBranchAccess(this.prisma, user, branchId);
-    else await assertBusinessAccess(this.prisma, user, businessId);
+    const administrator = restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']);
+    if (branchId) await assertBranchAccess(this.prisma, administrator, branchId);
+    else await assertBusinessAccess(this.prisma, administrator, businessId);
     return { businessId, branchId };
   }
 

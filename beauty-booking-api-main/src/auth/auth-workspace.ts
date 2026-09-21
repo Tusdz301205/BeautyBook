@@ -1,10 +1,11 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { OPERATIONAL_ROLES } from './account-separation';
 
 export type AuthWorkspaceName = 'CUSTOMER' | 'SALON' | 'PLATFORM';
 
 export const WORKSPACE_ROLES: Record<AuthWorkspaceName, ReadonlySet<string>> = {
   CUSTOMER: new Set(['CUSTOMER']),
-  SALON: new Set(['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF']),
+  SALON: new Set(['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF']),
   PLATFORM: new Set(['PLATFORM_ADMIN']),
 };
 
@@ -26,16 +27,26 @@ export interface WorkspaceRequest {
   branchId?: string;
 }
 
+function isUsableAssignment(assignment: WorkspaceRoleAssignment): boolean {
+  if (assignment.expiresAt && !(assignment.expiresAt.getTime() > Date.now())) return false;
+  if (assignment.role.code === 'RECEPTIONIST' || assignment.role.code === 'STAFF') {
+    return Boolean(assignment.businessId && assignment.branchId);
+  }
+  return true;
+}
+
 export function availableWorkspaces(
   assignments: WorkspaceRoleAssignment[],
-  hasCustomerProfile = false,
+  _hasCustomerProfile = false,
 ): AuthWorkspaceName[] {
-  const active = assignments.filter(
-    (assignment) => !assignment.expiresAt || assignment.expiresAt.getTime() > Date.now(),
-  );
+  const active = assignments.filter(isUsableAssignment);
+  // Even a malformed operational scope must not fall back to CUSTOMER.
+  const operational = assignments.some((assignment) =>
+    OPERATIONAL_ROLES.has(assignment.role.code) &&
+    (!assignment.expiresAt || assignment.expiresAt.getTime() > Date.now()));
   return (['CUSTOMER', 'SALON', 'PLATFORM'] as AuthWorkspaceName[]).filter((workspace) =>
     workspace === 'CUSTOMER'
-      ? hasCustomerProfile || active.some((assignment) => WORKSPACE_ROLES.CUSTOMER.has(assignment.role.code))
+      ? !operational && active.some((assignment) => WORKSPACE_ROLES.CUSTOMER.has(assignment.role.code))
       : active.some((assignment) => WORKSPACE_ROLES[workspace].has(assignment.role.code)),
   );
 }
@@ -61,7 +72,7 @@ export function resolveWorkspaceAssignments(
 
   let filtered = assignments.filter(
     (assignment) =>
-      (!assignment.expiresAt || assignment.expiresAt.getTime() > Date.now()) &&
+      isUsableAssignment(assignment) &&
       WORKSPACE_ROLES[workspace].has(assignment.role.code),
   );
 
@@ -81,7 +92,9 @@ export function resolveWorkspaceAssignments(
       throw new UnauthorizedException('Không có quyền truy cập doanh nghiệp đã chọn');
     }
     if (businessId) filtered = filtered.filter((item) => item.businessId === businessId);
-    if (branchId && !filtered.some((item) => item.branchId === null || item.branchId === branchId)) {
+    if (branchId && !filtered.some((item) =>
+      (item.role.code === 'BUSINESS_OWNER' && item.branchId === null) || item.branchId === branchId,
+    )) {
       throw new UnauthorizedException('Không có quyền truy cập chi nhánh đã chọn');
     }
   } else {

@@ -51,13 +51,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "audit:read:platform",
-          "audit:read:tenant",
-          "audit:read:branch"
+          "audit:read:tenant"
         ],
         "responses": {
           "200": {
@@ -1400,7 +1398,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "CUSTOMER"
         ],
@@ -1478,7 +1475,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 197
+        "x-source-line": 237
       },
       "get": {
         "tags": [
@@ -1494,7 +1491,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -1541,7 +1537,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 379
+        "x-source-line": 421
       }
     },
     "/bookings/{id}": {
@@ -1559,7 +1555,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -1616,7 +1611,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 830
+        "x-source-line": 866
       },
       "put": {
         "tags": [
@@ -1631,7 +1626,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
@@ -1695,7 +1689,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 878
+        "x-source-line": 910
       }
     },
     "/bookings/{id}/assign": {
@@ -1712,12 +1706,11 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
-          "booking:update:branch",
-          "booking:update:tenant"
+          "booking:assign:branch",
+          "booking:assign:tenant"
         ],
         "parameters": [
           {
@@ -1776,7 +1769,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1070
+        "x-source-line": 1113
       }
     },
     "/bookings/{id}/change-requests": {
@@ -1874,7 +1867,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1132
+        "x-source-line": 1194
       }
     },
     "/bookings/{id}/checkin": {
@@ -1891,7 +1884,6 @@
         ],
         "x-roles": [
           "RECEPTIONIST",
-          "BRANCH_MANAGER",
           "BUSINESS_OWNER"
         ],
         "x-permissions": [
@@ -1955,7 +1947,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1235
+        "x-source-line": 1305
       }
     },
     "/bookings/{id}/force-cancel-preview": {
@@ -2022,7 +2014,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 995
+        "x-source-line": 1036
       }
     },
     "/bookings/{id}/items": {
@@ -2039,7 +2031,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
@@ -2123,7 +2114,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1083
+        "x-source-line": 1126
       }
     },
     "/bookings/{id}/items/{itemId}": {
@@ -2140,7 +2131,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF"
         ],
@@ -2214,7 +2204,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1103
+        "x-source-line": 1155
       }
     },
     "/bookings/{id}/move": {
@@ -2231,11 +2221,10 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
-          "booking:update:branch",
+          "booking:reschedule:branch",
           "booking:update:tenant"
         ],
         "parameters": [
@@ -2295,7 +2284,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1039
+        "x-source-line": 1080
       }
     },
     "/bookings/{id}/refund": {
@@ -2393,7 +2382,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1207
+        "x-source-line": 1277
       }
     },
     "/bookings/{id}/resize": {
@@ -2409,8 +2398,7 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "booking:update:branch",
@@ -2473,7 +2461,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1057
+        "x-source-line": 1099
       }
     },
     "/bookings/{id}/status": {
@@ -2491,7 +2479,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -2559,7 +2546,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 949
+        "x-source-line": 985
       }
     },
     "/bookings/available-slots": {
@@ -2585,7 +2572,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 687
+        "x-source-line": 727
       }
     },
     "/bookings/by-branch/{branchId}": {
@@ -2603,7 +2590,7 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "RECEPTIONIST"
         ],
         "x-permissions": [
           "booking:read:branch",
@@ -2613,7 +2600,7 @@
         "x-scope-requirement": {
           "roles": [
             "BUSINESS_OWNER",
-            "BRANCH_MANAGER",
+            "RECEPTIONIST",
             "PLATFORM_ADMIN"
           ],
           "scopeLevel": "branch",
@@ -2669,7 +2656,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 779
+        "x-source-line": 816
       }
     },
     "/bookings/by-category": {
@@ -2686,8 +2673,7 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "booking:read:branch",
@@ -2730,7 +2716,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 767
+        "x-source-line": 803
       }
     },
     "/bookings/by-customer/{userId}": {
@@ -2748,7 +2734,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "CUSTOMER"
         ],
@@ -2804,7 +2789,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 795
+        "x-source-line": 832
       }
     },
     "/bookings/change-requests/{reqId}/approve": {
@@ -2821,7 +2806,7 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "RECEPTIONIST"
         ],
         "x-permissions": [
           "change_request:approve:branch",
@@ -2884,7 +2869,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1155
+        "x-source-line": 1217
       }
     },
     "/bookings/change-requests/{reqId}/reject": {
@@ -2901,7 +2886,7 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "RECEPTIONIST"
         ],
         "x-permissions": [
           "change_request:approve:branch",
@@ -2964,7 +2949,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1172
+        "x-source-line": 1235
       }
     },
     "/bookings/change-requests/pending": {
@@ -2981,7 +2966,7 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "RECEPTIONIST"
         ],
         "x-permissions": [
           "change_request:approve:branch",
@@ -3023,7 +3008,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1189
+        "x-source-line": 1253
       }
     },
     "/bookings/guest": {
@@ -3113,7 +3098,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 161
+        "x-source-line": 199
       }
     },
     "/bookings/my-appointments": {
@@ -3170,7 +3155,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 507
+        "x-source-line": 548
       }
     },
     "/bookings/preview-price": {
@@ -3238,7 +3223,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 266
+        "x-source-line": 308
       }
     },
     "/bookings/salon-queue": {
@@ -3255,7 +3240,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF"
         ],
@@ -3299,7 +3283,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 598
+        "x-source-line": 639
       }
     },
     "/bookings/salon-violations": {
@@ -3316,11 +3300,9 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
-          "audit:read:branch",
           "audit:read:tenant",
           "audit:read:platform"
         ],
@@ -3360,7 +3342,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 640
+        "x-source-line": 679
       }
     },
     "/bookings/scheduler": {
@@ -3378,7 +3360,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF"
         ],
@@ -3423,7 +3404,64 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 713
+        "x-source-line": 753
+      }
+    },
+    "/bookings/self-booking-policy": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_selfBookingPolicy_get",
+        "summary": "self Booking Policy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "CUSTOMER"
+        ],
+        "x-permissions": [
+          "booking:create:self"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 185
       }
     },
     "/bookings/stats": {
@@ -3440,11 +3478,9 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "report:overview:branch",
           "report:overview:tenant",
           "report:overview:platform",
           "report:revenue:platform"
@@ -3485,7 +3521,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 745
+        "x-source-line": 781
       }
     },
     "/branches": {
@@ -3531,7 +3567,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 56
+        "x-source-line": 57
       },
       "post": {
         "tags": [
@@ -3545,8 +3581,7 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "branch:create:tenant"
@@ -3598,7 +3633,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 162
+        "x-source-line": 170
       }
     },
     "/branches/{id}": {
@@ -3634,7 +3669,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 126
+        "x-source-line": 134
       },
       "patch": {
         "tags": [
@@ -3648,21 +3683,17 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch:update:branch",
           "branch:update:tenant"
         ],
         "x-scope-requirement": {
           "roles": [
-            "BUSINESS_OWNER",
-            "BRANCH_MANAGER"
+            "BUSINESS_OWNER"
           ],
           "scopeLevel": "branch",
           "permissions": [
-            "branch:update:branch",
             "branch:update:tenant"
           ]
         },
@@ -3723,7 +3754,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 303
+        "x-source-line": 309
       }
     },
     "/branches/{id}/copy-services": {
@@ -3801,7 +3832,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 190
+        "x-source-line": 195
       }
     },
     "/branches/{id}/documents": {
@@ -3817,12 +3848,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -3881,7 +3910,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 204
+        "x-source-line": 210
       }
     },
     "/branches/{id}/documents/{documentId}": {
@@ -3897,12 +3926,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -3958,7 +3985,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 226
+        "x-source-line": 232
       }
     },
     "/branches/{id}/onboarding": {
@@ -3974,12 +4001,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "branch:update:tenant",
-          "branch:update:branch",
           "branch:create:tenant"
         ],
         "parameters": [
@@ -4039,7 +4064,74 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 177
+        "x-source-line": 182
+      }
+    },
+    "/branches/{id}/preview": {
+      "get": {
+        "tags": [
+          "branches"
+        ],
+        "operationId": "BranchesController_preview_get",
+        "summary": "preview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "BUSINESS_OWNER"
+        ],
+        "x-permissions": [
+          "branch:read:tenant"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/branches/branches.controller.ts",
+        "x-source-line": 109
       }
     },
     "/branches/{id}/publish": {
@@ -4117,7 +4209,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 275
+        "x-source-line": 281
       }
     },
     "/branches/{id}/review": {
@@ -4195,7 +4287,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 251
+        "x-source-line": 257
       }
     },
     "/branches/{id}/reviews": {
@@ -4231,7 +4323,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 117
+        "x-source-line": 125
       }
     },
     "/branches/{id}/services": {
@@ -4267,7 +4359,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 108
+        "x-source-line": 116
       }
     },
     "/branches/{id}/status": {
@@ -4345,7 +4437,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 136
+        "x-source-line": 144
       }
     },
     "/branches/{id}/submit": {
@@ -4361,13 +4453,11 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "branch:create:tenant",
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -4426,7 +4516,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 239
+        "x-source-line": 245
       }
     },
     "/branches/{id}/transition": {
@@ -4443,13 +4533,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "branch:status:platform",
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -4508,7 +4596,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 287
+        "x-source-line": 293
       }
     },
     "/branches/accessible": {
@@ -4525,7 +4613,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "PLATFORM_ADMIN"
@@ -4571,7 +4658,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 93
+        "x-source-line": 94
       }
     },
     "/branches/accessible/{id}": {
@@ -4588,7 +4675,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "PLATFORM_ADMIN"
@@ -4644,7 +4730,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 100
+        "x-source-line": 101
       }
     },
     "/branches/locations/districts": {
@@ -4670,7 +4756,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 87
+        "x-source-line": 88
       }
     },
     "/branches/manage": {
@@ -4727,7 +4813,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 74
+        "x-source-line": 75
       }
     },
     "/business/{businessId}/cancellation-policy": {
@@ -6063,7 +6149,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 28
+        "x-source-line": 37
       },
       "get": {
         "tags": [
@@ -6078,7 +6164,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "CUSTOMER"
         ],
@@ -6123,7 +6208,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 37
+        "x-source-line": 46
       }
     },
     "/finance-operations/invoice-requests/{id}/cancel": {
@@ -6201,7 +6286,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 54
+        "x-source-line": 58
       }
     },
     "/finance-operations/invoice-requests/{id}/reject": {
@@ -6217,8 +6302,7 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "payment:create:tenant",
@@ -6281,7 +6365,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 63
+        "x-source-line": 67
       }
     },
     "/finance-operations/invoices": {
@@ -6298,7 +6382,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
@@ -6352,7 +6435,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 14
+        "x-source-line": 23
       },
       "get": {
         "tags": [
@@ -6367,7 +6450,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "CUSTOMER"
         ],
@@ -6412,7 +6494,7 @@
           }
         },
         "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 72
+        "x-source-line": 77
       }
     },
     "/finance-operations/invoices/{id}/cancel": {
@@ -6703,7 +6785,7 @@
           }
         },
         "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 31
+        "x-source-line": 33
       }
     },
     "/loyalty/mine": {
@@ -6760,7 +6842,7 @@
           }
         },
         "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 14
+        "x-source-line": 15
       }
     },
     "/loyalty/rules": {
@@ -6828,7 +6910,7 @@
           }
         },
         "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 23
+        "x-source-line": 25
       }
     },
     "/media/{id}": {
@@ -7006,7 +7088,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -7452,12 +7533,10 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
           "booking:update:tenant",
-          "booking:update:branch",
           "booking:read:platform"
         ],
         "responses": {
@@ -7496,7 +7575,7 @@
           }
         },
         "x-source": "src/operations/impact.controller.ts",
-        "x-source-line": 31
+        "x-source-line": 28
       }
     },
     "/operational-impacts/{id}": {
@@ -7513,12 +7592,10 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
           "booking:update:tenant",
-          "booking:update:branch",
           "booking:read:platform"
         ],
         "parameters": [
@@ -7567,7 +7644,7 @@
           }
         },
         "x-source": "src/operations/impact.controller.ts",
-        "x-source-line": 40
+        "x-source-line": 34
       }
     },
     "/operational-impacts/{id}/complete": {
@@ -7584,94 +7661,10 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
           "booking:update:tenant",
-          "booking:update:branch",
-          "booking:read:platform"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/impact.controller.ts",
-        "x-source-line": 58
-      }
-    },
-    "/operational-impacts/{id}/items": {
-      "patch": {
-        "tags": [
-          "operational-impacts"
-        ],
-        "operationId": "ImpactController_resolveBatch_patch",
-        "summary": "resolve Batch",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
-          "PLATFORM_ADMIN"
-        ],
-        "x-permissions": [
-          "booking:update:tenant",
-          "booking:update:branch",
           "booking:read:platform"
         ],
         "parameters": [
@@ -7734,6 +7727,86 @@
         "x-source-line": 52
       }
     },
+    "/operational-impacts/{id}/items": {
+      "patch": {
+        "tags": [
+          "operational-impacts"
+        ],
+        "operationId": "ImpactController_resolveBatch_patch",
+        "summary": "resolve Batch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "BUSINESS_OWNER",
+          "PLATFORM_ADMIN"
+        ],
+        "x-permissions": [
+          "booking:update:tenant",
+          "booking:read:platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/operations/impact.controller.ts",
+        "x-source-line": 46
+      }
+    },
     "/operational-impacts/{id}/items/{itemId}": {
       "patch": {
         "tags": [
@@ -7748,12 +7821,10 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
           "booking:update:tenant",
-          "booking:update:branch",
           "booking:read:platform"
         ],
         "parameters": [
@@ -7821,7 +7892,7 @@
           }
         },
         "x-source": "src/operations/impact.controller.ts",
-        "x-source-line": 46
+        "x-source-line": 40
       }
     },
     "/ownership-transfers": {
@@ -11074,7 +11145,7 @@
           }
         },
         "x-source": "src/promotions/promotions.controller.ts",
-        "x-source-line": 79
+        "x-source-line": 78
       }
     },
     "/promotions/{id}": {
@@ -11154,7 +11225,7 @@
           }
         },
         "x-source": "src/promotions/promotions.controller.ts",
-        "x-source-line": 133
+        "x-source-line": 132
       },
       "delete": {
         "tags": [
@@ -11221,7 +11292,7 @@
           }
         },
         "x-source": "src/promotions/promotions.controller.ts",
-        "x-source-line": 149
+        "x-source-line": 148
       }
     },
     "/promotions/service/{serviceId}": {
@@ -11687,13 +11758,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:overview:platform",
-          "report:overview:tenant",
-          "report:overview:branch"
+          "report:overview:tenant"
         ],
         "responses": {
           "200": {
@@ -11731,7 +11800,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 95
+        "x-source-line": 94
       }
     },
     "/reports/financial-summary": {
@@ -11748,8 +11817,7 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:revenue:platform",
@@ -11792,7 +11860,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 76
+        "x-source-line": 75
       }
     },
     "/reports/overview": {
@@ -11809,13 +11877,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:overview:platform",
-          "report:overview:tenant",
-          "report:overview:branch"
+          "report:overview:tenant"
         ],
         "responses": {
           "200": {
@@ -11853,7 +11919,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 24
+        "x-source-line": 25
       }
     },
     "/reports/owner-dashboard": {
@@ -11869,12 +11935,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:overview:tenant",
-          "report:overview:branch",
           "report:overview:platform"
         ],
         "responses": {
@@ -11972,7 +12036,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 63
+        "x-source-line": 62
       }
     },
     "/reports/services": {
@@ -11989,13 +12053,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:overview:platform",
-          "report:overview:tenant",
-          "report:overview:branch"
+          "report:overview:tenant"
         ],
         "responses": {
           "200": {
@@ -12033,7 +12095,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 102
+        "x-source-line": 101
       }
     },
     "/reports/staff-performance": {
@@ -12050,13 +12112,11 @@
         ],
         "x-roles": [
           "PLATFORM_ADMIN",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "report:overview:platform",
-          "report:overview:tenant",
-          "report:overview:branch"
+          "report:overview:tenant"
         ],
         "responses": {
           "200": {
@@ -12094,7 +12154,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 125
+        "x-source-line": 124
       }
     },
     "/reports/top-salons": {
@@ -12151,7 +12211,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 109
+        "x-source-line": 108
       }
     },
     "/reports/user-growth": {
@@ -12208,7 +12268,7 @@
           }
         },
         "x-source": "src/reports/reports.controller.ts",
-        "x-source-line": 118
+        "x-source-line": 117
       }
     },
     "/reviews": {
@@ -12293,13 +12353,11 @@
         ],
         "x-roles": [
           "CUSTOMER",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "review:create:self",
-          "review:moderate:tenant",
-          "review:moderate:branch"
+          "review:moderate:tenant"
         ],
         "parameters": [
           {
@@ -12452,11 +12510,9 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "review:moderate:branch",
           "review:moderate:tenant"
         ],
         "parameters": [
@@ -12533,13 +12589,11 @@
         ],
         "x-roles": [
           "CUSTOMER",
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "review:read:public",
-          "review:report:tenant",
-          "review:report:branch"
+          "review:report:tenant"
         ],
         "parameters": [
           {
@@ -12729,11 +12783,9 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "PLATFORM_ADMIN"
         ],
         "x-permissions": [
-          "review:moderate:branch",
           "review:moderate:tenant",
           "review:moderate:platform"
         ],
@@ -12862,7 +12914,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "STAFF",
           "PLATFORM_ADMIN"
         ],
@@ -13229,7 +13280,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 151
+        "x-source-line": 152
       },
       "post": {
         "tags": [
@@ -13295,7 +13346,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 361
+        "x-source-line": 362
       }
     },
     "/services/{id}": {
@@ -13331,7 +13382,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 354
+        "x-source-line": 355
       },
       "patch": {
         "tags": [
@@ -13407,7 +13458,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 371
+        "x-source-line": 372
       },
       "delete": {
         "tags": [
@@ -13472,7 +13523,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 394
+        "x-source-line": 395
       }
     },
     "/services/{id}/dependencies": {
@@ -13550,7 +13601,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 326
+        "x-source-line": 327
       }
     },
     "/services/{id}/price-rules": {
@@ -13628,7 +13679,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 340
+        "x-source-line": 341
       }
     },
     "/services/{id}/variants": {
@@ -13664,7 +13715,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 288
+        "x-source-line": 289
       },
       "post": {
         "tags": [
@@ -13740,7 +13791,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 294
+        "x-source-line": 295
       }
     },
     "/services/admin-curated/all": {
@@ -13797,7 +13848,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 281
+        "x-source-line": 282
       }
     },
     "/services/canonical": {
@@ -13823,7 +13874,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 97
+        "x-source-line": 98
       },
       "post": {
         "tags": [
@@ -13889,7 +13940,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 110
+        "x-source-line": 111
       }
     },
     "/services/canonical/{id}": {
@@ -13967,7 +14018,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 118
+        "x-source-line": 119
       }
     },
     "/services/canonical/manage": {
@@ -14024,7 +14075,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 103
+        "x-source-line": 104
       }
     },
     "/services/catalog": {
@@ -14092,7 +14143,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 186
+        "x-source-line": 187
       }
     },
     "/services/catalog/{id}": {
@@ -14170,7 +14221,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 196
+        "x-source-line": 197
       },
       "delete": {
         "tags": [
@@ -14235,7 +14286,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 213
+        "x-source-line": 214
       }
     },
     "/services/catalog/{id}/branches/{branchId}/{action}": {
@@ -14251,12 +14302,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch_service_offering:status:tenant",
-          "branch_service_offering:status:branch"
+          "branch_service_offering:status:tenant"
         ],
         "parameters": [
           {
@@ -14331,7 +14380,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 226
+        "x-source-line": 227
       }
     },
     "/services/categories": {
@@ -14357,7 +14406,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 127
+        "x-source-line": 128
       },
       "post": {
         "tags": [
@@ -14423,7 +14472,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 142
+        "x-source-line": 143
       }
     },
     "/services/categories/manage": {
@@ -14439,12 +14488,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "service_category:manage:tenant",
-          "branch_service_offering:status:branch"
+          "service_category:manage:tenant"
         ],
         "responses": {
           "200": {
@@ -14482,7 +14529,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 133
+        "x-source-line": 134
       }
     },
     "/services/manage": {
@@ -14498,12 +14545,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "business_service:update:tenant",
-          "branch_service_offering:status:branch"
+          "business_service:update:tenant"
         ],
         "responses": {
           "200": {
@@ -14541,7 +14586,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 161
+        "x-source-line": 162
       }
     },
     "/services/offerings/{id}/pricing": {
@@ -14619,7 +14664,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 264
+        "x-source-line": 265
       }
     },
     "/services/offerings/{id}/status": {
@@ -14635,12 +14680,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch_service_offering:status:tenant",
-          "branch_service_offering:status:branch"
+          "branch_service_offering:status:tenant"
         ],
         "parameters": [
           {
@@ -14699,7 +14742,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 247
+        "x-source-line": 248
       }
     },
     "/services/search": {
@@ -14725,7 +14768,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 69
+        "x-source-line": 70
       }
     },
     "/services/variants/{variantId}": {
@@ -14803,7 +14846,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 308
+        "x-source-line": 309
       }
     },
     "/services/workspace/manage": {
@@ -14819,12 +14862,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "business_service:update:tenant",
-          "branch_service_offering:status:branch"
+          "business_service:update:tenant"
         ],
         "responses": {
           "200": {
@@ -14862,7 +14903,7 @@
           }
         },
         "x-source": "src/services/services.controller.ts",
-        "x-source-line": 175
+        "x-source-line": 176
       }
     },
     "/staff": {
@@ -14879,7 +14920,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "PLATFORM_ADMIN"
         ],
@@ -14924,7 +14964,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 193
+        "x-source-line": 192
       },
       "post": {
         "tags": [
@@ -14938,12 +14978,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "requestBody": {
           "required": true,
@@ -15009,7 +15047,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "PLATFORM_ADMIN"
@@ -15080,12 +15117,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -15158,12 +15193,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -15227,12 +15260,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -15308,7 +15339,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "STAFF",
           "PLATFORM_ADMIN"
         ],
@@ -15379,8 +15409,7 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "user:read:tenant",
@@ -15449,7 +15478,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "PLATFORM_ADMIN"
@@ -15520,11 +15548,9 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "staff_service:assign:branch",
           "staff_service:assign:tenant"
         ],
         "parameters": [
@@ -15600,12 +15626,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -15680,12 +15704,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "branch:update:tenant",
-          "branch:update:branch"
+          "branch:update:tenant"
         ],
         "parameters": [
           {
@@ -15760,12 +15782,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "requestBody": {
           "required": true,
@@ -15814,7 +15834,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 80
+        "x-source-line": 79
       },
       "get": {
         "tags": [
@@ -15828,8 +15848,7 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
           "user:read:tenant",
@@ -15871,7 +15890,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 93
+        "x-source-line": 92
       }
     },
     "/staff/invitations/{invitationId}": {
@@ -15887,12 +15906,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -15940,7 +15957,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 153
+        "x-source-line": 152
       }
     },
     "/staff/invitations/{invitationId}/email": {
@@ -15956,12 +15973,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -16020,7 +16035,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 141
+        "x-source-line": 140
       }
     },
     "/staff/invitations/{invitationId}/resend": {
@@ -16036,12 +16051,10 @@
           }
         ],
         "x-roles": [
-          "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "BUSINESS_OWNER"
         ],
         "x-permissions": [
-          "user:role_assign:tenant",
-          "user:role_assign:branch"
+          "user:role_assign:tenant"
         ],
         "parameters": [
           {
@@ -16100,7 +16113,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 130
+        "x-source-line": 129
       }
     },
     "/staff/invitations/accept": {
@@ -16137,7 +16150,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 114
+        "x-source-line": 113
       }
     },
     "/staff/invitations/accept-existing": {
@@ -16200,7 +16213,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 122
+        "x-source-line": 121
       }
     },
     "/staff/invitations/context": {
@@ -16226,7 +16239,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 107
+        "x-source-line": 106
       }
     },
     "/staff/me": {
@@ -16243,7 +16256,6 @@
         ],
         "x-roles": [
           "STAFF",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "BUSINESS_OWNER"
         ],
@@ -16286,7 +16298,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 181
+        "x-source-line": 180
       }
     },
     "/staff/public": {
@@ -16312,7 +16324,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 168
+        "x-source-line": 167
       }
     },
     "/staff/public/{id}": {
@@ -16348,7 +16360,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 175
+        "x-source-line": 174
       }
     },
     "/users": {
@@ -16423,7 +16435,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -16545,7 +16556,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 125
+        "x-source-line": 124
       },
       "post": {
         "tags": [
@@ -16621,7 +16632,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 132
+        "x-source-line": 131
       }
     },
     "/users/{id}/permissions/{permissionCode}": {
@@ -16696,7 +16707,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 148
+        "x-source-line": 147
       }
     },
     "/users/{id}/roles": {
@@ -16776,7 +16787,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 164
+        "x-source-line": 163
       }
     },
     "/users/{id}/roles/{roleCode}": {
@@ -16853,7 +16864,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 181
+        "x-source-line": 180
       }
     },
     "/users/{id}/suspend": {
@@ -16931,7 +16942,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 113
+        "x-source-line": 112
       }
     },
     "/users/me/profile": {
@@ -16949,7 +16960,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -17009,7 +17019,6 @@
         "x-roles": [
           "PLATFORM_ADMIN",
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST",
           "STAFF",
           "CUSTOMER"
@@ -17564,7 +17573,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 20
+        "x-source-line": 28
       }
     },
     "/waitlist/{id}/accept": {
@@ -17642,7 +17651,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 41
+        "x-source-line": 49
       }
     },
     "/waitlist/{id}/cancel": {
@@ -17720,7 +17729,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 34
+        "x-source-line": 42
       }
     },
     "/waitlist/{id}/offer": {
@@ -17737,7 +17746,7 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER"
+          "RECEPTIONIST"
         ],
         "x-permissions": [
           "booking:update:branch",
@@ -17800,7 +17809,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 56
+        "x-source-line": 66
       }
     },
     "/waitlist/branch": {
@@ -17817,7 +17826,6 @@
         ],
         "x-roles": [
           "BUSINESS_OWNER",
-          "BRANCH_MANAGER",
           "RECEPTIONIST"
         ],
         "x-permissions": [
@@ -17860,7 +17868,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 48
+        "x-source-line": 56
       }
     },
     "/waitlist/mine": {
@@ -17917,7 +17925,7 @@
           }
         },
         "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 27
+        "x-source-line": 35
       }
     }
   },

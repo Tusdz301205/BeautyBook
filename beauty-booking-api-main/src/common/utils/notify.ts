@@ -1,6 +1,24 @@
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationType } from '@prisma/client';
 
+/** Governance notices go to active tenant owners, never legacy memberships. */
+export async function businessOwnerRecipientIds(
+  prisma: Pick<PrismaService, 'userRole'>,
+  businessId: string,
+): Promise<string[]> {
+  const grants = await prisma.userRole.findMany({
+    where: {
+      businessId,
+      branchId: null,
+      role: { code: 'BUSINESS_OWNER' },
+      user: { isActive: true, deletedAt: null },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    select: { userId: true },
+  });
+  return [...new Set(grants.map((grant) => grant.userId))];
+}
+
 /**
  * Gửi notification đến đúng người theo booking.
  *
@@ -41,8 +59,8 @@ export async function notifyBookingCustomer(
 }
 
 /**
- * Noti đến tất cả salon members của business (owner/manager/receptionist active).
- * Dùng khi admin can thiệp ép buộc.
+ * Notify current owners and the affected branch's receptionists. Legacy
+ * membership metadata is not an authorization source.
  */
 export async function notifySalonMembers(
   prisma: PrismaService,
@@ -52,15 +70,29 @@ export async function notifySalonMembers(
   body: string,
   relatedBookingId?: string,
 ): Promise<void> {
-  const members = await prisma.salonMember.findMany({
-    where: { businessId, isActive: true, deletedAt: null },
+  const booking = relatedBookingId
+    ? await prisma.booking.findUnique({ where: { id: relatedBookingId }, select: { branchId: true, branch: { select: { businessId: true } } } })
+    : null;
+  if (relatedBookingId && (!booking || booking.branch.businessId !== businessId)) return;
+  const members = await prisma.userRole.findMany({
+    where: {
+      businessId,
+      user: { isActive: true, deletedAt: null },
+      AND: [
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        { OR: [
+          { role: { code: 'BUSINESS_OWNER' }, branchId: null },
+          ...(booking ? [{ role: { code: 'RECEPTIONIST' as const }, branchId: booking.branchId }] : []),
+        ] },
+      ],
+    },
     select: { userId: true },
   });
   if (members.length === 0) return;
 
   await prisma.notification.createMany({
-    data: members.map((m) => ({
-      userId: m.userId,
+    data: [...new Set(members.map((m) => m.userId))].map((userId) => ({
+      userId,
       type,
       title,
       body,

@@ -88,8 +88,8 @@ export class AdminController {
    * Global audit log — PLATFORM_ADMIN globally; tenant roles see own actions.
    */
   @Get('audit-logs')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER')
-  @RequirePermission('audit:read:platform', 'audit:read:tenant', 'audit:read:branch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')
+  @RequirePermission('audit:read:platform', 'audit:read:tenant')
   async auditLogs(@CurrentUser() user: AuthUser) {
     const isPlatform = user.roles.some((role) => ['PLATFORM_ADMIN'].includes(role));
     return this.prisma.auditLog.findMany({

@@ -16,12 +16,14 @@ import {
 import toast from 'react-hot-toast';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { bookingsApi, platformPolicyApi } from '../../api/apiClient';
+import { BookingPolicyNotice } from '../../components/customer/BookingPolicyNotice';
 import { RescheduleModal } from '../../components/customer/RescheduleModal';
 import { ReviewModal } from '../../components/customer/ReviewModal';
 import { Badge, Button, Card, Dialog, ErrorState, Field, InlineNotice, Page, PageHeader, Skeleton, Textarea } from '../../components/ui';
 import { useBookingStore } from '../../store/bookingStore';
 import { combineDateTime } from '../../utils/bookingCalendar.adapter';
 import { useAsyncResource } from '../../hooks/useAsyncResource';
+import { customerCancellationMode, submitCustomerCancellation } from '../../utils/customerCancellation';
 
 const LABELS = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
 const TONES = { PENDING: 'warning', CONFIRMED: 'info', CHECKED_IN: 'info', IN_PROGRESS: 'brand', COMPLETED: 'success', CANCELLED: 'danger', NO_SHOW: 'neutral', REJECTED: 'danger', EXPIRED: 'neutral' };
@@ -62,6 +64,7 @@ export function CustomerAppointmentDetail() {
   const duration = start && end ? Math.max(0, differenceInMinutes(end, start)) : (booking?.bookingServices || []).reduce((sum, item) => sum + Number(item.durationMinutes ?? item.service?.durationMinutes ?? 0), 0);
   const upcoming = start ? start.getTime() > Date.now() : false;
   const canChange = upcoming && ['PENDING', 'CONFIRMED'].includes(booking?.status);
+  const cancellationMode = customerCancellationMode(booking);
   const services = booking?.bookingServices || [];
   const directionsUrl = booking?.branch?.addressLine ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.branch.addressLine)}` : '';
   const chronologicalHistory = useMemo(() => [...(booking?.statusHistory || [])].reverse(), [booking]);
@@ -76,7 +79,7 @@ export function CustomerAppointmentDetail() {
   const cancel = async () => {
     if (!cancelReason.trim()) return;
     setBusy(true);
-    try { await bookingsApi.updateStatus(booking.id, 'CANCELLED', undefined, cancelReason.trim()); toast.success('Đã hủy lịch'); setCancelOpen(false); await load(); }
+    try { toast.success(await submitCustomerCancellation(bookingsApi, booking, cancelReason)); setCancelOpen(false); await load(); }
     catch (requestError) { toast.error(requestError.message || 'Không thể hủy lịch'); }
     finally { setBusy(false); }
   };
@@ -96,7 +99,9 @@ export function CustomerAppointmentDetail() {
       </div>
 
       <aside className="space-y-5">
-        <Card className="p-5"><h2 className="font-bold">Thao tác</h2><div className="mt-4 grid gap-2">{canChange && policy.allowRescheduleRequests && <Button variant="secondary" className="w-full" onClick={() => setRescheduleOpen(true)}><ArrowRightLeft size={16} />Yêu cầu đổi lịch</Button>}{canChange && <Button variant="secondary" className="w-full text-[var(--bb-danger)]" onClick={() => { setCancelReason(''); setCancelOpen(true); }}><XCircle size={16} />Hủy lịch</Button>}{booking.status === 'COMPLETED' && !booking.review && <Button className="w-full" onClick={() => setReviewOpen(true)}><Star size={16} />Viết đánh giá</Button>}{services.length > 0 && <Button variant="secondary" className="w-full" onClick={rebook}><CalendarPlus size={16} />Đặt lại dịch vụ này</Button>}</div></Card>
+        <Card className="p-5"><h2 className="font-bold">Thao tác</h2><div className="mt-4 grid gap-2">{canChange && policy.allowRescheduleRequests && <Button variant="secondary" className="w-full" onClick={() => setRescheduleOpen(true)}><ArrowRightLeft size={16} />Yêu cầu đổi lịch</Button>}{['direct', 'request'].includes(cancellationMode) && <Button variant="secondary" className="w-full text-[var(--bb-danger)]" onClick={() => { setCancelReason(''); setCancelOpen(true); }}><XCircle size={16} />{cancellationMode === 'request' ? 'Yêu cầu hủy sát giờ' : 'Hủy lịch'}</Button>}{booking.status === 'COMPLETED' && !booking.review && <Button className="w-full" onClick={() => setReviewOpen(true)}><Star size={16} />Viết đánh giá</Button>}{services.length > 0 && <Button variant="secondary" className="w-full" onClick={rebook}><CalendarPlus size={16} />Đặt lại dịch vụ này</Button>}</div></Card>
+        {cancellationMode === 'pending' && <InlineNotice tone="info">Đã gửi yêu cầu thay đổi, đang chờ cơ sở xử lý. Lịch hẹn hiện tại chưa thay đổi.</InlineNotice>}
+        <BookingPolicyNotice policy={booking.violationSummary} salon />
         {booking.note && <InlineNotice tone="info"><b>Ghi chú của bạn:</b> {booking.note}</InlineNotice>}
         {booking.cancelReason && <InlineNotice tone="danger"><b>Lý do hủy:</b> {booking.cancelReason}</InlineNotice>}
       </aside>
@@ -104,7 +109,7 @@ export function CustomerAppointmentDetail() {
 
     {rescheduleOpen && <RescheduleModal booking={booking} onClose={() => setRescheduleOpen(false)} onSuccess={() => { setRescheduleOpen(false); void load(); }} />}
     {reviewOpen && <ReviewModal booking={booking} policy={policy} onClose={() => setReviewOpen(false)} onSuccess={() => { setReviewOpen(false); void load(); }} />}
-    <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} title="Hủy lịch hẹn" description={`Mã lịch ${booking.bookingCode || '—'}. Lý do sẽ được gửi cho cơ sở.`} footer={<><Button variant="secondary" onClick={() => setCancelOpen(false)}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={cancel}>Xác nhận hủy</Button></>}><Field label="Lý do hủy" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Cho cơ sở biết lý do bạn không thể đến" /></Field></Dialog>
+    <Dialog open={cancelOpen} onClose={() => setCancelOpen(false)} title="Hủy lịch hẹn" description={`Mã lịch ${booking.bookingCode || '—'}. Lý do sẽ được gửi cho cơ sở.`} footer={<><Button variant="secondary" onClick={() => setCancelOpen(false)}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={cancel}>{cancellationMode === 'request' ? 'Gửi yêu cầu hủy' : 'Xác nhận hủy'}</Button></>}>{cancellationMode === 'request' && <InlineNotice tone="warning">Còn dưới 4 giờ. Gửi yêu cầu hợp lệ sẽ ghi ngay +1 điểm tại doanh nghiệp này, kể cả khi yêu cầu hết hạn. Lịch chỉ được hủy khi cơ sở xác nhận.</InlineNotice>}<Field label="Lý do hủy" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} placeholder="Cho cơ sở biết lý do bạn không thể đến" /></Field></Dialog>
   </Page>;
 }
 

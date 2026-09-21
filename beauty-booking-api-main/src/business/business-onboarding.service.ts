@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
@@ -383,7 +383,7 @@ export class BusinessOnboardingService {
     user: AuthUser,
     input: BusinessDraftInput,
   ) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
       include: { owner: true },
@@ -431,7 +431,7 @@ export class BusinessOnboardingService {
   }
 
   async submit(businessId: string, user: AuthUser) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
       include: {

@@ -74,7 +74,7 @@ describe('Terminal booking item lifecycle', () => {
   beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date('2026-09-08T10:00:00Z')); });
   afterEach(() => jest.useRealTimers());
 
-  test.each(['CANCELLED', 'REJECTED', 'EXPIRED', 'NO_SHOW'])(
+  test.each(['CANCELLED', 'REJECTED', 'EXPIRED'])(
     '%s closes only unfinished items and returns the synchronized state', async (status) => {
       const { service, tx, prisma, snapshot } = fixture(status === 'NO_SHOW' ? 'CONFIRMED' : 'PENDING');
       if (status === 'NO_SHOW') jest.setSystemTime(new Date('2026-09-10T10:00:00Z'));

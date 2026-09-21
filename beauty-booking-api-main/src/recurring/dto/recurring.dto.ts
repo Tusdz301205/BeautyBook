@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -60,6 +60,11 @@ export class RecurringPreviewDto {
 }
 
 export class CreateRecurringPlanDto extends RecurringPreviewDto {
+  @IsOptional()
+  @Transform(({ obj, key }) => obj[key])
+  @IsBoolean()
+  violationAcknowledged?: boolean;
+
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()

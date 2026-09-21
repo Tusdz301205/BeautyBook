@@ -212,17 +212,15 @@ async function main() {
   console.log("Tạo roles...");
   const roleNames: Record<string, string> = {
     PLATFORM_ADMIN: "Quản trị nền tảng", BUSINESS_OWNER: "Chủ doanh nghiệp",
-    BRANCH_MANAGER: "Quản lý chi nhánh", RECEPTIONIST: "Lễ tân", STAFF: "Nhân viên salon",
-    CUSTOMER: "Khách hàng", GUEST: "Khách vãng lai",
+    RECEPTIONIST: "Lễ tân", STAFF: "Nhân viên salon",
+    CUSTOMER: "Khách hàng",
   };
   const officialRoleCodes = [
     "PLATFORM_ADMIN",
     "BUSINESS_OWNER",
-    "BRANCH_MANAGER",
     "RECEPTIONIST",
     "STAFF",
     "CUSTOMER",
-    "GUEST",
   ];
   const roles = new Map<string, Awaited<ReturnType<typeof prisma.role.create>>>();
   for (const code of officialRoleCodes) {
@@ -251,7 +249,6 @@ async function main() {
   }
   const roleAdmin = roles.get("PLATFORM_ADMIN")!;
   const roleOwner = roles.get("BUSINESS_OWNER")!;
-  const roleManager = roles.get("BRANCH_MANAGER")!;
   const roleReceptionist = roles.get("RECEPTIONIST")!;
   const roleStaff = roles.get("STAFF")!;
   const roleCustomer = roles.get("CUSTOMER")!;
@@ -645,7 +642,7 @@ async function main() {
   const staffRecords: { id: string; userId: string; branchId: string; fullName: string; isBookable: boolean }[] = [];
   const demoBranch = branches[0];
   for (const demo of [
-    { code: "BRANCH_MANAGER", email: "manager@glowbook.vn", name: "Demo Quản lý" },
+    { code: "RECEPTIONIST", email: "operations@glowbook.vn", name: "Demo Vận hành" },
     { code: "RECEPTIONIST", email: "reception@glowbook.vn", name: "Demo Lễ tân" },
     { code: "STAFF", email: "staff@glowbook.vn", name: "Demo Nhân viên" },
   ]) {
@@ -666,8 +663,8 @@ async function main() {
       const gender = chance(0.65) ? "FEMALE" : "MALE";
       const name = fullName(gender);
       const email = `staff.${slugify(name)}.${b.id.slice(0, 6)}@glowbook.vn`;
-      const operationalRole = k === 0 ? roleManager : k === 1 ? roleReceptionist : roleStaff;
-      const position = k === 0 ? "Quản lý chi nhánh" : k === 1 ? "Lễ tân" : pick([
+      const operationalRole = k < 2 ? roleReceptionist : roleStaff;
+      const position = k < 2 ? "Lễ tân" : pick([
         "Chuyên viên tóc", "Chuyên viên nail", "Chuyên viên spa", "Chuyên viên da",
         "Stylist", "Massage therapist", "Senior stylist", "Junior stylist",
       ]);
@@ -1303,7 +1300,7 @@ async function main() {
   console.log("\nTài khoản đăng nhập (mật khẩu: Password123!):");
   console.log("  Admin       : admin@glowbook.vn");
   console.log("  Chủ DN #1   : lananh.owner@glowbook.vn");
-  console.log("  Quản lý CN  : manager@glowbook.vn");
+  console.log("  Vận hành CN : operations@glowbook.vn");
   console.log("  Lễ tân      : reception@glowbook.vn");
   console.log("  Nhân viên   : staff@glowbook.vn");
   console.log("  Khách #1    : khach0001@glowbook.vn");

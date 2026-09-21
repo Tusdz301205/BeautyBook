@@ -41,7 +41,21 @@ describe('UsersService role scope validation', () => {
     },
   );
 
-  it.each(['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'])(
+  it.each(['BRANCH_MANAGER', 'MANAGER'])(
+    'rejects retired Manager role %s even with complete branch scope',
+    async (roleCode) => {
+      const { service, prisma } = setup();
+      await expect(service.assignRole(
+        'user-1',
+        { roleCode, businessId: 'business-1', branchId: 'branch-1' },
+        PLATFORM,
+      )).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.role.findUnique).not.toHaveBeenCalled();
+      expect(prisma.userRole.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['RECEPTIONIST', 'STAFF'])(
     'rejects %s without a branch even for platform actors',
     async (roleCode) => {
       const { service } = setup();

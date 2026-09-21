@@ -1,5 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { SavedServicesService } from './saved-services.service';
+import type { AuthUser } from '../common/decorators/current-user.decorator';
+const customer: AuthUser = { id: 'user-1', email: 'test@example.test', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer' };
 
 describe('SavedServicesService', () => {
   it('only saves an offering that is publicly bookable through its branch and business state', async () => {
@@ -11,7 +13,7 @@ describe('SavedServicesService', () => {
     };
     const service = new SavedServicesService(prisma as any);
 
-    await expect(service.save('user-1', 'offering-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.save(customer, 'offering-1')).rejects.toBeInstanceOf(NotFoundException);
     expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
       id: 'offering-1', status: 'ACTIVE', bookable: true,
       branch: expect.objectContaining({
@@ -29,7 +31,7 @@ describe('SavedServicesService', () => {
     };
     const service = new SavedServicesService(prisma as any);
 
-    await service.remove('user-1', 'offering-1');
+    await service.remove(customer, 'offering-1');
     expect(deleteMany).toHaveBeenCalledWith({
       where: { customerId: 'customer-1', branchServiceOfferingId: 'offering-1' },
     });

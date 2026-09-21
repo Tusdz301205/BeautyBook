@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
-import { ALL_TENANTS, assertBranchAccess, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
+import { ALL_TENANTS, assertBranchAccess, resolveBusinessIdsForUser, restrictToRoles } from '../common/utils/multi-tenancy';
 import type { CreateComboDto } from './dto/combos.dto';
 
 const includeCombo = {
@@ -48,8 +48,8 @@ export class CombosService {
   }
 
   async list(user: AuthUser, filter: { branchId?: string; businessId?: string }) {
-    const allowed = await resolveBusinessIdsForUser(this.prisma, user);
-    if (filter.branchId) await assertBranchAccess(this.prisma, user, filter.branchId);
+    const allowed = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']));
+    if (filter.branchId) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), filter.branchId);
     const rows = await this.prisma.combo.findMany({
       where: {
         deletedAt: null,
@@ -67,14 +67,14 @@ export class CombosService {
   async detail(id: string, user: AuthUser) {
     const combo = await this.prisma.combo.findFirst({ where: { id, deletedAt: null }, include: includeCombo });
     if (!combo) throw new NotFoundException('Combo không tồn tại');
-    const customerOnly = user.roles.includes('CUSTOMER') && !user.roles.some((role) => ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST'].includes(role));
-    if (!customerOnly) await assertBranchAccess(this.prisma, user, combo.branchId);
+    const customerOnly = user.roles.includes('CUSTOMER') && !user.roles.some((role) => ['PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST'].includes(role));
+    if (!customerOnly) await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), combo.branchId);
     if (customerOnly && combo.status !== 'ACTIVE') throw new NotFoundException('Combo không tồn tại');
     return this.present(combo);
   }
 
   async create(input: CreateComboDto, user: AuthUser) {
-    await assertBranchAccess(this.prisma, user, input.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), input.branchId);
     const validated = await this.validate(input);
     const combo = await this.prisma.combo.create({
       data: {
@@ -99,7 +99,7 @@ export class CombosService {
   async update(id: string, input: CreateComboDto, user: AuthUser) {
     const existing = await this.prisma.combo.findFirst({ where: { id, deletedAt: null } });
     if (!existing) throw new NotFoundException('Combo không tồn tại');
-    await assertBranchAccess(this.prisma, user, existing.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), existing.branchId);
     if (input.branchId !== existing.branchId) throw new BadRequestException('Không thể chuyển combo sang chi nhánh khác');
     const validated = await this.validate(input);
     if (validated.businessId !== existing.businessId) {
@@ -128,7 +128,7 @@ export class CombosService {
   async remove(id: string, user: AuthUser) {
     const combo = await this.prisma.combo.findFirst({ where: { id, deletedAt: null } });
     if (!combo) throw new NotFoundException('Combo không tồn tại');
-    await assertBranchAccess(this.prisma, user, combo.branchId);
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), combo.branchId);
     await this.prisma.combo.update({ where: { id }, data: { deletedAt: new Date(), status: 'INACTIVE' } });
     return { ok: true };
   }

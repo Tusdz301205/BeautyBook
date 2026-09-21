@@ -5,7 +5,7 @@ import { CurrentUser, type AuthUser } from '../common/decorators/current-user.de
 import { CancellationPoliciesService } from './cancellation-policies.service';
 import { UpdateCancellationPolicyDto } from './dto/cancellation-policy.dto';
 import { SalonMembersService } from './salon-members.service';
-import { assertBusinessAccess } from '../common/utils/multi-tenancy';
+import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { BusinessOnboardingService } from './business-onboarding.service';
@@ -209,7 +209,7 @@ export class BusinessController {
     @Body() body: UpdateCancellationPolicyDto,
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBusinessAccess(this.prisma, user, businessId);
+    await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     return this.cancellationPoliciesService.update(businessId, user.id, body);
   }
 }

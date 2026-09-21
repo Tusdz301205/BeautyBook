@@ -15,7 +15,7 @@ const timeOnly = (value) => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? text : parsed.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' });
 };
-const roleNames = { PLATFORM_ADMIN: 'Quản trị nền tảng', BUSINESS_OWNER: 'Chủ doanh nghiệp', BRANCH_MANAGER: 'Quản lý chi nhánh', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng', GUEST: 'Khách vãng lai' };
+const roleNames = { PLATFORM_ADMIN: 'Quản trị nền tảng', BUSINESS_OWNER: 'Chủ doanh nghiệp', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng', GUEST: 'Khách vãng lai' };
 const workspaceNames = { PLATFORM: 'Nền tảng', BUSINESS: 'Doanh nghiệp', BRANCH: 'Chi nhánh', CUSTOMER: 'Khách hàng' };
 const readinessLabels = {
   ready: 'Đủ điều kiện nhận lịch', profileComplete: 'Thông tin chi nhánh', hoursConfigured: 'Giờ hoạt động',

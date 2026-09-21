@@ -23,6 +23,7 @@ import { MarketplaceRail } from '../../components/public/MarketplaceRail';
 import { Select } from '../../components/ui';
 import { getHomeMedia, homeMediaRatios } from '../../config/homeMedia';
 import { useAuthStore } from '../../store/authStore';
+import { CUSTOMER_ACCOUNT_REQUIRED } from '../../utils/authScope';
 
 const filterKeys = ['serviceQuery', 'categoryId', 'area', 'minPrice', 'maxPrice', 'minRating', 'sort'];
 const emptyFilters = Object.freeze({
@@ -477,6 +478,7 @@ function FinalCta() {
 
 export default function PublicHome({ exploreMode = false }) {
   const authenticated = useAuthStore((state) => state.isAuthenticated());
+  const customer = useAuthStore((state) => state.isCustomer());
   const [searchParams] = useSearchParams();
   const queryKey = searchParams.toString();
   const filters = useMemo(() => readFilters(searchParams), [queryKey]);
@@ -498,11 +500,12 @@ export default function PublicHome({ exploreMode = false }) {
   const [savedIds, setSavedIds] = useState(new Set());
 
   useEffect(() => {
-    if (!authenticated) { setSavedIds(new Set()); return; }
+    if (!authenticated || !customer) { setSavedIds(new Set()); return; }
     void savedServicesApi.list().then((items) => setSavedIds(new Set(items.map((item) => item.branchServiceOfferingId)))).catch(() => setSavedIds(new Set()));
-  }, [authenticated]);
+  }, [authenticated, customer]);
 
   const toggleSaved = authenticated ? async (serviceId) => {
+    if (!customer) { toast.error(CUSTOMER_ACCOUNT_REQUIRED); return; }
     const wasSaved = savedIds.has(serviceId);
     setSavedIds((current) => { const next = new Set(current); if (wasSaved) next.delete(serviceId); else next.add(serviceId); return next; });
     try {

@@ -1,21 +1,24 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../common/decorators/current-user.decorator';
+import { assertCustomerPrincipal } from '../auth/account-separation';
 
 @Injectable()
 export class SavedServicesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private async customerId(userId: string): Promise<string> {
+  private async customerId(user: AuthUser): Promise<string> {
+    assertCustomerPrincipal(user);
     const customer = await this.prisma.customerProfile.findUnique({
-      where: { userId },
+      where: { userId: user.id },
       select: { id: true },
     });
     if (!customer) throw new BadRequestException('Tài khoản chưa có hồ sơ khách hàng');
     return customer.id;
   }
 
-  async list(userId: string) {
-    const customerId = await this.customerId(userId);
+  async list(user: AuthUser) {
+    const customerId = await this.customerId(user);
     const saved = await this.prisma.customerSavedService.findMany({
       where: { customerId },
       orderBy: { createdAt: 'desc' },
@@ -50,8 +53,8 @@ export class SavedServicesService {
     });
   }
 
-  async save(userId: string, offeringId: string) {
-    const customerId = await this.customerId(userId);
+  async save(user: AuthUser, offeringId: string) {
+    const customerId = await this.customerId(user);
     const offering = await this.prisma.branchServiceOffering.findFirst({
       where: {
         id: offeringId,
@@ -76,8 +79,8 @@ export class SavedServicesService {
     });
   }
 
-  async remove(userId: string, offeringId: string) {
-    const customerId = await this.customerId(userId);
+  async remove(user: AuthUser, offeringId: string) {
+    const customerId = await this.customerId(user);
     await this.prisma.customerSavedService.deleteMany({
       where: { customerId, branchServiceOfferingId: offeringId },
     });

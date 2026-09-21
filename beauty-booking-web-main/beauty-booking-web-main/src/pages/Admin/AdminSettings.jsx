@@ -14,7 +14,7 @@ const numberRules = {
 const sections = [
   { title: 'Chính sách đặt lịch', description: 'Các giới hạn này được hệ thống áp dụng khi tạo, hủy và yêu cầu đổi lịch.', icon: CalendarDays, fields: [
     ['maxAdvanceBookingDays', 'Đặt trước tối đa', 'number', 'ngày'], ['minBookingLeadTimeHours', 'Báo trước tối thiểu', 'number', 'giờ'],
-    ['freeCancellationHours', 'Mốc hủy miễn phí', 'number', 'giờ'], ['allowRescheduleRequests', 'Cho phép yêu cầu đổi lịch', 'boolean'],
+    ['freeCancellationHours', 'Mốc khách tự hủy', 'number', 'giờ'], ['allowRescheduleRequests', 'Cho phép yêu cầu đổi lịch', 'boolean'],
     ['maxRescheduleCountPerBooking', 'Số lần đổi tối đa', 'number', 'lần'], ['pendingHoldMinutes', 'Giữ chỗ khi chờ xác nhận', 'number', 'phút'],
   ] },
   { title: 'Thông báo', description: 'Thông báo nội bộ hoạt động; kênh ngoài cần nhà cung cấp tương ứng.', icon: Bell, fields: [
@@ -35,6 +35,7 @@ const sections = [
 
 function SettingControl({ field, configured, defaults, update, error }) {
   const [key, label, type, unit, note] = field; const fallback = defaults[key];
+  if (key === 'freeCancellationHours') return <Field label="Mốc khách tự hủy" hint="Quy tắc cố định: còn ít nhất 4 giờ. Dưới 4 giờ cần cơ sở xử lý yêu cầu hủy; không thu phí."><Input value="4 giờ" readOnly /></Field>;
   const hint = `${configured[key] === undefined ? `Chưa cấu hình · Đang dùng mặc định: ${String(fallback)}${unit ? ` ${unit}` : ''}.` : `Đang áp dụng: ${String(configured[key])}${unit ? ` ${unit}` : ''}.`} ${note || ''}`;
   if (type === 'boolean') return <Field label={label} hint={hint} error={error}><Select value={configured[key] === undefined ? '' : String(configured[key])} onChange={(event) => update(key, event.target.value === '' ? undefined : event.target.value === 'true')}><option value="">Chưa cấu hình</option><option value="true">Bật</option><option value="false">Tắt</option></Select></Field>;
   const [min, max] = numberRules[key];
@@ -47,13 +48,13 @@ export function AdminSettings() {
   const [resetOpen, setResetOpen] = useState(false);
   const dirty = JSON.stringify(configured) !== JSON.stringify(original);
   const errors = useMemo(() => Object.fromEntries(Object.entries(configured).flatMap(([key, value]) => {
-    const rule = numberRules[key]; if (!rule) return []; const [min, max] = rule;
+    const rule = numberRules[key]; if (!rule || key === 'freeCancellationHours') return []; const [min, max] = rule;
     return !Number.isInteger(value) || value < min || value > max ? [[key, `Nhập số nguyên từ ${min} đến ${max}`]] : [];
   })), [configured]);
   const load = async () => { setLoading(true); setError(''); try { const remote = await adminApi.getSettings(); setConfigured(remote?.configured || {}); setOriginal(remote?.configured || {}); setDefaults(remote?.defaults || {}); } catch (e) { setError(e.message || 'Không thể tải cài đặt nền tảng.'); } finally { setLoading(false); } };
   useEffect(() => { load(); }, []);
   const update = (key, value) => setConfigured((current) => { const next = { ...current }; if (value === undefined) delete next[key]; else next[key] = value; return next; });
-  const save = async () => { if (Object.keys(errors).length) return toast.error('Vui lòng sửa các giá trị không hợp lệ'); setSaving(true); try { const response = await adminApi.updateSettings(configured); setConfigured(response.configured || {}); setOriginal(response.configured || {}); setDefaults(response.defaults || defaults); toast.success('Đã lưu và áp dụng chính sách nền tảng'); } catch (e) { toast.error(e.message || 'Không thể lưu cài đặt'); } finally { setSaving(false); } };
+  const save = async () => { if (Object.keys(errors).length) return toast.error('Vui lòng sửa các giá trị không hợp lệ'); setSaving(true); try { const response = await adminApi.updateSettings({ ...configured, freeCancellationHours: 4 }); setConfigured(response.configured || {}); setOriginal(response.configured || {}); setDefaults(response.defaults || defaults); toast.success('Đã lưu và áp dụng chính sách nền tảng'); } catch (e) { toast.error(e.message || 'Không thể lưu cài đặt'); } finally { setSaving(false); } };
   const reset = async () => { setSaving(true); try { const response = await adminApi.resetSettings(); setConfigured(response.configured || {}); setOriginal(response.configured || {}); setDefaults(response.defaults || defaults); setResetOpen(false); toast.success('Đã khôi phục mặc định'); } catch (e) { toast.error(e.message); } finally { setSaving(false); } };
   return <Page className="max-w-6xl">
     <PageHeader eyebrow="QUẢN TRỊ NỀN TẢNG" title="Cài đặt hệ thống" description="Mỗi chính sách bên dưới được kiểm tra ở cả giao diện và máy chủ trước khi áp dụng cho nghiệp vụ." actions={<div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setResetOpen(true)} disabled={saving}><RotateCcw size={16} />Khôi phục mặc định</Button><Button onClick={save} loading={saving} disabled={!dirty || Object.keys(errors).length > 0}><Save size={16} />Lưu thay đổi</Button></div>} />

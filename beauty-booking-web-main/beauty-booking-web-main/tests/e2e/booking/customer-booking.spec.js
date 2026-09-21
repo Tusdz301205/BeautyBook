@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/test.js';
-import { credentialsFor, mutationGate } from '../helpers/environment.js';
+import { apiBaseURL, credentialsFor, mutationGate } from '../helpers/environment.js';
 import { loginViaUi } from '../helpers/login.js';
 
 const branchId = process.env.PW_BOOKING_BRANCH_ID;
@@ -111,7 +111,7 @@ test('@critical customer creates one booking with a specific qualified staff mem
 });
 
 test('@critical customer can book with any suitable staff without an epoch date', async ({ page }) => {
-  const customer = credentialsFor('bookingCustomer') || credentialsFor('customer');
+  const customer = credentialsFor('anyStaffCustomer') || credentialsFor('bookingCustomer') || credentialsFor('customer');
   test.skip(!mutationGate(), 'Set PW_RUN_MUTATING_E2E=1 only for an isolated test database');
   test.skip(!customer || !branchId || !serviceId || !phone, 'Missing prepared booking fixture environment');
   test.slow();
@@ -132,11 +132,11 @@ test('@critical prepared booking rule violations return explicit 4xx responses',
   test.skip(!mutationGate() || !customer || !rawCases, 'Provide isolated negative booking fixtures');
   const cases = JSON.parse(rawCases);
 
-  const login = await request.post('/api/v1/auth/login', { data: { email: customer.email, password: customer.password } });
+  const login = await request.post(`${apiBaseURL}/auth/login`, { data: { email: customer.email, password: customer.password } });
   expect(login.ok()).toBeTruthy();
   const { accessToken } = await login.json();
   for (const item of cases) {
-    const response = await request.post('/api/v1/bookings', {
+    const response = await request.post(`${apiBaseURL}/bookings`, {
       headers: { Authorization: `Bearer ${accessToken}`, 'Idempotency-Key': crypto.randomUUID() },
       data: item.payload,
     });

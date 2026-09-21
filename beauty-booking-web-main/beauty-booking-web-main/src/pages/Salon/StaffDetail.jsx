@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Mail, Send, ShieldX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { staffApi } from '../../api/apiClient';
+import { useAuthStore } from '../../store/authStore';
 import { Badge, Button, Card, Dialog, EmptyState, ErrorState, Field, Input, Page, PageHeader, Select, Skeleton } from '../../components/ui';
 
 const tabs = [
@@ -18,6 +19,8 @@ function Rows({ rows, render, empty = 'Chưa có dữ liệu.' }) {
 }
 
 function AccountPanel({ staff, onChanged }) {
+  const can = useAuthStore((state) => state.can);
+  const canManage = !!staff.branch?.businessId && can('user:role_assign:tenant', { tenantId: staff.branch.businessId, branchId: staff.branch.id });
   const invitation = staff.invitations?.[0];
   const [dialog, setDialog] = useState('');
   const [email, setEmail] = useState(invitation?.email || '');
@@ -25,6 +28,10 @@ function AccountPanel({ staff, onChanged }) {
   const [busy, setBusy] = useState(false);
   const status = staff.user ? 'ACTIVE' : invitation?.status === 'PENDING' ? 'INVITED' : staff.status === 'LOCKED' ? 'LOCKED' : 'PROFILE_ONLY';
   const run = async (action) => {
+    if (!canManage) return;
+    if (action === 'invite' && !['STAFF', 'RECEPTIONIST'].includes(roleCode)) {
+      toast.error('Chọn vai trò nhân viên hoặc lễ tân hợp lệ.'); return;
+    }
     setBusy(true);
     try {
       if (action === 'invite') await staffApi.invite({ staffProfileId: staff.id, email: email.trim(), roleCode, businessId: staff.branch?.businessId, branchId: staff.branch?.id });
@@ -42,11 +49,11 @@ function AccountPanel({ staff, onChanged }) {
     <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-[var(--bb-muted)]">Email công việc</dt><dd className="mt-1 font-semibold">{staff.user?.email || invitation?.email || 'Chưa cấp tài khoản'}</dd></div><div><dt className="text-[var(--bb-muted)]">Đăng nhập gần nhất</dt><dd className="mt-1 font-semibold">{dateTime(staff.user?.lastLoginAt)}</dd></div></dl>
     {invitation && <div className="mt-5 rounded-xl border border-[var(--bb-border)] p-4 text-sm"><p><strong>Lời mời gần nhất:</strong> {invitation.status}</p><p className="mt-1 text-[var(--bb-muted)]">Gửi {dateTime(invitation.createdAt)} · hết hạn {dateTime(invitation.expiresAt)}{invitation.acceptedAt ? ` · nhận ${dateTime(invitation.acceptedAt)}` : ''}</p></div>}
     <div className="mt-5 flex flex-wrap gap-2">
-      {!staff.user && !invitation?.status?.includes('PENDING') && <Button onClick={() => { setEmail(''); setDialog('invite'); }}><Mail size={16} />Cấp tài khoản</Button>}
-      {invitation?.status === 'PENDING' && <><Button variant="secondary" onClick={() => run('resend')}><Send size={16} />Gửi lại</Button><Button variant="secondary" onClick={() => { setEmail(invitation.email); setDialog('email'); }}>Đổi email</Button><Button variant="danger" onClick={() => setDialog('revoke')}><ShieldX size={16} />Thu hồi</Button></>}
+      {canManage && !staff.user && !invitation?.status?.includes('PENDING') && <Button onClick={() => { setEmail(''); setDialog('invite'); }}><Mail size={16} />Cấp tài khoản</Button>}
+      {canManage && invitation?.status === 'PENDING' && <><Button variant="secondary" onClick={() => run('resend')}><Send size={16} />Gửi lại</Button><Button variant="secondary" onClick={() => { setEmail(invitation.email); setDialog('email'); }}>Đổi email</Button><Button variant="danger" onClick={() => setDialog('revoke')}><ShieldX size={16} />Thu hồi</Button></>}
     </div>
-    <Dialog open={dialog === 'invite' || dialog === 'email'} onClose={() => setDialog('')} title={dialog === 'invite' ? 'Cấp tài khoản nhân viên' : 'Đổi email nhận lời mời'} description="Lời mời luôn liên kết với hồ sơ nhân sự này; hệ thống không tạo hồ sơ thứ hai." footer={<><Button variant="secondary" onClick={() => setDialog('')}>Hủy</Button><Button loading={busy} disabled={!email.trim()} onClick={() => run(dialog)}>Lưu và gửi</Button></>}><div className="grid gap-4"><Field label="Email" required><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>{dialog === 'invite' && <Field label="Vai trò"><Select value={roleCode} onChange={(event) => setRoleCode(event.target.value)}><option value="STAFF">Nhân viên dịch vụ</option><option value="RECEPTIONIST">Lễ tân</option><option value="BRANCH_MANAGER">Quản lý chi nhánh</option></Select></Field>}</div></Dialog>
-    <Dialog open={dialog === 'revoke'} onClose={() => setDialog('')} title="Thu hồi lời mời?" description="Link hiện tại sẽ hết hiệu lực ngay và không thể dùng lại." footer={<><Button variant="secondary" onClick={() => setDialog('')}>Đóng</Button><Button variant="danger" loading={busy} onClick={() => run('revoke')}>Thu hồi</Button></>} />
+    <Dialog open={canManage && (dialog === 'invite' || dialog === 'email')} onClose={() => setDialog('')} title={dialog === 'invite' ? 'Cấp tài khoản nhân viên' : 'Đổi email nhận lời mời'} description="Lời mời luôn liên kết với hồ sơ nhân sự này; hệ thống không tạo hồ sơ thứ hai." footer={<><Button variant="secondary" onClick={() => setDialog('')}>Hủy</Button><Button loading={busy} disabled={!email.trim()} onClick={() => run(dialog)}>Lưu và gửi</Button></>}><div className="grid gap-4"><Field label="Email" required><Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></Field>{dialog === 'invite' && <Field label="Vai trò"><Select value={roleCode} onChange={(event) => setRoleCode(event.target.value)}><option value="STAFF">Nhân viên dịch vụ</option><option value="RECEPTIONIST">Lễ tân</option></Select></Field>}</div></Dialog>
+    <Dialog open={canManage && dialog === 'revoke'} onClose={() => setDialog('')} title="Thu hồi lời mời?" description="Link hiện tại sẽ hết hiệu lực ngay và không thể dùng lại." footer={<><Button variant="secondary" onClick={() => setDialog('')}>Đóng</Button><Button variant="danger" loading={busy} onClick={() => run('revoke')}>Thu hồi</Button></>} />
   </Card>;
 }
 

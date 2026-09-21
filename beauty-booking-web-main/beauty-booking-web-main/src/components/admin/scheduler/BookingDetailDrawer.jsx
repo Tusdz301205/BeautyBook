@@ -6,11 +6,14 @@ import { bookingsApi, servicesApi, staffApi } from '../../../api/apiClient';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking } from '../../../utils/bookingCalendar.adapter';
+import { bookingCapabilities, bookingItemActions } from '../../../utils/authScope';
+import { counterServicePayload, noShowAvailability } from '../../../utils/bookingAffordances';
 import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
+import { BookingPolicyNotice } from '../../customer/BookingPolicyNotice';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 
-function ItemOperation({ bookingId, branchId, item, cancelWholeBooking = false, onDone }) {
+function ItemOperation({ bookingId, branchId, item, allowedActions, cancelWholeBooking = false, onDone }) {
   const [action, setAction] = useState('');
   const [reason, setReason] = useState('');
   const [value, setValue] = useState('');
@@ -20,14 +23,14 @@ function ItemOperation({ bookingId, branchId, item, cancelWholeBooking = false, 
     ...(item.status === 'SCHEDULED' ? [{ value: 'START', label: 'Bắt đầu' }, { value: 'REMOVE', label: cancelWholeBooking ? 'Hủy toàn bộ lịch' : 'Hủy dịch vụ này' }] : []),
     ...(['SCHEDULED', 'IN_PROGRESS'].includes(item.status) ? [{ value: 'SKIP', label: 'Bỏ qua' }, { value: 'REASSIGN', label: 'Đổi nhân viên' }, { value: 'RESIZE', label: 'Đổi thời lượng' }, { value: 'REPRICE', label: 'Điều chỉnh giá' }] : []),
     ...(item.status === 'IN_PROGRESS' ? [{ value: 'COMPLETE', label: 'Hoàn thành' }] : []),
-  ];
+  ].filter((option) => allowedActions.includes(option.value));
   useEffect(() => {
     if (action !== 'REASSIGN') return;
     staffApi.getPublic(branchId, [item.id]).then((rows) => setStaff(Array.isArray(rows) ? rows : [])).catch(() => setStaff([]));
   }, [action, branchId, item.id]);
   if (!options.length) return null;
   const submit = async () => {
-    if (!action || !reason.trim()) { toast.error('Chọn thao tác và nhập lý do'); return; }
+    if (!allowedActions.includes(action) || !reason.trim()) { toast.error('Chọn thao tác hợp lệ và nhập lý do'); return; }
     const payload = { action, reason: reason.trim(), expectedRevision: item.revision };
     if (action === 'REASSIGN') payload.staffId = value;
     if (action === 'RESIZE') payload.durationMinutes = Number(value);
@@ -63,7 +66,7 @@ function AddItemOperation({ bookingId, branchId, onDone }) {
   const submit = async () => {
     setBusy(true);
     try {
-      await bookingsApi.addItem(bookingId, { serviceId, reason: reason.trim() });
+      await bookingsApi.addItem(bookingId, counterServicePayload({ serviceId, reason }));
       toast.success('Đã thêm dịch vụ và tạo khoản chênh lệch cần thu');
       setOpen(false); setServiceId(''); setReason('');
       await onDone();
@@ -80,26 +83,35 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [normalCancelDialog, setNormalCancelDialog] = useState(false);
+  const [noShowDialog, setNoShowDialog] = useState(false);
+  const [noShowConfirmed, setNoShowConfirmed] = useState(false);
+  const [clock, setClock] = useState(Date.now());
   const [cancelDialog, setCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelPreview, setCancelPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const activeBooking = detail || booking;
 
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => { setNoShowDialog(false); setNoShowConfirmed(false); }, [booking?.id]);
+
   const roles = useMemo(() => new Set([
     ...(user?.roles || []),
     ...(user?.scopes || []).map((scope) => scope.code),
   ]), [user]);
   const platform = user?.workspace === 'PLATFORM' || roles.has('PLATFORM_ADMIN');
-  const canSeeInternalNote = can('booking:read_internal_note:branch') || can('booking:read:platform');
-  const canSeePhone = can('booking:read:branch') || can('booking:read:tenant') || can('booking:read:platform');
-  const canUpdate = !platform && (can('booking:update:branch') || can('booking:update:tenant'));
-  const canCheckIn = !platform && (can('booking:check_in:branch') || can('booking:check_in:tenant'));
-  const canComplete = !platform && canUpdate;
+  const capabilities = bookingCapabilities(user, activeBooking);
+  const canSeeInternalNote = can('booking:read_internal_note:branch', capabilities.ctx) || can('booking:read:platform');
+  const canSeePhone = can('booking:read:branch', capabilities.ctx) || can('booking:read:tenant', capabilities.ctx) || can('booking:read:platform');
+  const canUpdate = !platform && capabilities.canUpdate;
+  const canCheckIn = !platform && capabilities.canCheckIn;
+  const canProvide = !platform && capabilities.canProvide;
   const canForceCancel = platform && can('booking:cancel:platform');
-  const managesBooking = !platform && (roles.has('BUSINESS_OWNER') || roles.has('BRANCH_MANAGER'));
-  const receivesGuests = managesBooking || roles.has('RECEPTIONIST');
-  const providesService = managesBooking || roles.has('STAFF');
+  const receivesGuests = !platform && capabilities.frontDesk;
 
   useEffect(() => {
     if (!booking) {
@@ -124,12 +136,13 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   let nextAction = null;
   if (activeBooking.status === 'PENDING' && receivesGuests && canUpdate) nextAction = { status: 'CONFIRMED', label: 'Xác nhận lịch' };
   if (activeBooking.status === 'CONFIRMED' && receivesGuests && canCheckIn) nextAction = { status: 'CHECKED_IN', label: 'Xác nhận khách đã đến' };
-  if (activeBooking.status === 'CHECKED_IN' && providesService && canUpdate) nextAction = { status: 'IN_PROGRESS', label: 'Bắt đầu dịch vụ' };
-  if (activeBooking.status === 'IN_PROGRESS' && providesService && canComplete) nextAction = { status: 'COMPLETED', label: 'Hoàn thành dịch vụ' };
+  if (activeBooking.status === 'CHECKED_IN' && canProvide) nextAction = { status: 'IN_PROGRESS', label: 'Bắt đầu dịch vụ' };
+  if (activeBooking.status === 'IN_PROGRESS' && !platform && capabilities.canComplete) nextAction = { status: 'COMPLETED', label: 'Hoàn thành dịch vụ' };
   const timeDecision = nextAction ? activeBooking.raw?.transitionAvailability?.[nextAction.status] : null;
   const blockedActionReason = timeDecision?.allowed === false ? timeDecision.reason : null;
   const forceCancellable = !['CANCELLED', 'COMPLETED'].includes(activeBooking.status);
-  const canCancel = !platform && receivesGuests && canUpdate && forceCancellable;
+  const canCancel = !platform && capabilities.canCancel && forceCancellable;
+  const canMarkNoShow = !platform && !detailLoading && noShowAvailability(activeBooking, capabilities, clock);
   const activeServiceCount = activeBooking.services.filter((service) => !['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(service.status)).length;
 
   const runAction = async () => {
@@ -153,6 +166,20 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
     const refreshed = await bookingsApi.getById(activeBooking.id);
     setDetail(normalizeBooking(refreshed));
     onUpdated?.();
+  };
+
+  const markNoShow = async () => {
+    if (!canMarkNoShow || !noShowConfirmed) return;
+    setBusy(true);
+    try {
+      const updated = await bookingsApi.updateStatus(activeBooking.id, 'NO_SHOW', undefined, undefined, true);
+      if (updated) setDetail(normalizeBooking(updated));
+      setNoShowDialog(false);
+      setNoShowConfirmed(false);
+      toast.success('Đã ghi nhận khách không đến');
+      await onUpdated?.();
+    } catch (error) { toast.error(error.message || 'Không thể ghi nhận khách không đến'); }
+    finally { setBusy(false); }
   };
 
   const openForceCancel = async () => {
@@ -208,6 +235,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
       {platform && <p className="text-xs text-zinc-500">Platform chỉ quan sát; các thao tác vận hành do cơ sở thực hiện.</p>}
       {nextAction && !blockedActionReason && <Button className="w-full" loading={busy} onClick={runAction}>{nextAction.label}</Button>}
       {canCancel && <Button className="w-full" variant="danger" onClick={() => { setCancelReason(''); setNormalCancelDialog(true); }}>Hủy lịch</Button>}
+      {canMarkNoShow && <Button className="w-full" variant="secondary" disabled={busy} onClick={() => { setNoShowConfirmed(false); setNoShowDialog(true); }}>Ghi nhận khách không đến</Button>}
       {canForceCancel && forceCancellable && <Button className="w-full" variant="danger" onClick={openForceCancel}>Force-cancel theo ngoại lệ</Button>}
     </div>
   );
@@ -228,7 +256,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
         <section>
           <h3 className="text-sm font-bold text-zinc-950">Dịch vụ</h3>
           <div className="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-            {activeBooking.services.map((service, index) => <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm"><div className="flex items-start justify-between gap-4"><span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span><span className="shrink-0 text-right text-zinc-500">{service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span></div>{canUpdate && service.bookingServiceId && <ItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}</div>)}
+            {activeBooking.services.map((service, index) => <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm"><div className="flex items-start justify-between gap-4"><span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span><span className="shrink-0 text-right text-zinc-500">{service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span></div>{!platform && service.bookingServiceId && <ItemOperation allowedActions={bookingItemActions(user, activeBooking, service)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}</div>)}
           </div>
           {canUpdate && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>
@@ -237,11 +265,15 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
           <Detail icon={Tag} label="Giảm giá" value={activeBooking.discountAmount ? money.format(activeBooking.discountAmount) : '—'} />
         </section>
         <Note title="Ghi chú khách hàng" value={activeBooking.note} />
+        <BookingPolicyNotice policy={activeBooking.raw?.violationSummary} salon />
         {canSeeInternalNote && <Note title="Ghi chú nội bộ" value={activeBooking.internalNote} />}
         {history.length > 0 && <section><h3 className="flex items-center gap-2 text-sm font-bold text-zinc-950"><History size={16} />Lịch sử trạng thái</h3><ol className="mt-2 space-y-2">{history.map((entry) => { const entryStatus = BOOKING_STATUSES[entry.status] ?? { label: entry.status }; return <li key={entry.id} className="rounded-xl border border-zinc-200 px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-zinc-900">{entryStatus.label}</strong><time className="text-xs text-zinc-500">{entry.createdAt ? format(new Date(entry.createdAt), 'HH:mm · dd/MM/yyyy') : '—'}</time></div>{entry.note && <p className="mt-1 text-sm text-zinc-600">{entry.note}</p>}</li>; })}</ol></section>}
         {blockedActionReason && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{blockedActionReason}</p>}
       </div>
     </Drawer>
+    <Dialog open={noShowDialog} onClose={() => !busy && setNoShowDialog(false)} title="Xác nhận khách không đến" description="Chỉ ghi nhận sau 15 phút kể từ giờ hẹn. Khách đã báo hủy hoặc báo trễ không thuộc trường hợp này." footer={<><Button variant="secondary" disabled={busy} onClick={() => setNoShowDialog(false)}>Quay lại</Button><Button variant="danger" loading={busy} disabled={!noShowConfirmed || !canMarkNoShow} onClick={markNoShow}>Xác nhận không đến</Button></>}>
+      <label className="flex items-start gap-3 text-sm text-zinc-700"><input type="checkbox" className="mt-1" checked={noShowConfirmed} onChange={(event) => setNoShowConfirmed(event.target.checked)} /><span>Tôi đã kiểm tra: khách chưa đến, chưa yêu cầu hủy và chưa báo hủy hoặc báo trễ qua điện thoại hay kênh khác.</span></label>
+    </Dialog>
     <Dialog open={normalCancelDialog} onClose={() => !busy && setNormalCancelDialog(false)} title="Hủy lịch hẹn" description={`Mã lịch ${activeBooking.bookingCode}. Khách hàng sẽ nhận được trạng thái và thông báo hủy.`} footer={<><Button variant="secondary" onClick={() => setNormalCancelDialog(false)} disabled={busy}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={cancelBooking}>Xác nhận hủy</Button></>}>
       <Field label="Lý do hủy" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={1000} placeholder="Nhập lý do để khách hàng biết vì sao lịch bị hủy" /></Field>
     </Dialog>

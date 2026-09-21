@@ -54,8 +54,21 @@ integration('PostgreSQL audit integrity constraints', () => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      await expect(client.query('DELETE FROM users WHERE id=(SELECT user_id FROM customer_profiles LIMIT 1)'))
-        .rejects.toMatchObject({ code: '23503' });
+      // Isolate this FK from bookings/requests owned by seeded customers;
+      // PostgreSQL does not promise which of several restrictive FKs fires first.
+      const userId = randomUUID();
+      await client.query(`INSERT INTO users(id,email,password_hash,full_name,updated_at)
+        VALUES($1,$2,'TEST_DISABLED','Integrity fixture',now())`, [userId, `${userId}@example.test`]);
+      await client.query(`INSERT INTO customer_profiles(id,user_id,updated_at)
+        VALUES($1,$2,now())`, [randomUUID(), userId]);
+      await expect(client.query('DELETE FROM users WHERE id=$1', [userId]))
+        .rejects.toMatchObject({
+          // Require the exact FK: PostgreSQL may report either the specific
+          // RESTRICT violation or the general foreign-key violation.
+          code: expect.stringMatching(/^(23001|23503)$/) as unknown,
+          table: 'customer_profiles',
+          constraint: 'customer_profiles_user_id_fkey',
+        });
     } finally { await client.query('ROLLBACK'); client.release(); }
   });
 

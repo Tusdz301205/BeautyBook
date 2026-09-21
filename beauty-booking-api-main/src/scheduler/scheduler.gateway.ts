@@ -23,6 +23,7 @@ export const SOCKET_AUTHORIZATION_TIMEOUT_MS = 5_000;
 
 interface SocketAuthorization {
   client: Socket;
+  user: AuthUser;
   token: string;
   rooms: Set<string>;
   validUntil: number;
@@ -91,6 +92,20 @@ interface BookingRealtimeSource {
   customer?: { user?: { id?: string | null } | null } | null;
 }
 
+export function mayReceiveBookingEvent(user: AuthUser, booking: BookingRealtimeSource): boolean {
+  const customerId = booking.customerUserId ?? booking.customer?.user?.id;
+  if (customerId === user.id && can(user, 'booking:read:self', { ownerId: customerId })) return true;
+  if (can(user, 'booking:read:platform')) return true;
+  const businessId = booking.businessId ?? booking.branch?.businessId ?? booking.branch?.business?.id;
+  // Staff subscribe to branch invalidations, but details must come from the
+  // assigned-bookings API; a branch room is not permission to read every booking.
+  const operators = { ...user, scopes: user.scopes.filter((scope) =>
+    scope.code === 'BUSINESS_OWNER' || scope.code === 'RECEPTIONIST'),
+  };
+  return Boolean(businessId && can(operators, 'booking:read:tenant', { tenantId: businessId })) ||
+    Boolean(booking.branchId && can(operators, 'booking:read:branch', { tenantId: businessId ?? undefined, branchId: booking.branchId }));
+}
+
 interface BookingRealtimePayload {
   id: string;
   status: string | null;
@@ -157,7 +172,7 @@ export class SchedulerGateway
         const { user, rooms, validUntil } = await this.authorize(token);
         client.data.user = user;
         await client.join([...rooms]);
-        this.authorizations.set(client.id, { client, token, rooms, validUntil, refreshing: false, needsResync: false });
+        this.authorizations.set(client.id, { client, user, token, rooms, validUntil, refreshing: false, needsResync: false });
         next();
       } catch (error) {
         this.authorizations.delete(client.id);
@@ -248,6 +263,7 @@ export class SchedulerGateway
       // A disconnect while awaiting an adapter must not resurrect authorization.
       if (this.authorizations.get(entry.client.id) !== entry || !entry.client.connected) return;
       entry.rooms = fresh.rooms;
+      entry.user = fresh.user;
       entry.validUntil = fresh.validUntil;
       entry.client.data.user = fresh.user;
       if (changed) entry.client.emit('scheduler_access_changed');
@@ -310,7 +326,11 @@ export class SchedulerGateway
       }
       if (entry.validUntil <= Date.now()) { this.rejectConnectedSocket(entry); continue; }
       if (entry.client.connected && dispatch.rooms.some((room) => entry.rooms.has(room))) {
-        entry.client.emit(event, dispatch.payload);
+        if (mayReceiveBookingEvent(entry.user, booking)) {
+          entry.client.emit(event, dispatch.payload);
+        } else {
+          entry.client.emit('scheduler_resync');
+        }
       }
     }
     this.logger.log(`Emitted ${event} for booking ${booking.id} to scoped rooms`);

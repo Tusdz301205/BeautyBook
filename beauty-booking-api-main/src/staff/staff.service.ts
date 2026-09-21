@@ -566,7 +566,7 @@ export class StaffService {
           where: {
             userId: staff.userId,
             businessId: staff.branch.businessId,
-            role: { code: { in: ['BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF'] } },
+            role: { code: { in: ['RECEPTIONIST', 'STAFF'] } },
           },
         });
         await tx.userSession.updateMany({

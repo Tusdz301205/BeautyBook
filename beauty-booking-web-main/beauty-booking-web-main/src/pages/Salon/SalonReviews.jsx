@@ -67,8 +67,8 @@ export function SalonReviews() {
   const [error, setError] = useState('');
   const [reply, setReply] = useState(null);
   const [report, setReport] = useState(null);
-  const canReply = can('review:moderate:branch') || can('review:moderate:tenant');
-  const canReport = can('review:report:branch') || can('review:report:tenant');
+  const canReply = can('review:moderate:tenant');
+  const canReport = can('review:report:tenant');
   const load = async () => {
     setLoading(true); setError('');
     try { const response = await reviewsApi.getForManagement(); setAllReviews(Array.isArray(response) ? response : response?.data || []); }

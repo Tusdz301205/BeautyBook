@@ -9,6 +9,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { SCOPE_KEY, ScopeRequirement } from '../decorators/scope.decorator';
 import { AuthUser } from '../decorators/current-user.decorator';
+import { isCustomerPrincipal } from '../../auth/account-separation';
 
 /**
  * Composite coarse-grained guard that:
@@ -46,7 +47,8 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
     if (requiredRoles && requiredRoles.length > 0) {
-      const hasRole = requiredRoles.some((role) => user.roles.includes(role));
+      const hasRole = requiredRoles.some((role) => role === 'CUSTOMER'
+        ? isCustomerPrincipal(user) : user.roles.includes(role));
       if (!hasRole) {
         throw new ForbiddenException(
           `Yêu cầu quyền: ${requiredRoles.join(', ')}`,
@@ -65,7 +67,8 @@ export class RolesGuard implements CanActivate {
         const hasRole =
           !scopeRequirement.roles ||
           scopeRequirement.roles.length === 0 ||
-          scopeRequirement.roles.some((r) => user.roles.includes(r));
+          scopeRequirement.roles.some((r) => r === 'CUSTOMER'
+            ? isCustomerPrincipal(user) : user.roles.includes(r));
         if (!hasRole) {
           throw new ForbiddenException(
             `Yêu cầu role: ${scopeRequirement.roles?.join(', ')}`,
@@ -106,6 +109,9 @@ export class RolesGuard implements CanActivate {
         : undefined);
 
     const matching = user.scopes.find((s) => {
+      if (!user.roles.includes(s.code)) return false;
+      if (s.expiresAt && !(new Date(s.expiresAt).getTime() > Date.now())) return false;
+      if (requirement.roles?.length && !requirement.roles.includes(s.code)) return false;
       switch (requirement.level) {
         case 'PLATFORM':
           return s.code === 'PLATFORM_ADMIN';
@@ -116,12 +122,12 @@ export class RolesGuard implements CanActivate {
         case 'BRANCH':
           if (!branchId) return false;
           if (s.branchId === branchId) return true;
-          if (s.businessId && !s.branchId) {
-            return true; // tenant-wide role — service will reject if not in tenant
+          if (s.code === 'BUSINESS_OWNER' && s.businessId && !s.branchId) {
+            return !!tenantId && s.businessId === tenantId;
           }
           return ['PLATFORM_ADMIN'].includes(s.code);
         case 'SELF':
-          return ['CUSTOMER'].includes(s.code);
+          return s.code === 'CUSTOMER' && isCustomerPrincipal(user);
         case 'PUBLIC':
           return true;
         default:

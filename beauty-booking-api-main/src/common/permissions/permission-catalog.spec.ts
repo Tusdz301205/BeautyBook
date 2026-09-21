@@ -8,9 +8,12 @@ const exceptions: Record<string, string> = require('../../../scripts/permission-
 const inventory = scanControllers(process.cwd());
 
 describe('permission catalog contract', () => {
+  test('exposes exactly five account roles; Guest is a public actor only', () => {
+    expect(Object.keys(ROLE_PERMISSIONS).sort()).toEqual(['BUSINESS_OWNER', 'CUSTOMER', 'PLATFORM_ADMIN', 'RECEPTIONIST', 'STAFF']);
+  });
   test('keeps branch creation fail-closed by default', () => {
     expect(ROLE_PERMISSIONS.BUSINESS_OWNER).toContain('branch:create:tenant');
-    expect(ROLE_PERMISSIONS.BRANCH_MANAGER).not.toContain('branch:create:tenant');
+    expect(ROLE_PERMISSIONS.BRANCH_MANAGER).toBeUndefined();
     expect(ROLE_PERMISSIONS.RECEPTIONIST).not.toContain('branch:create:tenant');
     expect(ROLE_PERMISSIONS.STAFF).not.toContain('branch:create:tenant');
   });
@@ -32,7 +35,6 @@ describe('permission catalog contract', () => {
 
   test('every effective role can satisfy at least one enforced permission', () => {
     const mismatches: string[] = [];
-    const directGrantExceptions = new Set(['BRANCH_MANAGER:branch:create:tenant']);
     for (const route of inventory.routes) {
       if (route.isPublic || route.permissions.length === 0) continue;
       const roles = route.roles.length ? route.roles : route.scope?.roles ?? [];
@@ -40,13 +42,22 @@ describe('permission catalog contract', () => {
         // Platform permissions may be revocable direct grants.
         if (role === 'ADMIN' || role === 'PLATFORM_ADMIN' || !ROLE_PERMISSIONS[role]) continue;
         if (!route.permissions.some((code: string) =>
-          ROLE_PERMISSIONS[role].includes(code) || directGrantExceptions.has(role + ':' + code),
+          ROLE_PERMISSIONS[role].includes(code),
         )) {
           mismatches.push(routeKey(route) + ' role=' + role + ' permissions=' + route.permissions.join('|'));
         }
       }
     }
     expect(mismatches.sort()).toEqual([]);
+  });
+
+  test('all production route and scope roles are supported', () => {
+    const retired = inventory.routes.flatMap((route) =>
+      [...route.roles, ...(route.scope?.roles ?? [])]
+        .filter((role) => !Object.hasOwn(ROLE_PERMISSIONS, role))
+        .map((role) => routeKey(route) + ':' + role),
+    );
+    expect(retired).toEqual([]);
   });
 
   test('every authenticated route has enforced permission metadata or a reviewed resource-authorization exception', () => {

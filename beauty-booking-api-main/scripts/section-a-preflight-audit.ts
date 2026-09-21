@@ -65,7 +65,7 @@ async function main() {
       WHERE ur.branch_id IS NOT NULL
         AND sp.status NOT IN ('INACTIVE', 'LOCKED')
         AND (ur.expires_at IS NULL OR ur.expires_at > CURRENT_TIMESTAMP)
-        AND r.code IN ('STAFF', 'RECEPTIONIST', 'BRANCH_MANAGER')
+        AND r.code IN ('STAFF', 'RECEPTIONIST')
         AND NOT EXISTS (
           SELECT 1 FROM staff_branch_assignments sba
           WHERE sba.staff_id = sp.id AND sba.branch_id = ur.branch_id
@@ -80,7 +80,7 @@ async function main() {
       WHERE ur.branch_id IS NOT NULL AND sp.branch_id = ur.branch_id
         AND sp.status NOT IN ('INACTIVE', 'LOCKED')
         AND (ur.expires_at IS NULL OR ur.expires_at > CURRENT_TIMESTAMP)
-        AND r.code IN ('STAFF', 'RECEPTIONIST', 'BRANCH_MANAGER')
+        AND r.code IN ('STAFF', 'RECEPTIONIST')
         AND NOT EXISTS (
           SELECT 1 FROM staff_branch_assignments sba
           WHERE sba.staff_id = sp.id AND sba.branch_id = ur.branch_id

@@ -27,7 +27,7 @@ export class MediaController {
   constructor(private readonly media: MediaService) {}
 
   @Post('upload')
-  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')
   @RequirePermission('user:update:self')
   @Audited({ action: AuditAction.CREATE, entityType: 'MediaFile' })
   @Throttle({ default: { limit: 20, ttl: 15 * 60_000 } })

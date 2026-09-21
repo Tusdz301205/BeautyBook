@@ -64,6 +64,8 @@ export class ScopeGuard implements CanActivate {
       requirement.level ?? requirement.scopeLevel?.toUpperCase();
 
     const ok = user.scopes.some((s) => {
+      if (requirement.roles?.length && !requirement.roles.includes(s.code)) return false;
+      if (!user.roles.includes(s.code)) return false;
       if (s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now()) {
         return false;
       }
@@ -78,7 +80,7 @@ export class ScopeGuard implements CanActivate {
           // A tenant-wide role is allowed through this coarse guard only when
           // the request also identifies the matching tenant. The service must
           // still verify that the branch belongs to that tenant.
-          return !!tenantId && s.businessId === tenantId && !s.branchId;
+          return s.code === 'BUSINESS_OWNER' && !!tenantId && s.businessId === tenantId && !s.branchId;
         case 'SELF':
           return ['CUSTOMER'].includes(s.code);
         case 'PUBLIC':

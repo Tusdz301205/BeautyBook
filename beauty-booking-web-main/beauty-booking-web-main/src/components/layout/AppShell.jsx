@@ -19,18 +19,18 @@ const navigation = {
     ['security', 'Bảo mật', ShieldCheck],
   ],
   salon: [
-    ['', 'Tổng quan', LayoutDashboard, ['report:overview:tenant', 'report:overview:branch']],
+    ['', 'Tổng quan', LayoutDashboard, ['report:overview:tenant']],
     ['appointments', 'Lịch hẹn', CalendarCheck, ['booking:read:tenant', 'booking:read:branch']],
-    ['services', 'Dịch vụ', Sparkles, ['business_service:update:tenant', 'branch_service_offering:status:branch', 'branch_service_offering:status:tenant']],
+    ['services', 'Dịch vụ', Sparkles, ['business_service:update:tenant', 'branch_service_offering:status:tenant']],
     ['combos', 'Combo dịch vụ', Gift, ['combo:manage:tenant']],
     ['staff', 'Đội ngũ', UserCog, ['user:read:tenant', 'user:read:branch']],
-    ['audit', 'Nhật ký thao tác', FileClock, ['audit:read:branch', 'audit:read:tenant']],
+    ['audit', 'Nhật ký thao tác', FileClock, ['audit:read:tenant']],
     ['payments', 'Thanh toán', CreditCard, ['payment:read:branch', 'payment:read:tenant']],
     ['promotions', 'Khuyến mãi', Tag, ['promotion:manage:tenant']],
-    ['reviews', 'Đánh giá', Star, ['review:moderate:tenant', 'review:moderate:branch']],
+    ['reviews', 'Đánh giá', Star, ['review:moderate:tenant']],
     ['stats', 'Báo cáo', BarChart3, ['report:revenue:tenant', 'report:revenue:branch']],
     ['notifications', 'Thông báo', Bell, ['notification:read:self']],
-    ['profile', 'Hồ sơ cơ sở', Store, ['branch:update:tenant', 'branch:update:branch']],
+    ['profile', 'Hồ sơ cơ sở', Store, ['branch:update:tenant']],
     ['onboarding', 'Đăng ký doanh nghiệp', ClipboardCheck, ['business:create:self', 'business:update:tenant']],
     ['account', 'Tài khoản', UserCog],
     ['security', 'Bảo mật', ShieldCheck],
@@ -48,17 +48,15 @@ const navigation = {
   ],
 };
 
-const roleLabels = { PLATFORM_ADMIN: 'Quản trị hệ thống', BUSINESS_OWNER: 'Chủ doanh nghiệp', BRANCH_MANAGER: 'Quản lý chi nhánh', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng' };
+const roleLabels = { PLATFORM_ADMIN: 'Quản trị hệ thống', BUSINESS_OWNER: 'Chủ doanh nghiệp', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng' };
 
 const roleNavigation = {
   STAFF: new Set(['appointments', 'notifications', 'account', 'security']),
   RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security']),
-  BRANCH_MANAGER: new Set(['', 'appointments', 'operations', 'services', 'combos', 'staff', 'audit', 'promotions', 'reviews', 'notifications', 'profile', 'account', 'security']),
 };
 
 const roleSpaceTitles = {
   BUSINESS_OWNER: 'Không gian doanh nghiệp',
-  BRANCH_MANAGER: 'Không gian chi nhánh',
   RECEPTIONIST: 'Quầy lễ tân',
   STAFF: 'Không gian chuyên viên',
   PLATFORM_ADMIN: 'Trung tâm vận hành nền tảng',
@@ -70,8 +68,8 @@ function resolveMainRole(user, zone) {
   const codes = new Set([...(user?.roles || []), ...(user?.scopes || []).map((scope) => scope.code)]);
   const order = zone === 'platform'
     ? ['PLATFORM_ADMIN']
-    : ['BUSINESS_OWNER', 'BRANCH_MANAGER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER'];
-  return order.find((role) => codes.has(role)) || user?.scopes?.[0]?.code;
+    : ['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER'];
+  return order.find((role) => codes.has(role));
 }
 
 export function AppShell({ zone, children }) {
@@ -114,7 +112,7 @@ export function AppShell({ zone, children }) {
     if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security'].includes(path)) return false;
     if (businessApproved && path === 'onboarding') return false;
     if (permissions && !permissions.some((code) => can(code))) return false;
-    return !roleNavigation[mainRole] || roleNavigation[mainRole].has(path);
+    return !!mainRole && (!roleNavigation[mainRole] || roleNavigation[mainRole].has(path));
   }), [businessApproved, can, mainRole, ownerRestricted, zone]);
   const navLabel = (path, label) => mainRole === 'BUSINESS_OWNER' ? ownerLabels[path] || label : mainRole === 'STAFF' && path === 'appointments' ? 'Lịch hẹn của tôi' : label;
   const initials = (user?.fullName || user?.email || 'BB').split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]).join('').toUpperCase();
