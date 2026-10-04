@@ -65,7 +65,6 @@ function fixture(status = 'PENDING') {
     { notifyBookingUpdated: jest.fn() } as never,
     { getEffective: jest.fn().mockResolvedValue({ freeCancellationHours: 24 }) } as never,
     {} as never,
-    { reverseRedemptionForBooking: jest.fn() } as never,
   );
   return { service, tx, prisma, snapshot };
 }

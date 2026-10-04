@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, ConflictException, Optional } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConflictException, Optional, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -40,7 +40,6 @@ import { CANCELLED_BOOKING_OUTCOMES, cancelUnfinishedBookingItems } from './book
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { PaymentsService } from '../payments/payments.service';
 import { PricingEngineService } from '../promotions/pricing-engine.service';
-import { LoyaltyService } from '../loyalty/loyalty.service';
 import { applyServicePriceRules } from '../services/service-price-rules';
 import { assertCustomerDirectCancellation } from './customer-cancellation-policy';
 import { bookingViolationSummary, recordBookingViolation } from './booking-violation-policy';
@@ -80,13 +79,13 @@ function shiftBookingTimeline(
 
 @Injectable()
 export class BookingsService {
+  private readonly remediationLogger = new Logger(BookingsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly schedulerGateway: SchedulerGateway,
     private readonly platformSettings: PlatformSettingsService,
     private readonly pricingEngine: PricingEngineService,
-    private readonly loyalty: LoyaltyService,
     @Optional() private readonly payments?: PaymentsService,
   ) {}
 
@@ -797,9 +796,6 @@ export class BookingsService {
     if (mappedStatus === 'COMPLETED' && this.payments) {
       await this.prisma.$transaction((tx) => this.payments!.ensurePlatformFee(tx, id));
     }
-    if (mappedStatus === 'COMPLETED') {
-      await this.loyalty.earnForBooking(id, changedBy ?? undefined);
-    }
     this.schedulerGateway.notifyBookingUpdated(updatedBooking);
     return updatedBooking;
   }
@@ -831,7 +827,6 @@ export class BookingsService {
     createdBy?: string;
     staffId?: string;
     voucherCode?: string;
-    loyaltyPoints?: number;
     guestContact?: { fullName: string; phone?: string | null; email?: string | null };
     source?: 'ONLINE_WEB' | 'ONLINE_APP' | 'WALK_IN' | 'PHONE' | 'STAFF_CREATED' | 'ADMIN_CREATED';
     controlledOverbooking?: boolean;
@@ -1110,13 +1105,7 @@ export class BookingsService {
       at: now,
     });
     const voucherInfo = pricingQuote.voucher;
-    const loyaltyQuote = await this.loyalty.previewRedemption(
-      data.customerId,
-      data.branchId,
-      data.loyaltyPoints ?? 0,
-      pricingQuote.finalAmount,
-    );
-    const finalTotal = Math.max(0, pricingQuote.finalAmount - loyaltyQuote.discount);
+    const finalTotal = pricingQuote.finalAmount;
 
     // 5. Resolve every eligible candidate before entering the serializable
     // transaction. The final free candidate is selected again inside it.
@@ -1204,6 +1193,38 @@ export class BookingsService {
         });
         if (!currentBranch) throw new ConflictException('Chi nhánh hiện không nhận lịch hẹn');
         assertBookingChannelAllowed(source, currentBranch.bookingPolicy);
+        // Lock the exact catalog rows that determined duration/eligibility.
+        // Catalog writers take row locks on UPDATE; Serializable will abort or
+        // serialize a concurrent archive instead of committing a stale slot.
+        const lockedServiceIds = [...resolvedServiceIds].sort();
+        await tx.$queryRaw`SELECT id FROM services WHERE id IN (${Prisma.join(lockedServiceIds)}) ORDER BY id FOR SHARE`;
+        const lockedBusinessIds = [...new Set(services.map((item) => item.businessServiceId))].sort();
+        await tx.$queryRaw`SELECT id FROM business_services WHERE id IN (${Prisma.join(lockedBusinessIds)}) ORDER BY id FOR SHARE`;
+        const currentServices = await tx.branchServiceOffering.findMany({
+          where: {
+            id: { in: resolvedServiceIds }, branchId: data.branchId,
+            status: 'ACTIVE', bookable: true, deletedAt: null,
+            businessService: { status: 'ACTIVE', deletedAt: null, businessId: branch.businessId },
+          },
+          select: { id: true, durationMinutes: true, updatedAt: true },
+        });
+        if (currentServices.length !== resolvedServiceIds.length || currentServices.some((current) => {
+          const planned = servicesById.get(current.id);
+          return !planned || planned.durationMinutes !== current.durationMinutes || planned.updatedAt.getTime() !== current.updatedAt.getTime();
+        })) {
+          throw new ConflictException('Dịch vụ hoặc thời lượng vừa thay đổi; vui lòng chọn lại giờ');
+        }
+        if (selectedVariantIds.length) {
+          await tx.$queryRaw`SELECT id FROM service_variants WHERE id IN (${Prisma.join([...selectedVariantIds].sort())}) ORDER BY id FOR SHARE`;
+          const currentVariants = await tx.serviceVariant.findMany({
+            where: { id: { in: selectedVariantIds }, status: 'ACTIVE', deletedAt: null },
+            select: { id: true, durationMinutes: true, updatedAt: true },
+          });
+          if (currentVariants.length !== selectedVariantIds.length || currentVariants.some((current) => {
+            const planned = selectedVariants.find((variant) => variant.id === current.id);
+            return !planned || planned.durationMinutes !== current.durationMinutes || planned.updatedAt.getTime() !== current.updatedAt.getTime();
+          })) throw new ConflictException('Biến thể dịch vụ vừa thay đổi; vui lòng chọn lại giờ');
+        }
         if (overbookingRequested && (!currentBranch.bookingPolicy?.overbookingEnabled || currentBranch.bookingPolicy.maxOverbookedSlots < 1)) {
           throw new ConflictException('Chi nhánh hiện không cho phép overbooking có kiểm soát');
         }
@@ -1419,18 +1440,6 @@ export class BookingsService {
           quote: pricingQuote,
           applied: initialStatus === 'CONFIRMED',
         });
-        if (loyaltyQuote.points > 0 && loyaltyQuote.rule) {
-          await this.loyalty.redeemInTransaction(tx, {
-            businessId: loyaltyQuote.businessId,
-            customerId: data.customerId,
-            bookingId: createdBase.id,
-            points: loyaltyQuote.points,
-            discount: loyaltyQuote.discount,
-            actorId: statusChangedBy,
-            rule: loyaltyQuote.rule,
-          });
-        }
-
         // Keep dependent writes sequential on the transaction client. This
         // avoids queuing concurrent pg queries while a database slot guard is
         // rejecting another request for the same staff member.
@@ -1472,7 +1481,7 @@ export class BookingsService {
             businessId: branch.businessId,
             branchId: data.branchId,
             subtotal,
-            discount: pricingQuote.discountAmount + loyaltyQuote.discount,
+            discount: pricingQuote.discountAmount,
             total: finalTotal,
             serviceIds: timeline.map((item) => item.service.id),
             items: timeline.map((item) => ({
@@ -1500,6 +1509,40 @@ export class BookingsService {
               : 'Tạo mới',
           },
         });
+
+        // Persist delivery intent in the booking transaction. Delivery can be
+        // retried independently without making a committed booking look failed.
+        const recipients = await tx.userRole.findMany({
+          where: {
+            businessId: branch.businessId,
+            user: { isActive: true, deletedAt: null },
+            AND: [
+              { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+              { OR: [
+                { role: { code: 'BUSINESS_OWNER' }, branchId: null },
+                { role: { code: 'RECEPTIONIST' }, branchId: data.branchId },
+              ] },
+            ],
+          },
+          select: { userId: true },
+        });
+        const recipientIds = [...new Set(recipients.map((row) => row.userId))];
+        if (recipientIds.length) {
+          await tx.notificationOutbox.createMany({
+            data: recipientIds.map((userId) => ({
+              userId,
+              type: 'BOOKING_CONFIRMED',
+              title: initialStatus === 'PENDING' ? 'Lịch hẹn mới cần xác nhận' : 'Lịch hẹn mới đã tự động xác nhận',
+              body: `Có lịch hẹn mới ${createdBase.bookingCode}`,
+              relatedBookingId: createdBase.id,
+              targetType: 'BOOKING',
+              targetId: createdBase.id,
+              actionUrl: `/salon/appointments?bookingId=${createdBase.id}`,
+              dedupeKey: `booking-created:${createdBase.id}:${userId}`,
+            })),
+            skipDuplicates: true,
+          });
+        }
 
         if (combo) {
           const comboUpdated = await tx.$executeRaw`
@@ -1529,16 +1572,12 @@ export class BookingsService {
       throw new ConflictException('Không thể đọc lại lịch hẹn vừa tạo');
     }
 
-    // 7. Notification fan-out — cho salon members biết có booking mới cần duyệt
-    await notifySalonMembers(
-      this.prisma,
-      booking.branch.businessId,
-      'BOOKING_CONFIRMED',
-      booking.status === 'PENDING' ? 'Lịch hẹn mới cần xác nhận' : 'Lịch hẹn mới đã tự động xác nhận',
-      `Khách ${booking.customer?.user?.fullName ?? 'ẩn danh'} vừa đặt lịch ${booking.bookingCode}`,
-      booking.id,
-    );
-    this.schedulerGateway.notifyBookingCreated(booking);
+    // Realtime is best-effort; the outbox is the durable notification source.
+    try {
+      this.schedulerGateway.notifyBookingCreated(booking);
+    } catch {
+      this.remediationLogger.warn(`Realtime booking notification delayed for booking ${booking.id}`);
+    }
 
     return booking;
   }
@@ -1613,7 +1652,6 @@ export class BookingsService {
       where: { bookingId, status: { in: ['RESERVED', 'APPLIED'] } },
       data: { status: 'RELEASED', releasedAt: new Date() },
     });
-    await this.loyalty.reverseRedemptionForBooking(tx, bookingId);
     if (comboId) {
       await tx.combo.updateMany({
         where: { id: comboId, usedCount: { gt: 0 } },

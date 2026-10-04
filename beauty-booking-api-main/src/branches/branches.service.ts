@@ -1248,14 +1248,16 @@ export class BranchesService {
       include: {
         business: { select: { status: true } },
         reviewRequests: {
-          where: { status: 'PENDING_REVIEW' },
+          where: { status: { in: ['PENDING_REVIEW', 'NEED_MORE_INFO'] } },
           orderBy: { submittedAt: 'desc' },
           take: 1,
         },
       },
     });
     if (!branch) throw new NotFoundException('Chi nhánh không tồn tại');
-    if (!['PENDING_REVIEW', 'SUBMITTED'].includes(branch.reviewStatus)) {
+    const canReview = ['PENDING_REVIEW', 'SUBMITTED'].includes(branch.reviewStatus)
+      || (decision === 'REJECT' && branch.reviewStatus === 'NEED_MORE_INFO');
+    if (!canReview) {
       throw new ConflictException('Chi nhánh không chờ xét duyệt');
     }
     if (decision === 'APPROVE' && !['APPROVED', 'ACTIVE'].includes(branch.business.status)) {

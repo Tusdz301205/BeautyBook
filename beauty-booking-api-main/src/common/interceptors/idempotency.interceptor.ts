@@ -10,20 +10,21 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { Observable, from, of, throwError } from 'rxjs';
 import { catchError, mergeMap } from 'rxjs/operators';
 
 interface IdempotencyRecord {
   fingerprint: string;
+  owner: string;
   status: 'in_flight' | 'done';
   responseStatus?: number;
   responseBody?: unknown;
 }
 
 type Reservation =
-  | { kind: 'acquired'; storeKey: string; fingerprint: string }
+  | { kind: 'acquired'; storeKey: string; fingerprint: string; owner: string }
   | { kind: 'replay'; responseStatus: number; responseBody: unknown };
 
 function stableValue(value: unknown): unknown {
@@ -137,12 +138,13 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
             from(this.complete(
                 reservation.storeKey,
                 reservation.fingerprint,
+                reservation.owner,
                 res.statusCode,
                 responseBody,
               )).pipe(mergeMap(() => of(responseBody))),
           ),
           catchError((error) =>
-            from(this.release(reservation.storeKey, reservation.fingerprint)).pipe(
+            from(this.release(reservation.storeKey, reservation.owner)).pipe(
               mergeMap(() => throwError(() => error)),
             ),
           ),
@@ -152,7 +154,8 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
   }
 
   private async reserve(storeKey: string, fingerprint: string): Promise<Reservation> {
-    const record: IdempotencyRecord = { fingerprint, status: 'in_flight' };
+    const owner = randomUUID();
+    const record: IdempotencyRecord = { fingerprint, owner, status: 'in_flight' };
     if (this.redis) {
       try {
         if (this.redis.status === 'wait') await this.redis.connect();
@@ -163,10 +166,13 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
           this.ttlSeconds,
           'NX',
         );
-        if (acquired === 'OK') return { kind: 'acquired', storeKey, fingerprint };
+        if (acquired === 'OK') return { kind: 'acquired', storeKey, fingerprint, owner };
         const existingRaw = await this.redis.get(storeKey);
+        // Semantic conflicts are not Redis I/O errors and must never fall back
+        // to the process-local store while Redis is healthy.
         return this.resolveExisting(existingRaw, fingerprint);
       } catch (error) {
+        if (error instanceof ConflictException) throw error;
         if (this.production) {
           throw new ServiceUnavailableException('Idempotency store unavailable');
         }
@@ -183,7 +189,7 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
       record,
       expiresAt: Date.now() + this.ttlSeconds * 1000,
     });
-    return { kind: 'acquired', storeKey, fingerprint };
+    return { kind: 'acquired', storeKey, fingerprint, owner };
   }
 
   private resolveExisting(raw: string | null, fingerprint: string): Reservation {
@@ -210,42 +216,47 @@ export class IdempotencyInterceptor implements NestInterceptor, OnModuleDestroy 
   private async complete(
     storeKey: string,
     fingerprint: string,
+    owner: string,
     responseStatus: number,
     responseBody: unknown,
   ): Promise<void> {
     const record: IdempotencyRecord = {
       fingerprint,
+      owner,
       status: 'done',
       responseStatus,
       responseBody,
     };
     if (this.redis) {
       try {
-        await this.redis.set(storeKey, JSON.stringify(record), 'EX', this.ttlSeconds, 'XX');
+        await this.redis.eval(
+          "local v=redis.call('GET',KEYS[1]); if not v then return 0 end; local r=cjson.decode(v); if r.owner~=ARGV[1] or r.status~='in_flight' then return 0 end; redis.call('SET',KEYS[1],ARGV[2],'EX',ARGV[3]); return 1",
+          1, storeKey, owner, JSON.stringify(record), this.ttlSeconds,
+        );
         return;
       } catch (error) {
         this.logger.error(`Failed to complete idempotency record: ${(error as Error).message}`);
       }
     }
-    this.memory.set(storeKey, {
-      record,
-      expiresAt: Date.now() + this.ttlSeconds * 1000,
-    });
+    const existing = this.memory.get(storeKey);
+    if (existing?.record.owner === owner && existing.record.status === 'in_flight') {
+      this.memory.set(storeKey, { record, expiresAt: Date.now() + this.ttlSeconds * 1000 });
+    }
   }
 
-  private async release(storeKey: string, fingerprint: string): Promise<void> {
+  private async release(storeKey: string, owner: string): Promise<void> {
     if (this.redis) {
       try {
-        const existing = await this.redis.get(storeKey);
-        if (existing && (JSON.parse(existing) as IdempotencyRecord).fingerprint === fingerprint) {
-          await this.redis.del(storeKey);
-        }
+        await this.redis.eval(
+          "local v=redis.call('GET',KEYS[1]); if not v then return 0 end; local r=cjson.decode(v); if r.owner~=ARGV[1] or r.status~='in_flight' then return 0 end; return redis.call('DEL',KEYS[1])",
+          1, storeKey, owner,
+        );
       } catch (error) {
         this.logger.error(`Failed to release idempotency record: ${(error as Error).message}`);
       }
     }
     const existing = this.memory.get(storeKey);
-    if (existing?.record.fingerprint === fingerprint) this.memory.delete(storeKey);
+    if (existing?.record.owner === owner && existing.record.status === 'in_flight') this.memory.delete(storeKey);
   }
 
   private evictMemory(): void {

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+const env=JSON.parse(readFileSync('../report-output/full-system-qa/runtime.json','utf8'));
+assert.match(new URL(env.DATABASE_URL).pathname,/^\/beautybook_test_restriction_\d+$/);
+const mode=process.argv[2]||'unit';
+const args=mode==='integration'?['node_modules/jest/bin/jest.js','--runInBand','--testPathPatterns=integration.spec','--json',`--outputFile=${env.QA_OUTPUT}/backend-integration.json`]:['node_modules/jest/bin/jest.js','--runInBand','--json',`--outputFile=${env.QA_OUTPUT}/backend-unit.json`];
+const child=spawn(process.execPath,args,{windowsHide:true,env:{...process.env,...env,RUN_POSTGRES_INTEGRATION:mode==='integration'?'1':'0'},stdio:['ignore','pipe','pipe']});
+let log=''; for(const stream of [child.stdout,child.stderr])stream.on('data',data=>{log+=data;});
+child.on('exit',code=>{for(const key of ['DATABASE_URL','DIRECT_URL','JWT_SECRET','JWT_REFRESH_SECRET','SENSITIVE_DATA_ENCRYPTION_KEY','QA_PASSWORD'])log=log.split(env[key]).join('[REDACTED]');writeFileSync(`${env.QA_OUTPUT}/backend-${mode}.log`,log);console.log(log.slice(-4500));process.exitCode=code||0;});

@@ -41,7 +41,7 @@ function fixture(start: Date, lockedStart = start) {
   const service = new BookingsService(prisma, {} as any,
     { notifyBookingUpdated: jest.fn() } as any,
     { getEffective: jest.fn().mockResolvedValue({ freeCancellationHours: 0 }) } as any,
-    {} as any, { reverseRedemptionForBooking: jest.fn() } as any);
+    {} as any);
   return { service, tx, prisma };
 }
 

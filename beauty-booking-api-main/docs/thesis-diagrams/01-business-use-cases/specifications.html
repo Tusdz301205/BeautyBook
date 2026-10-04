@@ -1,0 +1,421 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>01-business-use-cases/specifications.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Đặc tả Use Case nghiệp vụ</h1>
+<p>Ranh giới: hoạt động phối hợp của BeautyBook và cơ sở tham gia. Khách/đại diện đăng ký là business actor bên ngoài; chủ cơ sở, lễ tân, chuyên viên và điều phối nền tảng là business worker trong hoạt động. Một người có thể mang vai trò nghiệp vụ khác nhau theo ngữ cảnh, không tạo kế thừa role phần mềm. Tổng quan chọn hành trình giá trị; các hình chi tiết bao phủ toàn bộ BUC.</p>
+<h2>BUC-01 — Tìm dịch vụ phù hợp</h2>
+<ul>
+<li>Mục tiêu: Khách có thông tin để lựa chọn cơ sở và dịch vụ.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Cơ sở cung cấp thông tin.</li>
+<li>Trigger: Khách có nhu cầu làm đẹp.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Khách có thông tin để lựa chọn cơ sở và dịch vụ.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách nêu nhu cầu và khu vực.</li>
+<li>BeautyBook cung cấp các cơ sở, dịch vụ và nhận xét đủ điều kiện công khai.</li>
+<li>Khách so sánh và chọn phương án phù hợp.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Không có kết quả: khách điều chỉnh tiêu chí; không cam kết có lịch trống.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>Thông tin công khai không đồng nghĩa còn năng lực nhận lịch.</p>
+<p>Cơ sở cung cấp thông tin thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-01, SUC-12.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.search</a> (dòng 70)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.findAll</a> (dòng 59)</li>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController.findPublicOne</a> (dòng 174)</li>
+<li><a href="../../../src/saved-services/saved-services.controller.ts">SavedServicesController.list</a> (dòng 14)</li>
+<li><a href="../../../src/saved-services/saved-services.controller.ts">SavedServicesController.save</a> (dòng 19)</li>
+<li><a href="../../../src/saved-services/saved-services.service.ts">SavedServicesService.save</a> (dòng 56)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-01, SUC-12. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-02 — Thỏa thuận lịch phục vụ</h2>
+<ul>
+<li>Mục tiêu: Khách và cơ sở có lịch phục vụ được ghi nhận theo chính sách xác nhận.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Lễ tân.</li>
+<li>Trigger: Khách muốn đặt dịch vụ hoặc liên hệ quầy.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Khách và cơ sở có lịch phục vụ được ghi nhận theo chính sách xác nhận.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách và cơ sở xác định dịch vụ, chuyên viên và thời điểm.</li>
+<li>Cơ sở kiểm tra khả năng đáp ứng và điều kiện đặt lịch.</li>
+<li>Lịch được ghi nhận chờ xác nhận hoặc đã xác nhận; các bên theo dõi kết quả.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Hết chỗ hoặc khách bị hạn chế tự đặt: chọn phương án khác hoặc liên hệ cơ sở.</li>
+<li>3a. Cơ sở xác nhận thủ công: lịch chưa được coi là chắc chắn trước khi duyệt.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-01, BR-02, BR-03; nhân sự không dùng tài khoản vận hành để tự đặt như khách.</p>
+<p>Chủ cơ sở; Lễ tân thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-05, SUC-06, SUC-07, SUC-08, SUC-11, SUC-13, SUC-14.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.create</a> (dòng 237)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.createGuest</a> (dòng 199)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.create</a> (dòng 817)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.getAvailableSlots</a> (dòng 724)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.getAvailableSlots</a> (dòng 1917)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.previewPrice</a> (dòng 308)</li>
+<li><a href="../../../src/bookings/vouchers.service.ts">VouchersService.preview</a> (dòng 15)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-05, SUC-06, SUC-07, SUC-08, SUC-11, SUC-13, SUC-14. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-03 — Điều chỉnh cam kết lịch hẹn</h2>
+<ul>
+<li>Mục tiêu: Yêu cầu đổi/hủy được xử lý theo thẩm quyền và bảo toàn lịch sử.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Lễ tân.</li>
+<li>Trigger: Một bên không thể giữ lịch đã thỏa thuận.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Yêu cầu đổi/hủy được xử lý theo thẩm quyền và bảo toàn lịch sử.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách thông báo nhu cầu đổi hoặc hủy.</li>
+<li>Cơ sở xem điều kiện, thời điểm và năng lực thay thế.</li>
+<li>Các bên nhận kết quả; lịch và quyền lợi được điều chỉnh theo kết quả xử lý.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Tự hủy đủ sớm: không cần cơ sở duyệt.</li>
+<li>2b. Hủy sát giờ: ghi nhận tại lúc gửi yêu cầu; từ chối/hết hạn không tự xóa vi phạm.</li>
+<li>3a. Yêu cầu hết hạn: cam kết lịch cũ chưa được thay đổi bởi yêu cầu.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-04, BR-05, BR-06.</p>
+<p>Chủ cơ sở; Lễ tân thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-08, SUC-09, SUC-10, SUC-15.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.myAppointments</a> (dòng 545)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.findOne</a> (dòng 858)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.selfBookingPolicy</a> (dòng 185)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.updateStatus</a> (dòng 421)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.createChangeRequest</a> (dòng 1186)</li>
+<li><a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService.create</a> (dòng 56)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-08, SUC-09, SUC-10, SUC-15. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-04 — Tiếp nhận và hoàn tất phục vụ</h2>
+<ul>
+<li>Mục tiêu: Cơ sở biết khách đã đến và từng phần dịch vụ đã thực hiện.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Lễ tân; Chuyên viên; Chủ cơ sở.</li>
+<li>Trigger: Đến thời điểm phục vụ.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Cơ sở biết khách đã đến và từng phần dịch vụ đã thực hiện.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Lễ tân xác nhận khách đến hoặc xác nhận vắng mặt theo điều kiện.</li>
+<li>Chuyên viên được phân công tiếp nhận phần việc và bắt đầu thực hiện.</li>
+<li>Chuyên viên/cơ sở ghi nhận hoàn tất; lịch phản ánh tiến độ.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>1a. Khách chưa đến sau thời gian ân hạn: chỉ người có thẩm quyền xác nhận no-show.</li>
+<li>2a. Chuyên viên không còn khả dụng: cơ sở phân công lại theo điều kiện.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-06, BR-07; hàng đợi phục vụ khác danh sách chờ đã gỡ.</p>
+<p>Lễ tân; Chuyên viên; Chủ cơ sở thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-14, SUC-16, SUC-17.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.moveBooking</a> (dòng 1072)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.assignStaff</a> (dòng 1105)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.addBookingItem</a> (dòng 1118)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.assignStaff</a> (dòng 2488)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.checkin</a> (dòng 1297)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.checkin</a> (dòng 2797)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-14, SUC-16, SUC-17. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-05 — Quyết toán khoản phải trả</h2>
+<ul>
+<li>Mục tiêu: Khoản thu và hoàn trả có căn cứ, đúng phạm vi và không vượt số dư.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Lễ tân; Chủ cơ sở; Quản trị nền tảng.</li>
+<li>Trigger: Phát sinh nghĩa vụ thu tiền hoặc yêu cầu hoàn tiền.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Khoản thu và hoàn trả có căn cứ, đúng phạm vi và không vượt số dư.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Cơ sở đối chiếu khoản phải trả và tiếp nhận tiền/chứng từ.</li>
+<li>Nhân sự có quyền xác minh giao dịch; hệ thống ghi nhận khoản đã trả.</li>
+<li>Khi cần hoàn tiền, chủ cơ sở/nền tảng lập và người khác duyệt; nền tảng ghi nhận kết quả xử lý.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Chuyển khoản chưa xác minh: không coi là đã thu.</li>
+<li>3a. Hoàn tiền thất bại: giữ trạng thái thất bại để xử lý tiếp; không báo đã hoàn.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-08; không có phát hành hóa đơn/phiếu thu hay cổng thanh toán trực tuyến.</p>
+<p>Lễ tân; Chủ cơ sở; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-18, SUC-19, SUC-20, SUC-21, SUC-36.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.collect</a> (dòng 36)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.verifyTransaction</a> (dòng 61)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.collect</a> (dòng 149)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.verifyTransaction</a> (dòng 735)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.requestRefund</a> (dòng 227)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.review</a> (dòng 239)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.requestRefund</a> (dòng 363)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-18, SUC-19, SUC-20, SUC-21, SUC-36. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-06 — Duy trì quan hệ với khách</h2>
+<ul>
+<li>Mục tiêu: Khách tiếp tục dùng dịch vụ và cơ sở có phản hồi/ưu đãi phù hợp.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Quản trị nền tảng.</li>
+<li>Trigger: Có nhu cầu quay lại hoặc phản hồi sau phục vụ.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Khách tiếp tục dùng dịch vụ và cơ sở có phản hồi/ưu đãi phù hợp.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Cơ sở thiết lập ưu đãi hợp lệ cho đối tượng/phạm vi áp dụng.</li>
+<li>Khách lựa chọn ưu đãi, lưu dịch vụ hoặc sắp lịch định kỳ khi có nhu cầu.</li>
+<li>Khách đánh giá sau phục vụ; cơ sở phản hồi và nền tảng xử lý nội dung bị báo cáo.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>1a. Ưu đãi hết hạn/ngoài phạm vi: không áp dụng.</li>
+<li>3a. Đánh giá vi phạm: có thể bị ẩn hoặc đưa vào quy trình xem xét.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-09; điểm thưởng và danh sách chờ không thuộc nghiệp vụ hiện hành.</p>
+<p>Chủ cơ sở; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Khách cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-07, SUC-11, SUC-12, SUC-21, SUC-27, SUC-28, SUC-29, SUC-30, SUC-31.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.previewPrice</a> (dòng 308)</li>
+<li><a href="../../../src/bookings/vouchers.service.ts">VouchersService.preview</a> (dòng 15)</li>
+<li><a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService.quote</a> (dòng 28)</li>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.preview</a> (dòng 16)</li>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.create</a> (dòng 22)</li>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.status</a> (dòng 35)</li>
+<li><a href="../../../src/recurring/recurring.service.ts">RecurringService.create</a> (dòng 39)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-07, SUC-11, SUC-12, SUC-21, SUC-27, SUC-28, SUC-29, SUC-30, SUC-31. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-07 — Đưa cơ sở đủ điều kiện lên sàn</h2>
+<ul>
+<li>Mục tiêu: Cơ sở được thẩm định và công bố theo trạng thái đáp ứng.</li>
+<li>Actor chính/đối tượng thụ hưởng: Đại diện cơ sở đăng ký.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Quản trị nền tảng.</li>
+<li>Trigger: Đại diện doanh nghiệp muốn tham gia hoặc mở chi nhánh.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Cơ sở được thẩm định và công bố theo trạng thái đáp ứng.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Đại diện chuẩn bị thông tin và giấy tờ doanh nghiệp/chi nhánh.</li>
+<li>Nền tảng xem xét, yêu cầu bổ sung hoặc quyết định theo chính sách.</li>
+<li>Cơ sở hoàn tất điều kiện dịch vụ, nhân sự và công bố chi nhánh đủ điều kiện.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Cần bổ sung: cơ sở sửa và gửi lại.</li>
+<li>2b. Chính sách tự duyệt: không mô tả bắt buộc con người phê duyệt mọi hồ sơ.</li>
+<li>3a. Chưa sẵn sàng: chưa công bố.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-10; phê duyệt và công bố chi nhánh là hai bước khác nhau.</p>
+<p>Chủ cơ sở; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Đại diện cơ sở đăng ký cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-22, SUC-23, SUC-24, SUC-40.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.createDraft</a> (dòng 28)</li>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.submit</a> (dòng 62)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.updateDraft</a> (dòng 527)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.submit</a> (dòng 599)</li>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.review</a> (dòng 73)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.review</a> (dòng 261)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.review</a> (dòng 666)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-22, SUC-23, SUC-24, SUC-40. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-08 — Bảo đảm danh mục và năng lực phục vụ</h2>
+<ul>
+<li>Mục tiêu: Cơ sở cung cấp dịch vụ đúng danh mục, giá và năng lực nhân sự.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách hưởng lợi.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Lễ tân; Chuyên viên.</li>
+<li>Trigger: Cơ sở thay đổi dịch vụ, nhân sự hoặc giờ mở cửa.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Cơ sở cung cấp dịch vụ đúng danh mục, giá và năng lực nhân sự.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở xác định dịch vụ kinh doanh và phạm vi tại chi nhánh.</li>
+<li>Chủ cơ sở chuẩn bị hồ sơ nhân sự, năng lực dịch vụ và khả năng nhận lịch.</li>
+<li>Cơ sở áp dụng giá/biến thể/combo; đánh giá ảnh hưởng trước khi ngừng cung cấp.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Chưa có tài khoản nhân viên: vẫn có thể có hồ sơ chuyên viên.</li>
+<li>3a. Còn lịch tương lai bị ảnh hưởng: cần giải quyết tác động trước.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-02, BR-11; không suy lịch ca/đơn nghỉ là đầu vào tính slot hiện tại.</p>
+<p>Chủ cơ sở; Lễ tân; Chuyên viên thực hiện đúng phần việc ở từng bước; Khách hưởng lợi cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-24, SUC-25, SUC-26, SUC-27, SUC-38, SUC-40.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.saveOnboarding</a> (dòng 186)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.publish</a> (dòng 285)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.getReadiness</a> (dòng 764)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.publish</a> (dòng 1317)</li>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.createCatalog</a> (dòng 187)</li>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.updateOfferingPricing</a> (dòng 265)</li>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.archiveCatalog</a> (dòng 214)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-24, SUC-25, SUC-26, SUC-27, SUC-38, SUC-40. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-09 — Xử lý gián đoạn hoạt động</h2>
+<ul>
+<li>Mục tiêu: Lịch và nghĩa vụ đang mở được xử lý khi cơ sở/nhân sự dừng hoạt động.</li>
+<li>Actor chính/đối tượng thụ hưởng: Khách bị ảnh hưởng.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Lễ tân; Quản trị nền tảng.</li>
+<li>Trigger: Ngừng nhân sự, tạm dừng/đóng chi nhánh hoặc tác động tương tự.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Lịch và nghĩa vụ đang mở được xử lý khi cơ sở/nhân sự dừng hoạt động.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Cơ sở xác định phạm vi bị ảnh hưởng.</li>
+<li>Người có quyền chọn phương án xử lý từng lịch và nghĩa vụ liên quan.</li>
+<li>Cơ sở hoàn tất hồ sơ tác động rồi thực hiện thay đổi được phép.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>2a. Còn mục chưa xử lý: chưa hoàn tất hồ sơ.</li>
+<li>3a. Phát sinh lịch mới: kiểm tra lại tác động.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>Đọc điều kiện cụ thể của ImpactService/BranchStateService; không suy hoàn tiền tự động.</p>
+<p>Chủ cơ sở; Lễ tân; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Khách bị ảnh hưởng cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-33.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/operations/impact.controller.ts">ImpactController.resolve</a> (dòng 40)</li>
+<li><a href="../../../src/operations/impact.controller.ts">ImpactController.complete</a> (dòng 52)</li>
+<li><a href="../../../src/operations/impact.service.ts">ImpactService.resolveItem</a> (dòng 50)</li>
+<li><a href="../../../src/branches/branch-state.service.ts">BranchStateService.transition</a> (dòng 65)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-33. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-10 — Chuyển giao quyền sở hữu</h2>
+<ul>
+<li>Mục tiêu: Doanh nghiệp có chủ chịu trách nhiệm mới và lịch sử chuyển giao.</li>
+<li>Actor chính/đối tượng thụ hưởng: Đại diện cơ sở.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Chủ mới; Quản trị nền tảng.</li>
+<li>Trigger: Chủ hiện tại đề nghị chuyển giao.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Doanh nghiệp có chủ chịu trách nhiệm mới và lịch sử chuyển giao.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ hiện tại xác định chủ mới, lý do và thời điểm hiệu lực.</li>
+<li>Chủ mới xác nhận; nền tảng xem xét tác động, pháp nhân và tài khoản nhận tiền.</li>
+<li>Đến điều kiện hiệu lực, nền tảng thực hiện chuyển giao và giữ lịch sử.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>1a. Chủ mới dùng tài khoản CUSTOMER: bị chặn do tách tài khoản.</li>
+<li>2a. Cần bổ sung hoặc từ chối: chưa chuyển chủ.</li>
+<li>3a. Có vướng mắc điều kiện: chưa thực hiện.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>Triển khai một phần: đường dẫn tiếp nhận trên web lệch workspace; xem GAP-01.</p>
+<p>Chủ cơ sở; Chủ mới; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Đại diện cơ sở cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-34, SUC-35.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.create</a> (dòng 14)</li>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.accept</a> (dòng 35)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.create</a> (dòng 13)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.accept</a> (dòng 55)</li>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.review</a> (dòng 63)</li>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.execute</a> (dòng 84)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.execute</a> (dòng 148)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-34, SUC-35. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-11 — Giám sát chất lượng và hiệu quả sàn</h2>
+<ul>
+<li>Mục tiêu: Người có thẩm quyền nhận biết hiệu quả, rủi ro và thực hiện biện pháp quản trị.</li>
+<li>Actor chính/đối tượng thụ hưởng: Cơ sở tham gia.</li>
+<li>Worker/bên hỗ trợ: Chủ cơ sở; Quản trị nền tảng.</li>
+<li>Trigger: Nhu cầu xem báo cáo hoặc phát hiện sai phạm.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Người có thẩm quyền nhận biết hiệu quả, rủi ro và thực hiện biện pháp quản trị.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở/nền tảng xem số liệu trong phạm vi được giao.</li>
+<li>Nền tảng kiểm tra hồ sơ, đánh giá, dấu vết và mức độ tin cậy.</li>
+<li>Người có quyền áp dụng quyết định, cấu hình hoặc biện pháp xử lý được hỗ trợ.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>1a. Ngoài scope: không nhận được dữ liệu.</li>
+<li>3a. Không đủ căn cứ/điều kiện: từ chối thay đổi.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>Phân biệt tài chính quản trị còn hoạt động với hóa đơn/phiếu thu đã gỡ.</p>
+<p>Chủ cơ sở; Quản trị nền tảng thực hiện đúng phần việc ở từng bước; Cơ sở tham gia cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-23, SUC-30, SUC-36, SUC-37, SUC-38, SUC-39.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.review</a> (dòng 73)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.review</a> (dòng 261)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.review</a> (dòng 666)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.review</a> (dòng 1238)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.reply</a> (dòng 163)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.report</a> (dòng 147)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.moderate</a> (dòng 189)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-23, SUC-30, SUC-36, SUC-37, SUC-38, SUC-39. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<h2>BUC-12 — Bảo vệ tài khoản và quyền dữ liệu</h2>
+<ul>
+<li>Mục tiêu: Chủ thể kiểm soát truy cập tài khoản và yêu cầu quyền dữ liệu của mình.</li>
+<li>Actor chính/đối tượng thụ hưởng: Chủ tài khoản.</li>
+<li>Worker/bên hỗ trợ: BeautyBook xử lý xác thực/quyền dữ liệu.</li>
+<li>Trigger: Đăng ký, đăng nhập, khôi phục truy cập hoặc yêu cầu dữ liệu.</li>
+<li>Tiền điều kiện: nhu cầu hợp lệ trong phạm vi hoạt động mô tả; thông tin, cam kết hoặc hồ sơ ở bước đầu tồn tại. Điều kiện tài khoản cụ thể thuộc đặc tả SUC, không biến thành bước kinh doanh.</li>
+<li>Hậu điều kiện thành công: Chủ thể kiểm soát truy cập tài khoản và yêu cầu quyền dữ liệu của mình.</li>
+<li>Bảo đảm thất bại: không coi đề nghị đang chờ/từ chối là cam kết đã hoàn tất; giữ lịch sử theo phần triển khai có căn cứ.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Người dùng xác lập danh tính và vai trò phù hợp.</li>
+<li>Chủ tài khoản quản lý hồ sơ, mật khẩu và phiên truy cập.</li>
+<li>Khách hàng điều chỉnh ưu tiên tiếp thị hoặc gửi yêu cầu/xuất dữ liệu.</li>
+</ol>
+<h3>Thay thế/ngoại lệ</h3>
+<ul>
+<li>1a. Thông tin/token không hợp lệ: không cấp truy cập.</li>
+<li>3a. Yêu cầu xóa dữ liệu mới được tiếp nhận: không suy đã xóa dữ liệu.</li>
+</ul>
+<h3>Quy tắc và trách nhiệm</h3>
+<p>BR-01; xử lý yêu cầu dữ liệu end-to-end chỉ một phần.</p>
+<p>BeautyBook xử lý xác thực/quyền dữ liệu thực hiện đúng phần việc ở từng bước; Chủ tài khoản cung cấp nhu cầu/căn cứ, không tự có thẩm quyền của worker. Quyết định thẩm quyền cụ thể được ràng buộc tại SUC-02, SUC-03, SUC-04, SUC-31, SUC-32, SUC-40.</p>
+<h3>Bằng chứng và giới hạn</h3>
+<ul>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.register</a> (dòng 96)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.login</a> (dòng 71)</li>
+<li><a href="../../../src/auth/auth.service.ts">AuthService.register</a> (dòng 141)</li>
+<li><a href="../../../src/auth/auth.service.ts">AuthService.login</a> (dòng 44)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.verifyEmail</a> (dòng 131)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.forgotPassword</a> (dòng 138)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.resetPassword</a> (dòng 146)</li>
+</ul>
+<p>Ánh xạ SUC: SUC-02, SUC-03, SUC-04, SUC-31, SUC-32, SUC-40. Đây là mô hình phân tích từ code, chưa được phỏng vấn xác nhận với đơn vị vận hành. Các giới hạn triển khai trong SUC liên quan vẫn áp dụng, đặc biệt chuyển chủ/quyền dữ liệu/gói buổi.</p>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

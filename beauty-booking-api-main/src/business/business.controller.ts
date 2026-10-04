@@ -8,7 +8,7 @@ import { SalonMembersService } from './salon-members.service';
 import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequirePermission } from '../common/decorators/permission.decorator';
-import { BusinessOnboardingService } from './business-onboarding.service';
+import { BusinessOnboardingService, businessTypeLabel } from './business-onboarding.service';
 import type { BusinessDraftInput } from './business-onboarding.service';
 import { Audited } from '../common/decorators/audit.decorator';
 import { AuditAction, Prisma } from '@prisma/client';
@@ -31,6 +31,13 @@ export class BusinessController {
   @RequirePermission('business:create:self')
   createDraft(@Body() body: BusinessDraftInput, @CurrentUser() user: AuthUser) {
     return this.onboarding.createDraft(user, body);
+  }
+
+  @Get('onboarding/config')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business:create:self')
+  getOnboardingConfig(@CurrentUser() user: AuthUser) {
+    return this.onboarding.getOnboardingConfig(user.id);
   }
 
   @Get('onboarding/mine')
@@ -157,6 +164,7 @@ export class BusinessController {
     const rating = ratingRows[0];
     return {
       ...business,
+      businessTypeLabel: businessTypeLabel(business.onboardingData),
       auditTrail,
       summary: {
         branchCount: business.branches.length,

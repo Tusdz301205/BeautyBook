@@ -10,19 +10,58 @@ import { assertBusinessAccess, restrictToRoles } from '../common/utils/multi-ten
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
+import { Prisma } from '@prisma/client';
+
+export const BUSINESS_TYPE_CATALOG = [
+  { code: 'HAIR_SALON', label: 'Salon tóc', active: true },
+  { code: 'SPA', label: 'Spa', active: true },
+  { code: 'NAIL', label: 'Nail', active: true },
+  { code: 'BARBER', label: 'Barber', active: true },
+  { code: 'MAKEUP', label: 'Makeup', active: true },
+  { code: 'MASSAGE', label: 'Massage', active: true },
+  { code: 'BEAUTY_STUDIO', label: 'Beauty studio', active: true },
+  { code: 'MOBILE_SERVICE', label: 'Dịch vụ tận nơi', active: true },
+] as const;
+
+export function businessTypeLabel(onboardingData: unknown): string {
+  const code = (onboardingData as OnboardingDraft | null)?.businessType;
+  return BUSINESS_TYPE_CATALOG.find((item) => item.code === code)?.label ?? 'Chưa chọn loại hình dịch vụ';
+}
+
+const activeBusinessTypeCodes = () => new Set(
+  BUSINESS_TYPE_CATALOG.filter((item) => item.active).map((item) => item.code),
+);
+
+const BUSINESS_DRAFT_FIELDS = new Set([
+  'name', 'slug', 'description', 'contactEmail', 'contactPhone', 'addressLine',
+  'legalRepresentative', 'legalDocuments', 'companyName', 'taxCode',
+  'identityCardNumber', 'onboardingStep', 'onboardingData', 'marketplacePreviewed',
+]);
+
+export function isInternalBusinessDraftName(value: unknown) {
+  return typeof value === 'string' && /^hồ sơ cơ sở của\b/i.test(value.trim());
+}
+
+export function assertSubmittableBusinessName(value: unknown) {
+  const name = typeof value === 'string' ? value.trim() : '';
+  if (name.length < 2 || name.length > 150 || isInternalBusinessDraftName(name)) {
+    throw new BadRequestException('Vui lòng nhập tên thương hiệu từ 2 đến 150 ký tự trước khi gửi hồ sơ.');
+  }
+  return name;
+}
 
 export interface BusinessDraftInput {
-  name?: string;
-  slug?: string;
-  description?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  addressLine?: string;
-  legalRepresentative?: string;
+  name?: string | null;
+  slug?: string | null;
+  description?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  addressLine?: string | null;
+  legalRepresentative?: string | null;
   legalDocuments?: unknown;
-  companyName?: string;
-  taxCode?: string;
-  identityCardNumber?: string;
+  companyName?: string | null;
+  taxCode?: string | null;
+  identityCardNumber?: string | null;
   onboardingStep?: number;
   onboardingData?: unknown;
   marketplacePreviewed?: boolean;
@@ -57,14 +96,102 @@ export class BusinessOnboardingService {
     private readonly settings: PlatformSettingsService,
   ) {}
 
+  async getOnboardingConfig(userId: string) {
+    const policy = await this.settings.getEffective();
+    const user = policy.requirePhoneVerification
+      ? await this.prisma.user.findUnique({ where: { id: userId }, select: { isPhoneVerified: true } })
+      : null;
+    return {
+      businessTypes: BUSINESS_TYPE_CATALOG.filter((item) => item.active).map(({ code, label }) => ({ code, label })),
+      requiredDocuments: policy.requireIdVerification ? ['BUSINESS_LICENSE', 'OWNER_ID_CARD'] : [],
+      requirePhoneVerification: policy.requirePhoneVerification,
+      phoneVerified: policy.requirePhoneVerification ? user?.isPhoneVerified === true : true,
+    };
+  }
+
+  private normalizeDraftInput(input: BusinessDraftInput): BusinessDraftInput {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      throw new BadRequestException('Thông tin hồ sơ không hợp lệ');
+    }
+    const unknown = Object.keys(input).filter((key) => !BUSINESS_DRAFT_FIELDS.has(key));
+    if (unknown.length) throw new BadRequestException('Hồ sơ có trường thông tin không được hỗ trợ');
+    const result: BusinessDraftInput = { ...input };
+    const textFields: Array<[keyof BusinessDraftInput, string, number]> = [
+      ['name', 'Tên thương hiệu', 150],
+      ['slug', 'Đường dẫn BeautyBook', 70],
+      ['description', 'Giới thiệu doanh nghiệp', 2000],
+      ['contactEmail', 'Email liên hệ', 254],
+      ['contactPhone', 'Số điện thoại', 30],
+      ['addressLine', 'Địa chỉ đăng ký', 500],
+      ['legalRepresentative', 'Người đại diện', 150],
+      ['companyName', 'Tên pháp nhân', 255],
+      ['taxCode', 'Mã số thuế', 100],
+      ['identityCardNumber', 'Số định danh', 100],
+    ];
+    for (const [key, label, maxLength] of textFields) {
+      const value = input[key];
+      if (value === undefined) continue;
+      if (value === null) {
+        (result as Record<string, unknown>)[key] = null;
+        continue;
+      }
+      if (typeof value !== 'string') throw new BadRequestException(`${label} không hợp lệ`);
+      const trimmed = value.trim();
+      if (trimmed.length > maxLength) throw new BadRequestException(`${label} không được vượt quá ${maxLength} ký tự`);
+      (result as Record<string, unknown>)[key] = trimmed || null;
+    }
+    if (typeof result.slug === 'string') {
+      result.slug = result.slug.toLowerCase();
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(result.slug)) {
+        throw new BadRequestException('Đường dẫn chỉ gồm chữ không dấu, số và dấu gạch nối');
+      }
+    }
+    if (typeof result.contactEmail === 'string'
+      && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result.contactEmail)) {
+      throw new BadRequestException('Email liên hệ không hợp lệ');
+    }
+    if (typeof result.contactEmail === 'string') result.contactEmail = result.contactEmail.toLowerCase();
+    if (typeof result.contactPhone === 'string') {
+      const compact = result.contactPhone.replace(/[\s().-]/g, '');
+      const normalized = compact.startsWith('0') ? `+84${compact.slice(1)}` : compact;
+      if (!/^\+84\d{9}$/.test(normalized)) {
+        throw new BadRequestException('Dùng số điện thoại Việt Nam gồm 10 chữ số, bắt đầu bằng 0 hoặc +84');
+      }
+      result.contactPhone = normalized;
+    }
+    return result;
+  }
+
+  private throwFriendlyUniqueConflict(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = Array.isArray(error.meta?.target) ? error.meta.target.join(',') : String(error.meta?.target ?? '');
+      if (/tax_code/i.test(target)) throw new ConflictException('Mã số thuế này đã được sử dụng trong một hồ sơ khác.');
+      if (/slug/i.test(target)) throw new ConflictException('Đường dẫn này đã được sử dụng. Hãy chọn đường dẫn khác.');
+    }
+    throw error;
+  }
+
   private validateDocuments(value: unknown): LegalDocumentInput[] {
     if (value == null) return [];
     if (!Array.isArray(value)) throw new BadRequestException('Danh sách giấy tờ không hợp lệ');
     const types = new Set(['BUSINESS_LICENSE', 'OWNER_ID_CARD', 'TAX_DOCUMENT', 'OTHER']);
     return value.map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) {
+        throw new BadRequestException(`Giấy tờ số ${index + 1} không hợp lệ`);
+      }
       const document = item as Partial<LegalDocumentInput>;
-      if (!document || !types.has(String(document.documentType)) || !document.documentName?.trim() || !document.documentUrl?.trim()) {
+      for (const field of ['documentName', 'documentUrl', 'mediaId', 'documentNumber', 'expiresAt', 'note'] as const) {
+        if (document[field] !== undefined && typeof document[field] !== 'string') {
+          throw new BadRequestException(`Thông tin giấy tờ số ${index + 1} không hợp lệ`);
+        }
+      }
+      if (!types.has(String(document.documentType)) || !document.documentName?.trim() || !document.documentUrl?.trim()) {
         throw new BadRequestException(`Giấy tờ số ${index + 1} cần đủ loại, tên và URL`);
+      }
+      if (document.documentName.trim().length > 255
+        || (document.documentNumber?.trim().length ?? 0) > 100
+        || (document.note?.trim().length ?? 0) > 1000) {
+        throw new BadRequestException(`Thông tin giấy tờ số ${index + 1} vượt quá độ dài cho phép`);
       }
       const documentUrl = document.documentUrl.trim();
       if (!document.mediaId) {
@@ -74,11 +201,15 @@ export class BusinessOnboardingService {
         throw new BadRequestException(`Đường dẫn giấy tờ số ${index + 1} không hợp lệ`);
       }
       const expiresAt = document.expiresAt?.trim();
-      if (expiresAt && Number.isNaN(new Date(`${expiresAt}T00:00:00Z`).getTime())) {
-        throw new BadRequestException(`Ngày hết hạn giấy tờ số ${index + 1} không hợp lệ`);
+      if (expiresAt) {
+        const date = new Date(`${expiresAt}T00:00:00Z`);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(expiresAt) || Number.isNaN(date.getTime())
+          || date.toISOString().slice(0, 10) !== expiresAt) {
+          throw new BadRequestException(`Ngày hết hạn giấy tờ số ${index + 1} không hợp lệ`);
+        }
       }
       return {
-        ...document,
+        documentType: document.documentType,
         mediaId: document.mediaId,
         documentName: document.documentName.trim(),
         documentNumber: document.documentNumber?.trim() || undefined,
@@ -116,8 +247,9 @@ export class BusinessOnboardingService {
     const input = value as Record<string, unknown>;
     const result: OnboardingDraft = {};
     if (input.businessType !== undefined) {
-      const allowed = new Set(['HAIR_SALON', 'SPA', 'NAIL', 'BARBER', 'MAKEUP', 'MASSAGE', 'BEAUTY_STUDIO', 'MOBILE_SERVICE']);
-      if (!allowed.has(String(input.businessType))) throw new BadRequestException('Loại hình doanh nghiệp không hợp lệ');
+      if (!activeBusinessTypeCodes().has(String(input.businessType) as (typeof BUSINESS_TYPE_CATALOG)[number]['code'])) {
+        throw new BadRequestException('Loại hình doanh nghiệp không còn khả dụng. Hãy chọn một loại hình đang được hỗ trợ.');
+      }
       result.businessType = String(input.businessType);
     }
     if (input.completedSteps !== undefined) {
@@ -323,21 +455,32 @@ export class BusinessOnboardingService {
   }
 
   async createDraft(user: AuthUser, input: BusinessDraftInput) {
-    if (!input.name || !input.slug) {
-      throw new BadRequestException('name và slug là bắt buộc');
+    input = this.normalizeDraftInput(input);
+    if (!input.name || input.name.length < 2 || !input.slug) {
+      throw new BadRequestException('Nhập tên thương hiệu (ít nhất 2 ký tự) và đường dẫn trước khi lưu hồ sơ.');
     }
     const owner = await this.prisma.businessOwnerProfile.findUnique({
       where: { userId: user.id },
     });
     if (!owner) throw new ForbiddenException('Business owner profile not found');
 
+    if (input.taxCode) {
+      const taxCodeOwner = await this.prisma.businessOwnerProfile.findUnique({
+        where: { taxCode: input.taxCode }, select: { id: true },
+      });
+      if (taxCodeOwner && taxCodeOwner.id !== owner.id) {
+        throw new ConflictException('Mã số thuế này đã được sử dụng trong một hồ sơ khác.');
+      }
+    }
+
     const slugExists = await this.prisma.business.findUnique({
       where: { slug: input.slug },
       select: { id: true },
     });
-    if (slugExists) throw new ConflictException('Slug đã được sử dụng');
+    if (slugExists) throw new ConflictException('Đường dẫn BeautyBook đã được sử dụng. Hãy chọn đường dẫn khác.');
 
-    return this.prisma.$transaction(async (tx) => {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
       const business = await tx.business.create({
         data: {
           ownerId: owner.id,
@@ -375,7 +518,10 @@ export class BusinessOnboardingService {
       const documents = this.validateDocuments(input.legalDocuments);
       if (documents.length) await this.syncDocuments(tx, business.id, user.id, documents);
       return business;
-    });
+      });
+    } catch (error) {
+      this.throwFriendlyUniqueConflict(error);
+    }
   }
 
   async updateDraft(
@@ -383,6 +529,7 @@ export class BusinessOnboardingService {
     user: AuthUser,
     input: BusinessDraftInput,
   ) {
+    input = this.normalizeDraftInput(input);
     await assertBusinessAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), businessId);
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
@@ -392,8 +539,22 @@ export class BusinessOnboardingService {
     if (!['DRAFT', 'NEED_MORE_INFO'].includes(business.status)) {
       throw new ConflictException('Chỉ hồ sơ draft/need-more-info mới được sửa');
     }
-    return this.prisma.$transaction(async (tx) => {
-      if (input.taxCode || input.companyName || input.identityCardNumber) {
+    if (input.taxCode) {
+      const taxCodeOwner = await this.prisma.businessOwnerProfile.findUnique({
+        where: { taxCode: input.taxCode }, select: { id: true },
+      });
+      if (taxCodeOwner && taxCodeOwner.id !== business.ownerId) {
+        throw new ConflictException('Mã số thuế này đã được sử dụng trong một hồ sơ khác.');
+      }
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
+      const current = await tx.business.findUnique({ where: { id: businessId }, select: { status: true, updatedAt: true } });
+      if (!current || current.status !== business.status || current.updatedAt.getTime() !== business.updatedAt.getTime()) {
+        throw new ConflictException('Hồ sơ vừa thay đổi; vui lòng tải lại');
+      }
+      if (input.taxCode !== undefined || input.companyName !== undefined || input.identityCardNumber !== undefined) {
         await tx.businessOwnerProfile.update({
           where: { id: business.ownerId },
           data: {
@@ -406,8 +567,10 @@ export class BusinessOnboardingService {
       return tx.business.update({
         where: { id: businessId },
         data: {
-          name: input.name,
-          slug: input.slug,
+          // These columns cannot be null. A temporarily empty form field must not
+          // erase the last persisted value; submit validation still requires a brand.
+          name: input.name ?? undefined,
+          slug: input.slug ?? undefined,
           description: input.description,
           contactEmail: input.contactEmail,
           contactPhone: input.contactPhone,
@@ -427,7 +590,10 @@ export class BusinessOnboardingService {
         }
         return updated;
       });
-    });
+      });
+    } catch (error) {
+      this.throwFriendlyUniqueConflict(error);
+    }
   }
 
   async submit(businessId: string, user: AuthUser) {
@@ -440,6 +606,7 @@ export class BusinessOnboardingService {
       },
     });
     if (!business) throw new NotFoundException('Business not found');
+    const businessName = assertSubmittableBusinessName(business.name);
     if (!['DRAFT', 'NEED_MORE_INFO'].includes(business.status)) {
       throw new ConflictException('Hồ sơ không ở trạng thái có thể gửi');
     }
@@ -447,27 +614,31 @@ export class BusinessOnboardingService {
     const onboarding = this.validateOnboardingData(business.onboardingData) ?? {};
     const documentTypes = new Set(business.documents.map((item) => item.documentType));
     const missing = [
-      (!business.name || business.name.startsWith('Hồ sơ cơ sở của ')) && 'name',
-      !business.contactEmail && 'contactEmail',
-      !business.contactPhone && 'contactPhone',
-      !business.addressLine && 'addressLine',
-      !business.legalRepresentative && 'legalRepresentative',
-      !business.owner.companyName && 'companyName',
-      !business.owner.taxCode && 'taxCode',
-      !onboarding.businessType && 'businessType',
-      policy.requireIdVerification && !documentTypes.has('BUSINESS_LICENSE') && 'BUSINESS_LICENSE',
-      policy.requireIdVerification && !documentTypes.has('OWNER_ID_CARD') && 'OWNER_ID_CARD',
-      policy.requirePhoneVerification && !business.owner.user.isPhoneVerified && 'phoneVerification',
+      (!business.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(business.contactEmail)) && 'email liên hệ hợp lệ',
+      (!business.contactPhone || !/^\+84\d{9}$/.test(business.contactPhone)) && 'số điện thoại Việt Nam hợp lệ',
+      !business.addressLine?.trim() && 'địa chỉ đăng ký',
+      (!business.legalRepresentative?.trim() || business.legalRepresentative.trim().length < 2) && 'tên người đại diện hợp lệ',
+      (!business.owner.companyName?.trim() || business.owner.companyName.trim().length < 2) && 'tên pháp nhân hợp lệ',
+      !business.owner.taxCode?.trim() && 'mã số thuế',
+      !onboarding.businessType && 'loại hình dịch vụ',
+      policy.requireIdVerification && !documentTypes.has('BUSINESS_LICENSE') && 'giấy phép kinh doanh đã tải lên',
+      policy.requireIdVerification && !documentTypes.has('OWNER_ID_CARD') && 'giấy tờ người đại diện đã tải lên',
+      policy.requirePhoneVerification && !business.owner.user.isPhoneVerified && 'xác minh số điện thoại tài khoản',
     ].filter(Boolean);
     if (missing.length) {
-      throw new BadRequestException(`Thiếu thông tin: ${missing.join(', ')}`);
+      throw new BadRequestException(`Hoàn thiện trước khi gửi hồ sơ: ${missing.join('; ')}.`);
     }
     const fromStatus = business.status;
     const nextStatus = policy.autoApproveNewSalons ? 'APPROVED' : 'PENDING_REVIEW';
     const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
+      const current = await tx.business.findUnique({ where: { id: businessId }, select: { status: true, updatedAt: true } });
+      if (!current || current.status !== fromStatus || current.updatedAt.getTime() !== business.updatedAt.getTime()) {
+        throw new ConflictException('Hồ sơ vừa thay đổi; vui lòng tải lại');
+      }
       const row = await tx.business.update({
         where: { id: businessId },
-        data: { status: nextStatus, submittedAt: new Date(), reviewedAt: policy.autoApproveNewSalons ? new Date() : null, reviewNote: null },
+        data: { name: businessName, status: nextStatus, submittedAt: new Date(), reviewedAt: policy.autoApproveNewSalons ? new Date() : null, reviewNote: null },
       });
       await tx.businessReviewEvent.create({ data: {
         businessId, actorId: user.id, action: fromStatus === 'NEED_MORE_INFO' ? 'RESUBMIT' : policy.autoApproveNewSalons ? 'AUTO_APPROVE' : 'SUBMIT',
@@ -515,10 +686,12 @@ export class BusinessOnboardingService {
         ? 'NEED_MORE_INFO'
         : 'REJECTED';
     const updated = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.business.update({
-        where: { id: businessId },
+      const changed = await tx.business.updateMany({
+        where: { id: businessId, status: 'PENDING_REVIEW', updatedAt: business.updatedAt },
         data: { status, reviewNote: note?.trim() || null, reviewedAt: new Date() },
       });
+      if (changed.count !== 1) throw new ConflictException('Hồ sơ vừa được xử lý; vui lòng tải lại');
+      const row = await tx.business.findUniqueOrThrow({ where: { id: businessId } });
       await tx.businessReviewEvent.create({ data: {
         businessId, actorId, action: decision, fromStatus: business.status, toStatus: status, reason: note?.trim() || null,
       } });
@@ -533,10 +706,11 @@ export class BusinessOnboardingService {
           ? 'REQUEST_INFO'
           : 'REJECT';
       for (const document of business.documents) {
-        await tx.businessDocument.update({
-          where: { id: document.id },
+        const documentChanged = await tx.businessDocument.updateMany({
+          where: { id: document.id, status: document.status },
           data: { status: documentStatus },
         });
+        if (documentChanged.count !== 1) throw new ConflictException('Tài liệu vừa được cập nhật; vui lòng tải lại');
         await tx.documentReviewEvent.create({ data: {
           documentId: document.id,
           actorId,
@@ -627,24 +801,29 @@ export class BusinessOnboardingService {
         contactPhone: true,
         addressLine: true,
         legalRepresentative: true,
+        onboardingData: true,
         status: true,
         owner: { select: { companyName: true, taxCode: true } },
         documents: {
           where: { status: { not: 'ARCHIVED' } },
-          select: { documentType: true, status: true },
+          select: { documentType: true, status: true, versions: { orderBy: { version: 'desc' }, take: 1, select: { mediaId: true } } },
         },
       },
     });
     if (!business) return [];
-    const types = new Set(business.documents.map((document) => document.documentType));
+    const types = new Set(business.documents.filter((document) => document.versions[0]?.mediaId).map((document) => document.documentType));
+    let validName = false;
+    try { assertSubmittableBusinessName(business.name); validName = true; } catch { /* Incomplete drafts are expected. */ }
+    const onboarding = business.onboardingData as OnboardingDraft | null;
     const legalComplete = Boolean(
-      business.name &&
-      business.contactEmail &&
-      business.contactPhone &&
-      business.addressLine &&
-      business.legalRepresentative &&
-      business.owner.companyName &&
-      business.owner.taxCode,
+      validName &&
+      activeBusinessTypeCodes().has(onboarding?.businessType as (typeof BUSINESS_TYPE_CATALOG)[number]['code']) &&
+      business.contactEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(business.contactEmail) &&
+      business.contactPhone && /^\+84\d{9}$/.test(business.contactPhone) &&
+      business.addressLine?.trim() &&
+      (business.legalRepresentative?.trim().length ?? 0) >= 2 &&
+      (business.owner.companyName?.trim().length ?? 0) >= 2 &&
+      business.owner.taxCode?.trim(),
     );
     return [
       { key: 'business', label: 'Hoàn tất thông tin doanh nghiệp và pháp nhân', completed: legalComplete },

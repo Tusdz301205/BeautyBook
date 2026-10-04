@@ -11,6 +11,31 @@ export type BranchTransitionAction =
 export class BranchStateService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private async completedImpactCovers(
+    client: PrismaService,
+    branchId: string,
+    action: BranchTransitionAction,
+    bookingIds: string[],
+  ): Promise<boolean> {
+    if (!bookingIds.length) return true;
+    const lastTransition = await client.branchStateTransition.findFirst({
+      where: { branchId }, orderBy: { version: 'desc' }, select: { createdAt: true },
+    });
+    const impact = await client.operationalImpactCase.findFirst({
+      where: {
+        subjectType: 'BRANCH', subjectId: branchId, action: action as any, status: 'COMPLETED',
+        ...(lastTransition ? { completedAt: { gt: lastTransition.createdAt } } : {}),
+      },
+      orderBy: { completedAt: 'desc' }, select: { id: true },
+    });
+    if (!impact) return false;
+    const covered = await client.operationalImpactItem.findMany({
+      where: { caseId: impact.id, bookingId: { in: bookingIds }, status: 'RESOLVED' },
+      select: { bookingId: true },
+    });
+    return new Set(covered.map((item) => item.bookingId)).size === new Set(bookingIds).size;
+  }
+
   canonicalState(branch: {
     status: BranchStatus;
     reviewStatus: BranchReviewStatus;
@@ -46,11 +71,6 @@ export class BranchStateService {
     if (!branch) throw new NotFoundException('Chi nhánh không tồn tại');
 
     if (['PAUSE', 'SUSPEND', 'CLOSE', 'ARCHIVE'].includes(action)) {
-      const completedImpact = await this.prisma.operationalImpactCase.findFirst({
-        where: { subjectType: 'BRANCH', subjectId: branchId, action: action as any, status: 'COMPLETED' },
-        orderBy: { completedAt: 'desc' },
-        select: { id: true },
-      });
       const futureBookings = await this.prisma.booking.findMany({
         where: {
           branchId,
@@ -60,7 +80,7 @@ export class BranchStateService {
         },
         select: { id: true, finalAmount: true, voucherId: true, payments: { select: { amount: true, status: true } } },
       });
-      if (futureBookings.length && !completedImpact) {
+      if (futureBookings.length && !await this.completedImpactCovers(this.prisma, branchId, action, futureBookings.map((row) => row.id))) {
         const existing = await this.prisma.operationalImpactCase.findFirst({
           where: { subjectType: 'BRANCH', subjectId: branchId, action: action as any, status: { in: ['OPEN', 'IN_PROGRESS', 'READY_TO_COMPLETE'] } },
           select: { id: true, status: true },
@@ -99,18 +119,12 @@ export class BranchStateService {
       const current = await tx.branch.findUniqueOrThrow({ where: { id: branchId } });
       const target = this.target(current, action);
       if (['PAUSE', 'SUSPEND', 'CLOSE', 'ARCHIVE'].includes(action)) {
-        const [activeBookingCount, completedImpact] = await Promise.all([
-          tx.booking.count({ where: {
+        const activeBookings = await tx.booking.findMany({ where: {
             branchId, deletedAt: null,
             status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] },
             appointmentDate: { gte: new Date(new Date().toISOString().slice(0, 10)) },
-          } }),
-          tx.operationalImpactCase.findFirst({
-            where: { subjectType: 'BRANCH', subjectId: branchId, action: action as any, status: 'COMPLETED' },
-            select: { id: true },
-          }),
-        ]);
-        if (activeBookingCount > 0 && !completedImpact) {
+          }, select: { id: true } });
+        if (activeBookings.length > 0 && !await this.completedImpactCovers(tx as unknown as PrismaService, branchId, action, activeBookings.map((row) => row.id))) {
           throw new ConflictException('Phát sinh lịch tương lai mới; cần tải lại và hoàn tất impact workflow');
         }
       }

@@ -1,0 +1,76 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>VALIDATION.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Kiểm tra bộ sơ đồ</h1>
+<p>Kết quả máy đọc nằm ở <a href="rendered/render-report.json">render-report</a> và <a href="rendered/validation-report.json">validation-report</a>. Số lượng chỉ tính manifest hiện hành, không cộng ảnh archive.</p>
+<h2>Kết quả đã thực hiện</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Hạng mục</th>
+<th>Kết quả</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nguồn chỉnh sửa</td>
+<td>86 PlantUML; 5 BUC, 19 SUC, 11 lớp phân tích, 21 lớp thiết kế, 30 ERD</td>
+</tr>
+<tr>
+<td>Export</td>
+<td>86 HTML hình +86 SVG +86 PNG 3×; đủ file, kích thước đúng</td>
+</tr>
+<tr>
+<td>Cú pháp</td>
+<td>PlantUML checkonly exit 0; render exit 0</td>
+</tr>
+<tr>
+<td>Phong cách bản ngày 26/09/2026</td>
+<td>86 hình dùng Times New Roman; 24 Use Case nền kem/viền đỏ rượu vang; 62 hình lớp/ERD có tên lớp/bảng in đậm; không gradient, filter hoặc animation</td>
+</tr>
+<tr>
+<td>Ngữ nghĩa Use Case</td>
+<td>24 hình: alias actor/ellipse và association khớp một–một với source</td>
+</tr>
+<tr>
+<td>Nội dung</td>
+<td>12 BUC, 40 SUC; 47 định danh phân tích và 49 lớp/interface thiết kế được đưa lên hình</td>
+</tr>
+<tr>
+<td>Schema</td>
+<td>121/121 model; 92 enum; 296 FK khai báo trong catalogue; tám model di sản được tách</td>
+</tr>
+<tr>
+<td>Hình học cơ bản</td>
+<td>Không text ra ngoài viewBox; cỡ chữ thấp nhất ước lượng 8,8pt theo vùng A4 đã chọn</td>
+</tr>
+<tr>
+<td>Skill</td>
+<td>self_check và verify-geometry exit 0 cho toàn bộ 86 HTML hình</td>
+</tr>
+<tr>
+<td>Trình duyệt</td>
+<td>Mục lục ở 1440px và 375px: mỗi lượt decode đủ 86 ảnh, không ảnh hỏng, không tràn ngang toàn trang, không pageerror</td>
+</tr>
+<tr>
+<td>Liên kết</td>
+<td>Kiểm tra toàn bộ liên kết file trong Markdown/HTML hiện hành; số lượng và lỗi ở validation-report</td>
+</tr>
+<tr>
+<td>Bảo toàn phạm vi</td>
+<td>Chỉ chỉnh trong thư mục bộ sơ đồ; giữ thay đổi ứng dụng có từ trước, không thực thi thao tác DB</td>
+</tr>
+</tbody></table></div>
+<p>Đã xem 15 contact sheet bao phủ toàn bộ hình để kiểm tra bố cục, sau đó mở riêng BUC-overview, SUC-overview/payments, AC-overview/booking, DC-auth/providers/privacy và ERD-policy/staff/catalog để kiểm tra chữ, đầu nối, bội số và khóa. Các cạnh giao nhau trong hình nhiều actor không có dấu junction, không mang nghĩa hợp nhất luồng. Không coi sheet thu nhỏ là bản để chèn vào luận văn.</p>
+<p>Ảnh kiểm chứng: <a href="rendered/qa/index-1440.png">mục lục desktop</a>, <a href="rendered/qa/index-375.png">mục lục mobile</a>, <a href="rendered/qa/SUC-payments-browser.png">trang Use Case thanh toán</a>. <a href="rendered/qa/browser-report.json">Browser report</a>, <a href="rendered/qa/sheet-01.png">contact sheet đầu</a> và <a href="rendered/qa/sheet-15.png">cuối</a>. PNG của từng hình chính là ảnh chụp SVG bằng trình duyệt, không phải output từ renderer giản lược.</p>
+<h2>Phạm vi kiểm tra</h2>
+<ul>
+<li>Kiểm tra source model/method, hash schema và file TypeScript, truy vết 12 BUC/40 SUC, coverage 121 model.</li>
+<li>PlantUML checkonly và xuất SVG cục bộ; HTML chứa SVG giống byte với bản riêng; PNG xuất từ chính SVG trong HTML ở 3×.</li>
+<li>Use Case trình bày riêng: đối chiếu từng alias actor/ellipse và cặp association với source PlantUML. Không thêm include/extend/generalization không có căn cứ.</li>
+<li>Đối chiếu hình thức với hai ảnh tham khảo: giữ ranh giới nghiệp vụ riêng cho BUC, ranh giới “Hệ thống BeautyBook” cho SUC; nhãn phân tích tiếng Việt có dấu, tên lớp thiết kế giữ đúng source. Đã xem lại đủ 15 contact sheet sau lần đổi font, màu và tên lớp in đậm.</li>
+<li>Đo text ra ngoài viewBox, kích thước PNG, cỡ chữ ước lượng trên A4 dọc/ngang; kiểm tra liên kết nội bộ và tài liệu dẫn tới source.</li>
+<li>Skill self_check kiểm tra accessible SVG và tính tự chứa; geometry chỉ kiểm tra mask/rectangle heuristic. PASS của hai script không chứng minh mọi đường nối không giao nhau; còn cần xem hình.</li>
+</ul>
+<h2>Giới hạn</h2>
+<p>Chỉ kiểm tra tài liệu/render và khảo sát code. Không chạy frontend/backend build hoặc test nghiệp vụ vì lượt này không thay ứng dụng. Không truy vấn DB, không áp dụng migration, không reset/seed, không thực hiện đặt lịch/thanh toán/chuyển chủ. Không xác nhận email/push/đồng bộ tài khoản hay trạng thái production.</p>
+<p>ERD là phép chiếu rút gọn theo miền; catalogue FK, dictionary và SQL constraints là phần bắt buộc đọc cùng. Cỡ chữ A4 là tính toán theo vùng in, không thay thử in bằng máy in thực. Các hình cần đưa vào luận văn nên được chọn theo nội dung chương thay vì chèn toàn bộ 86 hình.</p>
+<p>Công cụ Sharp tạo contact sheet có cảnh báo Fontconfig không ghi được cache; tiến trình vẫn exit 0 và đủ 15 sheet đã mở kiểm tra. PNG từng sơ đồ được chụp bằng Edge, không dùng bước ghép sheet này.</p>
+<p>Các gap triển khai và điểm cần chủ nhiệm nghiệp vụ duyệt nằm trong <a href="SYSTEM-AUDIT.html">SYSTEM-AUDIT</a>. Không có hành động sửa ứng dụng ngầm trong lượt tài liệu.</p>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

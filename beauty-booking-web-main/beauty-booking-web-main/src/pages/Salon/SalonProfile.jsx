@@ -269,7 +269,7 @@ export function SalonProfile() {
             <section id="branch-profile-editor" className="scroll-mt-24">
               <Card className="overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--bb-border)] p-5">
-                  <div><h2 className="font-bold">Hồ sơ chi nhánh</h2><p className="mt-1 text-xs text-[var(--bb-muted)]">Thông tin công khai và chính sách giữ slot.</p></div>
+                  <div><h2 className="font-bold">Hồ sơ chi nhánh</h2><p className="mt-1 text-xs text-[var(--bb-muted)]">Thông tin công khai và chính sách giữ giờ đặt lịch.</p></div>
                   <Select value={selectedId} onChange={(event) => {
                     const selected = branches.find((item) => item.id === event.target.value);
                     if (selected) fillDetail(selected);

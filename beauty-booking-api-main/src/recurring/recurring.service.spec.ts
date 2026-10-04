@@ -159,3 +159,35 @@ describe('RecurringService creation saga', () => {
     });
   });
 });
+
+describe('RecurringService preview availability', () => {
+  function previewFixture() {
+    const prisma: any = {
+      customerProfile: { findUnique: jest.fn().mockResolvedValue({ id: 'customer-1' }) },
+      branchServiceOffering: { findMany: jest.fn().mockResolvedValue([{ id: 'service-1', durationMinutes: 60 }]) },
+      staffProfile: {
+        findMany: jest.fn().mockResolvedValue([{ id: 'staff-1', staffServices: [{ serviceId: 'service-1' }] }]),
+        findUnique: jest.fn().mockResolvedValue({ id: 'staff-1', branchId: 'branch-1', status: 'ACTIVE', isBookable: true, staffServices: [{ serviceId: 'service-1' }] }),
+      },
+      branchHoliday: { findUnique: jest.fn().mockResolvedValue(null) },
+      specialWorkingDay: { findFirst: jest.fn().mockResolvedValue(null) },
+      branchWorkingHour: { findUnique: jest.fn().mockResolvedValue({ isClosed: false, openTime: new Date('1970-01-01T08:00:00.000Z'), closeTime: new Date('1970-01-01T18:00:00.000Z') }) },
+      bookingService: { findFirst: jest.fn().mockResolvedValue({ booking: { bookingCode: 'BK-1' } }) },
+    };
+    return { service: new RecurringService(prisma, {} as never), prisma };
+  }
+
+  it('marks an occupied staff slot unavailable before create', async () => {
+    const { service, prisma } = previewFixture();
+    const result = await service.preview({ ...input, occurrenceCount: 1 }, CUSTOMER);
+    expect(result.conflictCount).toBe(1);
+    expect(result.occurrences[0].available).toBe(false);
+    expect(prisma.bookingService.findFirst).toHaveBeenCalled();
+  });
+
+  it('does not present a database outage as no available specialist', async () => {
+    const { service, prisma } = previewFixture();
+    prisma.bookingService.findFirst.mockRejectedValue(new Error('DB unavailable'));
+    await expect(service.preview({ ...input, occurrenceCount: 1 }, CUSTOMER)).rejects.toThrow('DB unavailable');
+  });
+});

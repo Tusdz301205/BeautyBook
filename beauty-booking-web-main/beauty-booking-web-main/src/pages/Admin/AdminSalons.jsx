@@ -2,7 +2,9 @@ import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Building2, ChevronLeft, ChevronRight, Eye, MapPin, Search, Star, Store } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { adminApi } from '../../api/apiClient';
+import { HomeMedia } from '../../components/public/HomeMedia';
 import { Badge, Card, EmptyState, ErrorState, Field, Input, PageHeader, Select, Skeleton } from '../../components/ui';
+import { getBranchFallbackMedia, getBusinessFallbackMedia } from '../../config/homeMedia';
 import { useAuthStore } from '../../store/authStore';
 import { statusLabel, statusTone } from '../../utils/displayLabels';
 import AdminCompliance from './AdminCompliance';
@@ -36,13 +38,13 @@ const BRANCH_FILTERS = [
 
 function WorkspaceNav({ view, onChange, can }) {
   const items = WORKSPACE_ITEMS.filter(([, , permission]) => can(permission));
-  return <nav className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-[var(--bb-border)] bg-white p-1" aria-label="Quản trị đối tác">
-    {items.map(([id, label]) => <button key={id} type="button" onClick={() => onChange(id)} className={`min-h-10 whitespace-nowrap rounded-lg px-4 text-sm font-bold transition-colors ${view === id ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}>{label}</button>)}
+  return <nav className="mb-6 grid gap-1 rounded-xl border border-[var(--bb-border)] bg-white p-1 sm:flex sm:overflow-x-auto" aria-label="Quản trị đối tác">
+    {items.map(([id, label]) => <button key={id} type="button" onClick={() => onChange(id)} className={`min-h-10 min-w-0 rounded-lg px-4 py-2 text-left text-sm font-bold leading-snug transition-colors ${view === id ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}>{label}</button>)}
   </nav>;
 }
 
 function StatusBadge({ value }) {
-  return <Badge tone={statusTone(value)}>{statusLabel(value)}</Badge>;
+  return <Badge tone={statusTone(value)} className="shrink-0 whitespace-nowrap">{statusLabel(value)}</Badge>;
 }
 
 function Pagination({ pagination, onChange }) {
@@ -56,21 +58,38 @@ function Pagination({ pagination, onChange }) {
   </div>;
 }
 
+function DirectoryMedia({ entity, kind }) {
+  const uploaded = kind === 'business'
+    ? entity.coverImage
+    : entity.coverImage || entity.images?.[0]?.media?.url || entity.images?.[0]?.url;
+  const illustration = kind === 'business' ? getBusinessFallbackMedia(entity) : getBranchFallbackMedia(entity);
+  if (!uploaded && !illustration?.src) return null;
+  const name = kind === 'business' ? entity.name : entity.publicName || entity.name;
+  return <HomeMedia
+    src={uploaded || illustration}
+    alt={uploaded ? `Ảnh do ${kind === 'business' ? 'doanh nghiệp' : 'chi nhánh'} ${name} cung cấp` : illustration.alt}
+    ratio="16 / 9"
+    className="w-full"
+  />;
+}
+
 function BusinessCards({ rows }) {
   return <div className="divide-y divide-[var(--bb-border)] md:hidden">{rows.map((business) => <article key={business.id} className="space-y-4 p-4">
-    <div className="flex items-start justify-between gap-3"><div><h2 className="font-bold text-[var(--bb-ink)]">{business.name}</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">{business.owner?.fullName || 'Chưa cập nhật chủ sở hữu'}</p><p className="text-xs text-[var(--bb-muted)]">{business.owner?.email || business.contactEmail || 'Chưa cập nhật email'}</p></div><StatusBadge value={business.status} /></div>
+    <DirectoryMedia entity={business} kind="business" />
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1 break-words"><h2 className="font-bold text-[var(--bb-ink)]">{business.name}</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">{business.owner?.fullName || 'Chưa cập nhật chủ sở hữu'}</p><p className="text-xs text-[var(--bb-muted)]">{business.owner?.email || business.contactEmail || 'Chưa cập nhật email'}</p></div><StatusBadge value={business.status} /></div>
     <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-[var(--bb-muted)]">Chi nhánh</dt><dd className="font-bold">{business.activeBranchCount}/{business.branchCount} đang hoạt động</dd></div><div><dt className="text-[var(--bb-muted)]">Dịch vụ</dt><dd className="font-bold">{business.serviceCount}</dd></div><div><dt className="text-[var(--bb-muted)]">Lịch hẹn</dt><dd className="font-bold">{business.bookingCount.toLocaleString('vi-VN')}</dd></div></dl>
     <Link to={`/admin/businesses/${business.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--bb-border)] px-3 text-sm font-bold"><Eye size={15} />Xem chi tiết</Link>
   </article>)}</div>;
 }
 
 function BusinessTable({ rows }) {
-  return <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-5 py-3">Doanh nghiệp</th><th className="px-4 py-3">Chủ sở hữu</th><th className="px-4 py-3">Chi nhánh</th><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Lịch hẹn</th><th className="px-4 py-3">Trạng thái</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{rows.map((business) => <tr key={business.id} className="hover:bg-zinc-50/70"><td className="px-5 py-4"><p className="font-bold">{business.name}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">Tham gia {new Date(business.createdAt).toLocaleDateString('vi-VN')}</p></td><td className="px-4 py-4"><p className="font-semibold">{business.owner?.fullName || 'Chưa cập nhật'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{business.owner?.email || business.contactEmail || 'Chưa cập nhật email'}</p></td><td className="px-4 py-4"><strong>{business.activeBranchCount}/{business.branchCount}</strong><p className="text-xs text-[var(--bb-muted)]">đang hoạt động</p></td><td className="px-4 py-4 font-bold tabular-nums">{business.serviceCount}</td><td className="px-4 py-4 font-bold tabular-nums">{business.bookingCount.toLocaleString('vi-VN')}</td><td className="px-4 py-4"><StatusBadge value={business.status} /></td><td className="px-5 py-4 text-right"><Link to={`/admin/businesses/${business.id}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--bb-border)] px-3 text-xs font-bold hover:bg-zinc-100"><Eye size={14} />Chi tiết</Link></td></tr>)}</tbody></table></div>;
+  return <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-5 py-3">Doanh nghiệp</th><th className="px-4 py-3">Chủ sở hữu</th><th className="px-4 py-3">Chi nhánh</th><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Lịch hẹn</th><th className="px-4 py-3">Trạng thái</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{rows.map((business) => <tr key={business.id} className="hover:bg-zinc-50/70"><td className="px-5 py-4"><div className="flex min-w-[250px] items-center gap-3"><div><p className="font-bold">{business.name}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">Tham gia {new Date(business.createdAt).toLocaleDateString('vi-VN')}</p></div></div></td><td className="px-4 py-4"><p className="font-semibold">{business.owner?.fullName || 'Chưa cập nhật'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{business.owner?.email || business.contactEmail || 'Chưa cập nhật email'}</p></td><td className="px-4 py-4"><strong>{business.activeBranchCount}/{business.branchCount}</strong><p className="text-xs text-[var(--bb-muted)]">đang hoạt động</p></td><td className="px-4 py-4 font-bold tabular-nums">{business.serviceCount}</td><td className="px-4 py-4 font-bold tabular-nums">{business.bookingCount.toLocaleString('vi-VN')}</td><td className="px-4 py-4"><StatusBadge value={business.status} /></td><td className="px-5 py-4 text-right"><Link to={`/admin/businesses/${business.id}`} className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--bb-border)] px-3 text-xs font-bold hover:bg-zinc-100"><Eye size={14} />Chi tiết</Link></td></tr>)}</tbody></table></div>;
 }
 
 function BranchCards({ rows }) {
   return <div className="divide-y divide-[var(--bb-border)] md:hidden">{rows.map((branch) => <article key={branch.id} className="space-y-4 p-4">
-    <div className="flex items-start justify-between gap-3"><div><h2 className="font-bold">{branch.publicName || branch.name}</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">{branch.business?.name}</p></div><StatusBadge value={branch.reviewStatus || branch.status} /></div>
+    <DirectoryMedia entity={branch} kind="branch" />
+    <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1 break-words"><h2 className="font-bold">{branch.publicName || branch.name}</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">{branch.business?.name}</p></div><StatusBadge value={branch.reviewStatus || branch.status} /></div>
     <p className="flex items-start gap-2 text-sm text-[var(--bb-muted)]"><MapPin size={15} className="mt-0.5 shrink-0" />{branch.location || 'Chưa cập nhật địa chỉ'}</p>
     <div className="flex flex-wrap gap-4 text-sm"><span><strong>{Number(branch.services || branch.serviceCount || 0)}</strong> dịch vụ</span><span><strong>{Number(branch.bookings || branch.bookingCount || 0).toLocaleString('vi-VN')}</strong> lịch hẹn</span><span><strong>{branch.rating || '—'}</strong> điểm</span></div>
     <Link to={`/admin/branches/${branch.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[var(--bb-border)] px-3 text-sm font-bold"><Eye size={15} />Xem chi tiết</Link>
@@ -78,7 +97,7 @@ function BranchCards({ rows }) {
 }
 
 function BranchTable({ rows }) {
-  return <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[1020px] text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-5 py-3">Chi nhánh</th><th className="px-4 py-3">Doanh nghiệp</th><th className="px-4 py-3">Khu vực</th><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Lịch hẹn</th><th className="px-4 py-3">Đánh giá</th><th className="px-4 py-3">Trạng thái</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{rows.map((branch) => <tr key={branch.id} className="hover:bg-zinc-50/70"><td className="px-5 py-4 font-bold">{branch.publicName || branch.name}</td><td className="px-4 py-4">{branch.business?.name}</td><td className="max-w-[260px] px-4 py-4"><span className="flex items-start gap-1.5 text-[var(--bb-muted)]"><MapPin size={15} className="mt-0.5 shrink-0" />{branch.location || 'Chưa cập nhật'}</span></td><td className="px-4 py-4 font-bold tabular-nums">{Number(branch.services || branch.serviceCount || 0)}</td><td className="px-4 py-4 font-bold tabular-nums">{Number(branch.bookings || branch.bookingCount || 0).toLocaleString('vi-VN')}</td><td className="px-4 py-4"><span className="inline-flex items-center gap-1 font-semibold"><Star size={14} className="fill-amber-400 text-amber-400" />{branch.rating || 'Chưa có'}</span></td><td className="px-4 py-4"><StatusBadge value={branch.reviewStatus || branch.status} /></td><td className="px-5 py-4 text-right"><Link to={`/admin/branches/${branch.id}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--bb-border)] px-3 text-xs font-bold hover:bg-zinc-100"><Eye size={14} />Chi tiết</Link></td></tr>)}</tbody></table></div>;
+  return <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[1020px] text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-5 py-3">Chi nhánh</th><th className="px-4 py-3">Doanh nghiệp</th><th className="px-4 py-3">Khu vực</th><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Lịch hẹn</th><th className="px-4 py-3">Đánh giá</th><th className="px-4 py-3">Trạng thái</th><th className="px-5 py-3 text-right">Thao tác</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{rows.map((branch) => <tr key={branch.id} className="hover:bg-zinc-50/70"><td className="px-5 py-4"><div className="flex min-w-[250px] items-center gap-3"><span className="font-bold">{branch.publicName || branch.name}</span></div></td><td className="px-4 py-4">{branch.business?.name}</td><td className="max-w-[260px] px-4 py-4"><span className="flex items-start gap-1.5 text-[var(--bb-muted)]"><MapPin size={15} className="mt-0.5 shrink-0" />{branch.location || 'Chưa cập nhật'}</span></td><td className="px-4 py-4 font-bold tabular-nums">{Number(branch.services || branch.serviceCount || 0)}</td><td className="px-4 py-4 font-bold tabular-nums">{Number(branch.bookings || branch.bookingCount || 0).toLocaleString('vi-VN')}</td><td className="px-4 py-4"><span className="inline-flex items-center gap-1 font-semibold"><Star size={14} className="fill-amber-400 text-amber-400" />{branch.rating || 'Chưa có'}</span></td><td className="px-4 py-4"><StatusBadge value={branch.reviewStatus || branch.status} /></td><td className="px-5 py-4 text-right"><Link to={`/admin/branches/${branch.id}`} className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--bb-border)] px-3 text-xs font-bold hover:bg-zinc-100"><Eye size={14} />Chi tiết</Link></td></tr>)}</tbody></table></div>;
 }
 
 function Directory() {

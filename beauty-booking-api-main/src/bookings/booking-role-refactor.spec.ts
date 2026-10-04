@@ -4,7 +4,6 @@ import { BookingsAccessService } from './bookings-access.service';
 import { BookingsController } from './bookings.controller';
 import { BookingItemsService } from './booking-items.service';
 import { assertActorStatusTransition } from './bookings.validation';
-import { WaitlistController } from '../operations/waitlist.controller';
 import { ROLES_KEY } from '../common/decorators/roles.decorator';
 import { REQUIRES_PERMISSION_KEY } from '../common/decorators/permission.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
@@ -91,8 +90,7 @@ describe('Booking responsibilities without Manager', () => {
     },
   );
 
-  test('waitlist offers are available to receptionist while resize stays owner-only', () => {
-    expect(methodMetadata(ROLES_KEY, WaitlistController.prototype, 'offer')).toEqual(['BUSINESS_OWNER', 'RECEPTIONIST']);
+  test('resize stays owner-only while assignment and move keep scoped permissions', () => {
     expect(methodMetadata(ROLES_KEY, BookingsController.prototype, 'resizeBooking')).toEqual(['BUSINESS_OWNER']);
     expect(methodMetadata(REQUIRES_PERMISSION_KEY, BookingsController.prototype, 'assignStaff'))
       .toEqual(['booking:assign:branch', 'booking:assign:tenant']);
@@ -160,24 +158,6 @@ describe('Booking responsibilities without Manager', () => {
     expect(items.update).not.toHaveBeenCalled();
   });
 
-  test.each(['branch', 'offer'] as const)('waitlist %s rejects receptionist/staff scope mixing', async (method) => {
-    const mixed = principal('STAFF');
-    mixed.roles.push('RECEPTIONIST');
-    mixed.scopes.push({ code: 'RECEPTIONIST', businessId: 'business', branchId: 'branch-b' });
-    const waitlist = { listBranch: jest.fn(), offer: jest.fn() };
-    const prisma = {
-      branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'business' }) },
-      waitlistEntry: { findUniqueOrThrow: jest.fn().mockResolvedValue({ branchId: 'branch-a' }) },
-    };
-    const controller = new WaitlistController(waitlist as never, prisma as never);
-    const invoke = (user: AuthUser) => method === 'branch'
-      ? controller.branch('branch-a', user) : controller.offer('entry', {}, user);
-    await expect(invoke(mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(waitlist.listBranch).not.toHaveBeenCalled();
-    expect(waitlist.offer).not.toHaveBeenCalled();
-    await invoke(principal('RECEPTIONIST'));
-    expect(method === 'branch' ? waitlist.listBranch : waitlist.offer).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('Assigned service item authorization under transaction lock', () => {

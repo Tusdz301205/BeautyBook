@@ -1,0 +1,93 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>03-analysis-classes/analysis-class-notes.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Lớp phân tích và ánh xạ thiết kế</h1>
+<p>Các lớp BCE là khái niệm/trách nhiệm phân tích. Dependency nét đứt biểu diễn sử dụng; không suy composition từ dữ liệu. Lớp entity có trạng thái và hành vi khái niệm, không phải bản sao bảng.</p>
+<h2>AC-booking — Đặt lịch</h2>
+<ul>
+<li>SUC: SUC-05, SUC-06, SUC-07, SUC-13.</li>
+<li>Boundary: KenhTiepNhan tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: DieuPhoiDatLich điều phối điều kiện và quyết định.</li>
+<li>Entity: LichHen, PhanDichVu, NangLucPhucVu giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/bookings/bookings.controller.ts">BookingsController</a>, <a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, <a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService</a>.</li>
+<li>Mô hình dữ liệu: Booking, BookingService, StaffService.</li>
+</ul>
+<h2>AC-change — Thay đổi cam kết</h2>
+<ul>
+<li>SUC: SUC-08, SUC-09, SUC-10, SUC-15, SUC-16.</li>
+<li>Boundary: KenhYeuCau tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: XuLyThayDoi điều phối điều kiện và quyết định.</li>
+<li>Entity: YeuCauThayDoi, LichHen, LichSuViPham giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService</a>, <a href="../../../src/bookings/bookings.service.ts">BookingsService</a>.</li>
+<li>Mô hình dữ liệu: AppointmentChangeRequest, BookingViolationEvent, CustomerBookingPolicy.</li>
+</ul>
+<h2>AC-delivery — Thực hiện tại cơ sở</h2>
+<ul>
+<li>SUC: SUC-14, SUC-16, SUC-17, SUC-33.</li>
+<li>Boundary: BangDieuPhoi tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: DieuPhoiThucHien điều phối điều kiện và quyết định.</li>
+<li>Entity: PhanDichVu, ChuyenVien, HoSoTacDong giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/bookings/booking-items.service.ts">BookingItemsService</a>, <a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, <a href="../../../src/operations/impact.service.ts">ImpactService</a>.</li>
+<li>Mô hình dữ liệu: BookingService, StaffProfile, OperationalImpactCase.</li>
+</ul>
+<h2>AC-finance — Khoản thu và hoàn trả</h2>
+<ul>
+<li>SUC: SUC-18, SUC-19, SUC-20, SUC-21, SUC-36.</li>
+<li>Boundary: KenhQuyetToan tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: KiemSoatSoDu điều phối điều kiện và quyết định.</li>
+<li>Entity: KhoanThu, YeuCauHoan, QuyenDungBuoi giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/payments/payments.service.ts">PaymentsService</a>, <a href="../../../src/payments/financial-metrics.service.ts">FinancialMetricsService</a>.</li>
+<li>Mô hình dữ liệu: Payment, RefundRequest, PackageSessionEntitlement.</li>
+</ul>
+<h2>AC-onboarding — Thẩm định cơ sở</h2>
+<ul>
+<li>SUC: SUC-22, SUC-23, SUC-24, SUC-40.</li>
+<li>Boundary: KenhHoSo tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: ThamDinhCoSo điều phối điều kiện và quyết định.</li>
+<li>Entity: HoSoDoanhNghiep, ChiNhanh, BangChungPhapLy giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService</a>, <a href="../../../src/branches/branches.service.ts">BranchesService</a>, <a href="../../../src/media/media.service.ts">MediaService</a>.</li>
+<li>Mô hình dữ liệu: Business, Branch, BusinessDocument.</li>
+</ul>
+<h2>AC-capacity — Danh mục và năng lực</h2>
+<ul>
+<li>SUC: SUC-25, SUC-26, SUC-27, SUC-38.</li>
+<li>Boundary: KenhQuanLyCoSo tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: QuanLyNangLuc điều phối điều kiện và quyết định.</li>
+<li>Entity: DichVuCungCap, ChuyenVien, GoiDichVu giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/services/services.service.ts">ServicesService</a>, <a href="../../../src/staff/staff.service.ts">StaffService</a>, <a href="../../../src/staff/staff-invitations.service.ts">StaffInvitationsService</a>, <a href="../../../src/combos/combos.service.ts">CombosService</a>.</li>
+<li>Mô hình dữ liệu: BusinessService, BranchServiceOffering, StaffProfile, Combo.</li>
+</ul>
+<h2>AC-relations — Quan hệ khách hàng</h2>
+<ul>
+<li>SUC: SUC-01, SUC-12, SUC-28, SUC-29, SUC-30, SUC-31.</li>
+<li>Boundary: KenhTuongTac tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: ChamSocKhach điều phối điều kiện và quyết định.</li>
+<li>Entity: DanhGia, UuDai, DichVuQuanTam giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/reviews/reviews.service.ts">ReviewsService</a>, <a href="../../../src/promotions/promotions.service.ts">PromotionsService</a>, <a href="../../../src/promotions/vouchers-admin.service.ts">VouchersAdminService</a>, <a href="../../../src/saved-services/saved-services.service.ts">SavedServicesService</a>, <a href="../../../src/notifications/notifications.service.ts">NotificationsService</a>.</li>
+<li>Mô hình dữ liệu: Review, Voucher, CustomerSavedService, Notification.</li>
+</ul>
+<h2>AC-governance — Quản trị và chuyển giao</h2>
+<ul>
+<li>SUC: SUC-34, SUC-35, SUC-37, SUC-39.</li>
+<li>Boundary: KenhQuanTri tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: KiemSoatTrachNhiem điều phối điều kiện và quyết định.</li>
+<li>Entity: HoSoChuyenChu, QuyetDinhQuanTri, DauVet giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/ownership/ownership.service.ts">OwnershipService</a>, <a href="../../../src/users/users.service.ts">UsersService</a>, <a href="../../../src/admin/trust-snapshot.service.ts">TrustSnapshotService</a>.</li>
+<li>Mô hình dữ liệu: OwnershipTransfer, TrustAction, AuditLog.</li>
+</ul>
+<h2>AC-identity — Tài khoản và dữ liệu</h2>
+<ul>
+<li>SUC: SUC-02, SUC-03, SUC-04, SUC-32.</li>
+<li>Boundary: KenhTaiKhoan tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: BaoVeDanhTinh điều phối điều kiện và quyết định.</li>
+<li>Entity: TaiKhoan, PhienTruyCap, YeuCauDuLieu giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/auth/auth.service.ts">AuthService</a>, <a href="../../../src/users/users.service.ts">UsersService</a>, <a href="../../../src/privacy/privacy-center.service.ts">PrivacyCenterService</a>.</li>
+<li>Mô hình dữ liệu: User, UserSession, DataSubjectRequest.</li>
+</ul>
+<h2>AC-recurring — Lịch định kỳ</h2>
+<ul>
+<li>SUC: SUC-11.</li>
+<li>Boundary: KenhLichDinhKy tiếp nhận/trả thông tin qua web/mobile đã có.</li>
+<li>Control: SapXepChuoi điều phối điều kiện và quyết định.</li>
+<li>Entity: ChuoiLich, KyHen, NangLucPhucVu giữ ý nghĩa nghiệp vụ.</li>
+<li>Thiết kế: <a href="../../../src/recurring/recurring.service.ts">RecurringService</a>, <a href="../../../src/bookings/bookings.service.ts">BookingsService</a>.</li>
+<li>Mô hình dữ liệu: RecurringBookingPlan, Booking, StaffService.</li>
+</ul>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

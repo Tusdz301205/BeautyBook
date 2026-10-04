@@ -1,0 +1,65 @@
+@startuml AC-governance
+' Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+class "**Kênh quản trị**" as KenhQuanTri <<boundary>> {
+  phạm vi tương tác
+  --
+  tiếp nhận yêu cầu()
+}
+class "**Kiểm soát trách nhiệm**" as KiemSoatTrachNhiem <<control>> {
+  phạm vi tương tác
+  --
+  kiểm tra điều kiện()
+}
+class "**Hồ sơ chuyển chủ**" as HoSoChuyenChu <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+class "**Quyết định quản trị**" as QuyetDinhQuanTri <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+class "**Dấu vết**" as DauVet <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+KenhQuanTri ..> KiemSoatTrachNhiem
+KiemSoatTrachNhiem ..> HoSoChuyenChu
+KiemSoatTrachNhiem ..> QuyetDinhQuanTri
+KiemSoatTrachNhiem ..> DauVet
+@enduml

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PublicShell } from '../../components/layout/PublicShell';
+import { HomeMedia } from '../../components/public/HomeMedia';
+import { getHomeMedia, homeMediaRatios } from '../../config/homeMedia';
 
 const capabilities = [
   [CalendarDays, 'Lịch hẹn trực quan', 'Vận hành theo ngày, tuần hoặc tháng; theo dõi trạng thái và xử lý thay đổi tại đúng lịch hẹn.'],
@@ -18,7 +20,7 @@ const capabilities = [
   [UsersRound, 'Đội ngũ theo chi nhánh', 'Phân quyền quản lý, lễ tân và chuyên viên; năng lực dịch vụ luôn gắn với đúng cơ sở.'],
   [Clock3, 'Giữ chỗ an toàn', 'Kiểm tra giờ mở cửa và xung đột theo thời gian thực để tránh hai lịch dùng cùng một chuyên viên.'],
   [BarChart3, 'Báo cáo vận hành', 'Theo dõi lịch hẹn, doanh thu và hiệu suất từ dữ liệu phát sinh trong hệ thống.'],
-  [ShieldCheck, 'Dữ liệu có kiểm soát', 'Phạm vi doanh nghiệp và chi nhánh được kiểm tra tại API, không chỉ ẩn nút trên giao diện.'],
+  [ShieldCheck, 'Quyền truy cập rõ ràng', 'Mỗi tài khoản chỉ xem và xử lý dữ liệu trong phạm vi doanh nghiệp, chi nhánh được phân quyền.'],
 ];
 
 const onboarding = [
@@ -53,7 +55,13 @@ export default function BusinessLanding() {
             </p>
           </div>
 
-          <div className="bb-business-hero__visual" aria-label="Vị trí dành cho hình ảnh sản phẩm BeautyBook Business">
+          <div className="bb-business-hero__visual" aria-label="Minh họa BeautyBook Business">
+            <HomeMedia
+              src={getHomeMedia('business', 'hero')}
+              alt="Ảnh minh họa bàn làm việc vận hành cơ sở làm đẹp"
+              ratio={homeMediaRatios.editorial}
+              className="bb-business-hero__media"
+            />
             <div className="bb-business-product">
               <div className="bb-business-product__bar">
                 <span />
@@ -81,7 +89,6 @@ export default function BusinessLanding() {
                 </div>
               </div>
             </div>
-            <p>Image slot · có thể thay bằng ảnh chụp sản phẩm thật sau</p>
           </div>
         </section>
 

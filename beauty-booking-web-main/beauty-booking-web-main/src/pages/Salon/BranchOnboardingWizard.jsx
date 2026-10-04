@@ -33,6 +33,8 @@ import {
   staffApi,
 } from '../../api/apiClient';
 import { FileUpload } from '../../components/media/FileUpload';
+import { HomeMedia } from '../../components/public/HomeMedia';
+import { getBranchFallbackMedia } from '../../config/homeMedia';
 import { documentLabel, statusLabel } from '../../utils/displayLabels';
 import {
   Badge,
@@ -857,9 +859,15 @@ export default function BranchOnboardingWizard() {
             {step === 12 && (
               <div className="space-y-5">
                 <div className="overflow-hidden rounded-2xl border border-[var(--bb-border)]">
-                  <div className="grid min-h-40 place-items-center bg-[var(--bb-surface-subtle)] text-sm text-[var(--bb-muted)]">
-                    {branch?.images?.[0]?.media?.url ? <img src={branch.images[0].media.url} alt="" className="h-48 w-full object-cover" /> : 'Image slot công khai của chi nhánh'}
-                  </div>
+                  <HomeMedia
+                    src={branch?.images?.[0]?.media?.url || null}
+                    fallbackSrc={getBranchFallbackMedia(branch)}
+                    alt={`Không gian ${form.publicName || form.name || 'chi nhánh BeautyBook'}`}
+                    fallbackAlt={`Hình minh họa cho ${form.publicName || form.name || 'chi nhánh'} trên BeautyBook`}
+                    ratio="16 / 9"
+                    label="Ảnh chi nhánh"
+                    className="w-full rounded-none border-0"
+                  />
                   <div className="grid gap-4 p-5 md:grid-cols-[1fr_auto]">
                     <div><h3 className="text-2xl font-bold">{form.publicName || form.name}</h3><p className="mt-2 text-sm text-[var(--bb-muted)]">{form.description || 'Chưa có mô tả công khai.'}</p><p className="mt-3 font-semibold">{form.addressLine || splitAreas(form.serviceAreas).join(', ')}</p></div>
                     <Badge tone={reviewTone[branch?.reviewStatus]}>{statusLabel(branch?.reviewStatus || 'DRAFT')}</Badge>

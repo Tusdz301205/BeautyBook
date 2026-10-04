@@ -1,0 +1,420 @@
+{
+  "generatedAt": "2026-09-24",
+  "assets": [
+    {
+      "key": "hero",
+      "tier": "global",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/beautybook-home-hero.png",
+      "originalWidth": 1122,
+      "originalHeight": 1402,
+      "originalBytes": 2065801,
+      "prompt": "Photorealistic editorial BeautyBook still life, portrait 4:5, unbranded skincare bottles, blush nail polish, hair scissors and comb, folded spa towel, flower on warm pale stone; warm ivory and dusty rose; no identifiable salon, people, labels, logos, text or watermark; generic conceptual imagery only.",
+      "usage": [
+        "Trang chủ - hero LCP"
+      ],
+      "alt": "Bộ sản phẩm chăm sóc sắc đẹp và dụng cụ làm tóc",
+      "outputs": [
+        {
+          "path": "/images/beautybook/home/beautybook-home-hero-480.webp",
+          "width": 480,
+          "height": 600,
+          "bytes": 31384
+        },
+        {
+          "path": "/images/beautybook/home/beautybook-home-hero-768.webp",
+          "width": 768,
+          "height": 960,
+          "bytes": 66396
+        },
+        {
+          "path": "/images/beautybook/home/beautybook-home-hero-1024.webp",
+          "width": 1024,
+          "height": 1280,
+          "bytes": 94368
+        }
+      ]
+    },
+    {
+      "key": "hair",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/hair-care-editorial.png",
+      "originalWidth": 1448,
+      "originalHeight": 1086,
+      "originalBytes": 2299295,
+      "prompt": "4:3 editorial still life, scissors, comb, round brush, unbranded frosted serum, ribbon of natural dark hair on ivory stone; bright soft window light; no people, salon identity, labels, text or treatment results.",
+      "usage": [
+        "Trang chủ - danh mục tóc",
+        "BeautyBook Business - hero",
+        "Auth đăng ký doanh nghiệp"
+      ],
+      "alt": "Dụng cụ chăm sóc và tạo kiểu tóc",
+      "outputs": [
+        {
+          "path": "/images/beautybook/categories/hair-care-editorial-320.webp",
+          "width": 320,
+          "height": 240,
+          "bytes": 14436
+        },
+        {
+          "path": "/images/beautybook/categories/hair-care-editorial-640.webp",
+          "width": 640,
+          "height": 480,
+          "bytes": 42140
+        },
+        {
+          "path": "/images/beautybook/categories/hair-care-editorial-960.webp",
+          "width": 960,
+          "height": 720,
+          "bytes": 83574
+        }
+      ]
+    },
+    {
+      "key": "nails",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/nail-care-editorial.png",
+      "originalWidth": 1448,
+      "originalHeight": 1086,
+      "originalBytes": 2144292,
+      "prompt": "4:3 editorial still life with unbranded dusty rose, nude and deep berry nail polish, glass file, cuticle tool, ceramic dish and delicate flower on warm stone; no hands, people, salon identity, labels, text or treatment results.",
+      "usage": [
+        "Trang chủ - danh mục móng",
+        "Auth lời mời"
+      ],
+      "alt": "Sơn móng và dụng cụ chăm sóc móng",
+      "outputs": [
+        {
+          "path": "/images/beautybook/categories/nail-care-editorial-320.webp",
+          "width": 320,
+          "height": 240,
+          "bytes": 12228
+        },
+        {
+          "path": "/images/beautybook/categories/nail-care-editorial-640.webp",
+          "width": 640,
+          "height": 480,
+          "bytes": 34960
+        },
+        {
+          "path": "/images/beautybook/categories/nail-care-editorial-960.webp",
+          "width": 960,
+          "height": 720,
+          "bytes": 67790
+        }
+      ]
+    },
+    {
+      "key": "skincare",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/skincare-editorial.png",
+      "originalWidth": 1448,
+      "originalHeight": 1086,
+      "originalBytes": 2156462,
+      "prompt": "4:3 editorial still life with frosted serum, minimal cream jar, facial stone, cotton pads and green leaf on ivory travertine; no people, clinic identity, labels, text or treatment results.",
+      "usage": [
+        "Trang chủ - danh mục chăm sóc da",
+        "Auth đăng nhập",
+        "CTA cuối trang"
+      ],
+      "alt": "Sản phẩm chăm sóc da và dụng cụ massage mặt",
+      "outputs": [
+        {
+          "path": "/images/beautybook/categories/skincare-editorial-320.webp",
+          "width": 320,
+          "height": 240,
+          "bytes": 14064
+        },
+        {
+          "path": "/images/beautybook/categories/skincare-editorial-640.webp",
+          "width": 640,
+          "height": 480,
+          "bytes": 39754
+        },
+        {
+          "path": "/images/beautybook/categories/skincare-editorial-960.webp",
+          "width": 960,
+          "height": 720,
+          "bytes": 74982
+        }
+      ]
+    },
+    {
+      "key": "spa",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/spa-wellness-editorial.png",
+      "originalWidth": 1448,
+      "originalHeight": 1086,
+      "originalBytes": 2321664,
+      "prompt": "4:3 editorial still life with folded cream towels, massage stones, unbranded amber oil bottle, ceramic bowl and eucalyptus; no people, spa identity, labels, text or treatment results.",
+      "usage": [
+        "Trang chủ - danh mục spa và massage",
+        "Auth khôi phục",
+        "Khối lịch trống"
+      ],
+      "alt": "Khăn spa, đá massage và dầu chăm sóc cơ thể",
+      "outputs": [
+        {
+          "path": "/images/beautybook/categories/spa-wellness-editorial-320.webp",
+          "width": 320,
+          "height": 240,
+          "bytes": 14132
+        },
+        {
+          "path": "/images/beautybook/categories/spa-wellness-editorial-640.webp",
+          "width": 640,
+          "height": 480,
+          "bytes": 42592
+        },
+        {
+          "path": "/images/beautybook/categories/spa-wellness-editorial-960.webp",
+          "width": 960,
+          "height": 720,
+          "bytes": 87110
+        }
+      ]
+    },
+    {
+      "key": "availability",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/availability-planning-editorial.png",
+      "originalWidth": 1672,
+      "originalHeight": 941,
+      "originalBytes": 1898061,
+      "prompt": "16:9 BeautyBook editorial still life about planning an appointment, with a neutral calendar card, clock, folded towel and unbranded beauty objects; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Trang chủ - khối lịch phù hợp"
+      ],
+      "alt": "Ảnh minh họa lịch hẹn làm đẹp với đồng hồ và vật dụng chăm sóc",
+      "outputs": [
+        {
+          "path": "/images/beautybook/home/availability-planning-editorial-480.webp",
+          "width": 480,
+          "height": 270,
+          "bytes": 17940
+        },
+        {
+          "path": "/images/beautybook/home/availability-planning-editorial-768.webp",
+          "width": 768,
+          "height": 432,
+          "bytes": 33252
+        },
+        {
+          "path": "/images/beautybook/home/availability-planning-editorial-1200.webp",
+          "width": 1200,
+          "height": 675,
+          "bytes": 61904
+        }
+      ]
+    },
+    {
+      "key": "finalCta",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/final-cta-editorial.png",
+      "originalWidth": 1672,
+      "originalHeight": 941,
+      "originalBytes": 1697546,
+      "prompt": "16:9 BeautyBook editorial beauty ritual still life for a final call to action, with unbranded skincare, flower, towel and small grooming tools; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Trang chủ - CTA cuối trang"
+      ],
+      "alt": "Ảnh minh họa vật dụng cho một buổi chăm sóc sắc đẹp",
+      "outputs": [
+        {
+          "path": "/images/beautybook/home/final-cta-editorial-480.webp",
+          "width": 480,
+          "height": 270,
+          "bytes": 10554
+        },
+        {
+          "path": "/images/beautybook/home/final-cta-editorial-768.webp",
+          "width": 768,
+          "height": 432,
+          "bytes": 19418
+        },
+        {
+          "path": "/images/beautybook/home/final-cta-editorial-1200.webp",
+          "width": 1200,
+          "height": 675,
+          "bytes": 38278
+        }
+      ]
+    },
+    {
+      "key": "businessHero",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/business-hero-editorial.png",
+      "originalWidth": 1672,
+      "originalHeight": 941,
+      "originalBytes": 2125528,
+      "prompt": "16:9 editorial still life for beauty business operations, with appointment planner, tablet-like blank board and professional beauty tools on a clean desk; no people, readable text, logos, identifiable salons or treatment results.",
+      "usage": [
+        "BeautyBook Business - hero"
+      ],
+      "alt": "Ảnh minh họa bàn làm việc vận hành cơ sở làm đẹp",
+      "outputs": [
+        {
+          "path": "/images/beautybook/business/business-hero-editorial-480.webp",
+          "width": 480,
+          "height": 270,
+          "bytes": 25314
+        },
+        {
+          "path": "/images/beautybook/business/business-hero-editorial-768.webp",
+          "width": 768,
+          "height": 432,
+          "bytes": 48242
+        },
+        {
+          "path": "/images/beautybook/business/business-hero-editorial-1200.webp",
+          "width": 1200,
+          "height": 675,
+          "bytes": 97024
+        }
+      ]
+    },
+    {
+      "key": "authLogin",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/auth-login-editorial.png",
+      "originalWidth": 1402,
+      "originalHeight": 1122,
+      "originalBytes": 1869223,
+      "prompt": "5:4 editorial beauty still life for a login screen, with calm unbranded skincare and grooming objects; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Auth - đăng nhập"
+      ],
+      "alt": "",
+      "outputs": [
+        {
+          "path": "/images/beautybook/auth/auth-login-editorial-360.webp",
+          "width": 360,
+          "height": 288,
+          "bytes": 12372
+        },
+        {
+          "path": "/images/beautybook/auth/auth-login-editorial-720.webp",
+          "width": 720,
+          "height": 576,
+          "bytes": 35108
+        },
+        {
+          "path": "/images/beautybook/auth/auth-login-editorial-1080.webp",
+          "width": 1080,
+          "height": 864,
+          "bytes": 61494
+        }
+      ]
+    },
+    {
+      "key": "authRegister",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/auth-register-editorial.png",
+      "originalWidth": 1402,
+      "originalHeight": 1122,
+      "originalBytes": 2245375,
+      "prompt": "5:4 editorial beauty still life for account registration, with varied unbranded beauty tools and products arranged as a welcoming collection; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Auth - đăng ký"
+      ],
+      "alt": "",
+      "outputs": [
+        {
+          "path": "/images/beautybook/auth/auth-register-editorial-360.webp",
+          "width": 360,
+          "height": 288,
+          "bytes": 19180
+        },
+        {
+          "path": "/images/beautybook/auth/auth-register-editorial-720.webp",
+          "width": 720,
+          "height": 576,
+          "bytes": 54662
+        },
+        {
+          "path": "/images/beautybook/auth/auth-register-editorial-1080.webp",
+          "width": 1080,
+          "height": 864,
+          "bytes": 98096
+        }
+      ]
+    },
+    {
+      "key": "authRecovery",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/auth-recovery-editorial.png",
+      "originalWidth": 1402,
+      "originalHeight": 1122,
+      "originalBytes": 2187160,
+      "prompt": "5:4 calm editorial beauty still life for account recovery, with neutral skincare objects and a small lock-inspired abstract prop; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Auth - khôi phục và xác minh"
+      ],
+      "alt": "",
+      "outputs": [
+        {
+          "path": "/images/beautybook/auth/auth-recovery-editorial-360.webp",
+          "width": 360,
+          "height": 288,
+          "bytes": 15546
+        },
+        {
+          "path": "/images/beautybook/auth/auth-recovery-editorial-720.webp",
+          "width": 720,
+          "height": 576,
+          "bytes": 44488
+        },
+        {
+          "path": "/images/beautybook/auth/auth-recovery-editorial-1080.webp",
+          "width": 1080,
+          "height": 864,
+          "bytes": 77984
+        }
+      ]
+    },
+    {
+      "key": "authInvitation",
+      "tier": "reusable",
+      "entitySpecific": false,
+      "original": "docs/generated-images/beautybook/originals/auth-invitation-editorial.png",
+      "originalWidth": 1402,
+      "originalHeight": 1122,
+      "originalBytes": 1938297,
+      "prompt": "5:4 editorial beauty still life for a staff invitation flow, with paired unbranded professional tools and a blank invitation card; no people, hands, readable text, logos, identifiable facilities or treatment results.",
+      "usage": [
+        "Auth - lời mời nhân viên"
+      ],
+      "alt": "",
+      "outputs": [
+        {
+          "path": "/images/beautybook/auth/auth-invitation-editorial-360.webp",
+          "width": 360,
+          "height": 288,
+          "bytes": 15356
+        },
+        {
+          "path": "/images/beautybook/auth/auth-invitation-editorial-720.webp",
+          "width": 720,
+          "height": 576,
+          "bytes": 38218
+        },
+        {
+          "path": "/images/beautybook/auth/auth-invitation-editorial-1080.webp",
+          "width": 1080,
+          "height": 864,
+          "bytes": 64904
+        }
+      ]
+    }
+  ]
+}

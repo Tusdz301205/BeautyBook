@@ -1,0 +1,13 @@
+# Kiểm chứng trong phiên
+
+- Web `npm test`: 58/58 qua, gồm test mới cho nhãn chi nhánh/chuyên viên và invalidation.
+- Web `npm run build`: qua. Script build đồng bộ media generated; báo không tạo sitemap vì thiếu domain production thật trong `VITE_SITE_URL`.
+- `node tests/e2e/mobile-web-redesign.mjs`: fixture API, chạy lại qua tại 320, 360, 390, 430, 768, 1440px. Lần chạy đầu của đợt này có hai assertion đọc quá sớm trước khi state deep link/summary hoàn tất; ảnh xác nhận đã có chi nhánh. Script nay chờ trạng thái hiển thị ổn định, lần chạy kế tiếp không còn lỗi. Không tạo booking. Ảnh: `report-output/mobile-web-redesign/booking-confirm-390.png` và `booking-confirm-1440.png`.
+- `node tests/e2e/ux-role-smoke.mjs`: 29 màn/biến thể qua sau lần sửa cuối, gồm admin, chủ doanh nghiệp, lễ tân, nhân viên ở 375/768/1024/1440px, danh bạ chi nhánh, tab việc cần xử lý và cỡ chữ 150% ở admin/lễ tân 375px. Kiểm tra thêm tổng quan admin và salon; salon có trạng thái không có dữ liệu, có một phần biểu đồ và lỗi tải một phần. Trục doanh thu 450.000đ hiển thị 450k, không còn 0tr. Hai ảnh minh họa được ánh xạ theo ID doanh nghiệp/chi nhánh, giải mã thành công, có `src` khác nhau trên card mobile. API được intercept, các request ghi dữ liệu bị chặn. Không phát hiện page error, ảnh hỏng hoặc tràn ngang. Ảnh tại `report-output/ux-improvement/`, tiêu biểu `admin-media-business-375.png`, `admin-media-branch-375.png`, `owner-overview-375.png`, `owner-overview-data-1440.png`, `owner-overview-error-1440.png`, `receptionist-375.png`.
+- Đã xem trực quan ảnh sau sửa trong phiên: bảng admin giữ tên và nút chi tiết đủ chỗ, card mobile có ảnh minh họa đúng ID và nhãn; lịch ngày mobile hiển thị tên chuyên viên dài đầy đủ. Không dùng hai ảnh fixture này làm bằng chứng cho ảnh của toàn bộ thực thể production.
+- Native `node_modules/.bin/tsc.cmd --noEmit`: qua. **Chưa** chạy Expo/emulator, chụp native, kiểm tra TalkBack/VoiceOver hay bàn phím thiết bị.
+- Đã xem ảnh 390px sau gộp summary: ngày giờ xuất hiện trước chi nhánh/chuyên viên và CTA không che nội dung. Fixture không chứng minh dữ liệu production, thanh toán hoặc đồng bộ tài khoản.
+- Backend tại `127.0.0.1:3000` từ chối kết nối ở lần kiểm tra trước; không chạy build/backend test vì đợt này không sửa backend. `/admin/violations` redirect tới `/admin/salons`; không tính component cũ là màn đã cải thiện.
+- `git diff --check` qua (chỉ có cảnh báo Git về LF/CRLF). Web build hiện báo không tạo sitemap vì chưa có domain production thật trong `VITE_SITE_URL`; không dùng localhost để thay thế.
+
+Nguồn nền tảng đã kiểm tra trước sửa native: [Expo SDK 57 reference](https://docs.expo.dev/versions/v57.0.0/). Nguyên tắc native từ skill là tài liệu tham khảo; bản web dùng CSS px, không coi chúng là pt/dp.

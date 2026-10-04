@@ -6,6 +6,8 @@ import { create } from 'zustand';
 export const useBookingStore = create((set, get) => ({
   // Bước 1
   branchId: null,
+  branchName: '',
+  branchAddress: '',
   serviceIds: [],
   variantSelections: {},
   comboId: null,
@@ -13,6 +15,7 @@ export const useBookingStore = create((set, get) => ({
 
   // Bước 2
   staffId: null,
+  staffName: '',
 
   // Bước 3
   date: null,
@@ -30,12 +33,11 @@ export const useBookingStore = create((set, get) => ({
   // Voucher (optional)
   voucherCode: '',
   pricePreview: null, // { subtotal, voucherDiscount, finalAmount }
-  loyaltyPoints: 0,
   recurring: { enabled: false, frequency: 'WEEKLY', occurrenceCount: 4, staffMode: 'ANY_AVAILABLE', skipConflicts: true },
   recurringPreview: null,
 
   // Helpers
-  setBranch: (branchId) => set({ branchId, serviceIds: [], variantSelections: {}, comboId: null, combo: null, staffId: null, date: null, slot: null, voucherCode: '', loyaltyPoints: 0, pricePreview: null, recurringPreview: null }),
+  setBranch: (branchId, branchName = '', branchAddress = '') => set({ branchId, branchName, branchAddress, serviceIds: [], variantSelections: {}, comboId: null, combo: null, staffId: null, staffName: '', date: null, slot: null, voucherCode: '', pricePreview: null, recurringPreview: null }),
   toggleService: (id) =>
     set((s) => ({
       serviceIds: s.serviceIds.includes(id)
@@ -47,6 +49,7 @@ export const useBookingStore = create((set, get) => ({
       comboId: null,
       combo: null,
       staffId: null,
+      staffName: '',
       date: null,
       slot: null,
       pricePreview: null,
@@ -55,6 +58,7 @@ export const useBookingStore = create((set, get) => ({
   setVariant: (serviceId, variantId) => set((state) => ({
     variantSelections: { ...state.variantSelections, [serviceId]: variantId },
     staffId: null,
+    staffName: '',
     date: null,
     slot: null,
     pricePreview: null,
@@ -65,32 +69,34 @@ export const useBookingStore = create((set, get) => ({
     combo: combo ?? null,
     serviceIds: combo ? combo.comboServices.map((item) => item.serviceId) : [],
     variantSelections: {},
-    staffId: null, date: null, slot: null, pricePreview: null, recurringPreview: null,
+    staffId: null, staffName: '', date: null, slot: null, pricePreview: null, recurringPreview: null,
   }),
-  setStaff: (staffId) => set({ staffId, date: null, slot: null, pricePreview: null, recurringPreview: null }),
+  setStaff: (staffId, staffName = '') => set({ staffId, staffName, date: null, slot: null, pricePreview: null, recurringPreview: null }),
+  setStaffName: (staffId, staffName) => set((state) => state.staffId === staffId ? { staffName } : {}),
   setDate: (date) => set({ date, slot: null, pricePreview: null, recurringPreview: null }),
   setSlot: (slot) => set({ slot, pricePreview: null, recurringPreview: null }),
   setCustomerInfo: (info) => set({ customerInfo: { ...get().customerInfo, ...info } }),
   setVoucherCode: (code) => set({ voucherCode: code }),
   setPricePreview: (preview) => set({ pricePreview: preview }),
-  setLoyaltyPoints: (points) => set({ loyaltyPoints: Math.max(0, Number(points) || 0), pricePreview: null }),
   setRecurring: (value) => set((state) => ({ recurring: { ...state.recurring, ...value }, recurringPreview: null })),
   setRecurringPreview: (preview) => set({ recurringPreview: preview }),
 
   reset: () =>
     set({
       branchId: null,
+      branchName: '',
+      branchAddress: '',
       serviceIds: [],
       variantSelections: {},
       comboId: null,
       combo: null,
       staffId: null,
+      staffName: '',
       date: null,
       slot: null,
       customerInfo: { fullName: '', phone: '', email: '', password: '', note: '' },
       voucherCode: '',
       pricePreview: null,
-      loyaltyPoints: 0,
       recurring: { enabled: false, frequency: 'WEEKLY', occurrenceCount: 4, staffMode: 'ANY_AVAILABLE', skipConflicts: true },
       recurringPreview: null,
     }),

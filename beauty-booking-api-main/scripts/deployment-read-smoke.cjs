@@ -29,7 +29,6 @@ const workers = [
   ['bookings/pending-bookings.cron', 'PendingBookingsCron'],
   ['bookings/change-request-expiry.worker', 'ChangeRequestExpiryWorker'],
   ['recurring/recurring-plan-recovery.worker', 'RecurringPlanRecoveryWorker'],
-  ['operations/waitlist-expiry.worker', 'WaitlistExpiryWorker'],
   ['operations/impact-deadline.worker', 'ImpactDeadlineWorker'],
   ['scheduler/trust-snapshot.cron', 'TrustSnapshotCron'],
   ['scheduler/policy-notification.cron', 'PolicyNotificationCron'],

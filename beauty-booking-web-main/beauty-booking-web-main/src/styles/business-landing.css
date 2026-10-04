@@ -29,7 +29,9 @@
 .bb-business-button--text { border-bottom: 1px solid #b8afaa; }
 .bb-business-assurance { margin: 1.4rem 0 0; display: flex; align-items: center; gap: 0.5rem; color: #6f6662; font-size: 0.82rem; }
 
-.bb-business-hero__visual > p { margin: 0.75rem 0 0; color: #756c68; font-size: 0.7rem; letter-spacing: 0.08em; text-align: right; text-transform: uppercase; }
+.bb-business-hero__visual { position: relative; }
+.bb-business-hero__media { width: min(74%, 30rem); margin: 0 0 -5rem auto; border-radius: 0.85rem; box-shadow: 0 1.8rem 3.5rem rgba(48, 34, 28, 0.12); transform: translate(1.5rem, -1.5rem) rotate(2deg); }
+.bb-business-hero__media img { object-position: center; }
 .bb-business-product { overflow: hidden; min-height: 34rem; background: #fff; border: 1px solid #d9d2cc; border-radius: 0.85rem; box-shadow: 0 2.5rem 5rem rgba(48, 34, 28, 0.13); transform: rotate(1deg); }
 .bb-business-product__bar { min-height: 4rem; padding: 0 1.25rem; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.8rem; border-bottom: 1px solid #e8e2dd; }
 .bb-business-product__bar > span { width: 1.8rem; height: 1.8rem; border-radius: 0.55rem; background: #c0266d; }
@@ -85,6 +87,7 @@
   .bb-business-hero { grid-template-columns: 1fr; min-height: 0; }
   .bb-business-hero__copy h1 { max-width: 15ch; }
   .bb-business-hero__visual { width: min(100%, 44rem); }
+  .bb-business-hero__media { margin-bottom: -4rem; transform: translate(0.75rem, -0.5rem) rotate(1.5deg); }
   .bb-business-section__heading { grid-template-columns: 1fr; align-items: start; }
   .bb-business-capabilities { grid-template-columns: repeat(2, 1fr); }
   .bb-business-onboarding { grid-template-columns: 1fr; }
@@ -95,6 +98,7 @@
   .bb-business-actions { align-items: stretch; flex-direction: column; }
   .bb-business-button { width: 100%; }
   .bb-business-product { min-height: 25rem; transform: none; }
+  .bb-business-hero__media { width: 78%; margin-bottom: -2.25rem; transform: none; }
   .bb-business-product__body { min-height: 22rem; grid-template-columns: 1fr; }
   .bb-business-product__body aside { display: none; }
   .bb-business-product__grid { min-height: 13rem; }

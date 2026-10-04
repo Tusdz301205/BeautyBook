@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { businessApi } from './api/apiClient';
 import { CUSTOMER_ACCOUNT_REQUIRED, isCustomerAccount } from './utils/authScope';
+import { getHomeMedia } from './config/homeMedia';
+import { applySeo, getSiteUrl } from './utils/seo';
 
 import { PlatformShell } from './components/layout/PlatformShell';
 import { SalonShell } from './components/layout/SalonShell';
@@ -62,6 +64,7 @@ const CustomerNotifications = lazyNamed(() => import('./pages/Customer/CustomerN
 const CustomerVouchers = lazyNamed(() => import('./pages/Customer/CustomerVouchers'), 'CustomerVouchers');
 const CustomerReviews = lazyNamed(() => import('./pages/Customer/CustomerReviews'), 'CustomerReviews');
 const CustomerBenefits = React.lazy(() => import('./pages/Customer/CustomerBenefits'));
+const IncomingOwnership = React.lazy(() => import('./pages/Salon/IncomingOwnership'));
 const SecuritySettings = React.lazy(() => import('./pages/SecuritySettings'));
 const ProfileSettings = React.lazy(() => import('./pages/ProfileSettings'));
 const PrivacySettings = React.lazy(() => import('./pages/Customer/PrivacySettings'));
@@ -80,6 +83,86 @@ function RouteFallback() {
       <div className="h-48 rounded-2xl bg-slate-100" />
     </div>
   );
+}
+
+function PublicRouteSeo() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const defaultImage = getHomeMedia('hero', 'primary');
+    const pages = {
+      '/': {
+        title: 'BeautyBook | Đặt lịch salon, spa và dịch vụ làm đẹp',
+        description: 'Khám phá salon, spa và dịch vụ làm đẹp, so sánh thông tin và đặt lịch phù hợp trên BeautyBook.',
+        indexable: true,
+      },
+      '/explore': {
+        title: 'Khám phá dịch vụ làm đẹp | BeautyBook',
+        description: 'Tìm dịch vụ làm đẹp theo nhu cầu, địa điểm, giá và thời lượng tại các cơ sở đang nhận lịch trên BeautyBook.',
+        indexable: true,
+      },
+      '/for-business': {
+        title: 'BeautyBook cho cơ sở làm đẹp',
+        description: 'Giới thiệu BeautyBook dành cho salon, spa và cơ sở làm đẹp muốn quản lý dịch vụ, lịch hẹn và hoạt động kinh doanh.',
+        indexable: true,
+      },
+      '/login': {
+        title: 'Đăng nhập | BeautyBook',
+        description: 'Đăng nhập BeautyBook để quản lý lịch hẹn và tài khoản của bạn.',
+        indexable: false,
+      },
+      '/register': {
+        title: 'Đăng ký tài khoản | BeautyBook',
+        description: 'Tạo tài khoản BeautyBook để lưu dịch vụ và đặt lịch làm đẹp.',
+        indexable: false,
+      },
+      '/register/business': {
+        title: 'Đăng ký cơ sở làm đẹp | BeautyBook',
+        description: 'Tạo tài khoản doanh nghiệp BeautyBook và bắt đầu quy trình đưa cơ sở làm đẹp lên nền tảng.',
+        indexable: false,
+      },
+    };
+    const detailPage = location.pathname.startsWith('/explore/branches/')
+      ? { title: 'Cơ sở làm đẹp | BeautyBook', description: 'Xem thông tin cơ sở, dịch vụ, chuyên viên và lịch đặt hẹn trên BeautyBook.', indexable: true }
+      : location.pathname.startsWith('/explore/services/')
+        ? { title: 'Dịch vụ làm đẹp | BeautyBook', description: 'Xem thông tin dịch vụ, giá, thời lượng và cơ sở cung cấp trên BeautyBook.', indexable: true }
+        : location.pathname.startsWith('/explore/staff/')
+          ? { title: 'Chuyên viên làm đẹp | BeautyBook', description: 'Xem hồ sơ chuyên viên, dịch vụ phụ trách và thông tin đặt lịch trên BeautyBook.', indexable: true }
+          : null;
+    const explicitNoIndex = [
+      '/forgot-password',
+      '/reset-password',
+      '/verify-email',
+      '/accept-invitation',
+    ].includes(location.pathname)
+      || location.pathname.startsWith('/customer')
+      || location.pathname.startsWith('/salon')
+      || location.pathname.startsWith('/admin')
+      || location.pathname.startsWith('/book');
+    const page = pages[location.pathname] || detailPage || {
+      title: 'BeautyBook',
+      description: 'Nền tảng đặt lịch và vận hành dịch vụ làm đẹp.',
+      indexable: false,
+    };
+    const homeStructuredData = location.pathname === '/' && getSiteUrl()
+      ? [
+          { '@type': 'WebSite', '@id': `${getSiteUrl()}/#website`, url: `${getSiteUrl()}/`, name: 'BeautyBook', inLanguage: 'vi-VN' },
+          { '@type': 'Organization', '@id': `${getSiteUrl()}/#organization`, url: `${getSiteUrl()}/`, name: 'BeautyBook' },
+        ]
+      : [];
+
+    applySeo({
+      title: page.title,
+      description: page.description,
+      image: defaultImage,
+      imageAlt: defaultImage?.alt || 'Hình ảnh BeautyBook',
+      canonicalPath: location.pathname,
+      indexable: !explicitNoIndex && page.indexable,
+      structuredData: homeStructuredData,
+    });
+  }, [location.pathname]);
+
+  return null;
 }
 
 function AuthBootstrap({ children }) {
@@ -105,6 +188,9 @@ function ProtectedRoute({ children, roles, can: canCode, scope }) {
   const location = useLocation();
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+  if (location.pathname === '/customer/benefits' && new URLSearchParams(location.search).get('tab') === 'ownership') {
+    return <Navigate to="/salon/incoming-ownership" replace />;
   }
   if (roles?.includes('customer') && !isCustomerAccount(user)) {
     return <main className="mx-auto max-w-2xl p-8"><h1 className="text-2xl font-bold">Cần tài khoản khách hàng riêng</h1><p className="my-4">{CUSTOMER_ACCOUNT_REQUIRED}</p><a className="underline" href="/explore">Tiếp tục xem nội dung công khai</a></main>;
@@ -179,6 +265,7 @@ function AdminLanding() {
 export default function App() {
   return (
     <BrowserRouter>
+      <PublicRouteSeo />
       <Toaster
         position="top-right"
         toastOptions={{
@@ -248,6 +335,7 @@ export default function App() {
                   <Route path="onboarding" element={<PermissionGate fallback="/salon" anyOf={['business:create:self', 'business:update:tenant']}><BusinessOnboardingRoute /></PermissionGate>} />
                   <Route path="security" element={<SecuritySettings />} />
                   <Route path="account" element={<ProfileSettings />} />
+                  <Route path="incoming-ownership" element={<IncomingOwnership />} />
                   <Route element={<ApprovedBusinessGate />}>
                     <Route index element={<SalonLanding />} />
                     <Route path="services" element={<PermissionGate fallback="/salon" anyOf={['business_service:update:tenant', 'branch_service_offering:status:tenant']}><SalonServices /></PermissionGate>} />

@@ -11,7 +11,7 @@ test('@rbac owner public and preview views never act as a customer', async ({ pa
   await loginViaUi(page, credential);
   const customerCalls = [];
   page.on('request', request => {
-    if (/\/(saved-services|loyalty\/mine|bookings\/my-appointments)(?:[/?]|$)/.test(request.url())) customerCalls.push(request.url());
+    if (/\/(saved-services|bookings\/my-appointments)(?:[/?]|$)/.test(request.url())) customerCalls.push(request.url());
   });
   for (const preview of [false, true]) {
     const route = preview ? `/salon/branches/${fixture.branchId}/preview` : `/explore/branches/${fixture.branchId}`;

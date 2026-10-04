@@ -910,6 +910,11 @@ export class ServicesService {
     bufferBeforeMinutes?: number; bufferAfterMinutes?: number;
     consultationRequired?: boolean; eligibilityRules?: Record<string, unknown>;
   }) {
+    if (typeof data.code !== 'string' || !data.code.trim() || data.code.length > 80 ||
+        typeof data.name !== 'string' || !data.name.trim() || data.name.length > 200 ||
+        (data.description !== undefined && typeof data.description !== 'string')) {
+      throw new BadRequestException('Mã và tên biến thể là bắt buộc và phải là văn bản hợp lệ');
+    }
     const service = await this.prisma.branchServiceOffering.findFirst({ where: { id: serviceId, deletedAt: null } });
     if (!service) throw new NotFoundException('Dịch vụ không tồn tại');
     this.validateVariant(data);
@@ -938,6 +943,14 @@ export class ServicesService {
     bufferBeforeMinutes?: number; bufferAfterMinutes?: number; consultationRequired?: boolean;
     eligibilityRules?: Record<string, unknown>; status?: CatalogStatus;
   }) {
+    if ((data.name !== undefined && (typeof data.name !== 'string' || !data.name.trim() || data.name.length > 200)) ||
+        (data.description !== undefined && typeof data.description !== 'string') ||
+        (data.status !== undefined && !['ACTIVE', 'INACTIVE'].includes(data.status))) {
+      throw new BadRequestException('Thông tin biến thể không hợp lệ');
+    }
+    const allowed = new Set(['name', 'description', 'priceType', 'price', 'maxPrice', 'durationMinutes', 'maxDurationMinutes',
+      'bufferBeforeMinutes', 'bufferAfterMinutes', 'consultationRequired', 'eligibilityRules', 'status']);
+    if (Object.keys(data).some((key) => !allowed.has(key))) throw new BadRequestException('Biến thể chứa trường không được phép cập nhật');
     const current = await this.prisma.serviceVariant.findUnique({ where: { id: variantId } });
     if (!current || current.deletedAt) throw new NotFoundException('Biến thể không tồn tại');
     this.validateVariant({
@@ -946,8 +959,8 @@ export class ServicesService {
       maxPrice: data.maxPrice === undefined ? Number(current.maxPrice) : data.maxPrice ?? undefined,
       durationMinutes: data.durationMinutes ?? current.durationMinutes ?? undefined,
       maxDurationMinutes: data.maxDurationMinutes === undefined ? current.maxDurationMinutes ?? undefined : data.maxDurationMinutes ?? undefined,
-      bufferBeforeMinutes: data.bufferBeforeMinutes ?? current.bufferBeforeMinutes,
-      bufferAfterMinutes: data.bufferAfterMinutes ?? current.bufferAfterMinutes,
+      bufferBeforeMinutes: data.bufferBeforeMinutes === undefined ? current.bufferBeforeMinutes : data.bufferBeforeMinutes,
+      bufferAfterMinutes: data.bufferAfterMinutes === undefined ? current.bufferAfterMinutes : data.bufferAfterMinutes,
     });
     return this.prisma.serviceVariant.update({ where: { id: variantId }, data: {
       ...data,
@@ -961,6 +974,7 @@ export class ServicesService {
   }
 
   async addDependency(serviceId: string, requiredServiceId: string, dependencyType: 'REQUIRED' | 'ADD_ON' | 'INCOMPATIBLE') {
+    if (!['REQUIRED', 'ADD_ON', 'INCOMPATIBLE'].includes(dependencyType)) throw new BadRequestException('Loại quan hệ dịch vụ không hợp lệ');
     if (serviceId === requiredServiceId) throw new BadRequestException('Dịch vụ không thể phụ thuộc vào chính nó');
     const services = await this.prisma.branchServiceOffering.findMany({
       where: { id: { in: [serviceId, requiredServiceId] }, deletedAt: null },
@@ -979,7 +993,15 @@ export class ServicesService {
     adjustmentType: 'PERCENTAGE' | 'FIXED_AMOUNT'; adjustmentValue: number;
     conditions: Record<string, unknown>; validFrom?: string; validTo?: string;
   }) {
-    if (!data.name?.trim() || !Number.isFinite(data.adjustmentValue)) throw new BadRequestException('Quy tắc giá không hợp lệ');
+    if (typeof data.name !== 'string' || !data.name.trim() || data.name.length > 200 ||
+        !['PERCENTAGE', 'FIXED_AMOUNT'].includes(data.adjustmentType) || !Number.isFinite(data.adjustmentValue) ||
+        (data.priority !== undefined && !Number.isInteger(data.priority)) ||
+        !data.conditions || typeof data.conditions !== 'object' || Array.isArray(data.conditions) ||
+        (data.validFrom !== undefined && (typeof data.validFrom !== 'string' || Number.isNaN(Date.parse(data.validFrom)))) ||
+        (data.validTo !== undefined && (typeof data.validTo !== 'string' || Number.isNaN(Date.parse(data.validTo)))) ||
+        (data.validFrom && data.validTo && Date.parse(data.validFrom) > Date.parse(data.validTo))) {
+      throw new BadRequestException('Quy tắc giá không hợp lệ');
+    }
     if (data.variantId) {
       const variant = await this.prisma.serviceVariant.findFirst({ where: { id: data.variantId, serviceId, deletedAt: null } });
       if (!variant) throw new BadRequestException('Biến thể không thuộc dịch vụ');
@@ -1003,11 +1025,15 @@ export class ServicesService {
     bufferBeforeMinutes?: number; bufferAfterMinutes?: number;
   }) {
     const priceType = data.priceType ?? 'FIXED';
+    if (!['FIXED', 'FROM', 'RANGE', 'QUOTE'].includes(priceType)) throw new BadRequestException('Loại giá biến thể không hợp lệ');
     if (priceType !== 'QUOTE' && (!Number.isFinite(data.price) || Number(data.price) < 0)) throw new BadRequestException('Giá biến thể không hợp lệ');
     if (priceType === 'RANGE' && (!Number.isFinite(data.maxPrice) || Number(data.maxPrice) < Number(data.price))) throw new BadRequestException('Khoảng giá không hợp lệ');
     if (data.durationMinutes !== undefined && (!Number.isInteger(data.durationMinutes) || data.durationMinutes <= 0)) throw new BadRequestException('Thời lượng không hợp lệ');
+    if (data.maxDurationMinutes !== undefined && (!Number.isInteger(data.maxDurationMinutes) || data.maxDurationMinutes <= 0)) throw new BadRequestException('Thời lượng tối đa phải là số nguyên dương');
     if (data.maxDurationMinutes !== undefined && data.durationMinutes !== undefined && data.maxDurationMinutes < data.durationMinutes) throw new BadRequestException('Khoảng thời lượng không hợp lệ');
-    if (Number(data.bufferBeforeMinutes ?? 0) < 0 || Number(data.bufferAfterMinutes ?? 0) < 0) throw new BadRequestException('Buffer không được âm');
+    for (const buffer of [data.bufferBeforeMinutes, data.bufferAfterMinutes]) {
+      if (buffer !== undefined && (!Number.isInteger(buffer) || buffer < 0)) throw new BadRequestException('Buffer phải là số nguyên không âm');
+    }
   }
 
   private serializeVariant(variant: any) {

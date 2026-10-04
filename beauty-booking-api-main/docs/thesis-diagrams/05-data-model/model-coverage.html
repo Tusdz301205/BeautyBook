@@ -1,0 +1,861 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>05-data-model/model-coverage.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Coverage model</h1>
+<p>Tất cả model hiện tại đều có miền, hình và từ điển; hình rút gọn cột/FK có công bố. Hạ tầng và di sản không bắt buộc có UC trực tiếp.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Bảng</th>
+<th>Miền/hình</th>
+<th>Phân loại</th>
+<th>UC liên quan trực tiếp</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User</td>
+<td>users</td>
+<td><a href="ERD-identity.puml">ERD-identity</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-02, SUC-03, SUC-04, SUC-37</td>
+</tr>
+<tr>
+<td>AccountToken</td>
+<td>account_tokens</td>
+<td><a href="ERD-identity.puml">ERD-identity</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-02, SUC-03</td>
+</tr>
+<tr>
+<td>UserSession</td>
+<td>user_sessions</td>
+<td><a href="ERD-identity.puml">ERD-identity</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-02, SUC-03</td>
+</tr>
+<tr>
+<td>PlatformSetting</td>
+<td>platform_settings</td>
+<td><a href="ERD-notifications.puml">ERD-notifications</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-38</td>
+</tr>
+<tr>
+<td>StaffInvitation</td>
+<td>staff_invitations</td>
+<td><a href="ERD-staff.puml">ERD-staff</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-26</td>
+</tr>
+<tr>
+<td>Role</td>
+<td>roles</td>
+<td><a href="ERD-rbac.puml">ERD-rbac</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-37</td>
+</tr>
+<tr>
+<td>Permission</td>
+<td>permissions</td>
+<td><a href="ERD-rbac.puml">ERD-rbac</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-37</td>
+</tr>
+<tr>
+<td>RolePermission</td>
+<td>role_permissions</td>
+<td><a href="ERD-rbac.puml">ERD-rbac</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Vai trò và cấp quyền</td>
+</tr>
+<tr>
+<td>UserPermission</td>
+<td>user_permissions</td>
+<td><a href="ERD-rbac.puml">ERD-rbac</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-37</td>
+</tr>
+<tr>
+<td>UserRole</td>
+<td>user_roles</td>
+<td><a href="ERD-rbac.puml">ERD-rbac</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-26, SUC-37</td>
+</tr>
+<tr>
+<td>CustomerProfile</td>
+<td>customer_profiles</td>
+<td><a href="ERD-identity.puml">ERD-identity</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-02, SUC-04, SUC-12, SUC-13</td>
+</tr>
+<tr>
+<td>BookingContact</td>
+<td>booking_contacts</td>
+<td><a href="ERD-booking.puml">ERD-booking</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-05, SUC-13</td>
+</tr>
+<tr>
+<td>BusinessOwnerProfile</td>
+<td>business_owner_profiles</td>
+<td><a href="ERD-identity.puml">ERD-identity</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-02, SUC-34</td>
+</tr>
+<tr>
+<td>StaffProfile</td>
+<td>staff_profiles</td>
+<td><a href="ERD-staff.puml">ERD-staff</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-01, SUC-04, SUC-05, SUC-14, SUC-26</td>
+</tr>
+<tr>
+<td>DeviceToken</td>
+<td>device_tokens</td>
+<td><a href="ERD-notifications.puml">ERD-notifications</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-31</td>
+</tr>
+<tr>
+<td>Province</td>
+<td>provinces</td>
+<td><a href="ERD-opening.puml">ERD-opening</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Địa bàn và giờ mở cửa</td>
+</tr>
+<tr>
+<td>District</td>
+<td>districts</td>
+<td><a href="ERD-opening.puml">ERD-opening</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Địa bàn và giờ mở cửa</td>
+</tr>
+<tr>
+<td>Business</td>
+<td>businesses</td>
+<td><a href="ERD-business.puml">ERD-business</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-22, SUC-34</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>branches</td>
+<td><a href="ERD-branch.puml">ERD-branch</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-01, SUC-24</td>
+</tr>
+<tr>
+<td>BranchWorkingHour</td>
+<td>branch_working_hours</td>
+<td><a href="ERD-opening.puml">ERD-opening</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-06, SUC-24</td>
+</tr>
+<tr>
+<td>BranchOnboardingProgress</td>
+<td>branch_onboarding_progress</td>
+<td><a href="ERD-branch.puml">ERD-branch</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-24</td>
+</tr>
+<tr>
+<td>BranchBookingPolicy</td>
+<td>branch_booking_policies</td>
+<td><a href="ERD-branch.puml">ERD-branch</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Chi nhánh</td>
+</tr>
+<tr>
+<td>OverbookingOverride</td>
+<td>overbooking_overrides</td>
+<td><a href="ERD-policy.puml">ERD-policy</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Yêu cầu và chính sách khách</td>
+</tr>
+<tr>
+<td>BranchHoliday</td>
+<td>branch_holidays</td>
+<td><a href="ERD-opening.puml">ERD-opening</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-06</td>
+</tr>
+<tr>
+<td>SpecialWorkingDay</td>
+<td>special_working_days</td>
+<td><a href="ERD-opening.puml">ERD-opening</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-06</td>
+</tr>
+<tr>
+<td>StaffBranchAssignment</td>
+<td>staff_branch_assignments</td>
+<td><a href="ERD-staff.puml">ERD-staff</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-26</td>
+</tr>
+<tr>
+<td>MediaFile</td>
+<td>media_files</td>
+<td><a href="ERD-media.puml">ERD-media</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-04, SUC-40</td>
+</tr>
+<tr>
+<td>BusinessImage</td>
+<td>business_images</td>
+<td><a href="ERD-media.puml">ERD-media</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-40</td>
+</tr>
+<tr>
+<td>BranchImage</td>
+<td>branch_images</td>
+<td><a href="ERD-media.puml">ERD-media</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-40</td>
+</tr>
+<tr>
+<td>ServiceImage</td>
+<td>service_images</td>
+<td><a href="ERD-media.puml">ERD-media</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-40</td>
+</tr>
+<tr>
+<td>ComboImage</td>
+<td>combo_images</td>
+<td><a href="ERD-combo.puml">ERD-combo</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Combo</td>
+</tr>
+<tr>
+<td>StaffImage</td>
+<td>staff_images</td>
+<td><a href="ERD-media.puml">ERD-media</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-40</td>
+</tr>
+<tr>
+<td>ServiceCategory</td>
+<td>service_categories</td>
+<td><a href="ERD-catalog.puml">ERD-catalog</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-38</td>
+</tr>
+<tr>
+<td>CanonicalService</td>
+<td>canonical_services</td>
+<td><a href="ERD-catalog.puml">ERD-catalog</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-25, SUC-38</td>
+</tr>
+<tr>
+<td>BusinessService</td>
+<td>business_services</td>
+<td><a href="ERD-catalog.puml">ERD-catalog</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-25</td>
+</tr>
+<tr>
+<td>BranchServiceOffering</td>
+<td>services</td>
+<td><a href="ERD-catalog.puml">ERD-catalog</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-01, SUC-05, SUC-07, SUC-12, SUC-25, SUC-27</td>
+</tr>
+<tr>
+<td>StaffService</td>
+<td>staff_services</td>
+<td><a href="ERD-staff.puml">ERD-staff</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-06, SUC-26</td>
+</tr>
+<tr>
+<td>Combo</td>
+<td>combos</td>
+<td><a href="ERD-combo.puml">ERD-combo</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-27</td>
+</tr>
+<tr>
+<td>ComboService</td>
+<td>combo_services</td>
+<td><a href="ERD-combo.puml">ERD-combo</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-27</td>
+</tr>
+<tr>
+<td>Promotion</td>
+<td>promotions</td>
+<td><a href="ERD-promotion.puml">ERD-promotion</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-07, SUC-28</td>
+</tr>
+<tr>
+<td>PromotionBusiness</td>
+<td>promotion_businesses</td>
+<td><a href="ERD-promotion.puml">ERD-promotion</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Khuyến mãi và phạm vi</td>
+</tr>
+<tr>
+<td>PromotionBranch</td>
+<td>promotion_branches</td>
+<td><a href="ERD-promotion.puml">ERD-promotion</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Khuyến mãi và phạm vi</td>
+</tr>
+<tr>
+<td>PromotionService</td>
+<td>promotion_services</td>
+<td><a href="ERD-promotion.puml">ERD-promotion</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Khuyến mãi và phạm vi</td>
+</tr>
+<tr>
+<td>PromotionCombo</td>
+<td>promotion_combos</td>
+<td><a href="ERD-promotion.puml">ERD-promotion</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Khuyến mãi và phạm vi</td>
+</tr>
+<tr>
+<td>Booking</td>
+<td>bookings</td>
+<td><a href="ERD-booking.puml">ERD-booking</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-05, SUC-08, SUC-09, SUC-10, SUC-11, SUC-13, SUC-14, SUC-15, SUC-16, SUC-17, SUC-36</td>
+</tr>
+<tr>
+<td>BookingService</td>
+<td>booking_services</td>
+<td><a href="ERD-booking.puml">ERD-booking</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-05, SUC-06, SUC-09, SUC-13, SUC-14, SUC-15, SUC-17, SUC-29</td>
+</tr>
+<tr>
+<td>BookingStatusHistory</td>
+<td>booking_status_histories</td>
+<td><a href="ERD-booking.puml">ERD-booking</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-09, SUC-16</td>
+</tr>
+<tr>
+<td>RecurringBookingPlan</td>
+<td>recurring_booking_plans</td>
+<td><a href="ERD-policy.puml">ERD-policy</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-11</td>
+</tr>
+<tr>
+<td>Payment</td>
+<td>payments</td>
+<td><a href="ERD-payment.puml">ERD-payment</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-18, SUC-19, SUC-20, SUC-36</td>
+</tr>
+<tr>
+<td>RefundRequest</td>
+<td>refund_requests</td>
+<td><a href="ERD-refund.puml">ERD-refund</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-19, SUC-20</td>
+</tr>
+<tr>
+<td>PricingSnapshot</td>
+<td>pricing_snapshots</td>
+<td><a href="ERD-payment.puml">ERD-payment</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Thanh toán</td>
+</tr>
+<tr>
+<td>PaymentPolicy</td>
+<td>payment_policies</td>
+<td><a href="ERD-refund.puml">ERD-refund</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Hoàn tiền và sổ cái</td>
+</tr>
+<tr>
+<td>PaymentPolicySnapshot</td>
+<td>payment_policy_snapshots</td>
+<td><a href="ERD-payment.puml">ERD-payment</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Thanh toán</td>
+</tr>
+<tr>
+<td>PaymentIntent</td>
+<td>payment_intents</td>
+<td><a href="ERD-payment.puml">ERD-payment</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-18</td>
+</tr>
+<tr>
+<td>PaymentTransaction</td>
+<td>payment_transactions</td>
+<td><a href="ERD-payment.puml">ERD-payment</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-18</td>
+</tr>
+<tr>
+<td>FinancialLedgerEntry</td>
+<td>financial_ledger_entries</td>
+<td><a href="ERD-refund.puml">ERD-refund</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-18, SUC-20, SUC-36</td>
+</tr>
+<tr>
+<td>RefundAllocation</td>
+<td>refund_allocations</td>
+<td><a href="ERD-refund.puml">ERD-refund</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-20</td>
+</tr>
+<tr>
+<td>PlatformFeeEntry</td>
+<td>platform_fee_entries</td>
+<td><a href="ERD-statement.puml">ERD-statement</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Phí và đối soát nền tảng</td>
+</tr>
+<tr>
+<td>PlatformFeeAdjustment</td>
+<td>platform_fee_adjustments</td>
+<td><a href="ERD-statement.puml">ERD-statement</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Phí và đối soát nền tảng</td>
+</tr>
+<tr>
+<td>PlatformStatement</td>
+<td>platform_statements</td>
+<td><a href="ERD-statement.puml">ERD-statement</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-36</td>
+</tr>
+<tr>
+<td>PlatformStatementLine</td>
+<td>platform_statement_lines</td>
+<td><a href="ERD-statement.puml">ERD-statement</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-36</td>
+</tr>
+<tr>
+<td>TreatmentPackage</td>
+<td>treatment_packages</td>
+<td><a href="ERD-package.puml">ERD-package</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-21</td>
+</tr>
+<tr>
+<td>PackagePurchase</td>
+<td>package_purchases</td>
+<td><a href="ERD-package.puml">ERD-package</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-21</td>
+</tr>
+<tr>
+<td>PackageInstallment</td>
+<td>package_installments</td>
+<td><a href="ERD-package.puml">ERD-package</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-21</td>
+</tr>
+<tr>
+<td>PackageSessionEntitlement</td>
+<td>package_session_entitlements</td>
+<td><a href="ERD-package.puml">ERD-package</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-21</td>
+</tr>
+<tr>
+<td>Review</td>
+<td>reviews</td>
+<td><a href="ERD-review.puml">ERD-review</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-01, SUC-29</td>
+</tr>
+<tr>
+<td>ReviewServiceRating</td>
+<td>review_service_ratings</td>
+<td><a href="ERD-review.puml">ERD-review</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-29</td>
+</tr>
+<tr>
+<td>BusinessComment</td>
+<td>business_comments</td>
+<td><a href="ERD-review.puml">ERD-review</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-30</td>
+</tr>
+<tr>
+<td>Notification</td>
+<td>notifications</td>
+<td><a href="ERD-notifications.puml">ERD-notifications</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-31</td>
+</tr>
+<tr>
+<td>NotificationOutbox</td>
+<td>notification_outbox</td>
+<td><a href="ERD-notifications.puml">ERD-notifications</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-31</td>
+</tr>
+<tr>
+<td>AuditLog</td>
+<td>audit_logs</td>
+<td><a href="ERD-governance.puml">ERD-governance</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-39</td>
+</tr>
+<tr>
+<td>SalonMember</td>
+<td>salon_members</td>
+<td><a href="ERD-business.puml">ERD-business</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Doanh nghiệp và thành viên</td>
+</tr>
+<tr>
+<td>CancellationPolicy</td>
+<td>cancellation_policies</td>
+<td><a href="ERD-business.puml">ERD-business</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Doanh nghiệp và thành viên</td>
+</tr>
+<tr>
+<td>Voucher</td>
+<td>vouchers</td>
+<td><a href="ERD-voucher.puml">ERD-voucher</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-07, SUC-28</td>
+</tr>
+<tr>
+<td>CustomerVoucher</td>
+<td>customer_vouchers</td>
+<td><a href="ERD-voucher.puml">ERD-voucher</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-28</td>
+</tr>
+<tr>
+<td>AppointmentChangeRequest</td>
+<td>appointment_change_requests</td>
+<td><a href="ERD-policy.puml">ERD-policy</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-10, SUC-15</td>
+</tr>
+<tr>
+<td>BookingViolationEvent</td>
+<td>booking_violation_events</td>
+<td><a href="ERD-policy.puml">ERD-policy</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-08, SUC-10, SUC-16</td>
+</tr>
+<tr>
+<td>CustomerBookingPolicy</td>
+<td>customer_booking_policies</td>
+<td><a href="ERD-policy.puml">ERD-policy</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-08</td>
+</tr>
+<tr>
+<td>SalonTrustSnapshot</td>
+<td>salon_trust_snapshots</td>
+<td><a href="ERD-governance.puml">ERD-governance</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-39</td>
+</tr>
+<tr>
+<td>TrustAction</td>
+<td>trust_actions</td>
+<td><a href="ERD-governance.puml">ERD-governance</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-39</td>
+</tr>
+<tr>
+<td>BusinessReviewEvent</td>
+<td>business_review_events</td>
+<td><a href="ERD-business-docs.puml">ERD-business-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-22, SUC-23</td>
+</tr>
+<tr>
+<td>BusinessDocument</td>
+<td>business_documents</td>
+<td><a href="ERD-business-docs.puml">ERD-business-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-22</td>
+</tr>
+<tr>
+<td>BusinessDocumentVersion</td>
+<td>business_document_versions</td>
+<td><a href="ERD-business-docs.puml">ERD-business-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-22</td>
+</tr>
+<tr>
+<td>BranchDocument</td>
+<td>branch_documents</td>
+<td><a href="ERD-branch-docs.puml">ERD-branch-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-24</td>
+</tr>
+<tr>
+<td>BranchDocumentVersion</td>
+<td>branch_document_versions</td>
+<td><a href="ERD-branch-docs.puml">ERD-branch-docs</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Hồ sơ chi nhánh</td>
+</tr>
+<tr>
+<td>BranchReviewRequest</td>
+<td>branch_review_requests</td>
+<td><a href="ERD-branch-docs.puml">ERD-branch-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-23</td>
+</tr>
+<tr>
+<td>BranchReviewEvent</td>
+<td>branch_review_events</td>
+<td><a href="ERD-branch-docs.puml">ERD-branch-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-23</td>
+</tr>
+<tr>
+<td>DocumentReviewEvent</td>
+<td>document_review_events</td>
+<td><a href="ERD-business-docs.puml">ERD-business-docs</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-23</td>
+</tr>
+<tr>
+<td>ReviewReport</td>
+<td>review_reports</td>
+<td><a href="ERD-review.puml">ERD-review</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-30</td>
+</tr>
+<tr>
+<td>DataSubjectRequest</td>
+<td>data_subject_requests</td>
+<td><a href="ERD-personal.puml">ERD-personal</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-32</td>
+</tr>
+<tr>
+<td>BranchStateTransition</td>
+<td>branch_state_transitions</td>
+<td><a href="ERD-branch.puml">ERD-branch</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-33</td>
+</tr>
+<tr>
+<td>PriceAdjustment</td>
+<td>price_adjustments</td>
+<td><a href="ERD-redemption.puml">ERD-redemption</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-07</td>
+</tr>
+<tr>
+<td>PromotionRedemption</td>
+<td>promotion_redemptions</td>
+<td><a href="ERD-redemption.puml">ERD-redemption</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-28</td>
+</tr>
+<tr>
+<td>VoucherRedemption</td>
+<td>voucher_redemptions</td>
+<td><a href="ERD-redemption.puml">ERD-redemption</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-28</td>
+</tr>
+<tr>
+<td>ServiceVariant</td>
+<td>service_variants</td>
+<td><a href="ERD-variants.puml">ERD-variants</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-25</td>
+</tr>
+<tr>
+<td>ServicePriceRule</td>
+<td>service_price_rules</td>
+<td><a href="ERD-variants.puml">ERD-variants</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-25</td>
+</tr>
+<tr>
+<td>ServiceDependency</td>
+<td>service_dependencies</td>
+<td><a href="ERD-variants.puml">ERD-variants</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Biến thể và phụ thuộc</td>
+</tr>
+<tr>
+<td>BookingServiceAdjustment</td>
+<td>booking_service_adjustments</td>
+<td><a href="ERD-booking.puml">ERD-booking</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-17</td>
+</tr>
+<tr>
+<td>OperationalImpactCase</td>
+<td>operational_impact_cases</td>
+<td><a href="ERD-governance.puml">ERD-governance</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-33</td>
+</tr>
+<tr>
+<td>OperationalImpactItem</td>
+<td>operational_impact_items</td>
+<td><a href="ERD-governance.puml">ERD-governance</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-33</td>
+</tr>
+<tr>
+<td>WaitlistEntry</td>
+<td>waitlist_entries</td>
+<td><a href="ERD-legacy-loyalty.puml">ERD-legacy-loyalty</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: điểm thưởng và danh sách chờ</td>
+</tr>
+<tr>
+<td>ReviewModerationEvent</td>
+<td>review_moderation_events</td>
+<td><a href="ERD-moderation.puml">ERD-moderation</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-30</td>
+</tr>
+<tr>
+<td>ReviewAppeal</td>
+<td>review_appeals</td>
+<td><a href="ERD-moderation.puml">ERD-moderation</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-30</td>
+</tr>
+<tr>
+<td>LoyaltyRule</td>
+<td>loyalty_rules</td>
+<td><a href="ERD-legacy-loyalty.puml">ERD-legacy-loyalty</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: điểm thưởng và danh sách chờ</td>
+</tr>
+<tr>
+<td>LoyaltyAccount</td>
+<td>loyalty_accounts</td>
+<td><a href="ERD-legacy-loyalty.puml">ERD-legacy-loyalty</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: điểm thưởng và danh sách chờ</td>
+</tr>
+<tr>
+<td>LoyaltyTransaction</td>
+<td>loyalty_transactions</td>
+<td><a href="ERD-legacy-loyalty.puml">ERD-legacy-loyalty</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: điểm thưởng và danh sách chờ</td>
+</tr>
+<tr>
+<td>Invoice</td>
+<td>invoices</td>
+<td><a href="ERD-legacy-invoice.puml">ERD-legacy-invoice</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: hóa đơn và phiếu thu</td>
+</tr>
+<tr>
+<td>InvoiceInformationRequest</td>
+<td>invoice_information_requests</td>
+<td><a href="ERD-legacy-invoice.puml">ERD-legacy-invoice</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: hóa đơn và phiếu thu</td>
+</tr>
+<tr>
+<td>InvoiceLine</td>
+<td>invoice_lines</td>
+<td><a href="ERD-legacy-invoice.puml">ERD-legacy-invoice</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: hóa đơn và phiếu thu</td>
+</tr>
+<tr>
+<td>InvoiceEvent</td>
+<td>invoice_events</td>
+<td><a href="ERD-legacy-invoice.puml">ERD-legacy-invoice</a></td>
+<td>Di sản</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền DI SẢN: hóa đơn và phiếu thu</td>
+</tr>
+<tr>
+<td>OwnershipTransfer</td>
+<td>ownership_transfers</td>
+<td><a href="ERD-ownership.puml">ERD-ownership</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-34, SUC-35</td>
+</tr>
+<tr>
+<td>OwnershipHistory</td>
+<td>ownership_history</td>
+<td><a href="ERD-ownership.puml">ERD-ownership</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-35</td>
+</tr>
+<tr>
+<td>LegalEntityVersion</td>
+<td>legal_entity_versions</td>
+<td><a href="ERD-ownership.puml">ERD-ownership</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-35</td>
+</tr>
+<tr>
+<td>PayoutAccountVersion</td>
+<td>payout_account_versions</td>
+<td><a href="ERD-ownership.puml">ERD-ownership</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-35</td>
+</tr>
+<tr>
+<td>CustomerSavedService</td>
+<td>customer_saved_services</td>
+<td><a href="ERD-personal.puml">ERD-personal</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-12</td>
+</tr>
+<tr>
+<td>VoucherBranchScope</td>
+<td>voucher_branch_scopes</td>
+<td><a href="ERD-voucher.puml">ERD-voucher</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Voucher và phạm vi</td>
+</tr>
+<tr>
+<td>VoucherServiceScope</td>
+<td>voucher_service_scopes</td>
+<td><a href="ERD-voucher.puml">ERD-voucher</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Voucher và phạm vi</td>
+</tr>
+<tr>
+<td>VoucherComboScope</td>
+<td>voucher_combo_scopes</td>
+<td><a href="ERD-voucher.puml">ERD-voucher</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Voucher và phạm vi</td>
+</tr>
+<tr>
+<td>CustomerBusinessSegment</td>
+<td>customer_business_segments</td>
+<td><a href="ERD-redemption.puml">ERD-redemption</a></td>
+<td>Hỗ trợ miền / hạ tầng</td>
+<td>Không ánh xạ trực tiếp; hỗ trợ miền Áp dụng ưu đãi</td>
+</tr>
+<tr>
+<td>MarketingPreference</td>
+<td>marketing_preferences</td>
+<td><a href="ERD-personal.puml">ERD-personal</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-32</td>
+</tr>
+<tr>
+<td>PrivacyExportPackage</td>
+<td>privacy_export_packages</td>
+<td><a href="ERD-personal.puml">ERD-personal</a></td>
+<td>Nghiệp vụ</td>
+<td>SUC-32</td>
+</tr>
+</tbody></table></div>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

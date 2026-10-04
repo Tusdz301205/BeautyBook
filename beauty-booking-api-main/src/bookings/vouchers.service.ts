@@ -1,14 +1,12 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingEngineService } from '../promotions/pricing-engine.service';
-import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
 export class VouchersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingEngine: PricingEngineService,
-    private readonly loyalty: LoyaltyService,
   ) {}
 
   /**
@@ -22,7 +20,6 @@ export class VouchersService {
     serviceIds?: string[];
     lineItems?: Array<{ serviceId: string; amount: number }>;
     comboId?: string;
-    loyaltyPoints?: number;
   }) {
     const result = await this.pricingEngine.quote({
       customerId: params.customerId,
@@ -33,20 +30,12 @@ export class VouchersService {
       subtotal: params.subtotal,
       voucherCode: params.voucherCode || undefined,
     });
-    const loyalty = await this.loyalty.previewRedemption(
-      params.customerId,
-      params.branchId,
-      params.loyaltyPoints ?? 0,
-      result.finalAmount,
-    );
     return {
       subtotal: params.subtotal,
-      discountAmount: result.discountAmount + loyalty.discount,
+      discountAmount: result.discountAmount,
       voucherDiscount: result.voucher?.discountAmount ?? 0,
       promotionDiscount: result.promotion?.amount ?? 0,
-      loyaltyDiscount: loyalty.discount,
-      loyaltyPoints: loyalty.points,
-      finalAmount: Math.max(0, result.finalAmount - loyalty.discount),
+      finalAmount: result.finalAmount,
       voucherApplied: Boolean(result.voucher),
       code: result.voucher?.code ?? null,
       promotion: result.promotion,

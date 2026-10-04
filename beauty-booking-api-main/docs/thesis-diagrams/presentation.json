@@ -1,0 +1,20 @@
+{
+  "profile": "BeautyBook traditional UML",
+  "paper": "#ffffff",
+  "ink": "#111111",
+  "muted": "#444444",
+  "font": "Times New Roman",
+  "fallback": "serif",
+  "usecaseFill": "#fffde7",
+  "usecaseStroke": "#773b4a",
+  "layout": "A4 portrait or landscape by measured bounds",
+  "minPrintPointSize": 8.5,
+  "pngScale": 3,
+  "semanticPriority": "UML arrows, visibility and cardinality override decorative rules",
+  "skill": "skills/diagram-design/skills/diagram-design/SKILL.md",
+  "exceptions": [
+    "User reference style: white paper, Times New Roman, pale cream use cases, muted wine outlines, monochrome class and ERD boxes.",
+    "PlantUML is the semantic source. Use Case SVG layout parses the same aliases and associations; other SVGs use PlantUML directly. All SVGs are embedded unchanged in HTML, extracted and rasterized.",
+    "Graphviz orthogonal routing is checked visually; no relationship semantics are changed for decoration."
+  ]
+}

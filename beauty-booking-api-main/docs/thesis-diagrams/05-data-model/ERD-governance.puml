@@ -1,0 +1,86 @@
+@startuml ERD-governance
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**SalonTrustSnapshot**\n(salon_trust_snapshots)" as SalonTrustSnapshot {
+  * id: String <<PK>>
+  * businessId: String <<FK>> <<UQ>>
+  * totalBookings: Int 
+  * cancellationRate: Float 
+  * noShowRate: Float 
+  * avgRejectTimeMinutes: Float 
+  * lateCancelBySalonRate: Float 
+  ... 3 cot: xem tu dien
+}
+entity "**TrustAction**\n(trust_actions)" as TrustAction {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  branchId: String? <<FK>>
+  * actorId: String <<FK>>
+  restoreOfActionId: String? <<FK>> <<UQ>>
+  * action: TrustActionType 
+  * reason: String 
+  ... 4 cot: xem tu dien
+}
+entity "**OperationalImpactCase**\n(operational_impact_cases)" as OperationalImpactCase {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  branchId: String? <<FK>>
+  * ownerId: String <<FK>>
+  * createdBy: String <<FK>>
+  * subjectType: ImpactSubjectType 
+  * subjectId: String 
+  ... 7 cot: xem tu dien
+}
+entity "**OperationalImpactItem**\n(operational_impact_items)" as OperationalImpactItem {
+  * id: String <<PK>>
+  * caseId: String <<FK>>
+  * bookingId: String <<FK>>
+  replacementStaffId: String? <<FK>>
+  replacementBranchId: String? <<FK>>
+  resolvedBy: String? <<FK>>
+  resolution: ImpactResolution? 
+  ... 7 cot: xem tu dien
+}
+entity "**AuditLog**\n(audit_logs)" as AuditLog {
+  * id: String <<PK>>
+  userId: String? <<FK>>
+  * action: AuditAction 
+  * entityType: String 
+  entityId: String? 
+  oldData: Json? 
+  newData: Json? 
+  ... 2 cot: xem tu dien
+}
+TrustAction |o--o| TrustAction
+OperationalImpactCase ||--o{ OperationalImpactItem
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml ERD-voucher
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Voucher**\n(vouchers)" as Voucher {
+  * id: String <<PK>>
+  businessId: String? <<FK>>
+  * code: String <<UQ>>
+  * name: String 
+  description: String? 
+  * discountType: DiscountType 
+  * discountValue: Decimal 
+  ... 16 cot: xem tu dien
+}
+entity "**CustomerVoucher**\n(customer_vouchers)" as CustomerVoucher {
+  * id: String <<PK>>
+  * voucherId: String <<FK>>
+  * customerId: String <<FK>>
+  * status: VoucherStatus 
+  * acquiredAt: DateTime 
+  usedAt: DateTime? 
+  reservedAt: DateTime? 
+  ... 2 cot: xem tu dien
+}
+entity "**VoucherBranchScope**\n(voucher_branch_scopes)" as VoucherBranchScope {
+  * voucherId: String <<PK>> <<FK>>
+  * branchId: String <<PK>> <<FK>>
+}
+entity "**VoucherServiceScope**\n(voucher_service_scopes)" as VoucherServiceScope {
+  * voucherId: String <<PK>> <<FK>>
+  * serviceId: String <<PK>> <<FK>>
+}
+entity "**VoucherComboScope**\n(voucher_combo_scopes)" as VoucherComboScope {
+  * voucherId: String <<PK>> <<FK>>
+  * comboId: String <<PK>> <<FK>>
+}
+Voucher ||--o{ CustomerVoucher
+Voucher ||--o{ VoucherBranchScope
+Voucher ||--o{ VoucherServiceScope
+Voucher ||--o{ VoucherComboScope
+
+@enduml

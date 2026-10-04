@@ -2,7 +2,39 @@ import { BadRequestException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service';
 import { StaffService } from './staff.service';
 
+describe('Staff profile input validation', () => {
+  const branch = { findUnique: jest.fn() };
+  const staffProfile = { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() };
+  const service = new StaffService({ branch, staffProfile } as unknown as PrismaService, {} as never);
+  beforeEach(() => jest.clearAllMocks());
+  it.each(['', '   ', 'x', 'a'.repeat(201)])('rejects invalid creation name before any database write', async (fullName) => {
+    await expect(service.create({ branchId: 'branch', fullName })).rejects.toBeInstanceOf(BadRequestException);
+    expect(branch.findUnique).not.toHaveBeenCalled();
+    expect(staffProfile.create).not.toHaveBeenCalled();
+  });
+  it('rejects blank updates and string booleans without overwriting existing staff', async () => {
+    await expect(service.update('staff', { fullName: '  ' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.update('staff', { isBookable: 'false' as unknown as boolean })).rejects.toBeInstanceOf(BadRequestException);
+    expect(staffProfile.update).not.toHaveBeenCalled();
+  });
+  it('rejects invalid calendar hire dates before persistence', async () => {
+    await expect(service.create({ branchId: 'branch', fullName: 'Tên hợp lệ', hiredAt: '2026-02-30' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(staffProfile.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('StaffService provider management', () => {
+  it('does not let a profile PATCH bypass offboarding for an active specialist', async () => {
+    const update = jest.fn();
+    const prisma = {
+      staffProfile: { findUnique: jest.fn().mockResolvedValue({ id: 'staff-1', status: 'ACTIVE' }), update },
+    } as unknown as PrismaService;
+    await expect(new StaffService(prisma, {} as never).update('staff-1', { status: 'INACTIVE' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+    await expect(new StaffService(prisma, {} as never).update('staff-1', { isBookable: false }))
+      .resolves.toBeUndefined();
+  });
   it('deactivates staff without deleting the manageable profile', async () => {
     const update = jest.fn().mockResolvedValue({
       id: 'staff-1', status: 'INACTIVE', deletedAt: null,
@@ -92,4 +124,3 @@ describe('StaffService provider management', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 });
-

@@ -13,7 +13,11 @@ export class OwnershipService {
   async create(businessId: string, requesterId: string, input: {
     newOwnerEmail: string; effectiveAt: string; reason: string; settlementAgreement?: Record<string, unknown>;
   }) {
-    if (!input.reason?.trim()) throw new BadRequestException('Lý do chuyển giao là bắt buộc');
+    if (typeof input.reason !== 'string' || !input.reason.trim() ||
+        typeof input.newOwnerEmail !== 'string' || !input.newOwnerEmail.trim() ||
+        typeof input.effectiveAt !== 'string' || !input.effectiveAt.trim()) {
+      throw new BadRequestException('Email chủ mới, ngày hiệu lực và lý do chuyển giao phải là văn bản hợp lệ');
+    }
     const effectiveAt = new Date(input.effectiveAt);
     if (!Number.isFinite(effectiveAt.getTime()) || effectiveAt <= new Date()) throw new BadRequestException('Ngày hiệu lực phải ở tương lai');
     const business = await this.prisma.business.findUnique({ where: { id: businessId }, include: { owner: true } });
@@ -42,13 +46,14 @@ export class OwnershipService {
       this.prisma.notification.create({ data: {
         userId: newOwner.id, type: 'SYSTEM', severity: 'WARNING', title: 'Yêu cầu xác nhận chuyển quyền sở hữu',
         body: `Bạn được đề nghị tiếp nhận ${business.name}. Hãy xem tác động trước khi xác nhận.`,
-        targetType: 'OWNERSHIP_TRANSFER', targetId: transfer.id, actionUrl: '/customer/benefits?tab=ownership',
+        targetType: 'OWNERSHIP_TRANSFER', targetId: transfer.id, actionUrl: '/salon/incoming-ownership',
       } }),
     ]);
     return transfer;
   }
 
   async accept(transferId: string, userId: string) {
+    await assertAccountRoleCompatible(this.prisma, userId, 'BUSINESS_OWNER');
     const changed = await this.prisma.ownershipTransfer.updateMany({
       where: { id: transferId, newOwnerUserId: userId, status: 'PENDING_NEW_OWNER_ACCEPTANCE' },
       data: { status: 'UNDER_REVIEW', acceptedByNewOwnerAt: new Date() },
@@ -63,7 +68,9 @@ export class OwnershipService {
   }
 
   async review(transferId: string, actorId: string, input: { approve: boolean; needMoreInfo?: boolean; reason: string }) {
-    if (!input.reason?.trim()) throw new BadRequestException('Kết luận xác minh là bắt buộc');
+    if (typeof input.approve !== 'boolean' ||
+        (input.needMoreInfo !== undefined && typeof input.needMoreInfo !== 'boolean') ||
+        typeof input.reason !== 'string' || !input.reason.trim()) throw new BadRequestException('Kết luận xác minh không hợp lệ');
     const transfer = await this.prisma.ownershipTransfer.findUnique({ where: { id: transferId } });
     if (!transfer || !['UNDER_REVIEW', 'NEED_MORE_INFO'].includes(transfer.status)) throw new ConflictException('Yêu cầu không ở trạng thái xét duyệt');
     if (transfer.status === 'NEED_MORE_INFO' && input.approve && !input.needMoreInfo) {
@@ -81,7 +88,7 @@ export class OwnershipService {
       payoutAccountVersionId = payout.id;
     }
     const nextStatus = input.needMoreInfo ? 'NEED_MORE_INFO' : input.approve ? (transfer.effectiveAt <= new Date() ? 'APPROVED' : 'SCHEDULED') : 'REJECTED';
-    const updated = await this.prisma.ownershipTransfer.update({ where: { id: transferId }, data: {
+    const changed = await this.prisma.ownershipTransfer.updateMany({ where: { id: transferId, status: transfer.status, updatedAt: transfer.updatedAt }, data: {
       status: nextStatus,
       approvedBy: actorId,
       approvedAt: input.approve && !input.needMoreInfo ? new Date() : null,
@@ -89,6 +96,8 @@ export class OwnershipService {
       legalEntityVersionId,
       payoutAccountVersionId,
     } });
+    if (changed.count !== 1) throw new ConflictException('Yêu cầu vừa được xử lý bởi người khác');
+    const updated = await this.prisma.ownershipTransfer.findUniqueOrThrow({ where: { id: transferId } });
     await auditLog(this.prisma, {
       userId: actorId, action: 'STATUS_CHANGE', entityType: 'OwnershipTransfer', entityId: transferId,
       oldData: { status: transfer.status }, newData: { status: updated.status }, reason: input.reason.trim(),
@@ -103,11 +112,13 @@ export class OwnershipService {
     if (!transfer || transfer.requestedBy !== actorId || transfer.status !== 'NEED_MORE_INFO') {
       throw new ConflictException('Yêu cầu không ở trạng thái cần bổ sung hoặc không thuộc người gửi');
     }
-    const updated = await this.prisma.ownershipTransfer.update({ where: { id: transferId }, data: {
+    const changed = await this.prisma.ownershipTransfer.updateMany({ where: { id: transferId, status: 'NEED_MORE_INFO', requestedBy: actorId, updatedAt: transfer.updatedAt }, data: {
       status: 'UNDER_REVIEW',
       failureReason: null,
       settlementAgreement: (input.settlementAgreement ?? transfer.settlementAgreement ?? { note: input.note.trim() }) as Prisma.InputJsonValue,
     } });
+    if (changed.count !== 1) throw new ConflictException('Yêu cầu vừa được xử lý bởi người khác');
+    const updated = await this.prisma.ownershipTransfer.findUniqueOrThrow({ where: { id: transferId } });
     await auditLog(this.prisma, {
       userId: actorId, action: 'STATUS_CHANGE', entityType: 'OwnershipTransfer', entityId: transferId,
       oldData: { status: transfer.status }, newData: { status: updated.status }, reason: input.note.trim(),
@@ -120,7 +131,12 @@ export class OwnershipService {
     if (!reason?.trim()) throw new BadRequestException('Lý do hủy là bắt buộc');
     const transfer = await this.prisma.ownershipTransfer.findUnique({ where: { id: transferId } });
     if (!transfer || transfer.requestedBy !== actorId || !['PENDING_NEW_OWNER_ACCEPTANCE', 'UNDER_REVIEW', 'NEED_MORE_INFO', 'SCHEDULED'].includes(transfer.status)) throw new ConflictException('Yêu cầu không thể hủy');
-    const updated = await this.prisma.ownershipTransfer.update({ where: { id: transferId }, data: { status: 'CANCELLED', failureReason: reason.trim() } });
+    const changed = await this.prisma.ownershipTransfer.updateMany({
+      where: { id: transferId, requestedBy: actorId, status: transfer.status, updatedAt: transfer.updatedAt },
+      data: { status: 'CANCELLED', failureReason: reason.trim() },
+    });
+    if (changed.count !== 1) throw new ConflictException('Yêu cầu vừa được xử lý bởi người khác');
+    const updated = await this.prisma.ownershipTransfer.findUniqueOrThrow({ where: { id: transferId } });
     await auditLog(this.prisma, {
       userId: actorId, action: 'STATUS_CHANGE', entityType: 'OwnershipTransfer', entityId: transferId,
       oldData: { status: transfer.status }, newData: { status: 'CANCELLED' }, reason: reason.trim(),
@@ -270,7 +286,12 @@ export class OwnershipService {
   }
 
   async createLegalVersion(businessId: string, actorId: string, input: any) {
-    if (!input.legalName?.trim()) throw new BadRequestException('Tên pháp nhân là bắt buộc');
+    if (typeof input.legalName !== 'string' || !input.legalName.trim()) throw new BadRequestException('Tên pháp nhân là bắt buộc');
+    for (const field of ['taxCode', 'registrationNumber', 'representativeName']) {
+      if (input[field] !== undefined && input[field] !== null && typeof input[field] !== 'string') {
+        throw new BadRequestException('Thông tin pháp nhân phải là văn bản hợp lệ');
+      }
+    }
     return withSerializableTransaction(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
       const current = await tx.legalEntityVersion.findFirst({ where: { businessId }, orderBy: { version: 'desc' } });
@@ -283,10 +304,10 @@ export class OwnershipService {
   }
 
   async createPayoutVersion(businessId: string, actorId: string, input: { bankName: string; accountHolder: string; accountNumber: string }) {
-    if (!input.bankName?.trim() || !input.accountHolder?.trim() || !input.accountNumber?.trim()) throw new BadRequestException('Thông tin tài khoản nhận tiền chưa đủ');
+    if ([input.bankName, input.accountHolder, input.accountNumber].some(value => typeof value !== 'string' || !value.trim())) throw new BadRequestException('Thông tin tài khoản nhận tiền chưa đủ');
     const encrypted = this.cipher.encrypt(input.accountNumber.trim(), 1024);
     const masked = `****${input.accountNumber.trim().slice(-4)}`;
-    return withSerializableTransaction(this.prisma, async (tx) => {
+    const created = await withSerializableTransaction(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
       const current = await tx.payoutAccountVersion.findFirst({ where: { businessId }, orderBy: { version: 'desc' } });
       return tx.payoutAccountVersion.create({ data: {
@@ -296,6 +317,8 @@ export class OwnershipService {
         maskedAccountNumber: masked, verificationStatus: 'PENDING', validFrom: new Date(), createdBy: actorId,
       } });
     }, { conflictMessage: 'Tài khoản nhận tiền vừa thay đổi' });
+    const { accountNumberCiphertext: _ciphertext, accountNumberIv: _iv, authenticationTag: _tag, ...safe } = created;
+    return safe;
   }
 
   async versions(businessId: string) {
@@ -310,7 +333,7 @@ export class OwnershipService {
   }
 
   async verifyVersion(type: 'LEGAL_ENTITY' | 'PAYOUT_ACCOUNT', id: string, actorId: string, input: { approve: boolean; reason: string }) {
-    if (!input.reason?.trim()) throw new BadRequestException('Kết luận xác minh là bắt buộc');
+    if (typeof input.approve !== 'boolean' || typeof input.reason !== 'string' || !input.reason.trim()) throw new BadRequestException('Kết luận xác minh không hợp lệ');
     const model = type === 'LEGAL_ENTITY' ? this.prisma.legalEntityVersion : this.prisma.payoutAccountVersion;
     const current = await (model as any).findUnique({ where: { id } });
     if (!current || current.verificationStatus !== 'PENDING') throw new ConflictException('Phiên bản không còn chờ xác minh');

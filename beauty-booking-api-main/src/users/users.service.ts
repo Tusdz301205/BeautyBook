@@ -225,7 +225,9 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     const auditTrail = await this.prisma.auditLog.findMany({
       where: { OR: [{ userId: id }, { entityId: id }] },
-      select: { id: true, action: true, entityType: true, entityId: true, reason: true, oldData: true, newData: true, createdAt: true },
+      // Audit JSON may contain historical payloads with credentials. Expose
+      // only event metadata through this account response.
+      select: { id: true, action: true, entityType: true, entityId: true, reason: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -242,6 +244,11 @@ export class UsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: { isActive: !before.isActive },
+      select: {
+        id: true, email: true, phone: true, fullName: true, avatarMediaId: true,
+        isActive: true, isEmailVerified: true, isPhoneVerified: true,
+        lastLoginAt: true, createdAt: true, updatedAt: true,
+      },
     });
 
     // Security Rule 9 — khi KHÓA tài khoản, thu hồi ngay mọi JWT đang sống

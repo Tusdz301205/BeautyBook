@@ -30,8 +30,6 @@ function fixture(source: 'WALK_IN' | 'PHONE' | 'STAFF_CREATED') {
     getConfigured: jest.fn().mockResolvedValue({}),
   } as never, {
     quote: jest.fn().mockResolvedValue({ finalAmount: 100000 }),
-  } as never, {
-    previewRedemption: jest.fn().mockResolvedValue({ discount: 0 }),
   } as never);
   jest.spyOn(service, 'expirePendingHolds').mockResolvedValue(0);
   const request = {

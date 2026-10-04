@@ -1,0 +1,144 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>04-design-classes/design-class-notes.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Quy ước lớp thiết kế</h1>
+<p>Trích TypeScript AST từ working tree. Tên lớp, constructor dependencies, visibility, tham số và kiểu explicit được lưu đầy đủ tại source-inventory.json. Hình chỉ chọn tối đa ba operation public mỗi lớp. Dấu ... là lược chữ ký dài, không phải kiểu được định nghĩa trong code. Kiểu tham số/return bị lược nếu code để TypeScript suy luận; generic giữ tên type parameter, ràng buộc đầy đủ trong inventory; không tự bịa kiểu trả về. Dependency DI không hàm ý quản lý vòng đời. PrismaService kế thừa PrismaClient của thư viện; hình chỉ giữ lớp dự án và liên kết thư viện được nêu tại đây. BookingService là model Prisma; BookingsService là lớp ứng dụng. React pages là function/component, chỉ được truy vết ở đặc tả, không giả làm class.</p>
+<h2>DC-overview — Phối hợp nghiệp vụ</h2>
+<ul>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService</a>, dòng 24; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService</a>, dòng 40; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/scheduler/scheduler.gateway.ts">SchedulerGateway</a>, dòng 148; implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-auth — Xác thực và phiên</h2>
+<ul>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController</a>, dòng 31; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/auth/auth.service.ts">AuthService</a>, dòng 23; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/auth/token-blacklist.service.ts">TokenBlacklistService</a>, dòng 18; implements OnModuleDestroy.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-access — Kiểm tra quyền lịch</h2>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController</a>, dòng 64; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings-access.service.ts">BookingsAccessService</a>, dòng 37; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-booking — Tạo và điều phối lịch</h2>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController</a>, dòng 64; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-change — Yêu cầu thay đổi</h2>
+<ul>
+<li><a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService</a>, dòng 28; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/platform-settings/platform-settings.service.ts">PlatformSettingsService</a>, dòng 65; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-items — Tiến độ dịch vụ</h2>
+<ul>
+<li><a href="../../../src/bookings/booking-items.service.ts">BookingItemsService</a>, dòng 11; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-recurring — Chuỗi lịch</h2>
+<ul>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController</a>, dòng 11; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/recurring/recurring.service.ts">RecurringService</a>, dòng 9; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-payment — Thu và hoàn tiền</h2>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController</a>, dòng 25; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService</a>, dòng 40; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/payments/providers/payment-provider.registry.ts">PaymentProviderRegistry</a>, dòng 7; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-providers — Hợp đồng adapter thanh toán</h2>
+<ul>
+<li><a href="../../../src/payments/providers/payment-provider.port.ts">PaymentProvider</a>, dòng 9; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/payments/providers/cash.adapter.ts">CashPaymentAdapter</a>, dòng 3; implements PaymentProvider.</li>
+<li><a href="../../../src/payments/providers/manual-bank.adapter.ts">ManualBankTransferAdapter</a>, dòng 3; implements PaymentProvider.</li>
+<li><a href="../../../src/payments/providers/payment-provider.registry.ts">PaymentProviderRegistry</a>, dòng 7; không khai báo kế thừa/realization.</li>
+</ul>
+<h2>DC-business — Hồ sơ doanh nghiệp</h2>
+<ul>
+<li><a href="../../../src/business/business.controller.ts">BusinessController</a>, dòng 17; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService</a>, dòng 92; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-branch — Chi nhánh và trạng thái</h2>
+<ul>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController</a>, dòng 46; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService</a>, dòng 35; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/branches/branch-state.service.ts">BranchStateService</a>, dòng 10; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-catalog — Catalog và combo</h2>
+<ul>
+<li><a href="../../../src/services/services.controller.ts">ServicesController</a>, dòng 45; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/services/services.service.ts">ServicesService</a>, dòng 15; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/combos/combos.service.ts">CombosService</a>, dòng 16; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-staff — Nhân sự và lời mời</h2>
+<ul>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController</a>, dòng 40; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/staff/staff.service.ts">StaffService</a>, dòng 19; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/staff/staff-invitations.service.ts">StaffInvitationsService</a>, dòng 24; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-marketing — Ưu đãi và định giá</h2>
+<ul>
+<li><a href="../../../src/promotions/promotions.service.ts">PromotionsService</a>, dòng 14; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/promotions/vouchers-admin.service.ts">VouchersAdminService</a>, dòng 8; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService</a>, dòng 24; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-review — Đánh giá và kiểm duyệt</h2>
+<ul>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController</a>, dòng 28; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/reviews/reviews.service.ts">ReviewsService</a>, dòng 36; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-privacy — Quyền dữ liệu</h2>
+<ul>
+<li><a href="../../../src/privacy/privacy.controller.ts">PrivacyController</a>, dòng 19; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/privacy/privacy-center.service.ts">PrivacyCenterService</a>, dòng 22; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/privacy/sensitive-data-cipher.service.ts">SensitiveDataCipherService</a>, dòng 20; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-ownership — Chuyển giao trách nhiệm</h2>
+<ul>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController</a>, dòng 10; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService</a>, dòng 9; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/privacy/sensitive-data-cipher.service.ts">SensitiveDataCipherService</a>, dòng 20; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-impact — Tác động vận hành</h2>
+<ul>
+<li><a href="../../../src/operations/impact.controller.ts">ImpactController</a>, dòng 10; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/operations/impact.service.ts">ImpactService</a>, dòng 13; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService</a>, dòng 80; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-governance — Quản trị và báo cáo</h2>
+<ul>
+<li><a href="../../../src/admin/admin.controller.ts">AdminController</a>, dòng 21; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/admin/trust-snapshot.service.ts">TrustSnapshotService</a>, dòng 31; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/reports/reports.service.ts">ReportsService</a>, dòng 17; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-self — Hồ sơ và dịch vụ đã lưu</h2>
+<ul>
+<li><a href="../../../src/users/users.service.ts">UsersService</a>, dòng 35; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/saved-services/saved-services.service.ts">SavedServicesService</a>, dòng 6; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<h2>DC-communication — Thông báo và media</h2>
+<ul>
+<li><a href="../../../src/notifications/notifications.service.ts">NotificationsService</a>, dòng 5; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/media/media.service.ts">MediaService</a>, dòng 28; không khai báo kế thừa/realization.</li>
+<li><a href="../../../src/prisma/prisma.service.ts">PrismaService</a>, dòng 13; extends PrismaClient; implements OnModuleInit, OnModuleDestroy.</li>
+</ul>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

@@ -1,0 +1,302 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>05-data-model/sql-constraints.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Ràng buộc SQL ngoài mô hình Prisma</h1>
+<p>Đây là lịch sử DDL trong repository, không phải catalog DB đang chạy. Một migration sau có thể thay thế đối tượng ở migration trước. Các trích đoạn giữ thứ tự thư mục; cần đối chiếu trạng thái triển khai trước khi khẳng định hiệu lực.</p>
+<p>Đáng chú ý: partial unique một vi phạm hợp lệ/booking; unique customer–business policy; kiểm tra nguồn/scope vi phạm; trigger tách tài khoản; slot advisory lock không chặn + kiểm tra overlap. Không gọi các ràng buộc sau là đã áp dụng trên DB.</p>
+<h2>20260708053438_init</h2>
+<p><a href="../../../prisma/migrations/20260708053438_init/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 566: <code>CREATE UNIQUE INDEX &quot;users_email_key&quot; ON &quot;users&quot;(&quot;email&quot;);</code></li>
+<li>Dòng 569: <code>CREATE UNIQUE INDEX &quot;users_phone_key&quot; ON &quot;users&quot;(&quot;phone&quot;);</code></li>
+<li>Dòng 578: <code>CREATE UNIQUE INDEX &quot;roles_code_key&quot; ON &quot;roles&quot;(&quot;code&quot;);</code></li>
+<li>Dòng 584: <code>CREATE UNIQUE INDEX &quot;customer_profiles_user_id_key&quot; ON &quot;customer_profiles&quot;(&quot;user_id&quot;);</code></li>
+<li>Dòng 587: <code>CREATE UNIQUE INDEX &quot;business_owner_profiles_user_id_key&quot; ON &quot;business_owner_profiles&quot;(&quot;user_id&quot;);</code></li>
+<li>Dòng 590: <code>CREATE UNIQUE INDEX &quot;business_owner_profiles_tax_code_key&quot; ON &quot;business_owner_profiles&quot;(&quot;tax_code&quot;);</code></li>
+<li>Dòng 593: <code>CREATE UNIQUE INDEX &quot;staff_profiles_user_id_key&quot; ON &quot;staff_profiles&quot;(&quot;user_id&quot;);</code></li>
+<li>Dòng 602: <code>CREATE UNIQUE INDEX &quot;device_tokens_token_key&quot; ON &quot;device_tokens&quot;(&quot;token&quot;);</code></li>
+<li>Dòng 608: <code>CREATE UNIQUE INDEX &quot;provinces_name_key&quot; ON &quot;provinces&quot;(&quot;name&quot;);</code></li>
+<li>Dòng 611: <code>CREATE UNIQUE INDEX &quot;provinces_code_key&quot; ON &quot;provinces&quot;(&quot;code&quot;);</code></li>
+<li>Dòng 617: <code>CREATE UNIQUE INDEX &quot;districts_province_id_name_key&quot; ON &quot;districts&quot;(&quot;province_id&quot;, &quot;name&quot;);</code></li>
+<li>Dòng 620: <code>CREATE UNIQUE INDEX &quot;businesses_slug_key&quot; ON &quot;businesses&quot;(&quot;slug&quot;);</code></li>
+<li>Dòng 644: <code>CREATE UNIQUE INDEX &quot;branch_working_hours_branch_id_day_of_week_key&quot; ON &quot;branch_working_hours&quot;(&quot;branch_id&quot;, &quot;day_of_week&quot;);</code></li>
+<li>Dòng 647: <code>CREATE UNIQUE INDEX &quot;staff_working_hours_staff_id_day_of_week_key&quot; ON &quot;staff_working_hours&quot;(&quot;staff_id&quot;, &quot;day_of_week&quot;);</code></li>
+<li>Dòng 668: <code>CREATE UNIQUE INDEX &quot;service_categories_slug_key&quot; ON &quot;service_categories&quot;(&quot;slug&quot;);</code></li>
+<li>Dòng 716: <code>CREATE UNIQUE INDEX &quot;bookings_booking_code_key&quot; ON &quot;bookings&quot;(&quot;booking_code&quot;);</code></li>
+<li>Dòng 752: <code>CREATE UNIQUE INDEX &quot;reviews_booking_id_key&quot; ON &quot;reviews&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 761: <code>CREATE UNIQUE INDEX &quot;review_service_ratings_booking_service_id_key&quot; ON &quot;review_service_ratings&quot;(&quot;booking_service_id&quot;);</code></li>
+</ul>
+<h2>20260712_add_account_tokens</h2>
+<p><a href="../../../prisma/migrations/20260712_add_account_tokens/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 14: <code>CREATE UNIQUE INDEX &quot;account_tokens_token_hash_key&quot; ON &quot;account_tokens&quot;(&quot;token_hash&quot;);</code></li>
+</ul>
+<h2>20260713_add_health_records</h2>
+<p><a href="../../../prisma/migrations/20260713_add_health_records/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 37: <code>CREATE UNIQUE INDEX &quot;sensitive_consents_customer_id_scope_key&quot; ON &quot;sensitive_consents&quot;(&quot;customer_id&quot;, &quot;scope&quot;);</code></li>
+<li>Dòng 43: <code>CREATE UNIQUE INDEX &quot;booking_health_records_booking_id_field_key&quot; ON &quot;booking_health_records&quot;(&quot;booking_id&quot;, &quot;field&quot;);</code></li>
+</ul>
+<h2>20260713_add_platform_settings</h2>
+<p><a href="../../../prisma/migrations/20260713_add_platform_settings/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 11: <code>CREATE UNIQUE INDEX &quot;platform_settings_key_key&quot; ON &quot;platform_settings&quot;(&quot;key&quot;);</code></li>
+</ul>
+<h2>20260713_add_schedule_exceptions</h2>
+<p><a href="../../../prisma/migrations/20260713_add_schedule_exceptions/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 9: <code>CREATE UNIQUE INDEX &quot;branch_holidays_branch_id_date_key&quot; ON &quot;branch_holidays&quot;(&quot;branch_id&quot;, &quot;date&quot;);</code></li>
+</ul>
+<h2>20260713_add_staff_invitations</h2>
+<p><a href="../../../prisma/migrations/20260713_add_staff_invitations/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 10: <code>CREATE UNIQUE INDEX &quot;staff_invitations_token_hash_key&quot; ON &quot;staff_invitations&quot;(&quot;token_hash&quot;);</code></li>
+</ul>
+<h2>20260715_add_health_access_logs</h2>
+<p><a href="../../../prisma/migrations/20260715_add_health_access_logs/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 31: <code>CREATE OR REPLACE FUNCTION prevent_health_access_log_mutation()</code></li>
+<li>Dòng 38: <code>DROP TRIGGER IF EXISTS health_access_logs_no_update ON &quot;health_record_access_logs&quot;;</code></li>
+<li>Dòng 39: <code>CREATE TRIGGER health_access_logs_no_update</code></li>
+<li>Dòng 43: <code>DROP TRIGGER IF EXISTS health_access_logs_no_delete ON &quot;health_record_access_logs&quot;;</code></li>
+<li>Dòng 44: <code>CREATE TRIGGER health_access_logs_no_delete</code></li>
+</ul>
+<h2>20260715_harden_payment_concurrency</h2>
+<p><a href="../../../prisma/migrations/20260715_harden_payment_concurrency/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 3: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;payments_one_settled_per_booking&quot;</code></li>
+</ul>
+<h2>20260717_platform_trust_onboarding_attendance</h2>
+<p><a href="../../../prisma/migrations/20260717_platform_trust_onboarding_attendance/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 63: <code>CREATE UNIQUE INDEX &quot;review_reports_review_id_reporter_id_key&quot; ON &quot;review_reports&quot;(&quot;review_id&quot;, &quot;reporter_id&quot;);</code></li>
+<li>Dòng 99: <code>CREATE UNIQUE INDEX &quot;staff_attendances_staff_id_branch_id_work_date_key&quot; ON &quot;staff_attendances&quot;(&quot;staff_id&quot;, &quot;branch_id&quot;, &quot;work_date&quot;);</code></li>
+</ul>
+<h2>20260718_segment_a_b_completion</h2>
+<p><a href="../../../prisma/migrations/20260718_segment_a_b_completion/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 9: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;staff_profiles_branch_id_employee_code_key&quot;</code></li>
+<li>Dòng 28: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;media_files_storage_key_key&quot; ON &quot;media_files&quot;(&quot;storage_key&quot;);</code></li>
+</ul>
+<h2>20260720_harden_user_role_scope</h2>
+<p><a href="../../../prisma/migrations/20260720_harden_user_role_scope/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 56: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;permissions_code_key&quot;</code></li>
+<li>Dòng 211: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;user_roles_user_id_role_id_business_id_branch_id_key&quot;</code></li>
+</ul>
+<h2>20260726_p0_tenant_guest_security</h2>
+<p><a href="../../../prisma/migrations/20260726_p0_tenant_guest_security/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 46: <code>CREATE UNIQUE INDEX &quot;booking_contacts_booking_id_key&quot;</code></li>
+<li>Dòng 52: <code>CREATE UNIQUE INDEX &quot;refund_requests_settlement_reference_key&quot;</code></li>
+<li>Dòng 55: <code>CREATE UNIQUE INDEX &quot;trust_actions_restore_of_action_id_key&quot;</code></li>
+<li>Dòng 69: <code>CREATE OR REPLACE FUNCTION validate_user_role_scope()</code></li>
+<li>Dòng 94: <code>DROP TRIGGER IF EXISTS &quot;user_roles_scope_guard&quot; ON &quot;user_roles&quot;;</code></li>
+<li>Dòng 95: <code>CREATE TRIGGER &quot;user_roles_scope_guard&quot;</code></li>
+<li>Dòng 288: <code>CREATE UNIQUE INDEX &quot;consultation_form_versions_template_id_version_key&quot;</code></li>
+<li>Dòng 290: <code>CREATE UNIQUE INDEX &quot;consultation_form_fields_version_id_field_key_key&quot;</code></li>
+<li>Dòng 292: <code>CREATE UNIQUE INDEX &quot;service_consultation_requirements_service_id_key&quot;</code></li>
+<li>Dòng 294: <code>CREATE UNIQUE INDEX &quot;consultation_submissions_booking_id_service_id_key&quot;</code></li>
+<li>Dòng 296: <code>CREATE UNIQUE INDEX &quot;sensitive_answers_submission_id_field_id_key&quot;</code></li>
+<li>Dòng 298: <code>CREATE UNIQUE INDEX &quot;consent_events_revoke_of_event_id_key&quot;</code></li>
+<li>Dòng 300: <code>CREATE UNIQUE INDEX &quot;marketing_preferences_customer_id_key&quot;</code></li>
+<li>Dòng 302: <code>CREATE UNIQUE INDEX &quot;privacy_export_packages_request_id_key&quot;</code></li>
+<li>Dòng 304: <code>CREATE UNIQUE INDEX &quot;privacy_export_packages_download_token_hash_key&quot;</code></li>
+</ul>
+<h2>20260726_phase4_onboarding_combo_attendance</h2>
+<p><a href="../../../prisma/migrations/20260726_phase4_onboarding_combo_attendance/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 176: <code>CREATE UNIQUE INDEX &quot;business_document_versions_document_id_version_key&quot;</code></li>
+<li>Dòng 257: <code>CREATE UNIQUE INDEX &quot;attendance_qr_uses_qr_nonce_staff_id_action_key&quot;</code></li>
+<li>Dòng 286: <code>CREATE UNIQUE INDEX &quot;user_permissions_user_id_permission_id_key&quot;</code></li>
+</ul>
+<h2>20260727_harden_booking_service_overlap</h2>
+<p><a href="../../../prisma/migrations/20260727_harden_booking_service_overlap/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 5: <code>CREATE OR REPLACE FUNCTION &quot;enforce_booking_service_staff_slot&quot;()</code></li>
+<li>Dòng 67: <code>DROP TRIGGER IF EXISTS &quot;booking_services_staff_slot_guard&quot;</code></li>
+<li>Dòng 70: <code>CREATE TRIGGER &quot;booking_services_staff_slot_guard&quot;</code></li>
+</ul>
+<h2>20260728_harden_booking_customer_overlap</h2>
+<p><a href="../../../prisma/migrations/20260728_harden_booking_customer_overlap/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 4: <code>CREATE OR REPLACE FUNCTION &quot;enforce_booking_customer_slot&quot;()</code></li>
+<li>Dòng 45: <code>DROP TRIGGER IF EXISTS &quot;bookings_customer_slot_guard&quot;</code></li>
+<li>Dòng 48: <code>CREATE TRIGGER &quot;bookings_customer_slot_guard&quot;</code></li>
+</ul>
+<h2>20260729_use_nonblocking_booking_slot_locks</h2>
+<p><a href="../../../prisma/migrations/20260729_use_nonblocking_booking_slot_locks/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 4: <code>CREATE OR REPLACE FUNCTION &quot;enforce_booking_service_staff_slot&quot;()</code></li>
+<li>Dòng 68: <code>CREATE OR REPLACE FUNCTION &quot;enforce_booking_customer_slot&quot;()</code></li>
+</ul>
+<h2>20260730_branch_schedule_dashboard_refinement</h2>
+<p><a href="../../../prisma/migrations/20260730_branch_schedule_dashboard_refinement/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 103: <code>CREATE UNIQUE INDEX &quot;branch_onboarding_progress_branch_id_key&quot;</code></li>
+<li>Dòng 143: <code>CREATE UNIQUE INDEX &quot;branch_booking_policies_branch_id_key&quot;</code></li>
+<li>Dòng 170: <code>CREATE UNIQUE INDEX &quot;branch_attendance_policies_branch_id_key&quot;</code></li>
+<li>Dòng 212: <code>CREATE UNIQUE INDEX &quot;branch_document_versions_document_id_version_key&quot;</code></li>
+<li>Dòng 290: <code>CREATE UNIQUE INDEX &quot;staff_branch_assignments_staff_id_branch_id_start_date_key&quot;</code></li>
+<li>Dòng 336: <code>CREATE UNIQUE INDEX &quot;staff_schedule_versions_staff_id_branch_id_version_key&quot;</code></li>
+<li>Dòng 359: <code>CREATE UNIQUE INDEX &quot;staff_schedule_segments_version_id_day_of_week_sort_order_key&quot;</code></li>
+</ul>
+<h2>20260731_workforce_payment_core</h2>
+<p><a href="../../../prisma/migrations/20260731_workforce_payment_core/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 543: <code>CREATE UNIQUE INDEX &quot;pricing_snapshots_booking_id_key&quot; ON &quot;pricing_snapshots&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 558: <code>CREATE UNIQUE INDEX &quot;payment_policies_business_id_branch_id_service_id_version_key&quot; ON &quot;payment_policies&quot;(&quot;business_id&quot;, &quot;branch_id&quot;, &quot;service_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 561: <code>CREATE UNIQUE INDEX &quot;payment_policy_snapshots_booking_id_key&quot; ON &quot;payment_policy_snapshots&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 567: <code>CREATE UNIQUE INDEX &quot;payment_intents_idempotency_key_key&quot; ON &quot;payment_intents&quot;(&quot;idempotency_key&quot;);</code></li>
+<li>Dòng 582: <code>CREATE UNIQUE INDEX &quot;payment_transactions_idempotency_key_key&quot; ON &quot;payment_transactions&quot;(&quot;idempotency_key&quot;);</code></li>
+<li>Dòng 585: <code>CREATE UNIQUE INDEX &quot;payment_transactions_provider_event_id_key&quot; ON &quot;payment_transactions&quot;(&quot;provider_event_id&quot;);</code></li>
+<li>Dòng 588: <code>CREATE UNIQUE INDEX &quot;payment_transactions_reversal_of_id_key&quot; ON &quot;payment_transactions&quot;(&quot;reversal_of_id&quot;);</code></li>
+<li>Dòng 603: <code>CREATE UNIQUE INDEX &quot;financial_ledger_entries_idempotency_key_key&quot; ON &quot;financial_ledger_entries&quot;(&quot;idempotency_key&quot;);</code></li>
+<li>Dòng 624: <code>CREATE UNIQUE INDEX &quot;platform_fee_entries_booking_id_key&quot; ON &quot;platform_fee_entries&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 642: <code>CREATE UNIQUE INDEX &quot;platform_statements_business_id_period_start_period_end_ver_key&quot; ON &quot;platform_statements&quot;(&quot;business_id&quot;, &quot;period_start&quot;, &quot;period_end&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 648: <code>CREATE UNIQUE INDEX &quot;platform_statement_lines_statement_id_platform_fee_id_fee_a_key&quot; ON &quot;platform_statement_lines&quot;(&quot;statement_id&quot;, &quot;platform_fee_id&quot;, &quot;fee_adjustment_id&quot;);</code></li>
+<li>Dòng 666: <code>CREATE UNIQUE INDEX &quot;package_installments_purchase_id_sequence_key&quot; ON &quot;package_installments&quot;(&quot;purchase_id&quot;, &quot;sequence&quot;);</code></li>
+<li>Dòng 669: <code>CREATE UNIQUE INDEX &quot;package_session_entitlements_redeemed_booking_service_id_key&quot; ON &quot;package_session_entitlements&quot;(&quot;redeemed_booking_service_id&quot;);</code></li>
+<li>Dòng 675: <code>CREATE UNIQUE INDEX &quot;package_session_entitlements_purchase_id_sequence_key&quot; ON &quot;package_session_entitlements&quot;(&quot;purchase_id&quot;, &quot;sequence&quot;);</code></li>
+<li>Dòng 684: <code>CREATE UNIQUE INDEX &quot;timesheets_attendance_id_key&quot; ON &quot;timesheets&quot;(&quot;attendance_id&quot;);</code></li>
+<li>Dòng 693: <code>CREATE UNIQUE INDEX &quot;timesheets_staff_id_branch_id_work_date_key&quot; ON &quot;timesheets&quot;(&quot;staff_id&quot;, &quot;branch_id&quot;, &quot;work_date&quot;);</code></li>
+<li>Dòng 702: <code>CREATE UNIQUE INDEX &quot;compensation_rules_business_id_branch_id_name_version_key&quot; ON &quot;compensation_rules&quot;(&quot;business_id&quot;, &quot;branch_id&quot;, &quot;name&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 708: <code>CREATE UNIQUE INDEX &quot;compensation_assignments_rule_id_staff_id_branch_id_role_co_key&quot; ON &quot;compensation_assignments&quot;(&quot;rule_id&quot;, &quot;staff_id&quot;, &quot;branch_id&quot;, &quot;role_code&quot;, &quot;effective_from&quot;);</code></li>
+<li>Dòng 711: <code>CREATE UNIQUE INDEX &quot;compensation_entries_dedupe_key_key&quot; ON &quot;compensation_entries&quot;(&quot;dedupe_key&quot;);</code></li>
+<li>Dòng 726: <code>CREATE UNIQUE INDEX &quot;compensation_adjustments_resulting_entry_id_key&quot; ON &quot;compensation_adjustments&quot;(&quot;resulting_entry_id&quot;);</code></li>
+<li>Dòng 735: <code>CREATE UNIQUE INDEX &quot;pay_runs_business_id_period_start_period_end_key&quot; ON &quot;pay_runs&quot;(&quot;business_id&quot;, &quot;period_start&quot;, &quot;period_end&quot;);</code></li>
+<li>Dòng 741: <code>CREATE UNIQUE INDEX &quot;pay_run_items_pay_run_id_staff_id_key&quot; ON &quot;pay_run_items&quot;(&quot;pay_run_id&quot;, &quot;staff_id&quot;);</code></li>
+<li>Dòng 1196: <code>CREATE OR REPLACE FUNCTION beautybook_reject_mutation()</code></li>
+<li>Dòng 1203: <code>CREATE TRIGGER financial_ledger_entries_append_only</code></li>
+<li>Dòng 1207: <code>CREATE OR REPLACE FUNCTION beautybook_protect_verified_transaction()</code></li>
+<li>Dòng 1220: <code>CREATE TRIGGER payment_transactions_immutable_after_verification</code></li>
+<li>Dòng 1224: <code>CREATE OR REPLACE FUNCTION beautybook_protect_locked_compensation()</code></li>
+<li>Dòng 1237: <code>CREATE TRIGGER compensation_entries_immutable_when_locked</code></li>
+<li>Dòng 1241: <code>CREATE OR REPLACE FUNCTION beautybook_protect_issued_statement()</code></li>
+<li>Dòng 1264: <code>CREATE TRIGGER platform_statements_immutable_after_issue</code></li>
+</ul>
+<h2>20260806_section_a_identity_workspace</h2>
+<p><a href="../../../prisma/migrations/20260806_section_a_identity_workspace/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 58: <code>CREATE UNIQUE INDEX &quot;business_comments_review_id_key&quot;</code></li>
+<li>Dòng 69: <code>CREATE UNIQUE INDEX &quot;user_roles_platform_scope_key&quot;</code></li>
+<li>Dòng 73: <code>CREATE UNIQUE INDEX &quot;user_roles_business_scope_key&quot;</code></li>
+<li>Dòng 77: <code>CREATE UNIQUE INDEX &quot;user_roles_branch_scope_key&quot;</code></li>
+</ul>
+<h2>20260810_service_taxonomy_role_cleanup</h2>
+<p><a href="../../../prisma/migrations/20260810_service_taxonomy_role_cleanup/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 139: <code>DROP INDEX IF EXISTS &quot;service_categories_slug_key&quot;;</code></li>
+<li>Dòng 229: <code>CREATE UNIQUE INDEX &quot;service_categories_business_id_slug_key&quot;</code></li>
+<li>Dòng 261: <code>CONSTRAINT &quot;canonical_services_merge_state_check&quot; CHECK (</code></li>
+<li>Dòng 333: <code>ADD CONSTRAINT &quot;business_services_mapping_state_check&quot; CHECK (</code></li>
+<li>Dòng 348: <code>CREATE UNIQUE INDEX &quot;services_branch_id_business_service_id_key&quot;</code></li>
+<li>Dòng 354: <code>CREATE OR REPLACE FUNCTION &quot;enforce_branch_offering_business_scope&quot;()</code></li>
+</ul>
+<h2>20260822_business_completion</h2>
+<p><a href="../../../prisma/migrations/20260822_business_completion/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 627: <code>CREATE UNIQUE INDEX &quot;branch_state_transitions_branch_id_version_key&quot; ON &quot;branch_state_transitions&quot;(&quot;branch_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 645: <code>CREATE UNIQUE INDEX &quot;promotion_redemptions_promotion_id_booking_id_key&quot; ON &quot;promotion_redemptions&quot;(&quot;promotion_id&quot;, &quot;booking_id&quot;);</code></li>
+<li>Dòng 654: <code>CREATE UNIQUE INDEX &quot;voucher_redemptions_voucher_id_booking_id_key&quot; ON &quot;voucher_redemptions&quot;(&quot;voucher_id&quot;, &quot;booking_id&quot;);</code></li>
+<li>Dòng 660: <code>CREATE UNIQUE INDEX &quot;service_variants_service_id_code_key&quot; ON &quot;service_variants&quot;(&quot;service_id&quot;, &quot;code&quot;);</code></li>
+<li>Dòng 666: <code>CREATE UNIQUE INDEX &quot;service_dependencies_service_id_required_service_id_depende_key&quot; ON &quot;service_dependencies&quot;(&quot;service_id&quot;, &quot;required_service_id&quot;, &quot;dependency_type&quot;);</code></li>
+<li>Dòng 672: <code>CREATE UNIQUE INDEX &quot;booking_service_adjustments_booking_service_id_version_key&quot; ON &quot;booking_service_adjustments&quot;(&quot;booking_service_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 687: <code>CREATE UNIQUE INDEX &quot;operational_impact_items_case_id_booking_id_key&quot; ON &quot;operational_impact_items&quot;(&quot;case_id&quot;, &quot;booking_id&quot;);</code></li>
+<li>Dòng 690: <code>CREATE UNIQUE INDEX &quot;waitlist_entries_offer_token_hash_key&quot; ON &quot;waitlist_entries&quot;(&quot;offer_token_hash&quot;);</code></li>
+<li>Dòng 693: <code>CREATE UNIQUE INDEX &quot;waitlist_entries_offer_slot_key_key&quot; ON &quot;waitlist_entries&quot;(&quot;offer_slot_key&quot;);</code></li>
+<li>Dòng 696: <code>CREATE UNIQUE INDEX &quot;waitlist_entries_booking_id_key&quot; ON &quot;waitlist_entries&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 720: <code>CREATE UNIQUE INDEX &quot;loyalty_rules_business_id_branch_id_version_key&quot; ON &quot;loyalty_rules&quot;(&quot;business_id&quot;, &quot;branch_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 726: <code>CREATE UNIQUE INDEX &quot;loyalty_accounts_business_id_customer_id_key&quot; ON &quot;loyalty_accounts&quot;(&quot;business_id&quot;, &quot;customer_id&quot;);</code></li>
+<li>Dòng 729: <code>CREATE UNIQUE INDEX &quot;loyalty_transactions_idempotency_key_key&quot; ON &quot;loyalty_transactions&quot;(&quot;idempotency_key&quot;);</code></li>
+<li>Dòng 747: <code>CREATE UNIQUE INDEX &quot;invoices_business_id_invoice_number_key&quot; ON &quot;invoices&quot;(&quot;business_id&quot;, &quot;invoice_number&quot;);</code></li>
+<li>Dòng 756: <code>CREATE UNIQUE INDEX &quot;cash_shifts_open_key_key&quot; ON &quot;cash_shifts&quot;(&quot;open_key&quot;);</code></li>
+<li>Dòng 762: <code>CREATE UNIQUE INDEX &quot;cash_movements_idempotency_key_key&quot; ON &quot;cash_movements&quot;(&quot;idempotency_key&quot;);</code></li>
+<li>Dòng 783: <code>CREATE UNIQUE INDEX &quot;legal_entity_versions_business_id_version_key&quot; ON &quot;legal_entity_versions&quot;(&quot;business_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 789: <code>CREATE UNIQUE INDEX &quot;payout_account_versions_business_id_version_key&quot; ON &quot;payout_account_versions&quot;(&quot;business_id&quot;, &quot;version&quot;);</code></li>
+<li>Dòng 795: <code>CREATE UNIQUE INDEX &quot;customer_saved_services_customer_id_branch_service_offering_key&quot; ON &quot;customer_saved_services&quot;(&quot;customer_id&quot;, &quot;branch_service_offering_id&quot;);</code></li>
+<li>Dòng 810: <code>CREATE UNIQUE INDEX &quot;customer_business_segments_business_id_customer_id_segment_key&quot; ON &quot;customer_business_segments&quot;(&quot;business_id&quot;, &quot;customer_id&quot;, &quot;segment&quot;);</code></li>
+<li>Dòng 870: <code>CREATE UNIQUE INDEX &quot;overbooking_overrides_booking_id_key&quot; ON &quot;overbooking_overrides&quot;(&quot;booking_id&quot;);</code></li>
+<li>Dòng 872: <code>CREATE UNIQUE INDEX &quot;invoices_replaces_invoice_id_key&quot; ON &quot;invoices&quot;(&quot;replaces_invoice_id&quot;);</code></li>
+<li>Dòng 873: <code>CREATE UNIQUE INDEX &quot;invoice_information_requests_invoice_id_key&quot; ON &quot;invoice_information_requests&quot;(&quot;invoice_id&quot;);</code></li>
+<li>Dòng 874: <code>CREATE UNIQUE INDEX &quot;invoice_information_requests_open_key_key&quot; ON &quot;invoice_information_requests&quot;(&quot;open_key&quot;);</code></li>
+<li>Dòng 875: <code>CREATE UNIQUE INDEX &quot;invoice_information_requests_idempotency_key_key&quot; ON &quot;invoice_information_requests&quot;(&quot;idempotency_key&quot;);</code></li>
+</ul>
+<h2>20260822_business_completion_outbox</h2>
+<p><a href="../../../prisma/migrations/20260822_business_completion_outbox/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 35: <code>CREATE UNIQUE INDEX &quot;notification_outbox_dedupe_key_key&quot; ON &quot;notification_outbox&quot;(&quot;dedupe_key&quot;);</code></li>
+<li>Dòng 36: <code>CREATE UNIQUE INDEX &quot;notification_outbox_notification_id_key&quot; ON &quot;notification_outbox&quot;(&quot;notification_id&quot;);</code></li>
+</ul>
+<h2>20260829_remove_attendance_workforce</h2>
+<p><a href="../../../prisma/migrations/20260829_remove_attendance_workforce/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 66: <code>CREATE UNIQUE INDEX IF NOT EXISTS &quot;special_working_days_branch_id_date_key&quot;</code></li>
+<li>Dòng 180: <code>CREATE OR REPLACE FUNCTION &quot;enforce_booking_service_staff_slot&quot;()</code></li>
+</ul>
+<h2>20260909_audit_integrity</h2>
+<p><a href="../../../prisma/migrations/20260909_audit_integrity/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 89: <code>ALTER TABLE &quot;payments&quot; ADD CONSTRAINT &quot;payments_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 90: <code>ALTER TABLE &quot;refund_requests&quot; ADD CONSTRAINT &quot;refund_requests_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 91: <code>ALTER TABLE &quot;payment_transactions&quot; ADD CONSTRAINT &quot;payment_transactions_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 92: <code>ALTER TABLE &quot;financial_ledger_entries&quot; ADD CONSTRAINT &quot;financial_ledger_entries_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 93: <code>ALTER TABLE &quot;refund_allocations&quot; ADD CONSTRAINT &quot;refund_allocations_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 94: <code>ALTER TABLE &quot;loyalty_accounts&quot; ADD CONSTRAINT &quot;loyalty_accounts_audit_amount_check&quot; CHECK (balance &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 95: <code>ALTER TABLE &quot;loyalty_transactions&quot; ADD CONSTRAINT &quot;loyalty_transactions_audit_amount_check&quot; CHECK (balance_after &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 96: <code>ALTER TABLE &quot;loyalty_rules&quot; ADD CONSTRAINT &quot;loyalty_rules_audit_amount_check&quot; CHECK (earn_points_per_amount &gt;= 0 AND earn_amount_unit &gt; 0 AND redemption_value_per_point &gt; 0) NOT VALID;</code></li>
+<li>Dòng 97: <code>ALTER TABLE &quot;promotion_redemptions&quot; ADD CONSTRAINT &quot;promotion_redemptions_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 98: <code>ALTER TABLE &quot;voucher_redemptions&quot; ADD CONSTRAINT &quot;voucher_redemptions_audit_amount_check&quot; CHECK (amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 99: <code>ALTER TABLE &quot;pricing_snapshots&quot; ADD CONSTRAINT &quot;pricing_snapshots_audit_amount_check&quot; CHECK (subtotal_amount &gt;= 0 AND discount_amount &gt;= 0 AND final_amount &gt;= 0) NOT VALID;</code></li>
+<li>Dòng 100: <code>ALTER TABLE &quot;bookings&quot; ADD CONSTRAINT &quot;bookings_audit_amount_check&quot; CHECK (total_amount &gt;= 0 AND (voucher_discount_amount IS NULL OR voucher_discount_amount &gt;= 0) AND (final_amount IS NULL OR final_amount &gt;= 0)) NOT VALID;</code></li>
+<li>Dòng 101: <code>ALTER TABLE &quot;booking_services&quot; ADD CONSTRAINT &quot;booking_services_audit_amount_check&quot; CHECK (price_at_booking &gt;= 0 AND duration_minutes &gt; 0) NOT VALID;</code></li>
+<li>Dòng 102: <code>ALTER TABLE &quot;invoices&quot; ADD CONSTRAINT &quot;invoices_audit_amount_check&quot; CHECK (subtotal_amount &gt;= 0 AND discount_amount &gt;= 0 AND tax_amount &gt;= 0 AND total_amount &gt;= 0 AND tax_rate &gt;= 0 AND tax_rate &lt;= 100) NOT VALID;</code></li>
+<li>Dòng 103: <code>ALTER TABLE &quot;invoice_lines&quot; ADD CONSTRAINT &quot;invoice_lines_audit_amount_check&quot; CHECK (quantity &gt; 0 AND unit_price &gt;= 0 AND discount_amount &gt;= 0 AND tax_amount &gt;= 0 AND line_total &gt;= 0 AND tax_rate &gt;= 0 AND tax_rate &lt;= 100) NOT VALID;</code></li>
+</ul>
+<h2>20260915_remove_manager_role</h2>
+<p><a href="../../../prisma/migrations/20260915_remove_manager_role/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 101: <code>ON CONFLICT(code) DO UPDATE SET level=EXCLUDED.level;</code></li>
+<li>Dòng 241: <code>ON CONFLICT(code) DO UPDATE SET resource=EXCLUDED.resource,action=EXCLUDED.action,</code></li>
+<li>Dòng 242: <code>scope=EXCLUDED.scope,description=EXCLUDED.description;</code></li>
+<li>Dòng 407: <code>CREATE OR REPLACE FUNCTION validate_user_role_scope()</code></li>
+</ul>
+<h2>20260916_account_separation</h2>
+<p><a href="../../../prisma/migrations/20260916_account_separation/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 17: <code>CREATE FUNCTION public.validate_account_role_separation() RETURNS trigger</code></li>
+<li>Dòng 42: <code>CREATE TRIGGER account_role_separation_guard</code></li>
+</ul>
+<h2>20260917_booking_violation_events</h2>
+<p><a href="../../../prisma/migrations/20260917_booking_violation_events/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 18: <code>CONSTRAINT &quot;booking_violation_source_check&quot; CHECK (</code></li>
+<li>Dòng 22: <code>CONSTRAINT &quot;booking_violation_void_check&quot; CHECK (</code></li>
+<li>Dòng 27: <code>CREATE UNIQUE INDEX &quot;booking_violation_events_source_request_id_key&quot; ON &quot;booking_violation_events&quot;(&quot;source_request_id&quot;);</code></li>
+<li>Dòng 28: <code>CREATE UNIQUE INDEX &quot;booking_violation_one_valid_event&quot; ON &quot;booking_violation_events&quot;(&quot;booking_id&quot;) WHERE &quot;voided_at&quot; IS NULL;</code></li>
+<li>Dòng 32: <code>CREATE FUNCTION validate_booking_violation_source() RETURNS trigger LANGUAGE plpgsql AS $$</code></li>
+<li>Dòng 48: <code>CREATE TRIGGER booking_violation_source_valid BEFORE INSERT ON booking_violation_events</code></li>
+<li>Dòng 51: <code>CREATE FUNCTION protect_booking_violation_evidence() RETURNS trigger LANGUAGE plpgsql AS $$</code></li>
+<li>Dòng 66: <code>CREATE TRIGGER booking_violation_evidence_immutable BEFORE UPDATE OR DELETE ON booking_violation_events</code></li>
+</ul>
+<h2>20260918_customer_booking_policy</h2>
+<p><a href="../../../prisma/migrations/20260918_customer_booking_policy/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 6: <code>&quot;revision&quot; INTEGER NOT NULL DEFAULT 0 CHECK (revision &gt;= 0),</code></li>
+<li>Dòng 12: <code>CONSTRAINT customer_booking_policy_dates CHECK (</code></li>
+<li>Dòng 17: <code>CREATE UNIQUE INDEX customer_booking_policies_customer_id_business_id_key ON customer_booking_policies(customer_id,business_id);</code></li>
+<li>Dòng 18: <code>CREATE UNIQUE INDEX customer_booking_policies_triggered_by_violation_event_id_key ON customer_booking_policies(triggered_by_violation_event_id);</code></li>
+<li>Dòng 21: <code>CREATE FUNCTION validate_customer_booking_policy_scope() RETURNS trigger LANGUAGE plpgsql AS $$</code></li>
+<li>Dòng 32: <code>CREATE TRIGGER customer_booking_policy_scope BEFORE INSERT OR UPDATE OF starts_at,ends_at,triggered_by_violation_event_id</code></li>
+</ul>
+<h2>20260919_archive_retired_health</h2>
+<p><a href="../../../prisma/migrations/20260919_archive_retired_health/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 32: <code>CREATE FUNCTION archive_health_20260919.reject_archive_mutation() RETURNS trigger</code></li>
+<li>Dòng 45: <code>EXECUTE format(&#39;CREATE TRIGGER retired_health_archive_read_only BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON archive_health_20260919.%I FOR EACH STATEMENT EXECUTE FUNCTION archive_health_20260919.reject_archive_mutation()&#39;,t);</code></li>
+</ul>
+<h2>20260919_health_archive_row_guard</h2>
+<p><a href="../../../prisma/migrations/20260919_health_archive_row_guard/migration.sql">Migration</a></p>
+<ul>
+<li>Dòng 12: <code>EXECUTE format(&#39;DROP TRIGGER retired_health_archive_read_only ON archive_health_20260919.%I&#39;, t);</code></li>
+<li>Dòng 13: <code>EXECUTE format(&#39;CREATE TRIGGER retired_health_archive_read_only BEFORE INSERT OR UPDATE OR DELETE ON archive_health_20260919.%I FOR EACH ROW EXECUTE FUNCTION archive_health_20260919.reject_archive_mutation()&#39;,t);</code></li>
+<li>Dòng 14: <code>EXECUTE format(&#39;CREATE TRIGGER retired_health_archive_no_truncate BEFORE TRUNCATE ON archive_health_20260919.%I FOR EACH STATEMENT EXECUTE FUNCTION archive_health_20260919.reject_archive_mutation()&#39;,t);</code></li>
+</ul>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

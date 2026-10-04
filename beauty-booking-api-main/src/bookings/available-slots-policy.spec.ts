@@ -18,7 +18,7 @@ describe('Available slots respect the same advance policy as booking creation', 
       staffProfile: { findUnique: jest.fn().mockResolvedValue(staff), findMany: jest.fn().mockResolvedValue([staff]) },
       bookingService: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    const service = new BookingsService(prisma as never, {} as never, {} as never, { getEffective: jest.fn().mockResolvedValue({ minBookingLeadTimeHours: min, maxAdvanceBookingDays: max }) } as never, {} as never, {} as never);
+    const service = new BookingsService(prisma as never, {} as never, {} as never, { getEffective: jest.fn().mockResolvedValue({ minBookingLeadTimeHours: min, maxAdvanceBookingDays: max }) } as never, {} as never);
     jest.spyOn(service, 'expirePendingHolds').mockResolvedValue(0);
     return (date = '2026-09-21') => service.getAvailableSlots({ branchId: 'branch', staffId: anyStaff ? null : 'staff', serviceIds: ['service'], date });
   }

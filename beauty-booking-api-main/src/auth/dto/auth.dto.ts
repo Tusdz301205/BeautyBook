@@ -19,11 +19,14 @@ const normalizeEmail = ({ value }: { value: unknown }) =>
 
 const normalizeVietnamPhone = ({ value }: { value: unknown }) => {
   if (typeof value !== 'string') return value;
-  const compact = value.trim().replace(/[\s.-]/g, '');
+  const compact = value.trim().replace(/[\s().-]/g, '');
   return compact.startsWith('0') ? `+84${compact.slice(1)}` : compact;
 };
 
 export class LoginDto {
+  @IsOptional()
+  @IsIn(['BODY'])
+  refreshTokenTransport?: 'BODY';
   @IsOptional()
   @IsIn(['CUSTOMER', 'SALON', 'PLATFORM'])
   workspace?: 'CUSTOMER' | 'SALON' | 'PLATFORM';
@@ -45,6 +48,9 @@ export class LoginDto {
 }
 
 export class RegisterDto {
+  @IsOptional()
+  @IsIn(['BODY'])
+  refreshTokenTransport?: 'BODY';
   @IsOptional()
   @IsIn(['CUSTOMER', 'BUSINESS_OWNER'], {
     message: 'Loại tài khoản không hợp lệ',

@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-09-26T15:11:33.353Z",
+  "branch": "main",
+  "commit": "761d3607297e72bb7765efe791a8dbcb71673d01",
+  "baselineDiffHash": "29e957315bb5f4a7b07e078144c9de3f703d79846e07fbf75b7df0a781e0a741",
+  "currentDiffHash": "29e957315bb5f4a7b07e078144c9de3f703d79846e07fbf75b7df0a781e0a741",
+  "trackedDiffUnchanged": true,
+  "stagedDiffUnchanged": true,
+  "sourceHashFilesChecked": 540,
+  "changedBaselineSources": [],
+  "missingBaselineSources": [],
+  "evidenceReferencesChecked": 93,
+  "evidenceErrors": [],
+  "markdownLinkErrors": [],
+  "matrixRows": 75,
+  "matrixColumns": 14,
+  "scenarioCounts": {
+    "HANDLED": 43,
+    "PARTIALLY HANDLED": 23,
+    "NOT APPLICABLE": 3,
+    "CANNOT CONFIRM": 5,
+    "NOT HANDLED": 1
+  },
+  "rootCauseCounts": {
+    "CRITICAL": 0,
+    "HIGH": 4,
+    "MEDIUM": 19,
+    "LOW": 1
+  },
+  "limitations": [
+    "Hash baseline chỉ540 source/schema/migration/test files và git tracked diff, không mọi binary/untracked assets.",
+    "Không ứng dụng/DB/Redis/browser runtime verification."
+  ]
+}

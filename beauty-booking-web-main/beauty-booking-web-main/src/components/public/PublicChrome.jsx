@@ -20,6 +20,7 @@ export function PublicHeader() {
   const location = useLocation();
   const menuButtonRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const drawerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
@@ -35,6 +36,18 @@ export function PublicHeader() {
       if (event.key === 'Escape') {
         setOpen(false);
         menuButtonRef.current?.focus();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [...(drawerRef.current?.querySelectorAll('a[href], button:not([disabled])') || [])]
+        .filter((element) => element.getClientRects().length);
+      if (!focusable.length) return;
+      if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault();
+        focusable[0].focus();
       }
     };
     document.body.style.overflow = 'hidden';
@@ -100,7 +113,7 @@ export function PublicHeader() {
         <div className="bb-public-drawer" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setOpen(false);
         }}>
-          <nav id="public-mobile-menu" className="bb-public-drawer__panel" aria-label="Điều hướng di động">
+          <nav ref={drawerRef} id="public-mobile-menu" className="bb-public-drawer__panel" aria-label="Điều hướng di động">
             <div className="bb-public-drawer__top">
               <span className="bb-public-drawer__label">Khám phá BeautyBook</span>
               <button ref={closeButtonRef} type="button" aria-label="Đóng menu" onClick={() => setOpen(false)}>

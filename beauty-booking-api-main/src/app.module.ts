@@ -33,8 +33,6 @@ import { MediaModule } from './media/media.module';
 import { CombosModule } from './combos/combos.module';
 import { RecurringModule } from './recurring/recurring.module';
 import { PrivacyModule } from './privacy/privacy.module';
-import { LoyaltyModule } from './loyalty/loyalty.module';
-import { FinanceModule } from './finance/finance.module';
 import { OperationsModule } from './operations/operations.module';
 import { OwnershipModule } from './ownership/ownership.module';
 import { SavedServicesModule } from './saved-services/saved-services.module';
@@ -68,8 +66,6 @@ import { SavedServicesModule } from './saved-services/saved-services.module';
     CombosModule,
     RecurringModule,
     PrivacyModule,
-    LoyaltyModule,
-    FinanceModule,
     OperationsModule,
     OwnershipModule,
     SavedServicesModule,

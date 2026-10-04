@@ -1,0 +1,78 @@
+@startuml ERD-statement
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**PlatformFeeEntry**\n(platform_fee_entries)" as PlatformFeeEntry {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * branchId: String <<FK>>
+  * bookingId: String <<FK>> <<UQ>>
+  * baseAmount: Decimal 
+  * feeRate: Decimal 
+  * feeAmount: Decimal 
+  ... 4 cot: xem tu dien
+}
+entity "**PlatformFeeAdjustment**\n(platform_fee_adjustments)" as PlatformFeeAdjustment {
+  * id: String <<PK>>
+  * platformFeeId: String <<FK>>
+  * businessId: String <<FK>>
+  * branchId: String <<FK>>
+  refundId: String? <<FK>>
+  * amount: Decimal 
+  * reason: String 
+  ... 1 cot: xem tu dien
+}
+entity "**PlatformStatement**\n(platform_statements)" as PlatformStatement {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * periodStart: DateTime 
+  * periodEnd: DateTime 
+  * version: Int 
+  * status: PlatformStatementStatus 
+  * currency: String 
+  ... 8 cot: xem tu dien
+}
+entity "**PlatformStatementLine**\n(platform_statement_lines)" as PlatformStatementLine {
+  * id: String <<PK>>
+  * statementId: String <<FK>>
+  platformFeeId: String? <<FK>>
+  feeAdjustmentId: String? <<FK>>
+  * lineType: StatementLineType 
+  * amount: Decimal 
+  * sourceSnapshot: Json 
+  ... 1 cot: xem tu dien
+}
+PlatformFeeEntry ||--o{ PlatformFeeAdjustment
+PlatformStatement ||--o{ PlatformStatementLine
+PlatformFeeEntry |o--o{ PlatformStatementLine
+PlatformFeeAdjustment |o--o{ PlatformStatementLine
+
+@enduml

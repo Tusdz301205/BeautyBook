@@ -59,7 +59,7 @@ try {
     const token = role === 'Owner' ? ownerToken : await login(email);
     tokens[role] = token;
     expectStatus(await call(`/branches/${branch.id}`, token), 200, `${role} public GET`);
-    for (const path of ['/saved-services', '/loyalty/mine', '/bookings/my-appointments']) {
+    for (const path of ['/saved-services', '/bookings/my-appointments']) {
       expectStatus(await call(path, token), 403, `${role} denied ${path}`);
     }
     expectStatus(await call('/reviews', token, 'POST', {}), 403, `${role} review denied`);

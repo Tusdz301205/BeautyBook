@@ -2,6 +2,7 @@ import React, { useEffect, useId, useState } from 'react';
 import { FileCheck2, FileUp, Image, LoaderCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { mediaApi } from '../../api/apiClient';
+import { validateUploadedFile } from '../../utils/mediaValidation';
 import { Button, cx } from '../ui';
 
 export function FileUpload({
@@ -12,6 +13,7 @@ export function FileUpload({
   value,
   onUploaded,
   onRemoved,
+  onBusyChange,
   document = false,
   multiple = false,
   label = 'Tải tệp lên',
@@ -23,22 +25,14 @@ export function FileUpload({
   const [preview, setPreview] = useState(value?.url || '');
   useEffect(() => { setPreview(value?.url || ''); }, [value?.url]);
 
-  const validate = (file) => {
-    const allowed = document
-      ? ['application/pdf']
-      : ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
-    if (!allowed.includes(file.type)) return document ? 'Chỉ nhận tài liệu PDF.' : 'Chỉ nhận ảnh JPG, PNG, WebP hoặc AVIF.';
-    if (file.size > 10 * 1024 * 1024) return 'Tệp không được lớn hơn 10 MB.';
-    return '';
-  };
-
   const upload = async (files) => {
     const selected = [...(files || [])];
     if (!selected.length) return;
-    const invalid = selected.map(validate).find(Boolean);
+    const invalid = selected.map((file) => validateUploadedFile(file, { document })).find(Boolean);
     if (invalid) { toast.error(invalid); return; }
     if (!entityId) { toast.error('Hãy lưu hồ sơ trước khi tải tệp.'); return; }
     setBusy(true);
+    onBusyChange?.(true);
     try {
       for (const file of selected) {
         const media = await mediaApi.upload(file, { entityType, entityId, businessId, branchId });
@@ -47,15 +41,16 @@ export function FileUpload({
       }
       toast.success(document ? `Đã tải ${selected.length} tài liệu an toàn` : 'Đã tải ảnh lên');
     } catch (error) { toast.error(error.message); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange?.(false); }
   };
 
   const remove = async () => {
     if (!value?.id) { setPreview(''); onRemoved?.(); return; }
     setBusy(true);
+    onBusyChange?.(true);
     try { await mediaApi.remove(value.id); setPreview(''); onRemoved?.(); toast.success('Đã gỡ tệp'); }
     catch (error) { toast.error(error.message); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange?.(false); }
   };
 
   return <div className={cx('rounded-[var(--bb-radius-card)] border border-dashed border-[var(--bb-border)] bg-[var(--bb-surface)] p-4', className)}>

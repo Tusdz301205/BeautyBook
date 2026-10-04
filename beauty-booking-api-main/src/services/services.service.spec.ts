@@ -1,5 +1,48 @@
 import { ServicesService } from './services.service';
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+
+describe('Service command validation', () => {
+  test.each(['bufferBeforeMinutes', 'bufferAfterMinutes'])('a null %s update fails without changing the variant', async (field) => {
+    const update = jest.fn();
+    const service = new ServicesService({ serviceVariant: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'variant', priceType: 'FIXED', price: 10,
+        maxPrice: null, durationMinutes: 15, maxDurationMinutes: null,
+        bufferBeforeMinutes: 0, bufferAfterMinutes: 0, deletedAt: null }), update,
+    } } as never);
+    await expect(service.updateVariant('variant', { [field]: null } as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(update).not.toHaveBeenCalled();
+  });
+  test.each([
+    { bufferBeforeMinutes: 1.5 }, { bufferBeforeMinutes: 'invalid' },
+    { bufferAfterMinutes: 1.5 }, { bufferAfterMinutes: -1 },
+    { maxDurationMinutes: 1.5 }, { maxDurationMinutes: '2' }, { maxDurationMinutes: 0 },
+  ])('invalid variant timing is rejected without writing: %j', async (timing) => {
+    const create = jest.fn();
+    const service = new ServicesService({
+      branchServiceOffering: { findFirst: jest.fn().mockResolvedValue({ id: 'service' }) },
+      serviceVariant: { create },
+    } as never);
+    await expect(service.createVariant('service', {
+      code: 'valid', name: 'Biến thể', price: 10, durationMinutes: 1, ...timing,
+    } as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+  });
+  const service = new ServicesService({} as never);
+  test.each([{ price: 10 }, { code: 'valid', name: '   ', price: 10 }, { code: 1, name: 'Tên', price: 10 }])('malformed variant fails as a client error before persistence', async (data) => {
+    await expect(service.createVariant('service', data as never)).rejects.toBeInstanceOf(BadRequestException);
+  });
+  test.each([
+    { name: 'Quy tắc', adjustmentType: 'INVALID', adjustmentValue: 1, conditions: {} },
+    { name: 1, adjustmentType: 'FIXED_AMOUNT', adjustmentValue: 1, conditions: {} },
+    { name: 'Quy tắc', adjustmentType: 'FIXED_AMOUNT', adjustmentValue: 1, conditions: [] },
+    { name: 'Quy tắc', adjustmentType: 'FIXED_AMOUNT', adjustmentValue: 1, conditions: {}, validFrom: 'invalid' },
+  ])('malformed price rule never reaches Prisma', async (data) => {
+    await expect(service.createPriceRule('service', data as never)).rejects.toBeInstanceOf(BadRequestException);
+  });
+  test('a variant update cannot rebind its service through an arbitrary payload field', async () => {
+    await expect(service.updateVariant('variant', { serviceId: 'foreign-service' } as never)).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
 
 describe('ServicesService branch availability', () => {
   test('creates a hidden compatibility category when owner omits categoryId', async () => {

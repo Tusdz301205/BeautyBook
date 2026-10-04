@@ -29,6 +29,18 @@ function setup() {
 }
 
 describe('UsersService role scope validation', () => {
+  it('projects only public account fields from suspension response', async () => {
+    const { service, prisma } = setup();
+    prisma.user.findUnique.mockResolvedValue({ isActive: true });
+    const update = jest.fn().mockResolvedValue({ id: 'user-1', isActive: false });
+    (prisma.user as any).update = update;
+    (prisma as any).auditLog = { create: jest.fn().mockResolvedValue({}) };
+    await service.suspend('user-1', 'platform-1');
+    const select = update.mock.calls[0][0].select;
+    expect(select.passwordHash).toBeUndefined();
+    expect(select.id).toBe(true);
+    expect(select.isActive).toBe(true);
+  });
   it.each(['ADMIN', 'COMPLIANCE', 'SUPPORT', 'MARKETING', 'FINANCE'])(
     'rejects retired platform role %s',
     async (roleCode) => {

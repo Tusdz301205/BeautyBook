@@ -6,7 +6,9 @@ export function resolveBookingSource(
   requested: BookingSource | undefined,
   hasGuestName: boolean,
 ): BookingSource {
-  if (customerOnly) return 'ONLINE_WEB';
+  if (customerOnly) {
+    return requested === 'ONLINE_APP' ? 'ONLINE_APP' : 'ONLINE_WEB';
+  }
   if (requested && !['WALK_IN', 'PHONE', 'STAFF_CREATED'].includes(requested)) {
     throw new BadRequestException('Chọn nguồn đặt lịch tại quầy, qua điện thoại hoặc do nhân viên tạo');
   }

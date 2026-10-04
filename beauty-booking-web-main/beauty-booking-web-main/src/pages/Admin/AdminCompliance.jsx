@@ -48,6 +48,18 @@ function ReviewDrawer({ item, canReviewBusiness, canReviewBranch, onClose, onDec
 
   return <Drawer open onClose={onClose} size="lg" title={item.name} description={`${item.typeLabel} · ${statusLabel(item.status)}`} footer={<div className="flex w-full flex-wrap justify-end gap-2"><Link to={detailPath}><Button variant="secondary"><Eye size={15} />Mở trang chi tiết</Button></Link>{canAct && <><Button variant="secondary" onClick={() => onDecision(item, 'REQUEST_INFO')}>Yêu cầu bổ sung</Button><Button variant="danger" onClick={() => onDecision(item, item.kind === 'business' ? 'REJECT' : 'REJECTED')}><XCircle size={15} />Từ chối</Button><Button disabled={!parentEligible} onClick={() => onDecision(item, item.kind === 'business' ? 'APPROVE' : 'ACTIVE')}><CheckCircle2 size={15} />Phê duyệt</Button></>}</div>}>
     <div className="space-y-6">
+      {item.kind === 'business' && <section>
+        <h3 className="font-bold">Phân loại dịch vụ và pháp nhân</h3>
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Info label="Loại hình dịch vụ" value={record.businessTypeLabel || 'Chưa chọn loại hình dịch vụ'} />
+          <Info label="Tên pháp nhân" value={record.owner?.companyName || 'Chưa cập nhật'} />
+          <Info label="Mã số thuế" value={record.owner?.taxCode || 'Chưa cập nhật'} />
+          <Info label="Người đại diện pháp luật" value={record.legalRepresentative || 'Chưa cập nhật'} />
+          <Info label="Email liên hệ doanh nghiệp" value={record.contactEmail || 'Chưa cập nhật'} />
+          <Info label="Điện thoại liên hệ doanh nghiệp" value={record.contactPhone || 'Chưa cập nhật'} />
+          <Info label="Địa chỉ đăng ký" value={record.addressLine || 'Chưa cập nhật'} />
+        </dl>
+      </section>}
       {!parentEligible && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><strong>Chưa thể duyệt chi nhánh.</strong><p className="mt-1">Doanh nghiệp {record.business?.name} phải được duyệt trước.</p></div>}
       <section><h3 className="font-bold">Thông tin hồ sơ</h3><dl className="mt-3 grid gap-3 sm:grid-cols-2">{item.kind === 'business' ? <><Info label="Chủ sở hữu" value={owner?.fullName || record.legalRepresentative || 'Chưa cập nhật'} /><Info label="Email" value={owner?.email || record.contactEmail || 'Chưa cập nhật'} /><Info label="Số điện thoại" value={owner?.phone || record.contactPhone || 'Chưa cập nhật'} /><Info label="Số chi nhánh" value={record.branches?.length || 0} /></> : <><Info label="Doanh nghiệp chủ quản" value={record.business?.name || 'Chưa cập nhật'} /><Info label="Trạng thái doanh nghiệp" value={statusLabel(record.business?.status)} /><Info label="Địa chỉ" value={record.addressLine || 'Chưa cập nhật'} /><Info label="Ngày gửi" value={date(record.submittedAt)} /></>}</dl></section>
       <section><h3 className="font-bold">Giấy tờ đã nộp</h3>{documents.length ? <div className="mt-3 divide-y divide-[var(--bb-border)] rounded-xl border border-[var(--bb-border)]">{documents.map((document) => <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 p-4"><p className="font-semibold">{documentLabel(document.documentType)}</p><Badge tone={statusTone(document.status)}>{statusLabel(document.status)}</Badge></div>)}</div> : <p className="mt-2 text-sm text-[var(--bb-muted)]">Chưa có giấy tờ được ghi nhận.</p>}</section>
@@ -113,7 +125,7 @@ export default function AdminCompliance() {
   };
 
   return <Page>
-    <PageHeader eyebrow="Quản trị đối tác" title="Xét duyệt hồ sơ" description="Một hàng chờ chung cho hồ sơ doanh nghiệp và chi nhánh, với lý do rõ ràng cho mọi yêu cầu bổ sung hoặc từ chối." />
+    <PageHeader eyebrow="Quản trị đối tác" title="Xét duyệt hồ sơ" description="Danh sách hồ sơ doanh nghiệp và chi nhánh cần xét duyệt, với lý do rõ ràng cho mọi yêu cầu bổ sung hoặc từ chối." />
     <div className="grid gap-3 sm:grid-cols-3"><MetricCard icon={Clock3} label="Chờ xử lý" value={pendingCount} tone="warning" /><MetricCard icon={Building2} label="Hồ sơ doanh nghiệp" value={queue.pendingBusinesses.length} /><MetricCard icon={Store} label="Hồ sơ chi nhánh" value={queue.pendingBranches.length} tone="info" /></div>
     <Card className="p-4"><div className="grid gap-3 lg:grid-cols-[minmax(240px,1fr)_210px_240px]"><Field label="Tìm hồ sơ"><div className="relative"><Search size={16} className="pointer-events-none absolute left-3 top-3.5 text-[var(--bb-muted)]" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên, email, địa chỉ..." /></div></Field><Field label="Loại hồ sơ"><Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="ALL">Tất cả hồ sơ</option><option value="business">Doanh nghiệp</option><option value="branch">Chi nhánh</option></Select></Field><Field label="Trạng thái"><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>{FILTER_STATUSES.map((value) => <option key={value || 'all'} value={value}>{value ? statusLabel(value) : 'Tất cả trạng thái'}</option>)}</Select></Field></div></Card>
     <Card className="overflow-hidden">{loading ? <div className="p-5"><Skeleton rows={8} /></div> : error ? <ErrorState message={error} onRetry={load} /> : !items.length ? <EmptyState icon={FileSearch} title="Không có hồ sơ phù hợp" description="Thử thay đổi từ khóa hoặc bộ lọc." /> : <><QueueCards items={items} onOpen={setSelected} /><QueueTable items={items} onOpen={setSelected} /></>}</Card>

@@ -48,7 +48,6 @@ function fixture(claimCount = 1) {
   return {
     service: new BookingsService(
       prisma, {} as never, {} as never, {} as never, {} as never,
-      { reverseRedemptionForBooking: jest.fn() } as never,
     ),
     prisma,
   };

@@ -62,6 +62,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Returned object is attached to request.user.
    */
   async validate(payload: JwtPayload): Promise<AuthUser> {
+    // Sessionless legacy JWTs have no durable revocation record. All current
+    // issuers create a UserSession, so reject these rather than bypassing a
+    // password change when Redis is unavailable.
+    if (!payload.sessionId) throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
     // Security Rule 9 — Token Revocation: token phát hành trước thời điểm
     // revoke (Admin khóa tài khoản / nhân viên nghỉ việc) bị từ chối ngay,
     // kể cả khi chữ ký và hạn dùng vẫn hợp lệ.

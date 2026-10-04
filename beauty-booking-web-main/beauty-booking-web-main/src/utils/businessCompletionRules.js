@@ -1,11 +1,3 @@
-export function canSubmitInvoiceRequest(form, completedBookings) {
-  return Boolean(
-    form?.buyerName?.trim()
-    && form?.bookingId
-    && completedBookings?.some((booking) => booking.id === form.bookingId),
-  );
-}
-
 export function ownershipVersionsReady(transfer) {
   return transfer?.legalEntityVersion?.verificationStatus === 'VERIFIED'
     && transfer?.payoutAccountVersion?.verificationStatus === 'VERIFIED';

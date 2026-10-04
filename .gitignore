@@ -7,12 +7,19 @@
 *.key
 *.p12
 *.pfx
+**/debug.keystore
+**/local.properties
 id_rsa
 id_rsa.pub
 
 # Dependencies and build output
 **/node_modules/
 **/dist/
+**/.expo/
+**/.gradle/
+**/.kotlin/
+**/android/build/
+**/android/app/build/
 **/build/
 **/coverage/
 **/.cache/
@@ -20,6 +27,8 @@ id_rsa.pub
 **/.nx/
 **/*.tsbuildinfo
 **/vite.config.*.timestamp-*
+beauty-booking-api-main/docs/thesis-diagrams/renderer/bin/
+beauty-booking-api-main/docs/thesis-diagrams/renderer/obj/
 
 # Local database backups must never be committed
 docs/db-backups/*
@@ -52,6 +61,18 @@ docs/*.docx
 # Local exports, generated reports and temporary QA artifacts.
 /tmp/
 /output/
+/report-output/
+**/report-output/
+/.report-edit/
+mobile-preview/artifacts/
+/mobile-preview/
+/docs/full-system-qa/
+/docs/generated-images/beautybook/originals/
+/docs/generated-images/beautybook/qa-*
+/docs/generated-images/beautybook/live-entity-image-reconciliation.json
+/report-output/full-system-qa/runtime.json
+/report-output/full-system-qa/actors.json
+/report-output/full-system-qa/browser-env.json
 *.zip
 *.7z
 *.rar

@@ -75,6 +75,14 @@ describe('BookingsController authenticated customer checkout', () => {
     expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_WEB' }));
   });
 
+  it('preserves the mobile online booking source', async () => {
+    const { controller, bookingsService } = buildController();
+    await controller.create({ ...counterRequest, source: 'ONLINE_APP' }, {
+      id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
+    } as any);
+    expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_APP' }));
+  });
+
   it('keeps cancelled item status and historical service snapshot in the customer response', async () => {
     const { controller, bookingsService } = buildController();
     bookingsService.create.mockResolvedValue({ id: 'booking-1', branchId: 'branch-1', bookingServices: [{

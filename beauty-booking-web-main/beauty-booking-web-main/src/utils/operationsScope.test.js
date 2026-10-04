@@ -21,21 +21,18 @@ test('operational branch selector excludes staff-only grants and derives the sel
   assert.equal(operationsContext(mixed, branches, 'owned-two').businessId, 'owned');
 });
 
-test('receptionist cannot borrow owner impact, loyalty or invoice-management controls', () => {
+test('receptionist only receives operator access and no owner-only operations tab', () => {
   const rights = operationsRights(mixed, operationsContext(mixed, branches, 'counter'));
-  assert.equal(rights.waitlist, true);
-  assert.equal(rights.offer, true);
-  assert.equal(rights.issueInvoice, true);
-  for (const key of ['impact', 'loyalty', 'ownership', 'manageInvoices', 'configureLoyalty']) assert.equal(rights[key], false, key);
-  assert.equal(operationsTab('impact', rights), 'waitlist');
-  assert.equal(operationsTab('ownership', rights), 'waitlist');
-  assert.equal(operationsTab('cash', rights), 'cash');
+  assert.deepEqual(rights, { owner: false, operator: true, impact: false, ownership: false });
+  assert.equal(operationsTab('impact', rights), '');
+  assert.equal(operationsTab('ownership', rights), '');
 });
 
-test('owner keeps all real operational controls within the owned business', () => {
+test('owner receives impact and ownership operations inside the owned business', () => {
   const rights = operationsRights(mixed, operationsContext(mixed, branches, 'owned-two'));
-  for (const value of Object.values(rights)) assert.equal(value, true);
+  assert.deepEqual(rights, { owner: true, operator: true, impact: true, ownership: true });
   assert.equal(operationsTab('impact', rights), 'impact');
+  assert.equal(operationsTab('ownership', rights), 'ownership');
 });
 
 test('expired or retired scopes cannot render stale panels or select stale branches', () => {
@@ -43,44 +40,38 @@ test('expired or retired scopes cannot render stale panels or select stale branc
   const context = operationsContext(user, branches, 'counter');
   assert.equal(context.branchId, '');
   assert.deepEqual(context.branches, []);
-  assert.equal(operationsTab('cash', operationsRights(user, context)), '');
+  assert.equal(operationsTab('impact', operationsRights(user, context)), '');
 });
 
-test('a new owner without a branch cannot operate a counter or receive a fictitious branch', () => {
-  const context = operationsContext(actor([grant('BUSINESS_OWNER', 'owned')]), []);
-  const rights = operationsRights(mixed, context);
+test('a new owner without a branch keeps business-level operations without inventing a branch', () => {
+  const user = actor([grant('BUSINESS_OWNER', 'owned')]);
+  const context = operationsContext(user, []);
+  const rights = operationsRights(user, context);
   assert.equal(context.businessId, 'owned');
+  assert.equal(context.branchId, '');
+  assert.equal(rights.impact, true);
   assert.equal(rights.ownership, true);
-  assert.equal(rights.waitlist, false);
-  assert.equal(rights.cash, false);
-  assert.equal(rights.issueInvoice, false);
 });
 
-test('missing permissions hide actions even when the role exists', () => {
-  const user = { ...mixed, permissions: ['payment:read:tenant', 'report:revenue:tenant'] };
-  const rights = operationsRights(user, operationsContext(user, branches));
-  assert.equal(rights.cash, true);
-  assert.equal(rights.loyalty, true);
-  assert.equal(rights.issueInvoice, false);
-  assert.equal(rights.manageInvoices, false);
-  assert.equal(rights.configureLoyalty, false);
+test('missing permissions hide owner actions even when the owner role exists', () => {
+  const user = { ...mixed, permissions: ['booking:read:tenant', 'report:revenue:tenant'] };
+  const rights = operationsRights(user, operationsContext(user, branches, 'owned-one'));
+  assert.equal(rights.owner, true);
+  assert.equal(rights.operator, true);
+  assert.equal(rights.impact, false);
+  assert.equal(rights.ownership, false);
 });
 
 function apiFixture() {
   const fn = () => mock.fn(async () => []);
-  return {
-    impactApi: { list: fn() }, waitlistApi: { branch: fn() },
-    financeOperationsApi: { invoices: fn(), invoiceRequests: fn() },
-    loyaltyApi: { liability: fn() }, ownershipApi: { list: fn(), versions: fn() },
-  };
+  return { impactApi: { list: fn() }, ownershipApi: { list: fn(), versions: fn() } };
 }
 
-test('receptionist loader never invokes owner-only or removed cash-shift endpoints', async () => {
+test('receptionist loader sends no owner-only operations requests', async () => {
   const api = apiFixture();
-  await loadOperationsData(mixed, operationsContext(mixed, branches, 'counter'), api);
-  assert.equal(api.waitlistApi.branch.mock.calls[0].arguments[0], 'counter');
-  assert.equal(api.financeOperationsApi.invoices.mock.callCount(), 1);
-  for (const fn of [api.impactApi.list, api.loyaltyApi.liability, api.ownershipApi.list, api.ownershipApi.versions]) assert.equal(fn.mock.callCount(), 0);
+  const result = await loadOperationsData(mixed, operationsContext(mixed, branches, 'counter'), api);
+  assert.deepEqual(result, { impacts: [], transfers: [], versions: null });
+  for (const group of Object.values(api)) for (const fn of Object.values(group)) assert.equal(fn.mock.callCount(), 0);
 });
 
 test('staff-only loader sends no requests even if stale flattened permissions remain', async () => {
@@ -90,12 +81,12 @@ test('staff-only loader sends no requests even if stale flattened permissions re
   for (const group of Object.values(api)) for (const fn of Object.values(group)) assert.equal(fn.mock.callCount(), 0);
 });
 
-test('owner requests use the actual selected business and invoices use the selected branch', async () => {
+test('owner requests use the actual selected business and filter impact rows by business', async () => {
   const api = apiFixture();
-  api.financeOperationsApi.invoices = mock.fn(async () => [{ id: 'a', branchId: 'owned-two' }, { id: 'b', branchId: 'counter' }]);
+  api.impactApi.list = mock.fn(async () => [{ id: 'a', businessId: 'owned' }, { id: 'b', businessId: 'other' }]);
   const result = await loadOperationsData(mixed, operationsContext(mixed, branches, 'owned-two'), api);
-  assert.deepEqual(api.loyaltyApi.liability.mock.calls[0].arguments, ['owned']);
   assert.deepEqual(api.ownershipApi.list.mock.calls[0].arguments, ['owned']);
-  assert.deepEqual(result.invoices.map((row) => row.id), ['a']);
+  assert.deepEqual(api.ownershipApi.versions.mock.calls[0].arguments, ['owned']);
+  assert.deepEqual(result.impacts.map((row) => row.id), ['a']);
   assert.deepEqual(operationRows([{ id: 'a', businessId: 'owned' }, { id: 'b', businessId: 'other' }], { businessId: 'owned' }, 'business').map((row) => row.id), ['a']);
 });

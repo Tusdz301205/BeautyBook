@@ -1,0 +1,79 @@
+@startuml ERD-rbac
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Role**\n(roles)" as Role {
+  * id: String <<PK>>
+  * code: RoleCode <<UQ>>
+  * name: String 
+  * createdAt: DateTime 
+  * level: RoleLevel 
+}
+entity "**Permission**\n(permissions)" as Permission {
+  * id: String <<PK>>
+  * code: String <<UQ>>
+  description: String? 
+  * resource: String 
+  * action: String 
+  * scope: PermissionScope 
+  * createdAt: DateTime 
+}
+entity "**RolePermission**\n(role_permissions)" as RolePermission {
+  * roleId: String <<PK>> <<FK>>
+  * permissionId: String <<PK>> <<FK>>
+  * createdAt: DateTime 
+}
+entity "**UserRole**\n(user_roles)" as UserRole {
+  * id: String <<PK>>
+  * userId: String <<FK>>
+  * roleId: String <<FK>>
+  branchId: String? <<FK>>
+  businessId: String? <<FK>>
+  grantedBy: String? <<FK>>
+  expiresAt: DateTime? 
+  ... 1 cot: xem tu dien
+}
+entity "**UserPermission**\n(user_permissions)" as UserPermission {
+  * id: String <<PK>>
+  * userId: String <<FK>>
+  * permissionId: String <<FK>>
+  bundleCode: String? 
+  grantedBy: String? 
+  * grantedAt: DateTime 
+  expiresAt: DateTime? 
+  ... 1 cot: xem tu dien
+}
+Permission ||--o{ RolePermission
+Role ||--o{ RolePermission
+Permission ||--o{ UserPermission
+Role ||--o{ UserRole
+
+@enduml

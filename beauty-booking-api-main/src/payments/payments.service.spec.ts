@@ -43,6 +43,23 @@ function transactionalPrisma(delegates: Record<string, unknown>): PrismaService 
 }
 
 describe('PaymentsService authorization and amounts', () => {
+  test('processing refunds continue to reserve balance until settlement or failure', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'refund-next' });
+    const prisma = transactionalPrisma({
+      payment: { findUnique: jest.fn().mockResolvedValue({
+        id: 'payment-1', status: 'PAID', amount: 100,
+        booking: { branch: { businessId: 'biz-1' } },
+        refundRequests: [{ status: 'PROCESSING', amount: 80 }],
+      }) },
+      refundRequest: { create },
+    });
+    const actor = { ...OWNER, permissions: ['refund:create:tenant'] };
+    await expect(new PaymentsService(prisma).requestRefund('payment-1', 30, 'Không vượt số dư', null, actor))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+    await expect(new PaymentsService(prisma).requestRefund('payment-1', 20, 'Phần số dư còn lại', null, actor))
+      .resolves.toMatchObject({ id: 'refund-next' });
+  });
   test('branch-scoped collector cannot collect another branch payment', async () => {
     const prisma = transactionalPrisma({
       booking: { findUnique: jest.fn().mockResolvedValue({

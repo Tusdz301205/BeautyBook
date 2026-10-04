@@ -1,0 +1,4800 @@
+{
+  "modules": [
+    {
+      "file": "beauty-booking-api-main/src/admin/admin.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { AdminController } from './admin.controller';\nimport { TrustSnapshotService } from './trust-snapshot.service';\nimport { PaymentsModule } from '../payments/payments.module';\nimport { BranchesModule } from '../branches/branches.module';\n\n@Module({\n  imports: [PaymentsModule, BranchesModule],\n  controllers: [AdminController],\n  providers: [TrustSnapshotService],\n  exports: [TrustSnapshotService],\n})\nexport class AdminModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/app.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { ConfigModule } from '@nestjs/config';\nimport { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';\nimport { ThrottlerModule } from '@nestjs/throttler';\nimport { AppController } from './app.controller';\nimport { AppService } from './app.service';\nimport { PrismaModule } from './prisma/prisma.module';\nimport { BookingsModule } from './bookings/bookings.module';\nimport { ReportsModule } from './reports/reports.module';\nimport { AuthModule } from './auth/auth.module';\nimport { UsersModule } from './users/users.module';\nimport { BranchesModule } from './branches/branches.module';\nimport { ServicesModule } from './services/services.module';\nimport { MailModule } from './mail/mail.module';\nimport { SchedulerModule } from './scheduler/scheduler.module';\nimport { JwtAuthGuard } from './common/guards/jwt-auth.guard';\nimport { RolesGuard } from './common/guards/roles.guard';\nimport { PolicyGuard } from './common/guards/policy.guard';\nimport { ScopeGuard } from './common/guards/scope.guard';\nimport { AuditInterceptor } from './common/interceptors/audit.interceptor';\nimport { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';\nimport { BusinessModule } from './business/business.module';\nimport { AdminModule } from './admin/admin.module';\nimport { StaffModule } from './staff/staff.module';\nimport { PromotionsModule } from './promotions/promotions.module';\nimport { NotificationsModule } from './notifications/notifications.module';\nimport { ReviewsModule } from './reviews/reviews.module';\nimport { PaymentsModule } from './payments/payments.module';\nimport { HealthController } from './health.controller';\nimport { UserAwareThrottlerGuard } from './common/guards/user-aware-throttler.guard';\nimport { PlatformSettingsModule } from './platform-settings/platform-settings.module';\nimport { MediaModule } from './media/media.module';\nimport { CombosModule } from './combos/combos.module';\nimport { RecurringModule } from './recurring/recurring.module';\nimport { PrivacyModule } from './privacy/privacy.module';\nimport { OperationsModule } from './operations/operations.module';\nimport { OwnershipModule } from './ownership/ownership.module';\nimport { SavedServicesModule } from './saved-services/saved-services.module';\n\n@Module({\n  imports: [\n    ConfigModule.forRoot({\n      isGlobal: true,\n      envFilePath: ['.env.local', '.env'],\n    }),\n    // API Rule: rate limit 100 requests / phút / user\n    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),\n    PrismaModule,\n    PlatformSettingsModule,\n    AuthModule,\n    UsersModule,\n    BranchesModule,\n    ServicesModule,\n    BookingsModule,\n    ReportsModule,\n    MailModule,\n    SchedulerModule,\n    BusinessModule,\n    AdminModule,\n    StaffModule,\n    PromotionsModule,\n    NotificationsModule,\n    ReviewsModule,\n    PaymentsModule,\n    MediaModule,\n    CombosModule,\n    RecurringModule,\n    PrivacyModule,\n    OperationsModule,\n    OwnershipModule,\n    SavedServicesModule,\n  ],\n  controllers: [AppController, HealthController],\n  providers: [\n    AppService,\n    // Apply JWT auth + RBAC + Scope + Policy guards globally;\n    // individual routes opt out via @Public(). Resource-level checks still\n    // happen in services via canOnResource(...) for ownership / branch scope.\n    { provide: APP_GUARD, useClass: JwtAuthGuard },\n    { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },\n    { provide: APP_GUARD, useClass: RolesGuard },\n    { provide: APP_GUARD, useClass: ScopeGuard },\n    { provide: APP_GUARD, useClass: PolicyGuard },\n    // AuditInterceptor fires for routes carrying the @Audited(...) meta.\n    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },\n    // Redis-backed idempotency for duplicate-sensitive booking/payment writes.\n    // Authentication responses are excluded so tokens are never cached.\n    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },\n  ],\n})\nexport class AppModule { }\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/auth/auth.module.ts",
+      "content": "import { Module } from '@nestjs/common';\r\nimport { JwtModule } from '@nestjs/jwt';\r\nimport { PassportModule } from '@nestjs/passport';\r\nimport { ConfigModule, ConfigService } from '@nestjs/config';\r\nimport { AuthController } from './auth.controller';\r\nimport { AuthService } from './auth.service';\r\nimport { JwtStrategy } from './jwt.strategy';\r\nimport { TokenBlacklistService } from './token-blacklist.service';\r\n\r\n@Module({\r\n  imports: [\r\n    PassportModule.register({ defaultStrategy: 'jwt' }),\r\n    JwtModule.registerAsync({\r\n      imports: [ConfigModule],\r\n      inject: [ConfigService],\r\n      useFactory: (config: ConfigService) => ({\r\n        secret: config.get<string>('JWT_SECRET'),\r\n        signOptions: {\r\n          expiresIn: (config.get<string>('JWT_ACCESS_EXPIRES_IN') ?? '15m') as any,\r\n        },\r\n      }),\r\n    }),\r\n  ],\r\n  controllers: [AuthController],\r\n  providers: [AuthService, JwtStrategy, TokenBlacklistService],\r\n  exports: [JwtStrategy, PassportModule, JwtModule, TokenBlacklistService],\r\n})\r\nexport class AuthModule {}\r\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/bookings/bookings.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { BookingsController } from './bookings.controller';\nimport { BookingsService } from './bookings.service';\nimport { BookingsAccessService } from './bookings-access.service';\nimport { ChangeRequestsService } from './change-requests.service';\nimport { VouchersService } from './vouchers.service';\nimport { SchedulerModule } from '../scheduler/scheduler.module';\nimport { PaymentsModule } from '../payments/payments.module';\nimport { PendingBookingsCron } from './pending-bookings.cron';\nimport { PromotionsModule } from '../promotions/promotions.module';\nimport { BookingItemsService } from './booking-items.service';\nimport { ChangeRequestExpiryWorker } from './change-request-expiry.worker';\n\n@Module({\n  imports: [SchedulerModule, PaymentsModule, PromotionsModule],\n  controllers: [BookingsController],\n  providers: [\n    BookingsService,\n    BookingsAccessService,\n    ChangeRequestsService,\n    VouchersService,\n    PendingBookingsCron,\n    ChangeRequestExpiryWorker,\n    BookingItemsService,\n  ],\n  exports: [\n    BookingsService,\n    BookingsAccessService,\n    ChangeRequestsService,\n    VouchersService,\n    BookingItemsService,\n  ],\n})\nexport class BookingsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/branches/branches.module.ts",
+      "content": "import { Module } from '@nestjs/common';\r\nimport { BranchesController } from './branches.controller';\nimport { BranchesService } from './branches.service';\nimport { BranchStateService } from './branch-state.service';\n\r\n@Module({\n  controllers: [BranchesController],\n  providers: [BranchesService, BranchStateService],\n  exports: [BranchesService, BranchStateService],\n})\r\nexport class BranchesModule {}\r\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/business/business.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { BusinessController } from './business.controller';\nimport { SalonMembersService } from './salon-members.service';\nimport { CancellationPoliciesService } from './cancellation-policies.service';\nimport { BusinessOnboardingService } from './business-onboarding.service';\n\n@Module({\n  controllers: [BusinessController],\n  providers: [SalonMembersService, CancellationPoliciesService, BusinessOnboardingService],\n  exports: [SalonMembersService, CancellationPoliciesService, BusinessOnboardingService],\n})\nexport class BusinessModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/combos/combos.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { CombosController } from './combos.controller';\nimport { CombosService } from './combos.service';\n\n@Module({ controllers: [CombosController], providers: [CombosService], exports: [CombosService] })\nexport class CombosModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/mail/mail.module.ts",
+      "content": "import { Global, Module } from '@nestjs/common';\nimport { MailService } from './mail.service';\n\n@Global()\n@Module({\n  providers: [MailService],\n  exports: [MailService],\n})\nexport class MailModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/media/media.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { MediaController } from './media.controller';\nimport { MediaService } from './media.service';\n\n@Module({\n  controllers: [MediaController],\n  providers: [MediaService],\n  exports: [MediaService],\n})\nexport class MediaModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/notifications/notifications.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { NotificationsController } from './notifications.controller';\nimport { NotificationsService } from './notifications.service';\nimport { NotificationOutboxWorker } from './notification-outbox.worker';\n\n@Module({\n  controllers: [NotificationsController],\n  providers: [NotificationsService, NotificationOutboxWorker],\n  exports: [NotificationsService],\n})\nexport class NotificationsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/operations/operations.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { BookingsModule } from '../bookings/bookings.module';\nimport { PaymentsModule } from '../payments/payments.module';\nimport { ImpactController } from './impact.controller';\nimport { ImpactService } from './impact.service';\nimport { ImpactDeadlineWorker } from './impact-deadline.worker';\n\n@Module({\n  imports: [BookingsModule, PaymentsModule],\n  controllers: [ImpactController],\n  providers: [ImpactService, ImpactDeadlineWorker],\n  exports: [ImpactService],\n})\nexport class OperationsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/ownership/ownership.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { PrivacyModule } from '../privacy/privacy.module';\nimport { OwnershipController } from './ownership.controller';\nimport { OwnershipService } from './ownership.service';\nimport { OwnershipExecutionWorker } from './ownership-execution.worker';\n\n@Module({\n  imports: [PrivacyModule],\n  controllers: [OwnershipController],\n  providers: [OwnershipService, OwnershipExecutionWorker],\n  exports: [OwnershipService],\n})\nexport class OwnershipModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/payments/payments.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { PaymentsController } from './payments.controller';\nimport { PaymentsService } from './payments.service';\nimport { FinancialMetricsService } from './financial-metrics.service';\nimport { PaymentProviderRegistry } from './providers/payment-provider.registry';\n\n@Module({\n  controllers: [PaymentsController],\n  providers: [PaymentsService, FinancialMetricsService, PaymentProviderRegistry],\n  exports: [PaymentsService, FinancialMetricsService],\n})\nexport class PaymentsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/platform-settings/platform-settings.module.ts",
+      "content": "import { Global, Module } from '@nestjs/common';\nimport { PlatformSettingsService } from './platform-settings.service';\nimport { PlatformSettingsController } from './platform-settings.controller';\n\n@Global()\n@Module({\n  providers: [PlatformSettingsService],\n  controllers: [PlatformSettingsController],\n  exports: [PlatformSettingsService],\n})\nexport class PlatformSettingsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/prisma/prisma.module.ts",
+      "content": "import { Global, Module } from '@nestjs/common';\nimport { PrismaService } from './prisma.service';\n\n@Global()\n@Module({\n    providers: [PrismaService],\n    exports: [PrismaService],\n})\nexport class PrismaModule { }"
+    },
+    {
+      "file": "beauty-booking-api-main/src/privacy/privacy.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { PrivacyCenterService } from './privacy-center.service';\nimport { PrivacyController } from './privacy.controller';\nimport { SensitiveDataCipherService } from './sensitive-data-cipher.service';\n\n@Module({\n  controllers: [PrivacyController],\n  providers: [\n    SensitiveDataCipherService,\n    PrivacyCenterService,\n  ],\n  exports: [\n    SensitiveDataCipherService,\n    PrivacyCenterService,\n  ],\n})\nexport class PrivacyModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/promotions/promotions.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { PromotionsController } from './promotions.controller';\nimport { PromotionsService } from './promotions.service';\nimport { VouchersController } from './vouchers.controller';\nimport { VouchersAdminService } from './vouchers-admin.service';\nimport { PricingEngineService } from './pricing-engine.service';\n\n@Module({\n  controllers: [PromotionsController, VouchersController],\n  providers: [PromotionsService, VouchersAdminService, PricingEngineService],\n  exports: [PromotionsService, VouchersAdminService, PricingEngineService],\n})\nexport class PromotionsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/recurring/recurring.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { BookingsModule } from '../bookings/bookings.module';\nimport { RecurringController } from './recurring.controller';\nimport { RecurringService } from './recurring.service';\nimport { RecurringPlanRecoveryWorker } from './recurring-plan-recovery.worker';\n\n@Module({ imports: [BookingsModule], controllers: [RecurringController], providers: [RecurringService, RecurringPlanRecoveryWorker] })\nexport class RecurringModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/reports/reports.module.ts",
+      "content": "import { Module } from '@nestjs/common';\r\nimport { ReportsController } from './reports.controller';\nimport { ReportsService } from './reports.service';\nimport { PaymentsModule } from '../payments/payments.module';\n\r\n@Module({\n  imports: [PaymentsModule],\n  controllers: [ReportsController],\n  providers: [ReportsService]\n})\r\nexport class ReportsModule {}\r\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/reviews/reviews.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { ReviewsController } from './reviews.controller';\nimport { ReviewsService } from './reviews.service';\n\n@Module({\n  controllers: [ReviewsController],\n  providers: [ReviewsService],\n  exports: [ReviewsService],\n})\nexport class ReviewsModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/saved-services/saved-services.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { SavedServicesController } from './saved-services.controller';\nimport { SavedServicesService } from './saved-services.service';\n\n@Module({ controllers: [SavedServicesController], providers: [SavedServicesService] })\nexport class SavedServicesModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/scheduler/scheduler.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { SchedulerGateway } from './scheduler.gateway';\nimport { TrustSnapshotCron } from './trust-snapshot.cron';\nimport { AdminModule } from '../admin/admin.module';\nimport { AuthModule } from '../auth/auth.module';\nimport { PolicyNotificationCron } from './policy-notification.cron';\n\n@Module({\n  imports: [AdminModule, AuthModule],\n  providers: [SchedulerGateway, TrustSnapshotCron, PolicyNotificationCron],\n  exports: [SchedulerGateway],\n})\nexport class SchedulerModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/services/services.module.ts",
+      "content": "import { Module } from '@nestjs/common';\r\nimport { ServicesController } from './services.controller';\nimport { ServicesService } from './services.service';\n\r\n@Module({\n  controllers: [ServicesController],\n  providers: [ServicesService]\n})\r\nexport class ServicesModule {}\r\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/staff/staff.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { StaffController } from './staff.controller';\nimport { StaffService } from './staff.service';\nimport { StaffInvitationsService } from './staff-invitations.service';\nimport { AuthModule } from '../auth/auth.module';\n\n@Module({\n  imports: [AuthModule],\n  controllers: [StaffController],\n  providers: [StaffService, StaffInvitationsService],\n  exports: [StaffService, StaffInvitationsService],\n})\nexport class StaffModule {}\n"
+    },
+    {
+      "file": "beauty-booking-api-main/src/users/users.module.ts",
+      "content": "import { Module } from '@nestjs/common';\nimport { UsersController } from './users.controller';\nimport { UsersService } from './users.service';\nimport { AuthModule } from '../auth/auth.module';\n\n@Module({\n  imports: [AuthModule], // TokenBlacklistService (revoke JWT khi khóa tài khoản)\n  controllers: [UsersController],\n  providers: [UsersService],\n})\nexport class UsersModule {}\n"
+    }
+  ],
+  "controllers": [
+    {
+      "file": "beauty-booking-api-main/src/admin/admin.controller.ts",
+      "class": "AdminController",
+      "line": 20,
+      "decorators": [
+        "@Controller('admin')",
+        "@UseGuards(RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "settings",
+          "line": 31,
+          "verb": "Get",
+          "path": "admin/settings",
+          "decorators": [
+            "@Get('settings')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('platform_setting:manage:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "updateSettings",
+          "line": 38,
+          "verb": "Patch",
+          "path": "admin/settings",
+          "decorators": [
+            "@Patch('settings')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'PlatformSetting' })",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('platform_setting:manage:platform')"
+          ],
+          "parameters": [
+            "@Body() body: UpdatePlatformSettingsDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resetSettings",
+          "line": 46,
+          "verb": "Post",
+          "path": "admin/settings/reset",
+          "decorators": [
+            "@Post('settings/reset')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('platform_setting:manage:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "snapshots",
+          "line": 56,
+          "verb": "Get",
+          "path": "admin/trust-snapshots",
+          "decorators": [
+            "@Get('trust-snapshots')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('admin:trust_snapshot:read')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "rebuildSnapshots",
+          "line": 63,
+          "verb": "Post",
+          "path": "admin/trust-snapshots/rebuild",
+          "decorators": [
+            "@Post('trust-snapshots/rebuild')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('admin:trust_snapshot:manage')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "trustActions",
+          "line": 70,
+          "verb": "Get",
+          "path": "admin/trust-actions",
+          "decorators": [
+            "@Get('trust-actions')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('admin:trust_snapshot:read')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "trustAction",
+          "line": 77,
+          "verb": "Post",
+          "path": "admin/trust-actions",
+          "decorators": [
+            "@Post('trust-actions')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('admin:trust_snapshot:manage')"
+          ],
+          "parameters": [
+            "@Body() body: { businessId: string; branchId?: string; action: any; reason: string; internalNote?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "auditLogs",
+          "line": 90,
+          "verb": "Get",
+          "path": "admin/audit-logs",
+          "decorators": [
+            "@Get('audit-logs')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('audit:read:platform', 'audit:read:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "businessDirectory",
+          "line": 105,
+          "verb": "Get",
+          "path": "admin/business-directory",
+          "decorators": [
+            "@Get('business-directory')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:platform')"
+          ],
+          "parameters": [
+            "@Query('search') search?: string",
+            "@Query('status') status?: string",
+            "@Query('page') requestedPage?: string",
+            "@Query('limit') requestedLimit?: string"
+          ]
+        },
+        {
+          "symbol": "branchDirectory",
+          "line": 178,
+          "verb": "Get",
+          "path": "admin/branch-directory",
+          "decorators": [
+            "@Get('branch-directory')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:platform')"
+          ],
+          "parameters": [
+            "@Query('search') search?: string",
+            "@Query('status') status?: string",
+            "@Query('page') requestedPage?: string",
+            "@Query('limit') requestedLimit?: string"
+          ]
+        },
+        {
+          "symbol": "complianceQueue",
+          "line": 263,
+          "verb": "Get",
+          "path": "admin/compliance-queue",
+          "decorators": [
+            "@Get('compliance-queue')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "financeOverview",
+          "line": 305,
+          "verb": "Get",
+          "path": "admin/finance-overview",
+          "decorators": [
+            "@Get('finance-overview')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('payment:read:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "marketingOverview",
+          "line": 330,
+          "verb": "Get",
+          "path": "admin/marketing-overview",
+          "decorators": [
+            "@Get('marketing-overview')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:read:platform')"
+          ],
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/app.controller.ts",
+      "class": "AppController",
+      "line": 5,
+      "decorators": [
+        "@Controller()"
+      ],
+      "methods": [
+        {
+          "symbol": "getHello",
+          "line": 9,
+          "verb": "Get",
+          "path": "/",
+          "decorators": [
+            "@Public()",
+            "@Get()"
+          ],
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/auth/auth.controller.ts",
+      "class": "AuthController",
+      "line": 31,
+      "decorators": [
+        "@Controller('auth')"
+      ],
+      "methods": [
+        {
+          "symbol": "login",
+          "line": 71,
+          "verb": "Post",
+          "path": "auth/login",
+          "decorators": [
+            "@Public()",
+            "@Post('login')",
+            "@Throttle({ default: { limit: 8, ttl: 60_000 } })",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@Body() body: LoginDto",
+            "@Req() request: Request",
+            "@Res({ passthrough: true }) response: Response"
+          ]
+        },
+        {
+          "symbol": "register",
+          "line": 96,
+          "verb": "Post",
+          "path": "auth/register",
+          "decorators": [
+            "@Public()",
+            "@Post('register')",
+            "@Throttle({ default: { limit: 5, ttl: 60_000 } })",
+            "@HttpCode(HttpStatus.CREATED)"
+          ],
+          "parameters": [
+            "@Body() body: RegisterDto",
+            "@Req() request: Request",
+            "@Res({ passthrough: true }) response: Response"
+          ]
+        },
+        {
+          "symbol": "refresh",
+          "line": 112,
+          "verb": "Post",
+          "path": "auth/refresh",
+          "decorators": [
+            "@Public()",
+            "@Post('refresh')",
+            "@Throttle({ default: { limit: 120, ttl: 15 * 60_000 } })",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@Body() body: { refreshToken?: string; refreshTokenTransport?: 'BODY' }",
+            "@Req() request: Request",
+            "@Res({ passthrough: true }) response: Response"
+          ]
+        },
+        {
+          "symbol": "verifyEmail",
+          "line": 131,
+          "verb": "Post",
+          "path": "auth/verify-email",
+          "decorators": [
+            "@Public()",
+            "@Post('verify-email')",
+            "@Throttle({ default: { limit: 10, ttl: 15 * 60_000 } })"
+          ],
+          "parameters": [
+            "@Body() body: VerifyEmailDto"
+          ]
+        },
+        {
+          "symbol": "forgotPassword",
+          "line": 138,
+          "verb": "Post",
+          "path": "auth/forgot-password",
+          "decorators": [
+            "@Public()",
+            "@Post('forgot-password')",
+            "@Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@Body() body: ForgotPasswordDto"
+          ]
+        },
+        {
+          "symbol": "resetPassword",
+          "line": 146,
+          "verb": "Post",
+          "path": "auth/reset-password",
+          "decorators": [
+            "@Public()",
+            "@Post('reset-password')",
+            "@Throttle({ default: { limit: 5, ttl: 15 * 60_000 } })",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@Body() body: ResetPasswordDto"
+          ]
+        },
+        {
+          "symbol": "logout",
+          "line": 154,
+          "verb": "Post",
+          "path": "auth/logout",
+          "decorators": [
+            "@Post('logout')",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Req() request: Request",
+            "@Res({ passthrough: true }) response: Response"
+          ]
+        },
+        {
+          "symbol": "changePassword",
+          "line": 168,
+          "verb": "Post",
+          "path": "auth/change-password",
+          "decorators": [
+            "@Post('change-password')",
+            "@HttpCode(HttpStatus.OK)"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Body() body: ChangePasswordDto"
+          ]
+        },
+        {
+          "symbol": "sessions",
+          "line": 182,
+          "verb": "Get",
+          "path": "auth/sessions",
+          "decorators": [
+            "@Get('sessions')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "revokeSession",
+          "line": 187,
+          "verb": "Delete",
+          "path": "auth/sessions/:sessionId",
+          "decorators": [
+            "@Delete('sessions/:sessionId')"
+          ],
+          "parameters": [
+            "@Param('sessionId') sessionId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "revokeOtherSessions",
+          "line": 196,
+          "verb": "Delete",
+          "path": "auth/sessions",
+          "decorators": [
+            "@Delete('sessions')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "securityHistory",
+          "line": 201,
+          "verb": "Get",
+          "path": "auth/security-history",
+          "decorators": [
+            "@Get('security-history')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/bookings/bookings.controller.ts",
+      "class": "BookingsController",
+      "line": 64,
+      "decorators": [
+        "@Controller('bookings')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "selfBookingPolicy",
+          "line": 185,
+          "verb": "Get",
+          "path": "bookings/self-booking-policy",
+          "decorators": [
+            "@Get('self-booking-policy')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('booking:create:self')"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createGuest",
+          "line": 199,
+          "verb": "Post",
+          "path": "bookings/guest",
+          "decorators": [
+            "@Post('guest')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('booking:create:self')",
+            "@Throttle({ default: { limit: 8, ttl: 60_000 } })",
+            "@HttpCode(HttpStatus.CREATED)"
+          ],
+          "parameters": [
+            "@Body() body: CreateGuestBookingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 237,
+          "verb": "Post",
+          "path": "bookings/",
+          "decorators": [
+            "@Post()",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Booking' })",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'CUSTOMER')",
+            "@RequirePermission(\n    'booking:create:self',\n    'booking:create:tenant',\n    'booking:create:branch',\n  )"
+          ],
+          "parameters": [
+            "@Body() body: CreateBookingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "previewPrice",
+          "line": 308,
+          "verb": "Post",
+          "path": "bookings/preview-price",
+          "decorators": [
+            "@Post('preview-price')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('booking:create:self')"
+          ],
+          "parameters": [
+            "@Body('voucherCode') voucherCode: string | undefined",
+            "@Body('serviceIds') serviceIds: string[]",
+            "@Body('branchId') branchId: string",
+            "@Body('comboId') comboId: string | undefined",
+            "@Body('variantSelections') variantSelections: Record<string, string> | undefined",
+            "@Body('appointmentDate') appointmentDate: string | undefined",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findAll",
+          "line": 418,
+          "verb": "Get",
+          "path": "bookings/",
+          "decorators": [
+            "@Get()",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n    'STAFF',\n    'CUSTOMER',\n  )",
+            "@RequirePermission('booking:read:self', 'booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('search') search?: string",
+            "@Query('status') status?: string",
+            "@Query('branchId') branchId?: string",
+            "@Query('branchIds') branchIds?: string",
+            "@Query('categoryId') categoryId?: string",
+            "@Query('serviceId') serviceId?: string",
+            "@Query('businessId') businessId?: string",
+            "@Query('customerQuery') customerQuery?: string",
+            "@Query('staffId') requestedStaffId?: string",
+            "@Query('source') source?: string",
+            "@Query('dateFrom') dateFrom?: string",
+            "@Query('dateTo') dateTo?: string",
+            "@Query('sortOrder') sortOrder?: 'newest' | 'oldest'",
+            "@Query('page') page?: string",
+            "@Query('limit') limit?: string"
+          ]
+        },
+        {
+          "symbol": "myAppointments",
+          "line": 545,
+          "verb": "Get",
+          "path": "bookings/my-appointments",
+          "decorators": [
+            "@Get('my-appointments')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('booking:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('tab') tab: 'upcoming' | 'completed' | 'cancelled' = 'upcoming'"
+          ]
+        },
+        {
+          "symbol": "salonQueue",
+          "line": 636,
+          "verb": "Get",
+          "path": "bookings/salon-queue",
+          "decorators": [
+            "@Get('salon-queue')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "salonViolations",
+          "line": 676,
+          "verb": "Get",
+          "path": "bookings/salon-violations",
+          "decorators": [
+            "@Get('salon-violations')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('audit:read:tenant', 'audit:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getAvailableSlots",
+          "line": 724,
+          "verb": "Get",
+          "path": "bookings/available-slots",
+          "decorators": [
+            "@Get('available-slots')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId: string",
+            "@Query('staffId') staffId: string",
+            "@Query('serviceIds') serviceIds: string",
+            "@Query('date') date: string",
+            "@Query('variantSelections') rawVariantSelections?: string"
+          ]
+        },
+        {
+          "symbol": "getSchedulerData",
+          "line": 750,
+          "verb": "Get",
+          "path": "bookings/scheduler",
+          "decorators": [
+            "@Get('scheduler')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId: string",
+            "@Query('startDate') startDate: string",
+            "@Query('endDate') endDate: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getStats",
+          "line": 778,
+          "verb": "Get",
+          "path": "bookings/stats",
+          "decorators": [
+            "@Get('stats')",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    'BUSINESS_OWNER',\n  )",
+            "@RequirePermission('report:overview:tenant', 'report:overview:platform', 'report:revenue:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getByCategory",
+          "line": 800,
+          "verb": "Get",
+          "path": "bookings/by-category",
+          "decorators": [
+            "@Get('by-category')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Query('name') name: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getByBranch",
+          "line": 813,
+          "verb": "Get",
+          "path": "bookings/by-branch/:branchId",
+          "decorators": [
+            "@Get('by-branch/:branchId')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Param('branchId') branchId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getByCustomer",
+          "line": 824,
+          "verb": "Get",
+          "path": "bookings/by-customer/:userId",
+          "decorators": [
+            "@Get('by-customer/:userId')",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n    'CUSTOMER',\n  )",
+            "@RequirePermission('booking:read:self', 'booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Param('userId') userId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findOne",
+          "line": 858,
+          "verb": "Get",
+          "path": "bookings/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n    'STAFF',\n    'CUSTOMER',\n  )",
+            "@RequirePermission('booking:read:self', 'booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "actionRouter",
+          "line": 902,
+          "verb": "Put",
+          "path": "bookings/:id",
+          "decorators": [
+            "@Put(':id')",
+            "@Roles(\n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n  )",
+            "@RequirePermission('booking:update:branch', 'booking:update:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Booking' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: BookingActionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateStatus",
+          "line": 977,
+          "verb": "Patch",
+          "path": "bookings/:id/status",
+          "decorators": [
+            "@Patch(':id/status')",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n    'STAFF',\n    'CUSTOMER',\n  )",
+            "@RequirePermission('booking:update:self', 'booking:update:branch', 'booking:update:tenant', 'booking:cancel:platform')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Booking' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateStatusDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "forceCancelPreview",
+          "line": 1028,
+          "verb": "Get",
+          "path": "bookings/:id/force-cancel-preview",
+          "decorators": [
+            "@Get(':id/force-cancel-preview')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('booking:cancel:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "moveBooking",
+          "line": 1072,
+          "verb": "Patch",
+          "path": "bookings/:id/move",
+          "decorators": [
+            "@Patch(':id/move')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('booking:reschedule:branch', 'booking:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: MoveBookingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resizeBooking",
+          "line": 1091,
+          "verb": "Patch",
+          "path": "bookings/:id/resize",
+          "decorators": [
+            "@Patch(':id/resize')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('booking:update:branch', 'booking:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: ResizeBookingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "assignStaff",
+          "line": 1105,
+          "verb": "Patch",
+          "path": "bookings/:id/assign",
+          "decorators": [
+            "@Patch(':id/assign')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Booking' })",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('booking:assign:branch', 'booking:assign:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: AssignStaffDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "addBookingItem",
+          "line": 1118,
+          "verb": "Post",
+          "path": "bookings/:id/items",
+          "decorators": [
+            "@Post(':id/items')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('booking:update:branch', 'booking:update:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BookingService' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: {\n      serviceId: string;\n      variantId?: string;\n      staffId?: string;\n      reason: string;\n      durationMinutes?: number;\n      price?: number;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateBookingItem",
+          "line": 1147,
+          "verb": "Patch",
+          "path": "bookings/:id/items/:itemId",
+          "decorators": [
+            "@Patch(':id/items/:itemId')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')",
+            "@RequirePermission('booking:update:branch', 'booking:update:tenant', 'booking:complete:branch')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BookingService', idParam: 'itemId' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Param('itemId') itemId: string",
+            "@Body() body: {\n      action: 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';\n      reason: string;\n      expectedRevision: number;\n      staffId?: string;\n      durationMinutes?: number;\n      price?: number;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createChangeRequest",
+          "line": 1186,
+          "verb": "Post",
+          "path": "bookings/:id/change-requests",
+          "decorators": [
+            "@Post(':id/change-requests')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'AppointmentChangeRequest' })",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('change_request:create:self')"
+          ],
+          "parameters": [
+            "@Param('id') bookingId: string",
+            "@Body()\n    body: {\n      requestType: 'RESCHEDULE' | 'STAFF_CHANGE' | 'CANCEL';\n      proposedStartTime?: string;\n      proposedEndTime?: string;\n      proposedStaffId?: string;\n      reason?: string;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "approveChangeRequest",
+          "line": 1209,
+          "verb": "Patch",
+          "path": "bookings/change-requests/:reqId/approve",
+          "decorators": [
+            "@Patch('change-requests/:reqId/approve')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'AppointmentChangeRequest', idParam: 'reqId' })"
+          ],
+          "parameters": [
+            "@Param('reqId') reqId: string",
+            "@Body() body: { reviewNote?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "rejectChangeRequest",
+          "line": 1227,
+          "verb": "Patch",
+          "path": "bookings/change-requests/:reqId/reject",
+          "decorators": [
+            "@Patch('change-requests/:reqId/reject')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'AppointmentChangeRequest', idParam: 'reqId' })"
+          ],
+          "parameters": [
+            "@Param('reqId') reqId: string",
+            "@Body() body: { reviewNote?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "pendingChangeRequests",
+          "line": 1245,
+          "verb": "Get",
+          "path": "bookings/change-requests/pending",
+          "decorators": [
+            "@Get('change-requests/pending')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST')",
+            "@RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "refundBooking",
+          "line": 1269,
+          "verb": "Post",
+          "path": "bookings/:id/refund",
+          "decorators": [
+            "@Post(':id/refund')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('refund:create:platform')",
+            "@Audited({ action: AuditAction.REFUND, entityType: 'Booking' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { amount: number; reason?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "checkin",
+          "line": 1297,
+          "verb": "Post",
+          "path": "bookings/:id/checkin",
+          "decorators": [
+            "@Post(':id/checkin')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Booking' })",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission('booking:check_in:branch', 'booking:check_in:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/branches/branches.controller.ts",
+      "class": "BranchesController",
+      "line": 44,
+      "decorators": [
+        "@Controller('branches')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "findAll",
+          "line": 57,
+          "verb": "Get",
+          "path": "branches/",
+          "decorators": [
+            "@Get()",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('search') search?: string",
+            "@Query('status') status?: string",
+            "@Query('categoryId') categoryId?: string",
+            "@Query('districtId') districtId?: string",
+            "@Query('area') area?: string",
+            "@Query('serviceQuery') serviceQuery?: string",
+            "@Query('minPrice') minPrice?: number",
+            "@Query('maxPrice') maxPrice?: number",
+            "@Query('sort') sort?: string",
+            "@Query('page') page?: number",
+            "@Query('limit') limit?: number"
+          ]
+        },
+        {
+          "symbol": "findAllForManagement",
+          "line": 75,
+          "verb": "Get",
+          "path": "branches/manage",
+          "decorators": [
+            "@Get('manage')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:platform')"
+          ],
+          "parameters": [
+            "@Query('search') search?: string",
+            "@Query('status') status?: string",
+            "@Query('categoryId') categoryId?: string",
+            "@Query('page') page?: number",
+            "@Query('limit') limit?: number"
+          ]
+        },
+        {
+          "symbol": "listDistricts",
+          "line": 88,
+          "verb": "Get",
+          "path": "branches/locations/districts",
+          "decorators": [
+            "@Get('locations/districts')",
+            "@Public()"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "findAccessible",
+          "line": 94,
+          "verb": "Get",
+          "path": "branches/accessible",
+          "decorators": [
+            "@Get('accessible')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:tenant', 'branch:read:branch', 'branch:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findAccessibleOne",
+          "line": 101,
+          "verb": "Get",
+          "path": "branches/accessible/:id",
+          "decorators": [
+            "@Get('accessible/:id')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:tenant', 'branch:read:branch', 'branch:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "preview",
+          "line": 109,
+          "verb": "Get",
+          "path": "branches/:id/preview",
+          "decorators": [
+            "@Get(':id/preview')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:read:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findPublicServices",
+          "line": 116,
+          "verb": "Get",
+          "path": "branches/:id/services",
+          "decorators": [
+            "@Get(':id/services')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Query() query: PublicBranchServicesQueryDto"
+          ]
+        },
+        {
+          "symbol": "findPublicReviews",
+          "line": 125,
+          "verb": "Get",
+          "path": "branches/:id/reviews",
+          "decorators": [
+            "@Get(':id/reviews')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Query() query: PublicBranchReviewsQueryDto"
+          ]
+        },
+        {
+          "symbol": "findOne",
+          "line": 134,
+          "verb": "Get",
+          "path": "branches/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string"
+          ]
+        },
+        {
+          "symbol": "updateStatus",
+          "line": 144,
+          "verb": "Patch",
+          "path": "branches/:id/status",
+          "decorators": [
+            "@Patch(':id/status')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:status:platform')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Branch' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { status: string; reason?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 170,
+          "verb": "Post",
+          "path": "branches/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:create:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Branch' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateBranchDraftDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "saveOnboarding",
+          "line": 182,
+          "verb": "Patch",
+          "path": "branches/:id/onboarding",
+          "decorators": [
+            "@Patch(':id/onboarding')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant', 'branch:create:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchOnboarding' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: SaveBranchOnboardingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "copyServices",
+          "line": 195,
+          "verb": "Post",
+          "path": "branches/:id/copy-services",
+          "decorators": [
+            "@Post(':id/copy-services')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:create:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'BranchServiceCopy' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { sourceBranchId: string; serviceIds: string[] }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "attachDocument",
+          "line": 210,
+          "verb": "Post",
+          "path": "branches/:id/documents",
+          "decorators": [
+            "@Post(':id/documents')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'BranchDocument' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: {\n      mediaId: string;\n      documentType: 'OPERATING_LICENSE' | 'LOCATION_DOCUMENT' | 'SERVICE_LICENSE' | 'FIRE_SAFETY' | 'OTHER';\n      documentName: string;\n      documentNumber?: string;\n      issuedAt?: string;\n      expiresAt?: string;\n      note?: string;\n      replaceDocumentId?: string;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "archiveDocument",
+          "line": 232,
+          "verb": "Delete",
+          "path": "branches/:id/documents/:documentId",
+          "decorators": [
+            "@Delete(':id/documents/:documentId')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'BranchDocument', idParam: 'documentId' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Param('documentId') documentId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "submit",
+          "line": 245,
+          "verb": "Post",
+          "path": "branches/:id/submit",
+          "decorators": [
+            "@Post(':id/submit')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:create:tenant', 'branch:update:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BranchReview' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "review",
+          "line": 257,
+          "verb": "Post",
+          "path": "branches/:id/review",
+          "decorators": [
+            "@Post(':id/review')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:status:platform')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BranchReview' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: {\n      decision: 'APPROVE' | 'REQUEST_INFO' | 'REJECT';\n      reason?: string;\n      targetStep?: number;\n      deadline?: string;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "publish",
+          "line": 281,
+          "verb": "Post",
+          "path": "branches/:id/publish",
+          "decorators": [
+            "@Post(':id/publish')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BranchOperationalStatus' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "transition",
+          "line": 293,
+          "verb": "Post",
+          "path": "branches/:id/transition",
+          "decorators": [
+            "@Post(':id/transition')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('branch:status:platform', 'branch:update:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'Branch' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { action: BranchTransitionAction; reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 309,
+          "verb": "Patch",
+          "path": "branches/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')",
+            "@RequireScope({\n    roles: ['BUSINESS_OWNER'],\n    scopeLevel: 'branch',\n    permissions: ['branch:update:tenant'],\n  })",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Branch' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateBranchDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/business/business.controller.ts",
+      "class": "BusinessController",
+      "line": 17,
+      "decorators": [
+        "@Controller('business')",
+        "@UseGuards(RolesGuard)",
+        "@Roles('BUSINESS_OWNER', 'STAFF')"
+      ],
+      "methods": [
+        {
+          "symbol": "createDraft",
+          "line": 28,
+          "verb": "Post",
+          "path": "business/onboarding/draft",
+          "decorators": [
+            "@Post('onboarding/draft')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'BusinessOnboarding' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:create:self')"
+          ],
+          "parameters": [
+            "@Body() body: BusinessDraftInput",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findMine",
+          "line": 36,
+          "verb": "Get",
+          "path": "business/onboarding/mine",
+          "decorators": [
+            "@Get('onboarding/mine')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:create:self', 'business:update:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateDraft",
+          "line": 43,
+          "verb": "Patch",
+          "path": "business/:businessId/onboarding",
+          "decorators": [
+            "@Patch(':businessId/onboarding')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BusinessOnboarding', idParam: 'businessId' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Body() body: BusinessDraftInput",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "submit",
+          "line": 55,
+          "verb": "Post",
+          "path": "business/:businessId/submit",
+          "decorators": [
+            "@Post(':businessId/submit')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BusinessOnboarding', idParam: 'businessId' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "review",
+          "line": 66,
+          "verb": "Patch",
+          "path": "business/:businessId/review",
+          "decorators": [
+            "@Patch(':businessId/review')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'BusinessOnboarding', idParam: 'businessId' })",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Body() body: { decision: 'APPROVE' | 'REQUEST_INFO' | 'REJECT'; note?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getPlatformDetail",
+          "line": 78,
+          "verb": "Get",
+          "path": "business/:businessId/detail",
+          "decorators": [
+            "@Get(':businessId/detail')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('branch:read:platform')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string"
+          ]
+        },
+        {
+          "symbol": "listMembers",
+          "line": 175,
+          "verb": "Get",
+          "path": "business/:businessId/members",
+          "decorators": [
+            "@Get(':businessId/members')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:read:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getPolicy",
+          "line": 190,
+          "verb": "Get",
+          "path": "business/:businessId/cancellation-policy",
+          "decorators": [
+            "@Get(':businessId/cancellation-policy')",
+            "@RequirePermission('branch:read:tenant', 'branch:read:branch')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updatePolicy",
+          "line": 203,
+          "verb": "Patch",
+          "path": "business/:businessId/cancellation-policy",
+          "decorators": [
+            "@Patch(':businessId/cancellation-policy')",
+            "@Audited({ action: AuditAction.POLICY_OVERRIDE, entityType: 'CancellationPolicy', idParam: 'businessId' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Body() body: UpdateCancellationPolicyDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/combos/combos.controller.ts",
+      "class": "CombosController",
+      "line": 12,
+      "decorators": [
+        "@Controller('combos')"
+      ],
+      "methods": [
+        {
+          "symbol": "publicList",
+          "line": 16,
+          "verb": "Get",
+          "path": "combos/public",
+          "decorators": [
+            "@Public()",
+            "@Get('public')"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "list",
+          "line": 22,
+          "verb": "Get",
+          "path": "combos/",
+          "decorators": [
+            "@Get()",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('combo:manage:tenant', 'combo:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('branchId') branchId?: string",
+            "@Query('businessId') businessId?: string"
+          ]
+        },
+        {
+          "symbol": "detail",
+          "line": 29,
+          "verb": "Get",
+          "path": "combos/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'CUSTOMER')",
+            "@RequirePermission('combo:read:public', 'combo:manage:tenant', 'combo:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 36,
+          "verb": "Post",
+          "path": "combos/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('combo:manage:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Combo' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateComboDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 44,
+          "verb": "Patch",
+          "path": "combos/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('combo:manage:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Combo' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateComboDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 52,
+          "verb": "Delete",
+          "path": "combos/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('combo:manage:tenant')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'Combo' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/health.controller.ts",
+      "class": "HealthController",
+      "line": 5,
+      "decorators": [
+        "@Controller('health')"
+      ],
+      "methods": [
+        {
+          "symbol": "check",
+          "line": 9,
+          "verb": "Get",
+          "path": "health/",
+          "decorators": [
+            "@Get()",
+            "@Public()"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "live",
+          "line": 21,
+          "verb": "Get",
+          "path": "health/live",
+          "decorators": [
+            "@Get('live')",
+            "@Public()"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "ready",
+          "line": 31,
+          "verb": "Get",
+          "path": "health/ready",
+          "decorators": [
+            "@Get('ready')",
+            "@Public()"
+          ],
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/media/media.controller.ts",
+      "class": "MediaController",
+      "line": 25,
+      "decorators": [
+        "@Controller('media')"
+      ],
+      "methods": [
+        {
+          "symbol": "upload",
+          "line": 29,
+          "verb": "Post",
+          "path": "media/upload",
+          "decorators": [
+            "@Post('upload')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')",
+            "@RequirePermission('user:update:self')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'MediaFile' })",
+            "@Throttle({ default: { limit: 20, ttl: 15 * 60_000 } })",
+            "@UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))"
+          ],
+          "parameters": [
+            "@UploadedFile() file: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined",
+            "@Body() body: UploadMediaDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "publicContent",
+          "line": 44,
+          "verb": "Get",
+          "path": "media/public/:id",
+          "decorators": [
+            "@Public()",
+            "@Get('public/:id')"
+          ],
+          "parameters": [
+            "@Param('id') id: string"
+          ]
+        },
+        {
+          "symbol": "privateContent",
+          "line": 54,
+          "verb": "Get",
+          "path": "media/:id/content",
+          "decorators": [
+            "@Get(':id/content')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 63,
+          "verb": "Delete",
+          "path": "media/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'MediaFile' })",
+            "@Throttle({ default: { limit: 60, ttl: 60_000 } })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/notifications/notifications.controller.ts",
+      "class": "NotificationsController",
+      "line": 19,
+      "decorators": [
+        "@Controller('notifications')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)"
+      ],
+      "methods": [
+        {
+          "symbol": "findMy",
+          "line": 28,
+          "verb": "Get",
+          "path": "notifications/",
+          "decorators": [
+            "@Get()",
+            "@RequirePermission('notification:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('page') page?: string",
+            "@Query('limit') limit?: string",
+            "@Query('unreadOnly') unreadOnly?: string",
+            "@Query('state') state?: 'all' | 'unread' | 'read'",
+            "@Query('type') type?: string",
+            "@Query('severity') severity?: string",
+            "@Query('search') search?: string"
+          ]
+        },
+        {
+          "symbol": "getUnreadCount",
+          "line": 55,
+          "verb": "Get",
+          "path": "notifications/unread-count",
+          "decorators": [
+            "@Get('unread-count')",
+            "@RequirePermission('notification:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "markAsRead",
+          "line": 65,
+          "verb": "Patch",
+          "path": "notifications/:id/read",
+          "decorators": [
+            "@Patch(':id/read')",
+            "@RequirePermission('notification:read:self')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "markAllAsRead",
+          "line": 78,
+          "verb": "Patch",
+          "path": "notifications/read-all",
+          "decorators": [
+            "@Patch('read-all')",
+            "@RequirePermission('notification:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "registerDeviceToken",
+          "line": 88,
+          "verb": "Post",
+          "path": "notifications/device-token",
+          "decorators": [
+            "@Post('device-token')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Body() body: { token: string; platform: 'IOS' | 'ANDROID' | 'WEB' }"
+          ]
+        },
+        {
+          "symbol": "removeDeviceToken",
+          "line": 107,
+          "verb": "Post",
+          "path": "notifications/device-token/remove",
+          "decorators": [
+            "@Post('device-token/remove')"
+          ],
+          "parameters": [
+            "@Body() body: { token: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/operations/impact.controller.ts",
+      "class": "ImpactController",
+      "line": 10,
+      "decorators": [
+        "@Controller('operational-impacts')",
+        "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+        "@RequirePermission('booking:update:tenant', 'booking:read:platform')"
+      ],
+      "methods": [
+        {
+          "symbol": "list",
+          "line": 28,
+          "verb": "Get",
+          "path": "operational-impacts/",
+          "decorators": [
+            "@Get()"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "detail",
+          "line": 34,
+          "verb": "Get",
+          "path": "operational-impacts/:id",
+          "decorators": [
+            "@Get(':id')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resolve",
+          "line": 40,
+          "verb": "Patch",
+          "path": "operational-impacts/:id/items/:itemId",
+          "decorators": [
+            "@Patch(':id/items/:itemId')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Param('itemId') itemId: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resolveBatch",
+          "line": 46,
+          "verb": "Patch",
+          "path": "operational-impacts/:id/items",
+          "decorators": [
+            "@Patch(':id/items')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "complete",
+          "line": 52,
+          "verb": "Post",
+          "path": "operational-impacts/:id/complete",
+          "decorators": [
+            "@Post(':id/complete')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/ownership/ownership.controller.ts",
+      "class": "OwnershipController",
+      "line": 10,
+      "decorators": [
+        "@Controller('ownership-transfers')"
+      ],
+      "methods": [
+        {
+          "symbol": "create",
+          "line": 14,
+          "verb": "Post",
+          "path": "ownership-transfers/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "pendingForMe",
+          "line": 23,
+          "verb": "Get",
+          "path": "ownership-transfers/pending-for-me",
+          "decorators": [
+            "@Get('pending-for-me')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "platformPending",
+          "line": 28,
+          "verb": "Get",
+          "path": "ownership-transfers/platform/pending",
+          "decorators": [
+            "@Get('platform/pending')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "accept",
+          "line": 35,
+          "verb": "Patch",
+          "path": "ownership-transfers/:id/accept",
+          "decorators": [
+            "@Patch(':id/accept')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "submitMoreInfo",
+          "line": 40,
+          "verb": "Patch",
+          "path": "ownership-transfers/:id/submit-more-info",
+          "decorators": [
+            "@Patch(':id/submit-more-info')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { note: string; settlementAgreement?: Record<string, unknown> }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "list",
+          "line": 47,
+          "verb": "Get",
+          "path": "ownership-transfers/",
+          "decorators": [
+            "@Get()",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('business:update:tenant', 'business:review:platform')"
+          ],
+          "parameters": [
+            "@Query('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "cancel",
+          "line": 56,
+          "verb": "Patch",
+          "path": "ownership-transfers/:id/cancel",
+          "decorators": [
+            "@Patch(':id/cancel')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "review",
+          "line": 63,
+          "verb": "Patch",
+          "path": "ownership-transfers/:id/review",
+          "decorators": [
+            "@Patch(':id/review')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { approve: boolean; needMoreInfo?: boolean; reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "verifyLegal",
+          "line": 70,
+          "verb": "Patch",
+          "path": "ownership-transfers/platform/legal-entity/:id/verify",
+          "decorators": [
+            "@Patch('platform/legal-entity/:id/verify')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { approve: boolean; reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "verifyPayout",
+          "line": 77,
+          "verb": "Patch",
+          "path": "ownership-transfers/platform/payout-account/:id/verify",
+          "decorators": [
+            "@Patch('platform/payout-account/:id/verify')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { approve: boolean; reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "execute",
+          "line": 84,
+          "verb": "Post",
+          "path": "ownership-transfers/:id/execute",
+          "decorators": [
+            "@Post(':id/execute')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "versions",
+          "line": 91,
+          "verb": "Get",
+          "path": "ownership-transfers/business/:businessId/versions",
+          "decorators": [
+            "@Get('business/:businessId/versions')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('business:update:tenant', 'business:review:platform')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "legal",
+          "line": 99,
+          "verb": "Post",
+          "path": "ownership-transfers/business/:businessId/legal-entity",
+          "decorators": [
+            "@Post('business/:businessId/legal-entity')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "payout",
+          "line": 107,
+          "verb": "Post",
+          "path": "ownership-transfers/business/:businessId/payout-account",
+          "decorators": [
+            "@Post('business/:businessId/payout-account')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/payments/payments.controller.ts",
+      "class": "PaymentsController",
+      "line": 25,
+      "decorators": [
+        "@Controller('payments')"
+      ],
+      "methods": [
+        {
+          "symbol": "list",
+          "line": 29,
+          "verb": "Get",
+          "path": "payments/",
+          "decorators": [
+            "@Get()",
+            "@Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('payment:read:self', 'payment:read:branch', 'payment:read:tenant', 'payment:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "collect",
+          "line": 36,
+          "verb": "Post",
+          "path": "payments/collect",
+          "decorators": [
+            "@Post('collect')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission('payment:create:branch', 'payment:create:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Payment', idParam: 'bookingId' })"
+          ],
+          "parameters": [
+            "@Body() body: CollectPaymentDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "providerCapabilities",
+          "line": 47,
+          "verb": "Get",
+          "path": "payments/providers",
+          "decorators": [
+            "@Get('providers')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('payment:read:branch', 'payment:read:tenant', 'payment:read:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "checkout",
+          "line": 54,
+          "verb": "Get",
+          "path": "payments/checkout/:bookingId",
+          "decorators": [
+            "@Get('checkout/:bookingId')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('payment:read:branch', 'payment:read:tenant', 'payment:read:platform')"
+          ],
+          "parameters": [
+            "@Param('bookingId') bookingId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "verifyTransaction",
+          "line": 61,
+          "verb": "Post",
+          "path": "payments/transactions/:transactionId/verify",
+          "decorators": [
+            "@Post('transactions/:transactionId/verify')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission('payment_transaction:verify:branch', 'payment_transaction:verify:tenant')"
+          ],
+          "parameters": [
+            "@Param('transactionId') transactionId: string",
+            "@Body() body: VerifyPaymentTransactionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "reverseTransaction",
+          "line": 77,
+          "verb": "Post",
+          "path": "payments/transactions/:transactionId/reverse",
+          "decorators": [
+            "@Post('transactions/:transactionId/reverse')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission(\n    'payment_transaction:verify:branch',\n    'payment_transaction:verify:tenant',\n    'refund:process:platform',\n  )"
+          ],
+          "parameters": [
+            "@Param('transactionId') transactionId: string",
+            "@Body() body: ReversePaymentTransactionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "policies",
+          "line": 97,
+          "verb": "Get",
+          "path": "payments/policies",
+          "decorators": [
+            "@Get('policies')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('payment_policy:manage:tenant')"
+          ],
+          "parameters": [
+            "@Query('businessId') businessId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createPolicy",
+          "line": 104,
+          "verb": "Post",
+          "path": "payments/policies",
+          "decorators": [
+            "@Post('policies')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('payment_policy:manage:tenant')"
+          ],
+          "parameters": [
+            "@Body() body: CreatePaymentPolicyDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "ledger",
+          "line": 111,
+          "verb": "Get",
+          "path": "payments/ledger",
+          "decorators": [
+            "@Get('ledger')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('financial_ledger:read:tenant', 'financial_ledger:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('businessId') businessId?: string",
+            "@Query('branchId') branchId?: string",
+            "@Query('bookingId') bookingId?: string",
+            "@Query('from') from?: string",
+            "@Query('to') to?: string"
+          ]
+        },
+        {
+          "symbol": "generateStatement",
+          "line": 125,
+          "verb": "Post",
+          "path": "payments/platform-statements/generate",
+          "decorators": [
+            "@Post('platform-statements/generate')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('platform_statement:manage:platform')"
+          ],
+          "parameters": [
+            "@Body() body: GeneratePlatformStatementDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "statements",
+          "line": 135,
+          "verb": "Get",
+          "path": "payments/platform-statements",
+          "decorators": [
+            "@Get('platform-statements')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('platform_statement:read:tenant', 'platform_statement:manage:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('businessId') businessId?: string"
+          ]
+        },
+        {
+          "symbol": "transitionStatement",
+          "line": 142,
+          "verb": "Patch",
+          "path": "payments/platform-statements/:id/status",
+          "decorators": [
+            "@Patch('platform-statements/:id/status')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('platform_statement:manage:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Param('id') id: string",
+            "@Body() body: TransitionPlatformStatementDto"
+          ]
+        },
+        {
+          "symbol": "packages",
+          "line": 153,
+          "verb": "Get",
+          "path": "payments/packages",
+          "decorators": [
+            "@Get('packages')",
+            "@Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission('treatment_package:read:public')"
+          ],
+          "parameters": [
+            "@Query('businessId') businessId?: string",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "createPackage",
+          "line": 163,
+          "verb": "Post",
+          "path": "payments/packages",
+          "decorators": [
+            "@Post('packages')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('treatment_package:manage:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'TreatmentPackage' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateTreatmentPackageDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "purchasePackage",
+          "line": 174,
+          "verb": "Post",
+          "path": "payments/packages/:packageId/purchases",
+          "decorators": [
+            "@Post('packages/:packageId/purchases')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission(\n    'package_purchase:create:branch',\n    'package_purchase:create:tenant',\n  )"
+          ],
+          "parameters": [
+            "@Param('packageId') packageId: string",
+            "@Body() body: PurchaseTreatmentPackageDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "packagePurchases",
+          "line": 188,
+          "verb": "Get",
+          "path": "payments/package-purchases",
+          "decorators": [
+            "@Get('package-purchases')",
+            "@Roles('CUSTOMER', 'BUSINESS_OWNER')",
+            "@RequirePermission('package_purchase:read:self', 'package_purchase:read:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('businessId') businessId?: string"
+          ]
+        },
+        {
+          "symbol": "payPackageInstallment",
+          "line": 198,
+          "verb": "Post",
+          "path": "payments/package-installments/:installmentId/pay",
+          "decorators": [
+            "@Post('package-installments/:installmentId/pay')",
+            "@Roles('RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission(\n    'package_purchase:create:branch',\n    'package_purchase:create:tenant',\n  )"
+          ],
+          "parameters": [
+            "@Param('installmentId') installmentId: string",
+            "@Body() body: PayPackageInstallmentDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "reservePackageSession",
+          "line": 212,
+          "verb": "Post",
+          "path": "payments/package-purchases/:purchaseId/sessions/reserve",
+          "decorators": [
+            "@Post('package-purchases/:purchaseId/sessions/reserve')",
+            "@Roles('CUSTOMER', 'RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission(\n    'package_purchase:create:self',\n    'package_purchase:create:branch',\n    'package_purchase:create:tenant',\n  )"
+          ],
+          "parameters": [
+            "@Param('purchaseId') purchaseId: string",
+            "@Body() body: ReservePackageSessionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "requestRefund",
+          "line": 227,
+          "verb": "Post",
+          "path": "payments/:paymentId/refund-requests",
+          "decorators": [
+            "@Post(':paymentId/refund-requests')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('refund:create:tenant', 'refund:create:platform')",
+            "@Audited({ action: AuditAction.REFUND, entityType: 'RefundRequest', idParam: 'paymentId' })"
+          ],
+          "parameters": [
+            "@Param('paymentId') paymentId: string",
+            "@Body() body: RequestRefundDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "review",
+          "line": 239,
+          "verb": "Patch",
+          "path": "payments/refunds/:refundId/review",
+          "decorators": [
+            "@Patch('refunds/:refundId/review')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('refund:approve:tenant', 'refund:approve:platform')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'RefundRequest', idParam: 'refundId' })"
+          ],
+          "parameters": [
+            "@Param('refundId') refundId: string",
+            "@Body() body: ReviewRefundDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "process",
+          "line": 251,
+          "verb": "Post",
+          "path": "payments/refunds/:refundId/process",
+          "decorators": [
+            "@Post('refunds/:refundId/process')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('refund:process:platform')",
+            "@Audited({ action: AuditAction.REFUND, entityType: 'RefundRequest', idParam: 'refundId' })"
+          ],
+          "parameters": [
+            "@Param('refundId') refundId: string",
+            "@Body() body: ProcessRefundDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/platform-settings/platform-settings.controller.ts",
+      "class": "PlatformSettingsController",
+      "line": 5,
+      "decorators": [
+        "@Controller('platform-settings')"
+      ],
+      "methods": [
+        {
+          "symbol": "publicPolicy",
+          "line": 9,
+          "verb": "Get",
+          "path": "platform-settings/public",
+          "decorators": [
+            "@Get('public')",
+            "@Public()"
+          ],
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/privacy/privacy.controller.ts",
+      "class": "PrivacyController",
+      "line": 19,
+      "decorators": [
+        "@Controller('privacy')"
+      ],
+      "methods": [
+        {
+          "symbol": "center",
+          "line": 25,
+          "verb": "Get",
+          "path": "privacy/center",
+          "decorators": [
+            "@Get('center')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('privacy_request:manage:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createDataRequest",
+          "line": 33,
+          "verb": "Post",
+          "path": "privacy/data-requests",
+          "decorators": [
+            "@Post('data-requests')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('privacy_request:manage:self')"
+          ],
+          "parameters": [
+            "@Body() body: CreateDataSubjectRequestDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "dataRequests",
+          "line": 43,
+          "verb": "Get",
+          "path": "privacy/data-requests",
+          "decorators": [
+            "@Get('data-requests')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('privacy_request:manage:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "marketingPreferences",
+          "line": 50,
+          "verb": "Get",
+          "path": "privacy/marketing-preferences",
+          "decorators": [
+            "@Get('marketing-preferences')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('marketing_preference:manage:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateMarketingPreferences",
+          "line": 57,
+          "verb": "Put",
+          "path": "privacy/marketing-preferences",
+          "decorators": [
+            "@Put('marketing-preferences')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('marketing_preference:manage:self')"
+          ],
+          "parameters": [
+            "@Body() body: MarketingPreferenceDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "export",
+          "line": 67,
+          "verb": "Post",
+          "path": "privacy/exports",
+          "decorators": [
+            "@Post('exports')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('privacy_request:manage:self')"
+          ],
+          "parameters": [
+            "@Body() body: CreatePrivacyExportDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "download",
+          "line": 77,
+          "verb": "Get",
+          "path": "privacy/exports/:id/download",
+          "decorators": [
+            "@Get('exports/:id/download')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('privacy_request:manage:self')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Headers('x-privacy-download-token') token: string | undefined",
+            "@CurrentUser() user: AuthUser",
+            "@Res({ passthrough: true }) response: Response"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/promotions/promotions.controller.ts",
+      "class": "PromotionsController",
+      "line": 31,
+      "decorators": [
+        "@Controller('promotions')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "findAll",
+          "line": 44,
+          "verb": "Get",
+          "path": "promotions/",
+          "decorators": [
+            "@Get()",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('promotion:manage:tenant', 'promotion:manage:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('businessId') businessId?: string",
+            "@Query('branchId') branchId?: string",
+            "@Query('status') status?: string"
+          ]
+        },
+        {
+          "symbol": "getActiveForService",
+          "line": 66,
+          "verb": "Get",
+          "path": "promotions/service/:serviceId",
+          "decorators": [
+            "@Get('service/:serviceId')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('serviceId') serviceId: string"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 78,
+          "verb": "Post",
+          "path": "promotions/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('promotion:manage:tenant', 'promotion:manage:platform')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Promotion' })"
+          ],
+          "parameters": [
+            "@Body() body: CreatePromotionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 132,
+          "verb": "Patch",
+          "path": "promotions/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('promotion:manage:tenant', 'promotion:manage:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Promotion' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdatePromotionDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 148,
+          "verb": "Delete",
+          "path": "promotions/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('promotion:manage:tenant', 'promotion:manage:platform')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'Promotion' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/promotions/vouchers.controller.ts",
+      "class": "VouchersController",
+      "line": 27,
+      "decorators": [
+        "@Controller('vouchers')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "findMine",
+          "line": 34,
+          "verb": "Get",
+          "path": "vouchers/mine",
+          "decorators": [
+            "@Get('mine')",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('voucher:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findAll",
+          "line": 45,
+          "verb": "Get",
+          "path": "vouchers/",
+          "decorators": [
+            "@Get()",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:manage:tenant', 'voucher:manage:platform', 'voucher:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('status') status?: string"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 56,
+          "verb": "Post",
+          "path": "vouchers/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:manage:tenant', 'voucher:manage:platform')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Voucher' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateVoucherDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 82,
+          "verb": "Patch",
+          "path": "vouchers/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:manage:tenant', 'voucher:manage:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Voucher' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateVoucherDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "grant",
+          "line": 98,
+          "verb": "Post",
+          "path": "vouchers/:id/grant",
+          "decorators": [
+            "@Post(':id/grant')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:manage:tenant', 'voucher:manage:platform')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'CustomerVoucher' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { customerId: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 117,
+          "verb": "Delete",
+          "path": "vouchers/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('voucher:manage:tenant', 'voucher:manage:platform')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'Voucher' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/recurring/recurring.controller.ts",
+      "class": "RecurringController",
+      "line": 11,
+      "decorators": [
+        "@Controller('recurring')",
+        "@Roles('CUSTOMER')"
+      ],
+      "methods": [
+        {
+          "symbol": "preview",
+          "line": 16,
+          "verb": "Post",
+          "path": "recurring/preview",
+          "decorators": [
+            "@Post('preview')",
+            "@RequirePermission('booking:create:self')"
+          ],
+          "parameters": [
+            "@Body() body: RecurringPreviewDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 22,
+          "verb": "Post",
+          "path": "recurring/",
+          "decorators": [
+            "@Post()",
+            "@RequirePermission('booking:create:self')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'RecurringBookingPlan' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateRecurringPlanDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "mine",
+          "line": 29,
+          "verb": "Get",
+          "path": "recurring/mine",
+          "decorators": [
+            "@Get('mine')",
+            "@RequirePermission('booking:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "status",
+          "line": 35,
+          "verb": "Patch",
+          "path": "recurring/:id/status",
+          "decorators": [
+            "@Patch(':id/status')",
+            "@RequirePermission('booking:update:self')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'RecurringBookingPlan' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateRecurringStatusDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "cancelOccurrence",
+          "line": 42,
+          "verb": "Delete",
+          "path": "recurring/:id/occurrences/:bookingId",
+          "decorators": [
+            "@Delete(':id/occurrences/:bookingId')",
+            "@RequirePermission('booking:cancel:self')",
+            "@Audited({ action: AuditAction.CANCEL, entityType: 'Booking' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Param('bookingId') bookingId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "cancel",
+          "line": 49,
+          "verb": "Delete",
+          "path": "recurring/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@RequirePermission('booking:cancel:self')",
+            "@Audited({ action: AuditAction.CANCEL, entityType: 'RecurringBookingPlan' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/reports/reports.controller.ts",
+      "class": "ReportsController",
+      "line": 17,
+      "decorators": [
+        "@Controller('reports')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)"
+      ],
+      "methods": [
+        {
+          "symbol": "getDashboardOverview",
+          "line": 25,
+          "verb": "Get",
+          "path": "reports/overview",
+          "decorators": [
+            "@Get('overview')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission(\n    'report:overview:platform',\n    'report:overview:tenant',\n  )"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getOwnerDashboard",
+          "line": 35,
+          "verb": "Get",
+          "path": "reports/owner-dashboard",
+          "decorators": [
+            "@Get('owner-dashboard')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission(\n    'report:overview:tenant',\n    'report:overview:platform',\n  )"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('branchId') branchId?: string",
+            "@Query('from') from?: string",
+            "@Query('to') to?: string"
+          ]
+        },
+        {
+          "symbol": "getRevenue",
+          "line": 62,
+          "verb": "Get",
+          "path": "reports/revenue",
+          "decorators": [
+            "@Get('revenue')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission(\n    'report:revenue:platform',\n    'report:revenue:tenant',\n  )"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('year') year?: string"
+          ]
+        },
+        {
+          "symbol": "getFinancialSummary",
+          "line": 75,
+          "verb": "Get",
+          "path": "reports/financial-summary",
+          "decorators": [
+            "@Get('financial-summary')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('report:revenue:platform', 'report:revenue:tenant', 'report:revenue:branch')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('from') from?: string",
+            "@Query('to') to?: string",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "getCategoryStats",
+          "line": 94,
+          "verb": "Get",
+          "path": "reports/categories",
+          "decorators": [
+            "@Get('categories')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('report:overview:platform', 'report:overview:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getServiceStats",
+          "line": 101,
+          "verb": "Get",
+          "path": "reports/services",
+          "decorators": [
+            "@Get('services')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('report:overview:platform', 'report:overview:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getTopBranches",
+          "line": 108,
+          "verb": "Get",
+          "path": "reports/top-salons",
+          "decorators": [
+            "@Get('top-salons')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('report:overview:platform')"
+          ],
+          "parameters": [
+            "@Query('limit') limit?: string"
+          ]
+        },
+        {
+          "symbol": "getUserGrowth",
+          "line": 117,
+          "verb": "Get",
+          "path": "reports/user-growth",
+          "decorators": [
+            "@Get('user-growth')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('report:user_growth:platform')"
+          ],
+          "parameters": [
+            "@Query('year') year?: string"
+          ]
+        },
+        {
+          "symbol": "getStaffPerformance",
+          "line": 124,
+          "verb": "Get",
+          "path": "reports/staff-performance",
+          "decorators": [
+            "@Get('staff-performance')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('report:overview:platform', 'report:overview:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/reviews/reviews.controller.ts",
+      "class": "ReviewsController",
+      "line": 28,
+      "decorators": [
+        "@Controller('reviews')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "findByBusiness",
+          "line": 41,
+          "verb": "Get",
+          "path": "reviews/business/:businessId",
+          "decorators": [
+            "@Get('business/:businessId')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('businessId') businessId: string",
+            "@Query('page') page?: string",
+            "@Query('limit') limit?: string"
+          ]
+        },
+        {
+          "symbol": "findForManagement",
+          "line": 59,
+          "verb": "Get",
+          "path": "reviews/manage",
+          "decorators": [
+            "@Get('manage')",
+            "@Roles('BUSINESS_OWNER', 'PLATFORM_ADMIN')",
+            "@RequirePermission('review:moderate:tenant', 'review:moderate:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('status') status?: string",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "findByStaff",
+          "line": 74,
+          "verb": "Get",
+          "path": "reviews/staff/:staffId",
+          "decorators": [
+            "@Get('staff/:staffId')",
+            "@Roles('BUSINESS_OWNER', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Param('staffId') staffId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findPublicByStaff",
+          "line": 90,
+          "verb": "Get",
+          "path": "reviews/public/staff/:staffId",
+          "decorators": [
+            "@Get('public/staff/:staffId')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('staffId') staffId: string"
+          ]
+        },
+        {
+          "symbol": "findByService",
+          "line": 96,
+          "verb": "Get",
+          "path": "reviews/service/:serviceId",
+          "decorators": [
+            "@Get('service/:serviceId')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('serviceId') serviceId: string"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 106,
+          "verb": "Post",
+          "path": "reviews/",
+          "decorators": [
+            "@Post()",
+            "@Roles('CUSTOMER')",
+            "@RequirePermission('review:create:self')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'Review' })"
+          ],
+          "parameters": [
+            "@Body() body: {\n      bookingId: string;\n      overallRating: number;\n      comment?: string;\n      isAnonymous?: boolean;\n      serviceRatings?: Array<{\n        bookingServiceId: string;\n        staffId?: string;\n        rating: number;\n        comment?: string;\n      }>;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "report",
+          "line": 147,
+          "verb": "Post",
+          "path": "reviews/:id/report",
+          "decorators": [
+            "@Post(':id/report')",
+            "@Roles('CUSTOMER', 'BUSINESS_OWNER')",
+            "@RequirePermission('review:read:public', 'review:report:tenant')",
+            "@Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewReport' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { reason: string; category?: string; severity?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "reply",
+          "line": 163,
+          "verb": "Post",
+          "path": "reviews/:id/reply",
+          "decorators": [
+            "@Post(':id/reply')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('review:moderate:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'ReviewReply' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { content: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "moderate",
+          "line": 189,
+          "verb": "Patch",
+          "path": "reviews/:id/moderate",
+          "decorators": [
+            "@Patch(':id/moderate')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('review:moderate:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'Review' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { status: 'APPROVED' | 'HIDDEN'; reasonCode: string; reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "appeal",
+          "line": 204,
+          "verb": "Post",
+          "path": "reviews/:id/appeals",
+          "decorators": [
+            "@Post(':id/appeals')",
+            "@Roles('CUSTOMER', 'BUSINESS_OWNER')",
+            "@RequirePermission('review:create:self', 'review:moderate:tenant')",
+            "@Audited({ action: AuditAction.ESCALATION, entityType: 'ReviewAppeal' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resolveAppeal",
+          "line": 216,
+          "verb": "Patch",
+          "path": "reviews/appeals/:appealId",
+          "decorators": [
+            "@Patch('appeals/:appealId')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('review:moderate:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'ReviewAppeal', idParam: 'appealId' })"
+          ],
+          "parameters": [
+            "@Param('appealId') appealId: string",
+            "@Body() body: { approve: boolean; resolution: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/saved-services/saved-services.controller.ts",
+      "class": "SavedServicesController",
+      "line": 8,
+      "decorators": [
+        "@Controller(['saved-services', 'customer/saved-services'])",
+        "@Roles('CUSTOMER')",
+        "@RequirePermission('service:read:public')"
+      ],
+      "methods": [
+        {
+          "symbol": "list",
+          "line": 14,
+          "verb": "Get",
+          "path": "/saved-services ; /customer/saved-services",
+          "decorators": [
+            "@Get()"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ],
+          "paths": [
+            "/saved-services",
+            "/customer/saved-services"
+          ]
+        },
+        {
+          "symbol": "save",
+          "line": 19,
+          "verb": "Post",
+          "path": "/saved-services ; /customer/saved-services",
+          "decorators": [
+            "@Post()"
+          ],
+          "parameters": [
+            "@Body() body: { serviceId: string }",
+            "@CurrentUser() user: AuthUser"
+          ],
+          "paths": [
+            "/saved-services",
+            "/customer/saved-services"
+          ]
+        },
+        {
+          "symbol": "saveByPath",
+          "line": 24,
+          "verb": "Post",
+          "path": "/saved-services/{serviceId} ; /customer/saved-services/{serviceId}",
+          "decorators": [
+            "@Post(':serviceId')"
+          ],
+          "parameters": [
+            "@Param('serviceId') serviceId: string",
+            "@CurrentUser() user: AuthUser"
+          ],
+          "paths": [
+            "/saved-services/{serviceId}",
+            "/customer/saved-services/{serviceId}"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 29,
+          "verb": "Delete",
+          "path": "/saved-services/{serviceId} ; /customer/saved-services/{serviceId}",
+          "decorators": [
+            "@Delete(':serviceId')"
+          ],
+          "parameters": [
+            "@Param('serviceId') serviceId: string",
+            "@CurrentUser() user: AuthUser"
+          ],
+          "paths": [
+            "/saved-services/{serviceId}",
+            "/customer/saved-services/{serviceId}"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/services/services.controller.ts",
+      "class": "ServicesController",
+      "line": 45,
+      "decorators": [
+        "@Controller('services')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "search",
+          "line": 70,
+          "verb": "Get",
+          "path": "services/search",
+          "decorators": [
+            "@Get('search')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('query') query?: string",
+            "@Query('location') location?: string",
+            "@Query('canonicalServiceId') canonicalServiceId?: string",
+            "@Query('minPrice') minPrice?: string",
+            "@Query('maxPrice') maxPrice?: string",
+            "@Query('minRating') minRating?: string",
+            "@Query('date') date?: string",
+            "@Query('sort') sort?: string",
+            "@Query('page') page?: string",
+            "@Query('limit') limit?: string"
+          ]
+        },
+        {
+          "symbol": "canonicalCatalog",
+          "line": 98,
+          "verb": "Get",
+          "path": "services/canonical",
+          "decorators": [
+            "@Get('canonical')",
+            "@Public()"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "canonicalManagement",
+          "line": 104,
+          "verb": "Get",
+          "path": "services/canonical/manage",
+          "decorators": [
+            "@Get('canonical/manage')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('canonical_service:manage:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "createCanonical",
+          "line": 111,
+          "verb": "Post",
+          "path": "services/canonical",
+          "decorators": [
+            "@Post('canonical')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('canonical_service:manage:platform')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'CanonicalService' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateCanonicalServiceDto"
+          ]
+        },
+        {
+          "symbol": "updateCanonical",
+          "line": 119,
+          "verb": "Patch",
+          "path": "services/canonical/:id",
+          "decorators": [
+            "@Patch('canonical/:id')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('canonical_service:manage:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'CanonicalService' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateCanonicalServiceDto"
+          ]
+        },
+        {
+          "symbol": "getPublicCategories",
+          "line": 128,
+          "verb": "Get",
+          "path": "services/categories",
+          "decorators": [
+            "@Get('categories')",
+            "@Public()"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "getBusinessCategories",
+          "line": 134,
+          "verb": "Get",
+          "path": "services/categories/manage",
+          "decorators": [
+            "@Get('categories/manage')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('service_category:manage:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createCategory",
+          "line": 143,
+          "verb": "Post",
+          "path": "services/categories",
+          "decorators": [
+            "@Post('categories')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('service_category:manage:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'ServiceCategory' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateServiceCategoryDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findAll",
+          "line": 152,
+          "verb": "Get",
+          "path": "services/",
+          "decorators": [
+            "@Get()",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId?: string",
+            "@Query('page') page?: number",
+            "@Query('limit') limit?: number"
+          ]
+        },
+        {
+          "symbol": "findAllForManagement",
+          "line": 162,
+          "verb": "Get",
+          "path": "services/manage",
+          "decorators": [
+            "@Get('manage')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:update:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "workspace",
+          "line": 176,
+          "verb": "Get",
+          "path": "services/workspace/manage",
+          "decorators": [
+            "@Get('workspace/manage')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:update:tenant')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "createCatalog",
+          "line": 187,
+          "verb": "Post",
+          "path": "services/catalog",
+          "decorators": [
+            "@Post('catalog')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:create:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'BusinessService' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateBusinessServiceDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateCatalog",
+          "line": 197,
+          "verb": "Patch",
+          "path": "services/catalog/:id",
+          "decorators": [
+            "@Patch('catalog/:id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:update:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BusinessService' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateBusinessServiceDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "archiveCatalog",
+          "line": 214,
+          "verb": "Delete",
+          "path": "services/catalog/:id",
+          "decorators": [
+            "@Delete('catalog/:id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:archive:tenant')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'BusinessService' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "setBranchAvailability",
+          "line": 227,
+          "verb": "Post",
+          "path": "services/catalog/:id/branches/:branchId/:action",
+          "decorators": [
+            "@Post('catalog/:id/branches/:branchId/:action')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:status:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOffering' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Param('branchId') branchId: string",
+            "@Param('action') action: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateOfferingStatus",
+          "line": 248,
+          "verb": "Patch",
+          "path": "services/offerings/:id/status",
+          "decorators": [
+            "@Patch('offerings/:id/status')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:status:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOfferingStatus' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateBranchOfferingStatusDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateOfferingPricing",
+          "line": 265,
+          "verb": "Patch",
+          "path": "services/offerings/:id/pricing",
+          "decorators": [
+            "@Patch('offerings/:id/pricing')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:pricing:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOfferingPricing' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateBranchOfferingPricingDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "listAllForPlatform",
+          "line": 282,
+          "verb": "Get",
+          "path": "services/admin-curated/all",
+          "decorators": [
+            "@Get('admin-curated/all')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('service:read:platform')"
+          ],
+          "parameters": []
+        },
+        {
+          "symbol": "listVariants",
+          "line": 289,
+          "verb": "Get",
+          "path": "services/:id/variants",
+          "decorators": [
+            "@Get(':id/variants')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string"
+          ]
+        },
+        {
+          "symbol": "createVariant",
+          "line": 295,
+          "verb": "Post",
+          "path": "services/:id/variants",
+          "decorators": [
+            "@Post(':id/variants')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:pricing:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'ServiceVariant' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateVariant",
+          "line": 309,
+          "verb": "Patch",
+          "path": "services/variants/:variantId",
+          "decorators": [
+            "@Patch('variants/:variantId')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:pricing:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'ServiceVariant', idParam: 'variantId' })"
+          ],
+          "parameters": [
+            "@Param('variantId') variantId: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "addDependency",
+          "line": 327,
+          "verb": "Post",
+          "path": "services/:id/dependencies",
+          "decorators": [
+            "@Post(':id/dependencies')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:update:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'ServiceDependency' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { requiredServiceId: string; dependencyType: 'REQUIRED' | 'ADD_ON' | 'INCOMPATIBLE' }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createPriceRule",
+          "line": 341,
+          "verb": "Post",
+          "path": "services/:id/price-rules",
+          "decorators": [
+            "@Post(':id/price-rules')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:pricing:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'ServicePriceRule' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: any",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findOne",
+          "line": 355,
+          "verb": "Get",
+          "path": "services/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 362,
+          "verb": "Post",
+          "path": "services/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:create:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'BranchServiceOffering' })"
+          ],
+          "parameters": [
+            "@Body() body: CreateServiceDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 372,
+          "verb": "Patch",
+          "path": "services/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch_service_offering:pricing:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchServiceOffering' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: UpdateServiceDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "remove",
+          "line": 395,
+          "verb": "Delete",
+          "path": "services/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('business_service:archive:tenant')",
+            "@Audited({ action: AuditAction.DELETE, entityType: 'BranchServiceOffering' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/staff/staff.controller.ts",
+      "class": "StaffController",
+      "line": 40,
+      "decorators": [
+        "@Controller('staff')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "invite",
+          "line": 79,
+          "verb": "Post",
+          "path": "staff/invitations",
+          "decorators": [
+            "@Post('invitations')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'StaffInvitation' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')"
+          ],
+          "parameters": [
+            "@Body() body: InviteStaffDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "listInvitations",
+          "line": 92,
+          "verb": "Get",
+          "path": "staff/invitations",
+          "decorators": [
+            "@Get('invitations')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:read:tenant', 'user:read:branch')"
+          ],
+          "parameters": [
+            "@Query('businessId') businessId: string",
+            "@Query('branchId') branchId: string | undefined",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "invitationContext",
+          "line": 106,
+          "verb": "Get",
+          "path": "staff/invitations/context",
+          "decorators": [
+            "@Get('invitations/context')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('token') token: string"
+          ]
+        },
+        {
+          "symbol": "acceptInvitation",
+          "line": 113,
+          "verb": "Post",
+          "path": "staff/invitations/accept",
+          "decorators": [
+            "@Post('invitations/accept')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Body() body: AcceptStaffInvitationDto"
+          ]
+        },
+        {
+          "symbol": "acceptExistingInvitation",
+          "line": 121,
+          "verb": "Post",
+          "path": "staff/invitations/accept-existing",
+          "decorators": [
+            "@Post('invitations/accept-existing')"
+          ],
+          "parameters": [
+            "@Body() body: AcceptExistingStaffInvitationDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "resendInvitation",
+          "line": 129,
+          "verb": "Post",
+          "path": "staff/invitations/:invitationId/resend",
+          "decorators": [
+            "@Post('invitations/:invitationId/resend')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')"
+          ],
+          "parameters": [
+            "@Param('invitationId') invitationId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "changeInvitationEmail",
+          "line": 140,
+          "verb": "Patch",
+          "path": "staff/invitations/:invitationId/email",
+          "decorators": [
+            "@Patch('invitations/:invitationId/email')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')"
+          ],
+          "parameters": [
+            "@Param('invitationId') invitationId: string",
+            "@Body() body: ChangeStaffInvitationEmailDto",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "revokeInvitation",
+          "line": 152,
+          "verb": "Delete",
+          "path": "staff/invitations/:invitationId",
+          "decorators": [
+            "@Delete('invitations/:invitationId')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')"
+          ],
+          "parameters": [
+            "@Param('invitationId') invitationId: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findPublic",
+          "line": 167,
+          "verb": "Get",
+          "path": "staff/public",
+          "decorators": [
+            "@Get('public')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Query('branchId') branchId: string",
+            "@Query('serviceIds') serviceIds?: string"
+          ]
+        },
+        {
+          "symbol": "findPublicOne",
+          "line": 174,
+          "verb": "Get",
+          "path": "staff/public/:id",
+          "decorators": [
+            "@Get('public/:id')",
+            "@Public()"
+          ],
+          "parameters": [
+            "@Param('id') id: string"
+          ]
+        },
+        {
+          "symbol": "findMine",
+          "line": 180,
+          "verb": "Get",
+          "path": "staff/me",
+          "decorators": [
+            "@Get('me')",
+            "@Roles('STAFF', 'RECEPTIONIST', 'BUSINESS_OWNER')",
+            "@RequirePermission('user:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "findAll",
+          "line": 192,
+          "verb": "Get",
+          "path": "staff/",
+          "decorators": [
+            "@Get()",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN')",
+            "@RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('branchId') branchId?: string"
+          ]
+        },
+        {
+          "symbol": "findOne",
+          "line": 211,
+          "verb": "Get",
+          "path": "staff/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:self', 'user:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "create",
+          "line": 226,
+          "verb": "Post",
+          "path": "staff/",
+          "decorators": [
+            "@Post()",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'StaffProfile' })"
+          ],
+          "parameters": [
+            "@Body() body: {\n      branchId: string;\n      fullName: string;\n      position?: string;\n      bio?: string;\n      userId?: string;\n      hiredAt?: string;\n      publicVisible?: boolean;\n      isBookable?: boolean;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "update",
+          "line": 254,
+          "verb": "Patch",
+          "path": "staff/:id",
+          "decorators": [
+            "@Patch(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'StaffProfile' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: {\n      fullName?: string;\n      position?: string;\n      bio?: string;\n      status?: 'PROFILE_ONLY' | 'INVITED' | 'ACTIVE' | 'LOCKED' | 'INACTIVE';\n      publicVisible?: boolean;\n      isBookable?: boolean;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "assignBranch",
+          "line": 275,
+          "verb": "Post",
+          "path": "staff/:id/branch-assignments",
+          "decorators": [
+            "@Post(':id/branch-assignments')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'StaffBranchAssignment' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: {\n      branchId: string;\n      startDate: string;\n      endDate?: string;\n      jobTitle?: string;\n      isPrimary?: boolean;\n      isBookable?: boolean;\n    }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "deactivate",
+          "line": 301,
+          "verb": "Delete",
+          "path": "staff/:id",
+          "decorators": [
+            "@Delete(':id')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'StaffProfile' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { reason: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "offboardingImpact",
+          "line": 315,
+          "verb": "Get",
+          "path": "staff/:id/offboarding-impact",
+          "decorators": [
+            "@Get(':id/offboarding-impact')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('user:read:tenant', 'user:read:branch')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "upsertHoliday",
+          "line": 327,
+          "verb": "Patch",
+          "path": "staff/branches/:branchId/holidays",
+          "decorators": [
+            "@Patch('branches/:branchId/holidays')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'BranchHoliday', idParam: 'branchId' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('branchId') branchId: string",
+            "@Body() body: { date: string; name: string; isClosed?: boolean }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "createSpecialDay",
+          "line": 340,
+          "verb": "Post",
+          "path": "staff/branches/:branchId/special-days",
+          "decorators": [
+            "@Post('branches/:branchId/special-days')",
+            "@Audited({ action: AuditAction.CREATE, entityType: 'SpecialWorkingDay', idParam: 'branchId' })",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('branch:update:tenant')"
+          ],
+          "parameters": [
+            "@Param('branchId') branchId: string",
+            "@Body() body: { date: string; startTime: string; endTime: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getAssignedServices",
+          "line": 361,
+          "verb": "Get",
+          "path": "staff/:id/services",
+          "decorators": [
+            "@Get(':id/services')",
+            "@Roles('BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('user:read:tenant', 'user:read:branch', 'user:read:self', 'user:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "assignServices",
+          "line": 376,
+          "verb": "Patch",
+          "path": "staff/:id/services",
+          "decorators": [
+            "@Patch(':id/services')",
+            "@Roles('BUSINESS_OWNER')",
+            "@RequirePermission('staff_service:assign:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'StaffService' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { serviceIds: string[] }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "getCommission",
+          "line": 402,
+          "verb": "Get",
+          "path": "staff/:id/commission",
+          "decorators": [
+            "@Get(':id/commission')",
+            "@Roles('BUSINESS_OWNER', 'STAFF', 'PLATFORM_ADMIN')",
+            "@RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Query('startDate') startDate?: string",
+            "@Query('endDate') endDate?: string",
+            "@CurrentUser() user?: AuthUser"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "beauty-booking-api-main/src/users/users.controller.ts",
+      "class": "UsersController",
+      "line": 26,
+      "decorators": [
+        "@Controller('users')",
+        "@UseGuards(JwtAuthGuard, RolesGuard)",
+        "@UseInterceptors(AuditInterceptor)"
+      ],
+      "methods": [
+        {
+          "symbol": "me",
+          "line": 32,
+          "verb": "Get",
+          "path": "users/me/profile",
+          "decorators": [
+            "@Get('me/profile')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')",
+            "@RequirePermission('user:read:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "updateMe",
+          "line": 39,
+          "verb": "Patch",
+          "path": "users/me/profile",
+          "decorators": [
+            "@Patch('me/profile')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF', 'CUSTOMER')",
+            "@RequirePermission('user:update:self')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Body() body: {\n      fullName?: string;\n      phone?: string;\n      gender?: 'MALE' | 'FEMALE' | 'OTHER';\n      dateOfBirth?: string;\n      avatarMediaId?: string;\n      address?: string;\n      staffBio?: string;\n      experienceYears?: number;\n      emergencyContactName?: string;\n      emergencyContactPhone?: string;\n    }"
+          ]
+        },
+        {
+          "symbol": "findAll",
+          "line": 63,
+          "verb": "Get",
+          "path": "users/",
+          "decorators": [
+            "@Get()",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('user:read:platform')"
+          ],
+          "parameters": [
+            "@CurrentUser() user: AuthUser",
+            "@Query('search') search?: string",
+            "@Query('page') page?: string",
+            "@Query('limit') limit?: string",
+            "@Query('role') role?: string",
+            "@Query('status') status?: string"
+          ]
+        },
+        {
+          "symbol": "findOne",
+          "line": 92,
+          "verb": "Get",
+          "path": "users/:id",
+          "decorators": [
+            "@Get(':id')",
+            "@Roles(\n    'PLATFORM_ADMIN',\n    \n    \n    'BUSINESS_OWNER',\n    'RECEPTIONIST',\n    'STAFF',\n    'CUSTOMER',\n    \n  )",
+            "@RequirePermission('user:read:self', 'user:read:platform')"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "suspend",
+          "line": 112,
+          "verb": "Post",
+          "path": "users/:id/suspend",
+          "decorators": [
+            "@Post(':id/suspend')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('user:suspend:platform')",
+            "@Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'User' })"
+          ],
+          "parameters": [
+            "@Param('id') id: string",
+            "@Body() body: { reason?: string }",
+            "@CurrentUser() user: AuthUser"
+          ]
+        },
+        {
+          "symbol": "listDirectPermissions",
+          "line": 124,
+          "verb": "Get",
+          "path": "users/:id/permissions",
+          "decorators": [
+            "@Get(':id/permissions')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('user:role_assign:platform')"
+          ],
+          "parameters": [
+            "@Param('id') userId: string"
+          ]
+        },
+        {
+          "symbol": "grantDirectPermission",
+          "line": 131,
+          "verb": "Post",
+          "path": "users/:id/permissions",
+          "decorators": [
+            "@Post(':id/permissions')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('user:role_assign:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'UserPermission' })"
+          ],
+          "parameters": [
+            "@Param('id') userId: string",
+            "@Body() body: {\n      permissionCode: string;\n      bundleCode?: string;\n      expiresAt?: string;\n    }",
+            "@CurrentUser() actor: AuthUser"
+          ]
+        },
+        {
+          "symbol": "revokeDirectPermission",
+          "line": 147,
+          "verb": "Delete",
+          "path": "users/:id/permissions/:permissionCode",
+          "decorators": [
+            "@Delete(':id/permissions/:permissionCode')",
+            "@Roles('PLATFORM_ADMIN')",
+            "@RequirePermission('user:role_assign:platform')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'UserPermission' })"
+          ],
+          "parameters": [
+            "@Param('id') userId: string",
+            "@Param('permissionCode') permissionCode: string",
+            "@CurrentUser() actor: AuthUser"
+          ]
+        },
+        {
+          "symbol": "assignRole",
+          "line": 163,
+          "verb": "Post",
+          "path": "users/:id/roles",
+          "decorators": [
+            "@Post(':id/roles')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:platform', 'user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'UserRole' })"
+          ],
+          "parameters": [
+            "@Param('id') userId: string",
+            "@Body() body: {\n      roleCode: string;\n      businessId?: string;\n      branchId?: string;\n      expiresAt?: string;\n    }",
+            "@CurrentUser() actor: AuthUser"
+          ]
+        },
+        {
+          "symbol": "revokeRole",
+          "line": 180,
+          "verb": "Delete",
+          "path": "users/:id/roles/:roleCode",
+          "decorators": [
+            "@Delete(':id/roles/:roleCode')",
+            "@Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER')",
+            "@RequirePermission('user:role_assign:platform', 'user:role_assign:tenant')",
+            "@Audited({ action: AuditAction.UPDATE, entityType: 'UserRole' })"
+          ],
+          "parameters": [
+            "@Param('id') userId: string",
+            "@Param('roleCode') roleCode: string",
+            "@Query('businessId') businessId: string | undefined",
+            "@Query('branchId') branchId: string | undefined",
+            "@CurrentUser() actor: AuthUser"
+          ]
+        }
+      ]
+    }
+  ],
+  "tests": [
+    "beauty-booking-api-main/src/admin/trust-snapshot.service.spec.ts",
+    "beauty-booking-api-main/src/app.controller.spec.ts",
+    "beauty-booking-api-main/src/auth/account-separation.spec.ts",
+    "beauty-booking-api-main/src/auth/auth-workspace.spec.ts",
+    "beauty-booking-api-main/src/auth/auth.controller.spec.ts",
+    "beauty-booking-api-main/src/auth/auth.service.spec.ts",
+    "beauty-booking-api-main/src/auth/dto/auth.dto.spec.ts",
+    "beauty-booking-api-main/src/auth/token-blacklist.service.spec.ts",
+    "beauty-booking-api-main/src/bookings/available-slots-policy.spec.ts",
+    "beauty-booking-api-main/src/bookings/booking-item-lifecycle.spec.ts",
+    "beauty-booking-api-main/src/bookings/booking-item-values.spec.ts",
+    "beauty-booking-api-main/src/bookings/booking-role-refactor.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings-access.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings-channel-policy.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings-tenant-scope.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings-time-guard.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings-voucher-lifecycle.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings.controller.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings.scheduler.spec.ts",
+    "beauty-booking-api-main/src/bookings/bookings.validation.spec.ts",
+    "beauty-booking-api-main/src/bookings/change-request-expiry.worker.spec.ts",
+    "beauty-booking-api-main/src/bookings/change-requests.service.spec.ts",
+    "beauty-booking-api-main/src/bookings/customer-booking-policy.integration.spec.ts",
+    "beauty-booking-api-main/src/bookings/customer-booking-policy.spec.ts",
+    "beauty-booking-api-main/src/bookings/customer-cancellation-policy.spec.ts",
+    "beauty-booking-api-main/src/bookings/customer-change-request.spec.ts",
+    "beauty-booking-api-main/src/bookings/dto/bookings.dto.spec.ts",
+    "beauty-booking-api-main/src/bookings/late-cancellation-approval.spec.ts",
+    "beauty-booking-api-main/src/bookings/no-show-policy.spec.ts",
+    "beauty-booking-api-main/src/bookings/postgres-hardening.integration.spec.ts",
+    "beauty-booking-api-main/src/branches/branch-state.service.spec.ts",
+    "beauty-booking-api-main/src/branches/branches-onboarding.spec.ts",
+    "beauty-booking-api-main/src/branches/branches-preview.spec.ts",
+    "beauty-booking-api-main/src/branches/branches.service.spec.ts",
+    "beauty-booking-api-main/src/business/business-onboarding.service.spec.ts",
+    "beauty-booking-api-main/src/business/cancellation-policies.service.spec.ts",
+    "beauty-booking-api-main/src/business/salon-members.service.spec.ts",
+    "beauty-booking-api-main/src/combos/combos.service.spec.ts",
+    "beauty-booking-api-main/src/common/filters/prisma-exception.filter.spec.ts",
+    "beauty-booking-api-main/src/common/guards/guards.spec.ts",
+    "beauty-booking-api-main/src/common/guards/user-aware-throttler.guard.spec.ts",
+    "beauty-booking-api-main/src/common/interceptors/idempotency.interceptor.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/administrative-role-scope.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/controller-metadata.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/management-role-scope.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/manager-migration.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/openapi-contract.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/permission-catalog.spec.ts",
+    "beauty-booking-api-main/src/common/permissions/resource-bound-permissions.spec.ts",
+    "beauty-booking-api-main/src/common/security/serialization-contract.spec.ts",
+    "beauty-booking-api-main/src/common/utils/booking-datetime.spec.ts",
+    "beauty-booking-api-main/src/common/utils/multi-tenancy.spec.ts",
+    "beauty-booking-api-main/src/common/utils/notify.spec.ts",
+    "beauty-booking-api-main/src/common/utils/policy.spec.ts",
+    "beauty-booking-api-main/src/common/utils/serializable-transaction.spec.ts",
+    "beauty-booking-api-main/src/mail/mail.service.spec.ts",
+    "beauty-booking-api-main/src/main.spec.ts",
+    "beauty-booking-api-main/src/media/media-access.spec.ts",
+    "beauty-booking-api-main/src/media/media.service.spec.ts",
+    "beauty-booking-api-main/src/notifications/notification-outbox-retry.spec.ts",
+    "beauty-booking-api-main/src/notifications/notification-outbox.worker.spec.ts",
+    "beauty-booking-api-main/src/operations/impact-deadline.worker.spec.ts",
+    "beauty-booking-api-main/src/operations/impact.controller.spec.ts",
+    "beauty-booking-api-main/src/operations/impact.service.spec.ts",
+    "beauty-booking-api-main/src/ownership/ownership.service.spec.ts",
+    "beauty-booking-api-main/src/payments/financial-metrics.service.spec.ts",
+    "beauty-booking-api-main/src/payments/payments.service.spec.ts",
+    "beauty-booking-api-main/src/platform-settings/platform-settings.service.spec.ts",
+    "beauty-booking-api-main/src/prisma/account-separation.integration.spec.ts",
+    "beauty-booking-api-main/src/prisma/audit-integrity.integration.spec.ts",
+    "beauty-booking-api-main/src/prisma/health-archive.integration.spec.ts",
+    "beauty-booking-api-main/src/prisma/manager-retirement.integration.spec.ts",
+    "beauty-booking-api-main/src/prisma/schema-alignment.integration.spec.ts",
+    "beauty-booking-api-main/src/privacy/privacy-center.service.spec.ts",
+    "beauty-booking-api-main/src/privacy/sensitive-data-cipher.service.spec.ts",
+    "beauty-booking-api-main/src/promotions/campaign-ownership.spec.ts",
+    "beauty-booking-api-main/src/promotions/pricing-engine.service.spec.ts",
+    "beauty-booking-api-main/src/promotions/promotion-quota.spec.ts",
+    "beauty-booking-api-main/src/recurring/recurring-creation-fence.spec.ts",
+    "beauty-booking-api-main/src/recurring/recurring-plan-recovery.worker.spec.ts",
+    "beauty-booking-api-main/src/recurring/recurring.service.spec.ts",
+    "beauty-booking-api-main/src/reports/owner-dashboard.service.spec.ts",
+    "beauty-booking-api-main/src/reviews/review-moderation.spec.ts",
+    "beauty-booking-api-main/src/reviews/reviews-public-identity.spec.ts",
+    "beauty-booking-api-main/src/reviews/reviews-public-summary.spec.ts",
+    "beauty-booking-api-main/src/reviews/reviews.service.spec.ts",
+    "beauty-booking-api-main/src/saved-services/saved-services.service.spec.ts",
+    "beauty-booking-api-main/src/scheduler/scheduler-reauthorization.spec.ts",
+    "beauty-booking-api-main/src/scheduler/scheduler-socket-transport.spec.ts",
+    "beauty-booking-api-main/src/scheduler/scheduler.gateway.spec.ts",
+    "beauty-booking-api-main/src/scheduler/trust-snapshot.cron.spec.ts",
+    "beauty-booking-api-main/src/services/service-price-rules.spec.ts",
+    "beauty-booking-api-main/src/services/services.service.spec.ts",
+    "beauty-booking-api-main/src/staff/bookable-staff.spec.ts",
+    "beauty-booking-api-main/src/staff/staff-invitations.service.spec.ts",
+    "beauty-booking-api-main/src/staff/staff.service.spec.ts",
+    "beauty-booking-api-main/src/users/users.service.spec.ts",
+    "beauty-booking-api-main/test/guards.spec.ts",
+    "beauty-booking-api-main/test/multi-tenancy.spec.ts",
+    "beauty-booking-api-main/test/policy.spec.ts",
+    "beauty-booking-web-main/beauty-booking-web-main/src/store/bookingStore.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/authScope.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/businessCompletionRules.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/customerCancellation.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/latestRequest.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/operationsScope.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/src/utils/schedulerSocketEvents.test.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/auth/login-and-rbac.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/booking/customer-booking.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/booking/restriction-policy.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/concurrency/booking-concurrency.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/rbac/api-authorization.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/rbac/owner-public-preview.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/rbac/removed-workforce.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/responsive/critical-layouts.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/salon/booking-lifecycle.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/salon/cancellation-policy.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/setup/seed.spec.js",
+    "beauty-booking-web-main/beauty-booking-web-main/tests/e2e/smoke/public-routes.spec.js"
+  ],
+  "mobile": [
+    "mobile/src/api/auth.ts",
+    "mobile/src/api/bookings.ts",
+    "mobile/src/api/branches.ts",
+    "mobile/src/api/client.ts",
+    "mobile/src/api/combos.ts",
+    "mobile/src/api/notifications.ts",
+    "mobile/src/api/platformSettings.ts",
+    "mobile/src/api/privacy.ts",
+    "mobile/src/api/reviews.ts",
+    "mobile/src/api/savedServices.ts",
+    "mobile/src/api/services.ts",
+    "mobile/src/api/staff.ts",
+    "mobile/src/api/users.ts",
+    "mobile/src/components/ApiAuthSheet.tsx",
+    "mobile/src/components/AppointmentCalendar.tsx",
+    "mobile/src/components/AppointmentCard.tsx",
+    "mobile/src/components/AuthField.tsx",
+    "mobile/src/components/AuthScreenLayout.tsx",
+    "mobile/src/components/AuthSheet.tsx",
+    "mobile/src/components/Card.tsx",
+    "mobile/src/components/FilterSheet.tsx",
+    "mobile/src/components/home/BannerCarousel.tsx",
+    "mobile/src/components/home/CategoryList.tsx",
+    "mobile/src/components/home/ComboCard.tsx",
+    "mobile/src/components/home/DistrictPickerModal.tsx",
+    "mobile/src/components/home/HomeHeader.tsx",
+    "mobile/src/components/home/SectionCard.tsx",
+    "mobile/src/components/home/SectionHeader.tsx",
+    "mobile/src/components/home/VenueCard.tsx",
+    "mobile/src/components/PlaceholderCover.tsx",
+    "mobile/src/components/SelectListSheet.tsx",
+    "mobile/src/components/TimeFilterSheet.tsx",
+    "mobile/src/components/WriteReviewSheet.tsx",
+    "mobile/src/config/api.ts",
+    "mobile/src/constants/colors.ts",
+    "mobile/src/context/AddressContext.tsx",
+    "mobile/src/context/AuthContext.tsx",
+    "mobile/src/context/AuthSheetContext.tsx",
+    "mobile/src/context/BookingsContext.tsx",
+    "mobile/src/context/DistrictContext.tsx",
+    "mobile/src/context/FavoritesContext.tsx",
+    "mobile/src/context/FilterContext.tsx",
+    "mobile/src/context/LanguageContext.tsx",
+    "mobile/src/context/ReviewsContext.tsx",
+    "mobile/src/context/TimeFilterContext.tsx",
+    "mobile/src/data/appointments.ts",
+    "mobile/src/data/homeData.ts",
+    "mobile/src/hooks/useAppointments.ts",
+    "mobile/src/hooks/useBranchDetail.ts",
+    "mobile/src/hooks/useCatalog.ts",
+    "mobile/src/hooks/useComboDetail.ts",
+    "mobile/src/hooks/useExpertSearch.ts",
+    "mobile/src/hooks/useServiceSearch.ts",
+    "mobile/src/mappers/booking.ts",
+    "mobile/src/mappers/catalog.ts",
+    "mobile/src/navigation/AccountStack.tsx",
+    "mobile/src/navigation/CustomTabBar.tsx",
+    "mobile/src/navigation/HoatDongStack.tsx",
+    "mobile/src/navigation/HomeStack.tsx",
+    "mobile/src/navigation/navigationRef.ts",
+    "mobile/src/navigation/RootStack.tsx",
+    "mobile/src/navigation/RootTabs.tsx",
+    "mobile/src/screens/AccountScreen.tsx",
+    "mobile/src/screens/AddressFormScreen.tsx",
+    "mobile/src/screens/AddServiceScreen.tsx",
+    "mobile/src/screens/AppointmentCalendarScreen.tsx",
+    "mobile/src/screens/AppointmentDetailScreen.tsx",
+    "mobile/src/screens/BookingScreen.tsx",
+    "mobile/src/screens/BookingSuccessScreen.tsx",
+    "mobile/src/screens/ChangePasswordScreen.tsx",
+    "mobile/src/screens/ComboDetailScreen.tsx",
+    "mobile/src/screens/FavoritesScreen.tsx",
+    "mobile/src/screens/ForgotPasswordScreen.tsx",
+    "mobile/src/screens/FormsScreen.tsx",
+    "mobile/src/screens/HomeScreen.tsx",
+    "mobile/src/screens/LichHenScreen.tsx",
+    "mobile/src/screens/LoginScreen.tsx",
+    "mobile/src/screens/MessagesScreen.tsx",
+    "mobile/src/screens/OtpVerifyScreen.tsx",
+    "mobile/src/screens/ProfileScreen.tsx",
+    "mobile/src/screens/RegisterScreen.tsx",
+    "mobile/src/screens/RescheduleScreen.tsx",
+    "mobile/src/screens/ResetPasswordScreen.tsx",
+    "mobile/src/screens/SearchScreen.tsx",
+    "mobile/src/screens/SettingsScreen.tsx",
+    "mobile/src/screens/SupportScreen.tsx",
+    "mobile/src/screens/VenueDetailScreen.tsx",
+    "mobile/src/screens/VerifyEmailScreen.tsx",
+    "mobile/src/types/api.ts",
+    "mobile/src/utils/authStorage.ts",
+    "mobile/src/utils/hash.ts"
+  ],
+  "webRoutes": [
+    {
+      "line": 173,
+      "text": "return initialized ? children : <RouteFallback />;"
+    },
+    {
+      "line": 233,
+      "text": "if (status === 'loading') return <RouteFallback />;"
+    },
+    {
+      "line": 251,
+      "text": "if (status === 'loading') return <RouteFallback />;"
+    },
+    {
+      "line": 273,
+      "text": "<React.Suspense fallback={<RouteFallback />}>"
+    },
+    {
+      "line": 274,
+      "text": "<Routes>"
+    },
+    {
+      "line": 276,
+      "text": "<Route path=\"/login\" element={<LoginScreen />} />"
+    },
+    {
+      "line": 277,
+      "text": "<Route path=\"/register\" element={<RegisterScreen accountType=\"CUSTOMER\" />} />"
+    },
+    {
+      "line": 278,
+      "text": "<Route path=\"/register/business\" element={<RegisterScreen accountType=\"BUSINESS_OWNER\" />} />"
+    },
+    {
+      "line": 279,
+      "text": "<Route path=\"/for-business\" element={<BusinessLanding />} />"
+    },
+    {
+      "line": 280,
+      "text": "<Route path=\"/business\" element={<Navigate to=\"/for-business\" replace />} />"
+    },
+    {
+      "line": 281,
+      "text": "<Route path=\"/forgot-password\" element={<ForgotPassword />} />"
+    },
+    {
+      "line": 282,
+      "text": "<Route path=\"/reset-password\" element={<ResetPassword />} />"
+    },
+    {
+      "line": 283,
+      "text": "<Route path=\"/verify-email\" element={<VerifyEmail />} />"
+    },
+    {
+      "line": 284,
+      "text": "<Route path=\"/accept-invitation\" element={<AcceptInvitation />} />"
+    },
+    {
+      "line": 285,
+      "text": "<Route path=\"/explore\" element={<PublicHome exploreMode />} />"
+    },
+    {
+      "line": 286,
+      "text": "<Route path=\"/explore/branches/:id\" element={<PublicBranchDetail />} />"
+    },
+    {
+      "line": 287,
+      "text": "<Route path=\"/salon/branches/:id/preview\" element={<ProtectedRoute roles={['salon']}><PermissionGate fallback=\"/salon/profile\" anyOf={['branch:read:tenant']}><PublicBranchDetail preview /></PermissionGate></ProtectedRoute>} />"
+    },
+    {
+      "line": 288,
+      "text": "<Route path=\"/explore/services/:id\" element={<PublicServiceDetail />} />"
+    },
+    {
+      "line": 289,
+      "text": "<Route path=\"/explore/staff/:id\" element={<PublicStaffDetail />} />"
+    },
+    {
+      "line": 292,
+      "text": "<Route"
+    },
+    {
+      "line": 297,
+      "text": "<Routes>"
+    },
+    {
+      "line": 298,
+      "text": "<Route index element={<Navigate to=\"/customer/appointments\" replace />} />"
+    },
+    {
+      "line": 299,
+      "text": "<Route path=\"appointments\" element={<CustomerAppointments />} />"
+    },
+    {
+      "line": 300,
+      "text": "<Route path=\"appointments/:id\" element={<CustomerAppointmentDetail />} />"
+    },
+    {
+      "line": 301,
+      "text": "<Route path=\"notifications\" element={<CustomerNotifications />} />"
+    },
+    {
+      "line": 302,
+      "text": "<Route path=\"vouchers\" element={<CustomerVouchers />} />"
+    },
+    {
+      "line": 303,
+      "text": "<Route path=\"reviews\" element={<CustomerReviews />} />"
+    },
+    {
+      "line": 304,
+      "text": "<Route path=\"benefits\" element={<CustomerBenefits />} />"
+    },
+    {
+      "line": 305,
+      "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+    },
+    {
+      "line": 306,
+      "text": "<Route path=\"profile\" element={<ProfileSettings />} />"
+    },
+    {
+      "line": 307,
+      "text": "<Route path=\"privacy\" element={<PrivacySettings />} />"
+    },
+    {
+      "line": 308,
+      "text": "<Route path=\"*\" element={<Navigate to=\"/customer/appointments\" replace />} />"
+    },
+    {
+      "line": 316,
+      "text": "<Route path=\"/book\" element={<ProtectedRoute roles={['customer']}><BookingStep1 /></ProtectedRoute>} />"
+    },
+    {
+      "line": 317,
+      "text": "<Route path=\"/book/staff\" element={<ProtectedRoute roles={['customer']}><BookingStep2 /></ProtectedRoute>} />"
+    },
+    {
+      "line": 318,
+      "text": "<Route path=\"/book/time\" element={<ProtectedRoute roles={['customer']}><BookingStep3 /></ProtectedRoute>} />"
+    },
+    {
+      "line": 319,
+      "text": "<Route path=\"/book/info\" element={<ProtectedRoute roles={['customer']}><BookingStep4 /></ProtectedRoute>} />"
+    },
+    {
+      "line": 320,
+      "text": "<Route path=\"/book/confirm\" element={<ProtectedRoute roles={['customer']}><BookingConfirm /></ProtectedRoute>} />"
+    },
+    {
+      "line": 321,
+      "text": "<Route path=\"/book/success\" element={<ProtectedRoute roles={['customer']}><BookingSuccess /></ProtectedRoute>} />"
+    },
+    {
+      "line": 324,
+      "text": "<Route"
+    },
+    {
+      "line": 329,
+      "text": "<Routes>"
+    },
+    {
+      "line": 330,
+      "text": "<Route path=\"notifications\" element={<PermissionGate fallback=\"/salon\" anyOf={['notification:read:self']}><SalonNotifications /></PermissionGate>} />"
+    },
+    {
+      "line": 331,
+      "text": "<Route path=\"onboarding\" element={<PermissionGate fallback=\"/salon\" anyOf={['business:create:self', 'business:update:tenant']}><BusinessOnboardingRoute /></PermissionGate>} />"
+    },
+    {
+      "line": 332,
+      "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+    },
+    {
+      "line": 333,
+      "text": "<Route path=\"account\" element={<ProfileSettings />} />"
+    },
+    {
+      "line": 334,
+      "text": "<Route element={<ApprovedBusinessGate />}>"
+    },
+    {
+      "line": 335,
+      "text": "<Route index element={<SalonLanding />} />"
+    },
+    {
+      "line": 336,
+      "text": "<Route path=\"services\" element={<PermissionGate fallback=\"/salon\" anyOf={['business_service:update:tenant', 'branch_service_offering:status:tenant']}><SalonServices /></PermissionGate>} />"
+    },
+    {
+      "line": 337,
+      "text": "<Route path=\"combos\" element={<PermissionGate fallback=\"/salon\" anyOf={['combo:manage:tenant']}><SalonCombos /></PermissionGate>} />"
+    },
+    {
+      "line": 338,
+      "text": "<Route path=\"appointments\" element={<PermissionGate fallback=\"/salon\" anyOf={['booking:read:tenant', 'booking:read:branch']}><SalonAppointments /></PermissionGate>} />"
+    },
+    {
+      "line": 339,
+      "text": "<Route path=\"staff\" element={<PermissionGate fallback=\"/salon\" anyOf={['user:read:tenant', 'user:read:branch']}><SalonStaffManagement /></PermissionGate>} />"
+    },
+    {
+      "line": 341,
+      "text": "<Route path=\"staff/schedule\" element={<Navigate to=\"/salon/appointments\" replace />} />"
+    },
+    {
+      "line": 342,
+      "text": "<Route path=\"staff/:staffId\" element={<PermissionGate fallback=\"/salon\" anyOf={['user:read:tenant', 'user:read:branch', 'user:read:self']}><StaffDetail /></PermissionGate>} />"
+    },
+    {
+      "line": 343,
+      "text": "<Route path=\"branches/new\" element={<PermissionGate fallback=\"/salon/profile\" anyOf={['branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />"
+    },
+    {
+      "line": 344,
+      "text": "<Route path=\"branches/:branchId/setup\" element={<PermissionGate fallback=\"/salon/profile\" anyOf={['branch:update:tenant', 'branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />"
+    },
+    {
+      "line": 345,
+      "text": "<Route path=\"promotions\" element={<PermissionGate fallback=\"/salon\" anyOf={['promotion:manage:tenant']}><SalonPromotions /></PermissionGate>} />"
+    },
+    {
+      "line": 346,
+      "text": "<Route path=\"reviews\" element={<PermissionGate fallback=\"/salon\" anyOf={['review:moderate:tenant']}><SalonReviews /></PermissionGate>} />"
+    },
+    {
+      "line": 347,
+      "text": "<Route path=\"stats\" element={<PermissionGate fallback=\"/salon\" anyOf={['report:revenue:tenant', 'report:revenue:branch']}><SalonStats /></PermissionGate>} />"
+    },
+    {
+      "line": 348,
+      "text": "<Route path=\"profile\" element={<PermissionGate fallback=\"/salon\" anyOf={['branch:update:tenant']}><SalonProfile /></PermissionGate>} />"
+    },
+    {
+      "line": 349,
+      "text": "<Route path=\"payments\" element={<PermissionGate fallback=\"/salon\" anyOf={['payment:read:branch', 'payment:read:tenant']}><PaymentsWorkspace /></PermissionGate>} />"
+    },
+    {
+      "line": 350,
+      "text": "<Route path=\"operations\" element={<PermissionGate fallback=\"/salon\" anyOf={['booking:read:tenant', 'booking:read:branch', 'payment:read:tenant', 'payment:read:branch']}><SalonOperations /></PermissionGate>} />"
+    },
+    {
+      "line": 351,
+      "text": "<Route path=\"audit\" element={<PermissionGate fallback=\"/salon\" anyOf={['audit:read:tenant']}><SalonAudit /></PermissionGate>} />"
+    },
+    {
+      "line": 353,
+      "text": "<Route path=\"*\" element={<Navigate to=\"/salon\" replace />} />"
+    },
+    {
+      "line": 361,
+      "text": "<Route"
+    },
+    {
+      "line": 366,
+      "text": "<Routes>"
+    },
+    {
+      "line": 367,
+      "text": "<Route index element={<AdminLanding />} />"
+    },
+    {
+      "line": 368,
+      "text": "<Route path=\"salons\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminSalons /></PermissionGate>} />"
+    },
+    {
+      "line": 369,
+      "text": "<Route path=\"branches/:branchId\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminBranchDetail /></PermissionGate>} />"
+    },
+    {
+      "line": 370,
+      "text": "<Route path=\"businesses/:businessId\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminBusinessDetail /></PermissionGate>} />"
+    },
+    {
+      "line": 371,
+      "text": "<Route path=\"users\" element={<PermissionGate fallback=\"/admin\" anyOf={['user:read:platform']}><AdminUsers /></PermissionGate>} />"
+    },
+    {
+      "line": 372,
+      "text": "<Route path=\"users/:userId\" element={<PermissionGate fallback=\"/admin\" anyOf={['user:read:platform']}><AdminUserDetail /></PermissionGate>} />"
+    },
+    {
+      "line": 373,
+      "text": "<Route path=\"appointments\" element={<PermissionGate fallback=\"/admin\" anyOf={['booking:read:platform']}><AdminAppointmentsView /></PermissionGate>} />"
+    },
+    {
+      "line": 374,
+      "text": "<Route path=\"payments\" element={<PermissionGate fallback=\"/admin\" anyOf={['payment:read:platform']}><PaymentsWorkspace /></PermissionGate>} />"
+    },
+    {
+      "line": 375,
+      "text": "<Route path=\"reports\" element={<PermissionGate fallback=\"/admin\" anyOf={['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']}><AdminReports /></PermissionGate>} />"
+    },
+    {
+      "line": 376,
+      "text": "<Route path=\"reviews\" element={<PermissionGate fallback=\"/admin\" anyOf={['review:moderate:platform']}><AdminReviewsModeration /></PermissionGate>} />"
+    },
+    {
+      "line": 377,
+      "text": "<Route path=\"ownership\" element={<PermissionGate fallback=\"/admin\" anyOf={['business:review:platform']}><AdminOwnership /></PermissionGate>} />"
+    },
+    {
+      "line": 378,
+      "text": "<Route path=\"violations\" element={<Navigate to=\"/admin/salons\" replace />} />"
+    },
+    {
+      "line": 379,
+      "text": "<Route path=\"audit\" element={<PermissionGate fallback=\"/admin\" anyOf={['audit:read:platform']}><AdminAudit /></PermissionGate>} />"
+    },
+    {
+      "line": 380,
+      "text": "<Route path=\"notifications\" element={<PermissionGate fallback=\"/admin\" anyOf={['notification:read:self']}><AdminNotifications /></PermissionGate>} />"
+    },
+    {
+      "line": 381,
+      "text": "<Route path=\"settings\" element={<PermissionGate fallback=\"/admin\" anyOf={['platform_setting:manage:platform']}><AdminSettings /></PermissionGate>} />"
+    },
+    {
+      "line": 382,
+      "text": "<Route path=\"compliance\" element={<Navigate to=\"/admin/salons?view=review\" replace />} />"
+    },
+    {
+      "line": 383,
+      "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+    },
+    {
+      "line": 384,
+      "text": "<Route path=\"profile\" element={<ProfileSettings />} />"
+    },
+    {
+      "line": 385,
+      "text": "<Route path=\"*\" element={<Navigate to=\"/admin\" replace />} />"
+    },
+    {
+      "line": 393,
+      "text": "<Route"
+    },
+    {
+      "line": 410,
+      "text": "<Route path=\"*\" element={<PublicNotFound />} />"
+    }
+  ],
+  "routePathCount": 256,
+  "operationDeclarationCount": 252
+}

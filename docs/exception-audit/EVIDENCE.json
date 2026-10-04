@@ -1,0 +1,467 @@
+{
+  "auth": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 44,
+    "symbol": "async login"
+  },
+  "register": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 141,
+    "symbol": "async register"
+  },
+  "refresh": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 286,
+    "symbol": "async refresh"
+  },
+  "reset": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 426,
+    "symbol": "async resetPassword"
+  },
+  "consume": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 618,
+    "symbol": "private async consumeAccountToken"
+  },
+  "logout": {
+    "file": "beauty-booking-api-main/src/auth/auth.service.ts",
+    "line": 459,
+    "symbol": "async logout"
+  },
+  "blacklist": {
+    "file": "beauty-booking-api-main/src/auth/token-blacklist.service.ts",
+    "line": 64,
+    "symbol": "async revokeAllForUser"
+  },
+  "transport": {
+    "file": "beauty-booking-api-main/src/auth/auth.controller.ts",
+    "line": 93,
+    "symbol": "refreshTokenTransport"
+  },
+  "separation": {
+    "file": "beauty-booking-api-main/src/auth/account-separation.ts",
+    "line": 11,
+    "symbol": "export function"
+  },
+  "access": {
+    "file": "beauty-booking-api-main/src/bookings/bookings-access.service.ts",
+    "line": 38,
+    "symbol": "export class"
+  },
+  "main": {
+    "file": "beauty-booking-api-main/src/main.ts",
+    "line": 3,
+    "symbol": "ValidationPipe"
+  },
+  "app": {
+    "file": "beauty-booking-api-main/src/app.module.ts",
+    "line": 79,
+    "symbol": "{ provide: APP_GUARD"
+  },
+  "policy": {
+    "file": "beauty-booking-api-main/src/common/utils/policy.ts",
+    "line": 121,
+    "symbol": "export function can"
+  },
+  "filter": {
+    "file": "beauty-booking-api-main/src/common/filters/prisma-exception.filter.ts",
+    "line": 76,
+    "symbol": "catch("
+  },
+  "tx": {
+    "file": "beauty-booking-api-main/src/common/utils/serializable-transaction.ts",
+    "line": 52,
+    "symbol": "export async function"
+  },
+  "idem": {
+    "file": "beauty-booking-api-main/src/common/interceptors/idempotency.interceptor.ts",
+    "line": 154,
+    "symbol": "private async reserve"
+  },
+  "audit": {
+    "file": "beauty-booking-api-main/src/common/utils/audit.ts",
+    "line": 17,
+    "symbol": "export async function"
+  },
+  "create": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.service.ts",
+    "line": 816,
+    "symbol": "async create("
+  },
+  "notifyCreate": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.service.ts",
+    "line": 1508,
+    "symbol": "// 7. Notification"
+  },
+  "notifyStatus": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.service.ts",
+    "line": 772,
+    "symbol": "if (notifTitleByStatus[mappedStatus])"
+  },
+  "staffValid": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.validation.ts",
+    "line": 134,
+    "symbol": "export async function validateStaffForService"
+  },
+  "overlap": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.validation.ts",
+    "line": 288,
+    "symbol": "export async function assertNoOverlap"
+  },
+  "time": {
+    "file": "beauty-booking-api-main/src/common/utils/booking-datetime.ts",
+    "line": 44,
+    "symbol": "export function"
+  },
+  "items": {
+    "file": "beauty-booking-api-main/src/bookings/booking-items.service.ts",
+    "line": 85,
+    "symbol": "async update("
+  },
+  "change": {
+    "file": "beauty-booking-api-main/src/bookings/change-requests.service.ts",
+    "line": 56,
+    "symbol": "async create("
+  },
+  "cancel": {
+    "file": "beauty-booking-api-main/src/bookings/customer-cancellation-policy.ts",
+    "line": 4,
+    "symbol": "CUSTOMER_CANCELLATION_HOURS"
+  },
+  "noShow": {
+    "file": "beauty-booking-api-main/src/bookings/bookings.service.ts",
+    "line": 160,
+    "symbol": "NO_SHOW"
+  },
+  "customerPolicy": {
+    "file": "beauty-booking-api-main/src/bookings/customer-booking-policy.ts",
+    "line": 4,
+    "symbol": "export"
+  },
+  "collect": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 149,
+    "symbol": "async collect("
+  },
+  "verify": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 735,
+    "symbol": "async verifyTransaction"
+  },
+  "refund": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 363,
+    "symbol": "async requestRefund"
+  },
+  "reviewRefund": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 396,
+    "symbol": "async reviewRefund"
+  },
+  "processRefund": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 421,
+    "symbol": "async processRefund"
+  },
+  "package": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 1339,
+    "symbol": "async purchaseTreatmentPackage"
+  },
+  "installment": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 1482,
+    "symbol": "async payPackageInstallment"
+  },
+  "reservePackage": {
+    "file": "beauty-booking-api-main/src/payments/payments.service.ts",
+    "line": 1588,
+    "symbol": "async reservePackageSession"
+  },
+  "provider": {
+    "file": "beauty-booking-api-main/src/payments/providers/payment-provider.registry.ts",
+    "line": 8,
+    "symbol": "export class"
+  },
+  "branchState": {
+    "file": "beauty-booking-api-main/src/branches/branch-state.service.ts",
+    "line": 40,
+    "symbol": "async transition"
+  },
+  "branchPublish": {
+    "file": "beauty-booking-api-main/src/branches/branches.service.ts",
+    "line": 1315,
+    "symbol": "async publish"
+  },
+  "catalog": {
+    "file": "beauty-booking-api-main/src/services/services.service.ts",
+    "line": 755,
+    "symbol": "async archiveCatalog"
+  },
+  "staffOffboard": {
+    "file": "beauty-booking-api-main/src/staff/staff.service.ts",
+    "line": 469,
+    "symbol": "async offboardingImpact"
+  },
+  "invite": {
+    "file": "beauty-booking-api-main/src/staff/staff-invitations.service.ts",
+    "line": 32,
+    "symbol": "async invite"
+  },
+  "mail": {
+    "file": "beauty-booking-api-main/src/mail/mail.service.ts",
+    "line": 22,
+    "symbol": "async sendMail"
+  },
+  "impact": {
+    "file": "beauty-booking-api-main/src/operations/impact.service.ts",
+    "line": 48,
+    "symbol": "async resolveItem"
+  },
+  "impactTransfer": {
+    "file": "beauty-booking-api-main/src/operations/impact.service.ts",
+    "line": 236,
+    "symbol": "private async transferBranch"
+  },
+  "impactController": {
+    "file": "beauty-booking-api-main/src/operations/impact.controller.ts",
+    "line": 41,
+    "symbol": "async resolve("
+  },
+  "impactBatch": {
+    "file": "beauty-booking-api-main/src/operations/impact.service.ts",
+    "line": 201,
+    "symbol": "async resolveBatch"
+  },
+  "owner": {
+    "file": "beauty-booking-api-main/src/ownership/ownership.service.ts",
+    "line": 13,
+    "symbol": "async create"
+  },
+  "ownerAccept": {
+    "file": "beauty-booking-api-main/src/ownership/ownership.service.ts",
+    "line": 51,
+    "symbol": "async accept"
+  },
+  "ownerCancel": {
+    "file": "beauty-booking-api-main/src/ownership/ownership.service.ts",
+    "line": 119,
+    "symbol": "async cancel"
+  },
+  "ownerExecute": {
+    "file": "beauty-booking-api-main/src/ownership/ownership.service.ts",
+    "line": 132,
+    "symbol": "async execute"
+  },
+  "businessReview": {
+    "file": "beauty-booking-api-main/src/business/business-onboarding.service.ts",
+    "line": 495,
+    "symbol": "async review("
+  },
+  "userSuspend": {
+    "file": "beauty-booking-api-main/src/users/users.service.ts",
+    "line": 236,
+    "symbol": "async suspend"
+  },
+  "userInput": {
+    "file": "beauty-booking-api-main/src/users/users.service.ts",
+    "line": 56,
+    "symbol": "async updateSelf"
+  },
+  "price": {
+    "file": "beauty-booking-api-main/src/promotions/pricing-engine.service.ts",
+    "line": 174,
+    "symbol": "async reserve"
+  },
+  "combo": {
+    "file": "beauty-booking-api-main/src/combos/combos.service.ts",
+    "line": 161,
+    "symbol": "private async validate"
+  },
+  "review": {
+    "file": "beauty-booking-api-main/src/reviews/reviews.service.ts",
+    "line": 280,
+    "symbol": "async create("
+  },
+  "reviewPublic": {
+    "file": "beauty-booking-api-main/src/reviews/reviews.service.ts",
+    "line": 26,
+    "symbol": "function publicReviewerIdentity"
+  },
+  "media": {
+    "file": "beauty-booking-api-main/src/media/media.service.ts",
+    "line": 39,
+    "symbol": "async upload"
+  },
+  "mediaScope": {
+    "file": "beauty-booking-api-main/src/media/media.service.ts",
+    "line": 117,
+    "symbol": "async readForUser"
+  },
+  "privacy": {
+    "file": "beauty-booking-api-main/src/privacy/privacy-center.service.ts",
+    "line": 204,
+    "symbol": "async createExport"
+  },
+  "privacyDownload": {
+    "file": "beauty-booking-api-main/src/privacy/privacy-center.service.ts",
+    "line": 279,
+    "symbol": "async downloadExport"
+  },
+  "outbox": {
+    "file": "beauty-booking-api-main/src/notifications/notification-outbox.worker.ts",
+    "line": 9,
+    "symbol": "export class"
+  },
+  "recurring": {
+    "file": "beauty-booking-api-main/src/recurring/recurring.service.ts",
+    "line": 13,
+    "symbol": "async preview"
+  },
+  "socket": {
+    "file": "beauty-booking-api-main/src/scheduler/scheduler.gateway.ts",
+    "line": 154,
+    "symbol": "export class"
+  },
+  "settings": {
+    "file": "beauty-booking-api-main/src/platform-settings/platform-settings.service.ts",
+    "line": 78,
+    "symbol": "validate(input"
+  },
+  "reports": {
+    "file": "beauty-booking-api-main/src/reports/reports.service.ts",
+    "line": 263,
+    "symbol": "async getOwnerDashboard"
+  },
+  "saved": {
+    "file": "beauty-booking-api-main/src/saved-services/saved-services.service.ts",
+    "line": 7,
+    "symbol": "export class"
+  },
+  "webApi": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 52,
+    "symbol": "async function request"
+  },
+  "webAuth": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/store/authStore.js",
+    "line": 123,
+    "symbol": "setSession:"
+  },
+  "webConfirm": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx",
+    "line": 79,
+    "symbol": "const confirm = async"
+  },
+  "webPay": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx",
+    "line": 64,
+    "symbol": "const collect ="
+  },
+  "webOps": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx",
+    "line": 73,
+    "symbol": "const [form, setForm] = useState({ itemId"
+  },
+  "webOwner": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx",
+    "line": 20,
+    "symbol": "ownershipApi.incoming"
+  },
+  "webRoutes": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 293,
+    "symbol": "path=\"/customer/*\""
+  },
+  "webAsync": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/utils/latestRequest.js",
+    "line": 2,
+    "symbol": "export"
+  },
+  "webMedia": {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/public/HomeMedia.jsx",
+    "line": 4,
+    "symbol": "export"
+  },
+  "mobileApi": {
+    "file": "mobile/src/api/client.ts",
+    "line": 64,
+    "symbol": "async function refreshAccessToken"
+  },
+  "mobileAuth": {
+    "file": "mobile/src/context/AuthContext.tsx",
+    "line": 29,
+    "symbol": "export function AuthProvider"
+  },
+  "mobileBookings": {
+    "file": "mobile/src/context/BookingsContext.tsx",
+    "line": 61,
+    "symbol": "const reload ="
+  },
+  "openapiTest": {
+    "file": "beauty-booking-api-main/src/common/permissions/openapi-contract.spec.ts",
+    "line": 19,
+    "symbol": "expect(operation['x-scope-requirement'])"
+  },
+  "schema": {
+    "file": "beauty-booking-api-main/prisma/schema.prisma",
+    "line": 1081,
+    "symbol": "model BookingService {"
+  },
+  "userSchema": {
+    "file": "beauty-booking-api-main/prisma/schema.prisma",
+    "line": 15,
+    "symbol": "passwordHash"
+  },
+  "tokenSchema": {
+    "file": "beauty-booking-api-main/prisma/schema.prisma",
+    "line": 80,
+    "symbol": "model AccountToken"
+  },
+  "packageSchema": {
+    "file": "beauty-booking-api-main/prisma/schema.prisma",
+    "line": 1567,
+    "symbol": "model PackageSessionEntitlement"
+  },
+  "paymentIndex": {
+    "file": "beauty-booking-api-main/prisma/migrations/20260715_harden_payment_concurrency/migration.sql",
+    "line": 3,
+    "symbol": "CREATE UNIQUE INDEX"
+  },
+  "slotTrigger": {
+    "file": "beauty-booking-api-main/prisma/migrations/20260829_remove_attendance_workforce/migration.sql",
+    "line": 213,
+    "symbol": "hashtext(NEW.\"staff_id\")"
+  },
+  "integrity": {
+    "file": "beauty-booking-api-main/prisma/migrations/20260909_audit_integrity/migration.sql",
+    "line": 91,
+    "symbol": "payment_transactions_audit_amount_check"
+  },
+  "jwt": {
+    "file": "beauty-booking-api-main/src/auth/jwt.strategy.ts",
+    "line": 64,
+    "symbol": "async validate"
+  },
+  "recurringRecover": {
+    "file": "beauty-booking-api-main/src/recurring/recurring-plan-recovery.worker.ts",
+    "line": 8,
+    "symbol": "export class"
+  },
+  "reminder": {
+    "file": "beauty-booking-api-main/src/scheduler/policy-notification.cron.ts",
+    "line": 17,
+    "symbol": "async tick"
+  },
+  "staffUpdate": {
+    "file": "beauty-booking-api-main/src/staff/staff.service.ts",
+    "line": 369,
+    "symbol": "async update("
+  },
+  "notifications": {
+    "file": "beauty-booking-api-main/src/notifications/notifications.service.ts",
+    "line": 85,
+    "symbol": "async markAsRead"
+  }
+}

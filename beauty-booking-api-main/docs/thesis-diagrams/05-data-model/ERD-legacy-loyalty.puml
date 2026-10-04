@@ -1,0 +1,75 @@
+@startuml ERD-legacy-loyalty
+' Phụ lục vật lý di sản, không là chức năng đang cung cấp. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**LoyaltyRule**\n(loyalty_rules)" as LoyaltyRule {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  branchId: String? <<FK>>
+  * createdBy: String <<FK>>
+  * version: Int 
+  * earnPointsPerAmount: Int 
+  * earnAmountUnit: Decimal 
+  ... 6 cot: xem tu dien
+}
+entity "**LoyaltyAccount**\n(loyalty_accounts)" as LoyaltyAccount {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * customerId: String <<FK>>
+  * balance: Int 
+  * version: Int 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+}
+entity "**LoyaltyTransaction**\n(loyalty_transactions)" as LoyaltyTransaction {
+  * id: String <<PK>>
+  * accountId: String <<FK>>
+  * businessId: String <<FK>>
+  * customerId: String <<FK>>
+  bookingId: String? <<FK>>
+  refundRequestId: String? <<FK>>
+  reversalOfId: String? <<FK>>
+  ... 9 cot: xem tu dien
+}
+entity "**WaitlistEntry**\n(waitlist_entries)" as WaitlistEntry {
+  * id: String <<PK>>
+  * customerId: String <<FK>>
+  * businessId: String <<FK>>
+  * branchId: String <<FK>>
+  * serviceId: String <<FK>>
+  staffId: String? <<FK>>
+  bookingId: String? <<FK>> <<UQ>>
+  ... 11 cot: xem tu dien
+}
+LoyaltyAccount ||--o{ LoyaltyTransaction
+LoyaltyTransaction |o--o{ LoyaltyTransaction
+
+@enduml

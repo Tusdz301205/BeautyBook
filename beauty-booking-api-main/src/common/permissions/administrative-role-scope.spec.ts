@@ -1,7 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { AuthUser } from '../decorators/current-user.decorator';
 import { BranchesController } from '../../branches/branches.controller';
-import { FinanceController } from '../../finance/finance.controller';
 import { ImpactController } from '../../operations/impact.controller';
 import { ReportsController } from '../../reports/reports.controller';
 import { BusinessController } from '../../business/business.controller';
@@ -29,8 +28,6 @@ function fixture() {
       )),
     },
     booking: { findUniqueOrThrow: jest.fn().mockResolvedValue({ branchId: 'staff-branch' }) },
-    invoice: { findUniqueOrThrow: jest.fn().mockResolvedValue({ businessId: 'other-business' }) },
-    invoiceInformationRequest: { findUniqueOrThrow: jest.fn().mockResolvedValue({ branchId: 'reception-branch' }) },
     operationalImpactCase: { findUniqueOrThrow: jest.fn().mockResolvedValue({
       businessId: 'other-business', branchId: 'reception-branch',
     }) },
@@ -107,42 +104,4 @@ describe('administrative capabilities do not combine unrelated branch roles', ()
     expect(reports.getOwnerDashboard).not.toHaveBeenCalled();
   });
 
-  it('counter invoice lists include owned branches plus exact receptionist branches only', async () => {
-    const finance = { listInvoices: jest.fn().mockResolvedValue([]), listInvoiceInformationRequests: jest.fn().mockResolvedValue([]) };
-    const controller = new FinanceController(finance as never, fixture() as never);
-    await controller.invoices(mixed);
-    await controller.invoiceRequests(mixed);
-    const expected = {
-      businessIds: ['owned-business', 'other-business'],
-      branchIds: ['owned-one', 'owned-two', 'reception-branch'],
-    };
-    expect(finance.listInvoices).toHaveBeenCalledWith(expected);
-    expect(finance.listInvoiceInformationRequests).toHaveBeenCalledWith(expected);
-  });
-
-  it('staff-only assignment cannot issue an invoice despite receptionist role elsewhere', async () => {
-    const finance = { issueInvoice: jest.fn() };
-    const controller = new FinanceController(finance as never, fixture() as never);
-    await expect(controller.issue({ bookingId: 'booking-other' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(finance.issueInvoice).not.toHaveBeenCalled();
-  });
-
-  it('valid receptionist can still issue an invoice in the assigned branch', async () => {
-    const db = fixture();
-    db.booking.findUniqueOrThrow.mockResolvedValue({ branchId: 'reception-branch' });
-    const finance = { issueInvoice: jest.fn().mockResolvedValue({ ok: true }) };
-    const controller = new FinanceController(finance as never, db as never);
-    await expect(controller.issue({ bookingId: 'booking-own-branch' }, mixed)).resolves.toEqual({ ok: true });
-  });
-
-  it('owner-only invoice mutations cannot use receptionist membership', async () => {
-    const finance = { cancelInvoice: jest.fn(), reissueInvoice: jest.fn(), rejectInvoiceInformationRequest: jest.fn() };
-    const controller = new FinanceController(finance as never, fixture() as never);
-    await expect(controller.cancelInvoice('invoice', { reason: 'test' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.reissueInvoice('invoice', { reason: 'test' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.rejectInvoiceRequest('request', { reason: 'test' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(finance.cancelInvoice).not.toHaveBeenCalled();
-    expect(finance.reissueInvoice).not.toHaveBeenCalled();
-    expect(finance.rejectInvoiceInformationRequest).not.toHaveBeenCalled();
-  });
 });

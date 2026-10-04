@@ -12,6 +12,7 @@ import { Audited } from '../common/decorators/audit.decorator';
 import { AuditAction, Prisma } from '@prisma/client';
 import { FinancialMetricsService } from '../payments/financial-metrics.service';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
+import { businessTypeLabel } from '../business/business-onboarding.service';
 
 /**
  * Platform governance endpoints. Every route is gated by PLATFORM_ADMIN and
@@ -296,7 +297,9 @@ export class AdminController {
         orderBy: { submittedAt: 'desc' },
       }),
     ]);
-    return { pendingBranches, pendingBusinesses: businesses };
+    return { pendingBranches, pendingBusinesses: businesses.map((business) => ({
+      ...business, businessTypeLabel: businessTypeLabel(business.onboardingData),
+    })) };
   }
 
   /**

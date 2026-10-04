@@ -62,10 +62,10 @@ export class AuthController {
     return undefined;
   }
 
-  private withRefreshCookie(request: Request, response: Response, result: Awaited<ReturnType<AuthService['login']>>) {
+  private withRefreshCookie(request: Request, response: Response, result: Awaited<ReturnType<AuthService['login']>>, bodyTransport = false) {
     response.cookie('bb_refresh', result.refreshToken, this.refreshCookieOptions(request));
     const { refreshToken: _refreshToken, ...safeResult } = result;
-    return safeResult;
+    return bodyTransport ? result : safeResult;
   }
 
   @Public()
@@ -90,7 +90,7 @@ export class AuthController {
         ipAddress: request.ip,
       },
     );
-    return this.withRefreshCookie(request, response, result);
+    return this.withRefreshCookie(request, response, result, body.refreshTokenTransport === 'BODY');
   }
 
   @Public()
@@ -106,7 +106,7 @@ export class AuthController {
       userAgent: request.headers['user-agent'],
       ipAddress: request.ip,
     });
-    return this.withRefreshCookie(request, response, result);
+    return this.withRefreshCookie(request, response, result, body.refreshTokenTransport === 'BODY');
   }
 
   @Public()
@@ -117,7 +117,7 @@ export class AuthController {
   @Throttle({ default: { limit: 120, ttl: 15 * 60_000 } })
   @HttpCode(HttpStatus.OK)
   async refresh(
-    @Body() body: { refreshToken?: string },
+    @Body() body: { refreshToken?: string; refreshTokenTransport?: 'BODY' },
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -125,7 +125,7 @@ export class AuthController {
     const result = await this.authService.refresh(token);
     response.cookie('bb_refresh', result.refreshToken, this.refreshCookieOptions(request));
     const { refreshToken: _refreshToken, ...safeResult } = result;
-    return safeResult;
+    return body.refreshTokenTransport === 'BODY' && Boolean(body.refreshToken) ? result : safeResult;
   }
 
   @Public()

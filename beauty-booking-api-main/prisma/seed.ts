@@ -28,7 +28,16 @@ const SEED_START_DATE = new Date("2024-01-01T00:00:00.000Z");
 const parsedEndDate = process.env.SEED_END_DATE ? new Date(`${process.env.SEED_END_DATE}T23:59:59.999Z`) : new Date();
 if (Number.isNaN(parsedEndDate.getTime())) throw new Error("SEED_END_DATE phải có dạng YYYY-MM-DD.");
 const SEED_END_DATE = parsedEndDate;
-const FUTURE_END_DATE = new Date(SEED_END_DATE.getTime() + 60 * DAY_MS);
+const parsedFutureEndDate = process.env.SEED_FUTURE_END_DATE
+  ? new Date(`${process.env.SEED_FUTURE_END_DATE}T23:59:59.999Z`)
+  : new Date(SEED_END_DATE.getTime() + 60 * DAY_MS);
+if (Number.isNaN(parsedFutureEndDate.getTime())) {
+  throw new Error("SEED_FUTURE_END_DATE phải có dạng YYYY-MM-DD.");
+}
+if (parsedFutureEndDate < SEED_END_DATE) {
+  throw new Error("SEED_FUTURE_END_DATE phải lớn hơn hoặc bằng SEED_END_DATE.");
+}
+const FUTURE_END_DATE = parsedFutureEndDate;
 
 function assertSafeSeedTarget() {
   const rawUrl = process.env.DATABASE_URL;
@@ -181,26 +190,103 @@ function atUtcTime(date: Date, hour: number, minute = 0) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hour, minute));
 }
 
+async function loadPreservedLanAnh() {
+  const sourceDatabase = process.env.SEED_PRESERVE_SOURCE_DATABASE?.trim();
+  let sourceUrl = process.env.SEED_PRESERVE_SOURCE_DATABASE_URL?.trim();
+  const targetUrl = process.env.DATABASE_URL?.trim();
+  if (!sourceUrl && sourceDatabase && targetUrl) {
+    const derivedSourceUrl = new URL(targetUrl);
+    derivedSourceUrl.pathname = `/${sourceDatabase}`;
+    sourceUrl = derivedSourceUrl.toString();
+  }
+  const sourcePool = sourceUrl && sourceUrl !== targetUrl
+    ? new Pool({ connectionString: sourceUrl })
+    : null;
+  const sourcePrisma = sourcePool
+    ? new PrismaClient({ adapter: new PrismaPg(sourcePool) })
+    : prisma;
+
+  try {
+    return await sourcePrisma.user.findUnique({
+      where: { email: "lananh.owner@glowbook.vn" },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        passwordHash: true,
+        fullName: true,
+        address: true,
+        gender: true,
+        dateOfBirth: true,
+        isEmailVerified: true,
+        isPhoneVerified: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+        deletedAt: true,
+        ownerProfile: {
+          select: {
+            id: true,
+            companyName: true,
+            taxCode: true,
+            identityCardNumber: true,
+            createdAt: true,
+            deletedAt: true,
+          },
+        },
+      },
+    });
+  } finally {
+    if (sourcePool) {
+      await sourcePrisma.$disconnect();
+      await sourcePool.end();
+    }
+  }
+}
+
 // ============================================================
 // MAIN
 // ============================================================
 async function main() {
   assertSafeSeedTarget();
-  console.log(`Bắt đầu seed production-like: mode=${SEED_MODE}, từ 2024-01-01 đến ${SEED_END_DATE.toISOString().slice(0, 10)}...`);
+  console.log(`Bắt đầu seed production-like: mode=${SEED_MODE}, từ 2024-01-01 đến ${SEED_END_DATE.toISOString().slice(0, 10)}, lịch tương lai đến ${FUTURE_END_DATE.toISOString().slice(0, 10)}...`);
 
-  console.log("Reset dữ liệu demo cũ theo đúng thứ tự quan hệ (Docker volume không bị xóa)...");
-  const tables = await prisma.$queryRaw<Array<{ tableName: string }>>`
-    SELECT tablename AS "tableName"
-    FROM pg_tables
-    WHERE schemaname = 'public'
-      AND tablename <> '_prisma_migrations'
-      AND tablename !~ '^archive_'
-  `;
-  if (tables.length) {
-    const quoted = tables
-      .map(({ tableName }) => `"${tableName.replace(/"/g, '""')}"`)
-      .join(', ');
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`);
+  const preservedLanAnh = await loadPreservedLanAnh();
+  if (preservedLanAnh) console.log("Giữ nguyên tài khoản Lan Anh hiện có trong lần reset này.");
+
+  const reservedUserPhones = new Set<string>();
+  if (preservedLanAnh?.phone) reservedUserPhones.add(preservedLanAnh.phone);
+  const nextUserPhone = () => {
+    let phone = randomPhone();
+    while (reservedUserPhones.has(phone)) phone = randomPhone();
+    reservedUserPhones.add(phone);
+    return phone;
+  };
+  const reservePreferredUserPhone = (preferred: string) => {
+    if (!reservedUserPhones.has(preferred)) {
+      reservedUserPhones.add(preferred);
+      return preferred;
+    }
+    return nextUserPhone();
+  };
+
+  if (process.env.SEED_SKIP_RESET === "1") {
+    console.log("Bỏ qua bước reset vì target là database local mới đã migrate và chưa seed dữ liệu.");
+  } else {
+    console.log("Reset dữ liệu demo cũ theo đúng thứ tự quan hệ (Docker volume không bị xóa)...");
+    const tables = await prisma.$queryRaw<Array<{ tableName: string }>>`
+      SELECT tablename AS "tableName"
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND tablename <> '_prisma_migrations'
+        AND tablename !~ '^archive_'
+    `;
+    if (tables.length) {
+      const quoted = tables
+        .map(({ tableName }) => `"${tableName.replace(/"/g, '""')}"`)
+        .join(', ');
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`);
+    }
   }
 
   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
@@ -225,26 +311,45 @@ async function main() {
   const roles = new Map<string, Awaited<ReturnType<typeof prisma.role.create>>>();
   for (const code of officialRoleCodes) {
     const level = ROLE_LEVELS[code];
-    const role = await prisma.role.create({
-      data: { code: code as any, name: roleNames[code] ?? code, level: level as any },
+    const role = await prisma.role.upsert({
+      where: { code: code as any },
+      update: { name: roleNames[code] ?? code, level: level as any },
+      create: { code: code as any, name: roleNames[code] ?? code, level: level as any },
     });
     roles.set(code, role);
   }
   const permissionIds = new Map<string, string>();
   for (const permission of PERMISSIONS) {
-    const created = await prisma.permission.create({
-      data: {
+    const created = await prisma.permission.upsert({
+      where: { code: permission.code },
+      update: {
+        resource: permission.resource, action: permission.action,
+        scope: permission.defaultScope as any, description: permission.description,
+      },
+      create: {
         code: permission.code, resource: permission.resource, action: permission.action,
         scope: permission.defaultScope as any, description: permission.description,
       },
     });
     permissionIds.set(permission.code, created.id);
   }
+  await prisma.permission.deleteMany({
+    where: {
+      code: {
+        in: [
+          "payment_intent:create:self",
+          "payment_intent:create:branch",
+          "payment_intent:create:tenant",
+        ],
+      },
+    },
+  });
   for (const [roleCode, codes] of Object.entries(ROLE_PERMISSIONS)) {
     const role = roles.get(roleCode);
     if (!role) continue;
     await prisma.rolePermission.createMany({
       data: codes.map((code) => ({ roleId: role.id, permissionId: permissionIds.get(code)! })),
+      skipDuplicates: true,
     });
   }
   const roleAdmin = roles.get("PLATFORM_ADMIN")!;
@@ -279,10 +384,11 @@ async function main() {
   // 3. ADMIN + OWNERS
   // ============================================================
   console.log("Tạo admin & chủ doanh nghiệp...");
+  const adminPhone = reservePreferredUserPhone("0900000001");
   const adminUser = await prisma.user.create({
     data: {
       email: "admin@glowbook.vn",
-      phone: "0900000001",
+      phone: adminPhone,
       passwordHash,
       fullName: "Nguyễn Văn Admin",
       gender: "MALE",
@@ -327,21 +433,50 @@ async function main() {
 
   const owners: { userId: string; ownerProfileId: string }[] = [];
   for (const o of ownerDefs) {
+    const preservedOwner = o.email === "lananh.owner@glowbook.vn" ? preservedLanAnh : null;
     const u = await prisma.user.create({
-      data: {
-        email: o.email,
-        phone: randomPhone(),
-        passwordHash,
-        fullName: o.fullName,
-        gender: o.gender,
-        dateOfBirth: new Date("1985-1989-04-15".replace("1985-1989", String(1985 + randInt(0, 8)))),
-        isEmailVerified: true,
-        isActive: true,
-        userRoles: { create: [{ roleId: roleOwner.id }] },
-        ownerProfile: {
-          create: { companyName: o.company, taxCode: o.tax, identityCardNumber: `0790${randInt(80, 99)}${randInt(100000, 999999)}` },
-        },
-      },
+      data: preservedOwner
+        ? {
+            id: preservedOwner.id,
+            email: preservedOwner.email,
+            phone: preservedOwner.phone,
+            passwordHash: preservedOwner.passwordHash,
+            fullName: preservedOwner.fullName,
+            address: preservedOwner.address,
+            gender: preservedOwner.gender,
+            dateOfBirth: preservedOwner.dateOfBirth,
+            isEmailVerified: preservedOwner.isEmailVerified,
+            isPhoneVerified: preservedOwner.isPhoneVerified,
+            isActive: preservedOwner.isActive,
+            lastLoginAt: preservedOwner.lastLoginAt,
+            createdAt: preservedOwner.createdAt,
+            deletedAt: preservedOwner.deletedAt,
+            userRoles: { create: [{ roleId: roleOwner.id }] },
+            ownerProfile: {
+              create: {
+                id: preservedOwner.ownerProfile?.id,
+                companyName: preservedOwner.ownerProfile?.companyName ?? o.company,
+                taxCode: preservedOwner.ownerProfile?.taxCode ?? o.tax,
+                identityCardNumber: preservedOwner.ownerProfile?.identityCardNumber ?? `0790${randInt(80, 99)}${randInt(100000, 999999)}`,
+                createdAt: preservedOwner.ownerProfile?.createdAt,
+                deletedAt: preservedOwner.ownerProfile?.deletedAt,
+              },
+            },
+          }
+        : {
+            email: o.email,
+            phone: nextUserPhone(),
+            passwordHash,
+            fullName: o.fullName,
+            gender: o.gender,
+            dateOfBirth: new Date("1985-1989-04-15".replace("1985-1989", String(1985 + randInt(0, 8)))),
+            isEmailVerified: true,
+            isActive: true,
+            userRoles: { create: [{ roleId: roleOwner.id }] },
+            ownerProfile: {
+              create: { companyName: o.company, taxCode: o.tax, identityCardNumber: `0790${randInt(80, 99)}${randInt(100000, 999999)}` },
+            },
+          },
       include: { ownerProfile: true },
     });
     owners.push({ userId: u.id, ownerProfileId: u.ownerProfile!.id });
@@ -558,7 +693,11 @@ async function main() {
   ] as const;
   const canonicalByCode = new Map<string, string>();
   for (const [code, slug, name, synonyms] of canonicalDefinitions) {
-    const canonical = await prisma.canonicalService.create({ data: { code, slug, name, synonyms: [...synonyms] } });
+    const canonical = await prisma.canonicalService.upsert({
+      where: { code },
+      update: { slug, name, synonyms: [...synonyms], status: "ACTIVE" },
+      create: { code, slug, name, synonyms: [...synonyms], status: "ACTIVE" },
+    });
     canonicalByCode.set(code, canonical.id);
   }
 
@@ -671,7 +810,7 @@ async function main() {
       const u = await prisma.user.create({
         data: {
           email,
-          phone: randomPhone(),
+          phone: nextUserPhone(),
           passwordHash,
           fullName: name,
           gender: gender as "MALE" | "FEMALE",
@@ -744,7 +883,7 @@ async function main() {
       const gender = chance(0.62) ? "FEMALE" : "MALE"; // thiên về nữ vì làm đẹp
       const name = fullName(gender as "MALE" | "FEMALE");
       const email = `khach${String(idx + 1).padStart(4, "0")}@glowbook.vn`;
-      const phone = randomPhone();
+      const phone = nextUserPhone();
       const created = randDate(SEED_START_DATE, SEED_END_DATE);
       const district = pick(districts);
       const address = `${randInt(1, 999)} ${pick(branchStreetNames)}, ${district.name}, ${district.provinceName}`;
@@ -926,9 +1065,10 @@ async function main() {
 
   const bookingIds: string[] = [];
   const occupiedByStaffDay = new Map<string, { start: number; end: number }[]>();
+  const occupiedByCustomerDay = new Map<string, { start: number; end: number }[]>();
 
   for (let i = 0; i < TOTAL_BOOKINGS; i++) {
-    const custIdx = randInt(0, customerProfileIds.length - 1);
+    let custIdx = randInt(0, customerProfileIds.length - 1);
     const branch = pick(operationalBranches);
     const branchServices = services.filter((s) => s.branchId === branch.id);
     if (branchServices.length === 0) continue;
@@ -965,11 +1105,29 @@ async function main() {
     const endM = endMinutes % 60;
     const startTime = new Date(Date.UTC(1970, 0, 1, hour, minute));
     const endTime = new Date(Date.UTC(1970, 0, 1, endH, endM));
-    const occupancyKey = `${staff.id}:${apptDate.toISOString().slice(0, 10)}`;
+    const appointmentDay = apptDate.toISOString().slice(0, 10);
+    const occupancyKey = `${staff.id}:${appointmentDay}`;
     const occupied = occupiedByStaffDay.get(occupancyKey) ?? [];
     if (occupied.some((slot) => startMinutes < slot.end && endMinutes > slot.start)) continue;
+
+    let customerOccupancyKey = `${customerProfileIds[custIdx]}:${appointmentDay}`;
+    let customerOccupied = occupiedByCustomerDay.get(customerOccupancyKey) ?? [];
+    let customerAttempts = 0;
+    while (
+      customerOccupied.some((slot) => startMinutes < slot.end && endMinutes > slot.start) &&
+      customerAttempts < 20
+    ) {
+      custIdx = randInt(0, customerProfileIds.length - 1);
+      customerOccupancyKey = `${customerProfileIds[custIdx]}:${appointmentDay}`;
+      customerOccupied = occupiedByCustomerDay.get(customerOccupancyKey) ?? [];
+      customerAttempts++;
+    }
+    if (customerOccupied.some((slot) => startMinutes < slot.end && endMinutes > slot.start)) continue;
+
     occupied.push({ start: startMinutes, end: endMinutes });
     occupiedByStaffDay.set(occupancyKey, occupied);
+    customerOccupied.push({ start: startMinutes, end: endMinutes });
+    occupiedByCustomerDay.set(customerOccupancyKey, customerOccupied);
 
     const code = `BB-${apptDate.getUTCFullYear()}-${String(i + 1).padStart(5, "0")}`;
 

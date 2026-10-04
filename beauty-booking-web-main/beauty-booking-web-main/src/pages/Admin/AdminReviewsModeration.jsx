@@ -55,7 +55,7 @@ export function AdminReviewsModeration() {
       const response = await reviewsApi.getForManagement();
       setReviews(Array.isArray(response) ? response : response?.data || []);
     } catch (loadError) {
-      setError(loadError.message || 'Không thể tải hàng chờ hậu kiểm.');
+      setError(loadError.message || 'Không thể tải đánh giá cần hậu kiểm.');
     } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
@@ -89,7 +89,7 @@ export function AdminReviewsModeration() {
   };
 
   return <Page>
-    <PageHeader eyebrow="AN TOÀN NỀN TẢNG" title="Hậu kiểm đánh giá" description="Đánh giá hợp lệ được đăng ngay. Hàng chờ này chỉ chứa nội dung bị báo cáo và quyết định ẩn hoặc khôi phục của quản trị viên." />
+    <PageHeader eyebrow="AN TOÀN NỀN TẢNG" title="Hậu kiểm đánh giá" description="Đánh giá hợp lệ được đăng ngay. Danh sách này chỉ chứa nội dung bị báo cáo và quyết định ẩn hoặc khôi phục của quản trị viên." />
     <div className="grid gap-3 sm:grid-cols-3"><MetricCard icon={Flag} label="Chờ xử lý" value={reported} tone="warning" /><MetricCard icon={EyeOff} label="Đã ẩn" value={hidden} tone="neutral" /><MetricCard icon={Star} label="Tổng trong hàng hậu kiểm" value={reported + hidden} /></div>
     <Card className="p-4"><Field label="Tìm trong hàng hậu kiểm"><div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 text-[var(--bb-muted)]" size={16} /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Khách hàng, cơ sở, nội dung hoặc lý do report" /></div></Field></Card>
     {loading ? <Card className="p-5"><Skeleton rows={7} /></Card> : error ? <Card><ErrorState message={error} onRetry={load} /></Card> : queue.length === 0 ? <Card><EmptyState icon={Flag} title="Không có đánh giá cần hậu kiểm" description="Các đánh giá đang hiển thị bình thường không cần quản trị viên duyệt trước." /></Card> : <Card className="overflow-hidden">{queue.map((review) => <ReviewRow key={review.id} review={review} onAction={(item, status) => { setDecision({ reasonCode: '', reason: '' }); setConfirm({ review: item, status }); }} onAppeal={(item, appeal) => { setAppealResolution(''); setAppealDecision({ review: item, appeal }); }} />)}</Card>}

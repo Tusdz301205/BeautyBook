@@ -1,0 +1,50 @@
+@startuml SUC-continuity
+' Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+skinparam ArrowColor #773b4a
+left to right direction
+actor "Chủ doanh nghiệp" as O
+actor "Lễ tân" as R
+actor "Chuyên viên" as S
+actor "Quản trị nền tảng" as A
+rectangle "Hệ thống BeautyBook" {
+usecase "SUC-33\nGiải quyết tác động vận hành" as SUC_33
+usecase "SUC-34\nĐề nghị và tiếp nhận chuyển chủ" as SUC_34
+usecase "SUC-35\nThẩm định và thực hiện chuyển chủ" as SUC_35
+}
+O -- SUC_33
+A -- SUC_33
+O -- SUC_34
+R -- SUC_34
+S -- SUC_34
+A -- SUC_34
+A -- SUC_35
+@enduml

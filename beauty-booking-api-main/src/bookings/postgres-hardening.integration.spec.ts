@@ -11,7 +11,6 @@ import { BookingsService } from './bookings.service';
 import { timeValueMinutes } from '../common/utils/booking-datetime';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { PricingEngineService } from '../promotions/pricing-engine.service';
-import { LoyaltyService } from '../loyalty/loyalty.service';
 
 const postgresDescribe = process.env.RUN_POSTGRES_INTEGRATION === '1' ? describe : describe.skip;
 
@@ -305,7 +304,6 @@ postgresDescribe('PostgreSQL hardening integration', () => {
       gateway as never,
       new PlatformSettingsService(prisma),
       new PricingEngineService(prisma),
-      new LoyaltyService(prisma),
     );
     const payload = {
       branchId: fixture.branchId,
@@ -341,6 +339,9 @@ postgresDescribe('PostgreSQL hardening integration', () => {
       })).toBe(1);
     } finally {
       await prisma.notification.deleteMany({ where: { relatedBookingId: { in: createdIds } } });
+      // These IDs are created only by this test in a guarded disposable DB.
+      // Durable notification references must be removed before their fixture.
+      await prisma.notificationOutbox.deleteMany({ where: { relatedBookingId: { in: createdIds } } });
       await prisma.booking.deleteMany({ where: { id: { in: createdIds } } });
     }
     },

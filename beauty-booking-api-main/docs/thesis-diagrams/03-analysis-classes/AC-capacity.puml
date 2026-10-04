@@ -1,0 +1,65 @@
+@startuml AC-capacity
+' Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+class "**Kênh quản lý cơ sở**" as KenhQuanLyCoSo <<boundary>> {
+  phạm vi tương tác
+  --
+  tiếp nhận yêu cầu()
+}
+class "**Quản lý năng lực**" as QuanLyNangLuc <<control>> {
+  phạm vi tương tác
+  --
+  kiểm tra điều kiện()
+}
+class "**Dịch vụ cung cấp**" as DichVuCungCap <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+class "**Chuyên viên**" as ChuyenVien <<entity>> {
+  tên
+  khả năng nhận lịch
+  --
+  xác định năng lực()
+}
+class "**Gói dịch vụ**" as GoiDichVu <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+KenhQuanLyCoSo ..> QuanLyNangLuc
+QuanLyNangLuc ..> DichVuCungCap
+QuanLyNangLuc ..> ChuyenVien
+QuanLyNangLuc ..> GoiDichVu
+@enduml

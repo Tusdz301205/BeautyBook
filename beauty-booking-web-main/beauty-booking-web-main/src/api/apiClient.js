@@ -276,10 +276,10 @@ export const bookingsApi = {
 
   salonViolations: () => request('/bookings/salon-violations'),
 
-  previewPrice: ({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, loyaltyPoints, appointmentDate }) =>
+  previewPrice: ({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, appointmentDate }) =>
     request('/bookings/preview-price', {
       method: 'POST',
-      body: JSON.stringify({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, loyaltyPoints, appointmentDate }),
+      body: JSON.stringify({ customerId, branchId, serviceIds, comboId, voucherCode, variantSelections, appointmentDate }),
     }),
 
   createChangeRequest: (bookingId, body) =>
@@ -767,6 +767,7 @@ export const businessApi = {
     body: JSON.stringify(policy),
   }),
   createDraft: (data) => request('/business/onboarding/draft', { method: 'POST', body: JSON.stringify(data) }),
+  getOnboardingConfig: () => request('/business/onboarding/config'),
   getMyOnboarding: () => request('/business/onboarding/mine'),
   updateDraft: (businessId, data) => request(`/business/${businessId}/onboarding`, { method: 'PATCH', body: JSON.stringify(data) }),
   submit: (businessId) => request(`/business/${businessId}/submit`, { method: 'POST' }),
@@ -861,32 +862,6 @@ export const savedServicesApi = {
   list: () => request('/customer/saved-services'),
   save: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'POST' }),
   remove: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'DELETE' }),
-};
-
-export const loyaltyApi = {
-  mine: () => request('/loyalty/mine'),
-  configure: (data) => request('/loyalty/rules', { method: 'POST', body: JSON.stringify(data) }),
-  liability: (businessId) => request(`/loyalty/liability?businessId=${encodeURIComponent(businessId)}`),
-};
-
-export const waitlistApi = {
-  mine: () => request('/waitlist/mine'),
-  join: (data) => request('/waitlist', { method: 'POST', body: JSON.stringify(data) }),
-  cancel: (id) => request(`/waitlist/${id}/cancel`, { method: 'PATCH' }),
-  accept: (id, token) => request(`/waitlist/${id}/accept`, { method: 'PATCH', body: JSON.stringify({ token }) }),
-  branch: (branchId) => request(`/waitlist/branch?branchId=${encodeURIComponent(branchId)}`),
-  offer: (id, data) => request(`/waitlist/${id}/offer`, { method: 'POST', body: JSON.stringify(data) }),
-};
-
-export const financeOperationsApi = {
-  invoices: () => request('/finance-operations/invoices'),
-  invoiceRequests: () => request('/finance-operations/invoice-requests'),
-  requestInvoice: (data) => request('/finance-operations/invoice-requests', { method: 'POST', body: JSON.stringify(data) }),
-  cancelInvoiceRequest: (id) => request(`/finance-operations/invoice-requests/${id}/cancel`, { method: 'PATCH' }),
-  rejectInvoiceRequest: (id, reason) => request(`/finance-operations/invoice-requests/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
-  issueInvoice: (data) => request('/finance-operations/invoices', { method: 'POST', body: JSON.stringify(data) }),
-  cancelInvoice: (id, reason) => request(`/finance-operations/invoices/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
-  reissueInvoice: (id, data) => request(`/finance-operations/invoices/${id}/reissue`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const impactApi = {

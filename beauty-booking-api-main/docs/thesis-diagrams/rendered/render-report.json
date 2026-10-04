@@ -1,0 +1,1503 @@
+{
+  "tool": "PlantUML 1.2024.3 + local Graphviz; Edge/Playwright PNG x3",
+  "syntaxExitCode": 0,
+  "renderExitCode": 0,
+  "diagrams": [
+    {
+      "id": "BUC-overview",
+      "width": 1240,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 6,
+        "sourceBased": true
+      },
+      "sourceSha256": "e5f4ff160b92ad0518a65c1677783a6077074c38ed3b48402db70d8953e0a292",
+      "svgSha256": "b2afa1b4a0e50966bf2fcaddeab85f0da92bc4bdca30e88ecb941dcbd9b79591",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.5,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "BUC-service",
+      "width": 1240,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 6,
+        "sourceBased": true
+      },
+      "sourceSha256": "f5f367de132a047de634083aca60ebda2a37c2bbdabd7d135204aef32af36199",
+      "svgSha256": "e06318e676ae631e978820713b094129af2cc1f7dbd4caf6e7c9402308d65a74",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.5,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "BUC-financial",
+      "width": 1240,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 6,
+        "sourceBased": true
+      },
+      "sourceSha256": "a7ce79a3ed91d7105dfd927d3a050d07c59b2d64203a43062b4c949b6f7c059e",
+      "svgSha256": "78c643e759baffbdc6f557ce54577864718a17b0449020a7a4fa88c0c4f93b61",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.5,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "BUC-operations",
+      "width": 1240,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 6,
+        "sourceBased": true
+      },
+      "sourceSha256": "7daa5bf7d152921e4f4bbb502202d9a3c6f45c07f947738279e8418aaeec1b7a",
+      "svgSha256": "5e86fdcd1c5d6f5f59195e0cf59510d07d7e68eb11c592a0286da534f29f4a8e",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.5,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "BUC-governance",
+      "width": 1240,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 2,
+        "associations": 4,
+        "sourceBased": true
+      },
+      "sourceSha256": "7dcbdc253028a6516f53c623eec84096bd2d7fc9b07d198537c5c221a7527a2b",
+      "svgSha256": "7b793f4af872b9ca09df4417cff4ec7a7bbf7726f0a9e96afc16fa6d0ae15bf3",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.5,
+      "textCount": 9,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-overview",
+      "width": 1040,
+      "height": 1170,
+      "orientation": "portrait",
+      "semanticPresentation": {
+        "actors": 6,
+        "usecases": 5,
+        "associations": 9,
+        "sourceBased": true
+      },
+      "sourceSha256": "144dfe4071c9b97c8c07c11497ed953d0d6e4379e429ae4b32d33916d6f51c8d",
+      "svgSha256": "7b98ccc5d8cd5d4571cd9ab9e63356234abde69c4cf300577eec7191ef0fe0a5",
+      "htmlSvgMatches": true,
+      "printMinPt": 8.8,
+      "textCount": 17,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-discovery",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 5,
+        "sourceBased": true
+      },
+      "sourceSha256": "bd79d054b327576e913688f48ef29a357f0816d3d8bb6377b808a394d7d25ae6",
+      "svgSha256": "6c2699045a9c767d08190d79fd94544dbd7def88d9a53794b8bcaccf6cd8086c",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 9,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-auth",
+      "width": 1040,
+      "height": 470,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 2,
+        "associations": 2,
+        "sourceBased": true
+      },
+      "sourceSha256": "61d36a37d924e7b0c47964492aeeb76f45b60d8dc4d7142093216e09929db7a5",
+      "svgSha256": "07f7bd1233e90d83913fbff60cf689d87ade38d8da764e606f51977b99e06b87",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.83,
+      "textCount": 6,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-customer-account",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 4,
+        "associations": 4,
+        "sourceBased": true
+      },
+      "sourceSha256": "bbf888c7e56fc6c74172c30b4c7e7e1c6c42bcf9fe9756ea34f1e1a0f00bf4ef",
+      "svgSha256": "102300be15409363d660a8ece4cf4238e0fb56b63c1f3cdcad6005f7a1bac0e6",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-staff-account",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 3,
+        "usecases": 3,
+        "associations": 9,
+        "sourceBased": true
+      },
+      "sourceSha256": "15ebbfd620c808cb1c6ed864d96d18fecf71efe87be28eed369d20abf87aec0f",
+      "svgSha256": "86f1467770059fc5bf204c8f6bd12354822574332d177880fd6db8d612cad846",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-admin-account",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 3,
+        "associations": 3,
+        "sourceBased": true
+      },
+      "sourceSha256": "ea2a47ce3376f141a059fa718607f12af4fdf66e9d4893d1517ca7838828c772",
+      "svgSha256": "9fee71395c5ecaed7cff9b0419ebf2547feadd24ff77f8d02326f57302856237",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 8,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-booking",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 4,
+        "associations": 4,
+        "sourceBased": true
+      },
+      "sourceSha256": "40398d7181a632c67fd8c7807fc42a09914606bb4ab022c63a7d9b6d91413261",
+      "svgSha256": "0168d59138d323555a31d301dd601d0ca9054f04a9ef78c15c04910a4fa3d8f3",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-change",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 3,
+        "associations": 3,
+        "sourceBased": true
+      },
+      "sourceSha256": "145d2bca6013a083416fb57bda7bfebe83ad8c332375e33aae813572e957fcaa",
+      "svgSha256": "5b272259adb2aac6b4aa247c3a9bb2af8bb056880790d9007de66a9fb55135b6",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 8,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-counter",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 4,
+        "associations": 8,
+        "sourceBased": true
+      },
+      "sourceSha256": "6a724dcf7495555dbe1210d1bcee3f0e2fef615e3b10b2053e02bb18a966461c",
+      "svgSha256": "0a2c9a6c3cd0a1abee3888a34b4aca0f51e206c787703f72d51e2c388119df43",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-delivery",
+      "width": 1040,
+      "height": 470,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 2,
+        "associations": 3,
+        "sourceBased": true
+      },
+      "sourceSha256": "1c951598a07bc4652730f4dd1618ecea80acbb75b0fb7ba1dc209b1a1a6bbb7a",
+      "svgSha256": "917c0369bb58e2f5123fb84d98cd63953330b1d359f4724178d2879eaf597264",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.83,
+      "textCount": 7,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-payments",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 3,
+        "usecases": 3,
+        "associations": 5,
+        "sourceBased": true
+      },
+      "sourceSha256": "975fd7b595ecc0bfcbaeef7d53f2a7b1e38f97d63666fc21d20c258886f66e9a",
+      "svgSha256": "2e3b47f97db054a51cd2822f5806c76057268edc63207c58aa6af008e1b3015e",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-packages",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 4,
+        "usecases": 2,
+        "associations": 5,
+        "sourceBased": true
+      },
+      "sourceSha256": "d5ed5b4330cda41b92cab3bbeb8b7e5e5f7e6a712a37a661377660e321dc7946",
+      "svgSha256": "3bba8bb519e810af72c490bcb1d02ca6708f490c301d72bd266ec6f478f277a7",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 9,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-onboarding",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 3,
+        "associations": 3,
+        "sourceBased": true
+      },
+      "sourceSha256": "60d0bfc66b89dc771f7d0d70892e568f9f1d8addeb2a8bef5fb2d74ac50a5b56",
+      "svgSha256": "fec44b97c0f642c537356bc0b733cadd722627f73ae706711e3705a8c3a8b01b",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 9,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-resources",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 4,
+        "associations": 4,
+        "sourceBased": true
+      },
+      "sourceSha256": "d305f9596625a8521e30c64e52a77ad56b34d027d0c07eb2ffa4bfe01e163320",
+      "svgSha256": "f6b7d49a5e34551f1c4eea43dc76a2e451cf354c8db77a29eb347396a52f57fe",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-invitation",
+      "width": 1040,
+      "height": 295,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 1,
+        "usecases": 1,
+        "associations": 1,
+        "sourceBased": true
+      },
+      "sourceSha256": "6d25aae97360fa8323cd3bafa8c1060238a3eee40b87acb05e56aa0e754d4d88",
+      "svgSha256": "47d941492af904dae423485b6ed29c198873998a1fb4ac8aa5f0c409c4cffc48",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.83,
+      "textCount": 4,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-relations",
+      "width": 1040,
+      "height": 645,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 3,
+        "usecases": 3,
+        "associations": 6,
+        "sourceBased": true
+      },
+      "sourceSha256": "6b0865709b9f231c7909f35ed775e501a0bcc5a5d32b2242324587992d3ac160",
+      "svgSha256": "1de1015a8a115831b1ebfa61a10fceb70cd7a6f155f6a81c5ab85e97187628b9",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.33,
+      "textCount": 10,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-continuity",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 4,
+        "usecases": 3,
+        "associations": 7,
+        "sourceBased": true
+      },
+      "sourceSha256": "fc64f1884bbbd747e2cfa21b0695606e307f71df5a80e208141ec0d9d7f80b74",
+      "svgSha256": "3749d291bd02fdab3d25b9f4c7df221deb6d23701a732f90fdc187a89194243d",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-governance",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 2,
+        "usecases": 4,
+        "associations": 5,
+        "sourceBased": true
+      },
+      "sourceSha256": "b81e2f6e2296c7e7e63f5f96c8c2fb26a4bf4fcd817e59263cb34e009ced2a32",
+      "svgSha256": "28fe02d519f75298d04c984f8f872a639d2ff406e27b4e8a2b88b891e73dc9f6",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 11,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "SUC-media",
+      "width": 1040,
+      "height": 820,
+      "orientation": "landscape",
+      "semanticPresentation": {
+        "actors": 4,
+        "usecases": 1,
+        "associations": 4,
+        "sourceBased": true
+      },
+      "sourceSha256": "9ce4ce0a1d5096bd2bf3218a7c9beb4a48e5b9396ead379378dce5a190e14510",
+      "svgSha256": "0926d1e04b86cfaf9ea11dbfd7142c405b88efd5146d67e5a650359449521f4d",
+      "htmlSvgMatches": true,
+      "printMinPt": 9.7,
+      "textCount": 7,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\", serif"
+      ]
+    },
+    {
+      "id": "AC-booking",
+      "width": 560,
+      "height": 493,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "eb46f810636d2559756139610495ac7cdc1884d8d29ab900fd038d06ab4bddb1",
+      "svgSha256": "7ca320e4ea692b7436f4db93f22c1551f69e62ad66af63b028ffbfe5e1288225",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.35,
+      "textCount": 24,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-change",
+      "width": 594,
+      "height": 531,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "134e2daebbc39e49cb989b013adac44314a4b1a57dbf2761a2f1b51324f108ad",
+      "svgSha256": "2ed7131b32bb4eb4a1501216725eca1f6bc6136b926f88b763761256ee83763c",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.41,
+      "textCount": 26,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-delivery",
+      "width": 563,
+      "height": 473,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "7062771d05ceb48cd6b6e7f50bb99c5f22d4e87bad4d0da7105b2442b23a06c0",
+      "svgSha256": "79e956a4303b1ff0e9bf0b75617c547e05d535bee0bba841a03a2e49a2f79070",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.81,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-finance",
+      "width": 549,
+      "height": 493,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "aa9e147e248a01d74c70bfc79f3a266d986b8c4b7e98f63aff1f6187e8d21e02",
+      "svgSha256": "b87345e73a60294aa1f105b81c0fff4f3eb20a93a4f35a115eb7c94e88e6e4c2",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.68,
+      "textCount": 24,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-onboarding",
+      "width": 593,
+      "height": 473,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "7d6043ced4a400f99daa8bd6d0fb154cbfb6c90cb314ca4e8f5aea75e10ed177",
+      "svgSha256": "99f6b41b51370fdbf5c252edf59f62aafa429091a5936aaa173c7f6e087e9092",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.81,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-capacity",
+      "width": 561,
+      "height": 473,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "c4b105930cded3d5e1f1228a87354f577890bd1c895946dc68c64e5b3010da76",
+      "svgSha256": "98800f08f5bfe2d8e5ef17b53b2068e53e9293f1c50e3317d527cb22226e2f66",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.81,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-relations",
+      "width": 558,
+      "height": 493,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "06de257181f50c75a02283920eedb34e5e47b2ea7de95bad9a32d637df4cd488",
+      "svgSha256": "b0cf7877123c6c6a802c80b9f3ead0ae1360af4c6f9c10373e8152ede2b6a180",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.41,
+      "textCount": 24,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-governance",
+      "width": 593,
+      "height": 473,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "4141dfc138908b11920c1351c871c45c94b187121da39fa13db4096d6f66d269",
+      "svgSha256": "536d8b74cf27366a6d10f095ec4852d693ff3981530c01f7d1bd5426732f9f54",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.81,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-identity",
+      "width": 555,
+      "height": 473,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "1d575a83a8f75e453ac34e8415bc947c1033a21f3842b83db3af6940bfd66456",
+      "svgSha256": "9bd62385ebb510f3e99326163c63dea9628524f62bc0fe2b82938f99fd2f2b2a",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.81,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-recurring",
+      "width": 560,
+      "height": 493,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "5ee5c44a7d5bb65f83eb5ad5db7a25ac221cd96dcb0153b3b6f5c9f31ffc5b3f",
+      "svgSha256": "9d4939e5bd1d9e86bc39767284c228b2787a17c21dd99b2845b4f9ac06a0ac60",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.35,
+      "textCount": 24,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "AC-overview",
+      "width": 529,
+      "height": 414,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "25b7d3702eeb139269b161e2b158ecf389dea964472ba4c0b663655016c48541",
+      "svgSha256": "0e65169355a15d97eaa78b48a18fd2289bf3b0a6cf036fa0ce16e5eff63aab95",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.82,
+      "textCount": 33,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-overview",
+      "width": 928,
+      "height": 520,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "62ad435265089685ff4bd6746fedc4143c10ee0022358db26e4c267ef628b1a6",
+      "svgSha256": "2825dda08501db1f9216b9b81cbe1020191f3603d92de828797c0a5404dca07b",
+      "htmlSvgMatches": true,
+      "printMinPt": 11.85,
+      "textCount": 30,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-auth",
+      "width": 645,
+      "height": 501,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "8b5f5004a76bd5d9d72c2ef4ab4870e1024f90991c4edd80a745e5331ca2254c",
+      "svgSha256": "bb16ab2c5da9d5db6e1a45a591bb01b041324d950a034350b4bccb997c5409c1",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.07,
+      "textCount": 21,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-access",
+      "width": 623,
+      "height": 481,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "91d73c05ffcc3359e74ecb81ccf62c631fac2f35135e01f521577781a9326c85",
+      "svgSha256": "9870b66fe6e1c9972276bd94900e728b2e9f0b47ddd7528eda3138aac2ced661",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.61,
+      "textCount": 17,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-booking",
+      "width": 393,
+      "height": 481,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "4cb40bc0fd86eed45a9a1559bcf6e28418b8cf2ca0d2699ef206917f36f85a10",
+      "svgSha256": "101e4bcd3d823adafe8bf1b9e0fc18ea1a6ebbedf8d843cd5b435bd2e402f58f",
+      "htmlSvgMatches": true,
+      "printMinPt": 19.19,
+      "textCount": 17,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-change",
+      "width": 505,
+      "height": 702,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "78621b1eb0a3ab2f075e5aad56f2a48c7066c7bf3fb0901602a24658c0a94437",
+      "svgSha256": "c60216996409ce8a3eca3ed825117011d3d9a4b32466851aa4480c64637594ef",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.13,
+      "textCount": 27,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-items",
+      "width": 452,
+      "height": 280,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "1bca473586c1cd27def32352488f7b8fda92bb019291e29e39819ac248635f39",
+      "svgSha256": "67bcb43f92ef65369f388f95103c5f1c57ddb4ce895dac526e655d7f87e79cba",
+      "htmlSvgMatches": true,
+      "printMinPt": 23.39,
+      "textCount": 14,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-recurring",
+      "width": 318,
+      "height": 663,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "16e3863afaad5b88d1bab4dd1cb5c65e406a2901935092a33b610c9a2143768a",
+      "svgSha256": "ee278532b9aebe07f43eb6da93d4c1761d41f393f6a3cdebb3cd185b5e0cf243",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.96,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-payment",
+      "width": 600,
+      "height": 481,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "c120ccb0ffd7d793afa2c556a3c5a154298969b129b15f2d5251c7022f866bc3",
+      "svgSha256": "e8d79eb2539adf89a021c305619962b84ac4f82acab5d1b51952618cba2cc555",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.61,
+      "textCount": 20,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-providers",
+      "width": 899,
+      "height": 280,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "136a1cd4ade3bb9cc8caafa3fe9be502ff0bad54bd1284b6d03db948b2ba3031",
+      "svgSha256": "4aa444cc6908fcbf96a2ab9f5fec647b924435b6899b39beab28b96a6b90d9ff",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.23,
+      "textCount": 13,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-business",
+      "width": 448,
+      "height": 481,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "ed89c7263d68bc043d333f7a26542ed747c9f96c84c2632d03cf6bfcff4f4bf3",
+      "svgSha256": "357b1b044f5e1549320291ea7d71de35d987d183978501aaeec9b11538163dac",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.83,
+      "textCount": 17,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-branch",
+      "width": 415,
+      "height": 682,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "99696abe53df5cb271d6cc797f5e7030a98a63eeecbb78504defb2f3f3600562",
+      "svgSha256": "2c24019855463e50c83e11fdf38a43da68a1bbea408d1c6401f9d1727acf41e1",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.55,
+      "textCount": 26,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-catalog",
+      "width": 718,
+      "height": 481,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "0bac19d800c4581038f7b2377063c43278a346690df0a48cc8c4a9d8185ad67b",
+      "svgSha256": "a809b599aebc2681bea0a601644da301b96a027567104c2783e646cc4c5b9108",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.61,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-staff",
+      "width": 677,
+      "height": 501,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "b6468f4870dcb4c8112e8132cecaef5149c201b55948a64e0a09e598378f754c",
+      "svgSha256": "37fca77a01c8121d7b7c112ad2085c565a9bfcd19ca7ed8306ab10e885c573cd",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.07,
+      "textCount": 25,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-marketing",
+      "width": 960,
+      "height": 280,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "84129f1ae1ba868c055bc4871c62584450c06110e88511024eaae0cbe70570be",
+      "svgSha256": "b9a542ab7e026a529fb32a5a059c70da40f19411110b96fd2ca68dbe12c15cc5",
+      "htmlSvgMatches": true,
+      "printMinPt": 11.45,
+      "textCount": 20,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-review",
+      "width": 386,
+      "height": 481,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "6b3f3bb3f494e756ddb7574962217d61421c792798df9b137927e7e1840e8617",
+      "svgSha256": "951c42615593af33e37ceafa038af23d7cd1281bcbf56daf03a11d52b58c485d",
+      "htmlSvgMatches": true,
+      "printMinPt": 19.53,
+      "textCount": 17,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-privacy",
+      "width": 605,
+      "height": 481,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "5501afbb1fb4e7518fcc5b88291c388e844edf0c4982b3c340f1a4d3936b462d",
+      "svgSha256": "f81aa0744aa7101a0b615c6f16d4c42cb94d34deda90c35c3e68a2aa064914e7",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.61,
+      "textCount": 20,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-ownership",
+      "width": 605,
+      "height": 500,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "f086466f8ac88ab7b9465de78d74b182803d15a4008942c183521745e450a18f",
+      "svgSha256": "1220eb8d851665fd082f5ede9c98eaf4c041f66ee53784ad038855478daf286b",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.1,
+      "textCount": 22,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-impact",
+      "width": 430,
+      "height": 682,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "dbeeddf2c8e4337a22372f00a75d1238c1f999daffae135574f3e6ca5f3b8292",
+      "svgSha256": "462e4e7fb7f80557c1a45933b96ff9f4bf63935c78af6b222a3e65c69bc9f7bf",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.55,
+      "textCount": 25,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-governance",
+      "width": 983,
+      "height": 481,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "4023c64eff1ca6a430f1320083e93152ddea1070618076316c79046bda788997",
+      "svgSha256": "01913d9fe80e27bcbd954869de0f81bd7845a1afdc85285bd60f8d76a55f0cf9",
+      "htmlSvgMatches": true,
+      "printMinPt": 11.18,
+      "textCount": 23,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-self",
+      "width": 630,
+      "height": 280,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "abacf14043949a7ae4207c732d85c72cfb6dd77c2e8eb8360e74aee540a11401",
+      "svgSha256": "d7d49e010d111259cb4560c7534e3e4fe47f9e9dce8b49788f4f04f497d5d4dc",
+      "htmlSvgMatches": true,
+      "printMinPt": 17.45,
+      "textCount": 15,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "DC-communication",
+      "width": 709,
+      "height": 280,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "20f3e618c8a4985e98831f781c39058c090d60dfab49cccd1daadba0102f5704",
+      "svgSha256": "33246f3044be1da1b09d04f52541576115430a77f9301c3c2909a1f547a730b1",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.5,
+      "textCount": 15,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-overview",
+      "width": 801,
+      "height": 484,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "a85cf605adc67587005d548e32ec16582ecc2a0e9dcad4e73a4be6d103023aa5",
+      "svgSha256": "e446082010b218f737ca0ed2ba8e28445aa39fe82f396d05f97cef9e12fcab00",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.43,
+      "textCount": 49,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-identity",
+      "width": 488,
+      "height": 961,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "0887427ae0df31fca176cf98b766b2d6e87221a7360fb31e9f11ddca1836d2ba",
+      "svgSha256": "31f48253a40d0619313678e3ab05b2ef6946588976512e1d9266cd2ddbaa071f",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.54,
+      "textCount": 48,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-rbac",
+      "width": 505,
+      "height": 645,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "5e9d7745e91287cee5494e1ec48c32a8b82d7f60a94f75052d72702f3f152d37",
+      "svgSha256": "bcd868bbcec4726fb405b9a0893148fa4ef9b181baedb7dda337dc814ca37a2e",
+      "htmlSvgMatches": true,
+      "printMinPt": 18.13,
+      "textCount": 41,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-business",
+      "width": 496,
+      "height": 484,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "d630606f31c9c4f849a44ce3bf29bafcbba02f301a7f66b870d047d05a76ac85",
+      "svgSha256": "30716041dcaeb7559831a1852588b024c4924ebaf91d4c1876f471adcb37495e",
+      "htmlSvgMatches": true,
+      "printMinPt": 18.46,
+      "textCount": 30,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-branch",
+      "width": 471,
+      "height": 722,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "5c5f7f23c76db5109539490ddfcd1656a024663fee9acef2d5121ea4af749d99",
+      "svgSha256": "ecae0bc9dc23ca1dc4b3d3e64fc11f09d299b70325e3d824d8b2fa40f398b7e2",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.69,
+      "textCount": 39,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-opening",
+      "width": 430,
+      "height": 576,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "65ba5362ce301286b11bbf9f560a478aa8909afdc499a10ba2eaf86f7d902588",
+      "svgSha256": "201a2849c73fad630801b19f715462a8a185798742553c328910cff02c6007d4",
+      "htmlSvgMatches": true,
+      "printMinPt": 20.92,
+      "textCount": 35,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-staff",
+      "width": 491,
+      "height": 644,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "5b390ab8ca8697746ec5ed25ef255ae95fec3fdff3046d3c1afd80f3e882de5d",
+      "svgSha256": "23ddffe0c70b4185bc048d14c8580037e77f3af7b4dca66924c13eaee308882b",
+      "htmlSvgMatches": true,
+      "printMinPt": 18.65,
+      "textCount": 35,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-catalog",
+      "width": 906,
+      "height": 561,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "25fd8220f7103ea36c02b7835ced04c4540a08be10f769e65476d428a769ad36",
+      "svgSha256": "61a4640d33a44bd3acdabdd4ebdc1feec34a4d17c86b69503d03aa4260fff9e3",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.17,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-variants",
+      "width": 615,
+      "height": 426,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "d47fb46795548d8580a16de773b948deb795ed2f737a3d798420b0565fb00d4f",
+      "svgSha256": "ab1c79c700501a7ed94b058c1b8cc59478b5391958de3edca2705e3ef7f8be73",
+      "htmlSvgMatches": true,
+      "printMinPt": 18.66,
+      "textCount": 27,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-combo",
+      "width": 471,
+      "height": 407,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "f911cf1da5616441263b82c61b12062f792a6dff55a0f6bbf2976cf178d20357",
+      "svgSha256": "c02bc9dfdb11c57a0bb3672795c8734f5a5ca89ddced9d91d92f16433be42d2c",
+      "htmlSvgMatches": true,
+      "printMinPt": 19.54,
+      "textCount": 26,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-booking",
+      "width": 816,
+      "height": 663,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "d8e698166e44498c3491ec532ed83606bf392bcdfaafc8ca73d6ddd5dcd9dc55",
+      "svgSha256": "0c585badcee0412bd53cbaaa5261770e05de49a1a4935022536e138c8958f15b",
+      "htmlSvgMatches": true,
+      "printMinPt": 11.99,
+      "textCount": 46,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-policy",
+      "width": 1016,
+      "height": 741,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "44c51dd052d6aa905e8c21b55c8a447b472eb48cdb6e03ff23f3f13b0acf3dfb",
+      "svgSha256": "0b4253cfe7096579ea325a8dbc0d8ab44f08a57a77170589f9b7aecdb9285198",
+      "htmlSvgMatches": true,
+      "printMinPt": 10.73,
+      "textCount": 50,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-payment",
+      "width": 604,
+      "height": 998,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "84cdf7d88f5e17ccc1e84126482c466ce5dd358744a617c89e66ece3d93ba6cf",
+      "svgSha256": "b8ff54396f2043d20a122ddfd943ddfc3942d205f5d172a5c0b047c2264f41ab",
+      "htmlSvgMatches": true,
+      "printMinPt": 12.07,
+      "textCount": 50,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-refund",
+      "width": 540,
+      "height": 598,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "aa64023e681cc8b343aa916d4625efeff14b034d822d01662e32d12970a81242",
+      "svgSha256": "e1c22f493cc38af964584f6b8594a8f69f5671ae44e66ab2af0e4fd4ee1039fa",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.96,
+      "textCount": 37,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-statement",
+      "width": 816,
+      "height": 575,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "fbe4d41c95ce553cf75586d9dd39e69a7e140fcbce665803235873f1303ab6f2",
+      "svgSha256": "7cfc23648b04067781d6d09fb847339ebe327038a0e08fecb6e0551d9625e50e",
+      "htmlSvgMatches": true,
+      "printMinPt": 13.83,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-package",
+      "width": 845,
+      "height": 484,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "a0d70a1dba16ccce42cac4605e722d6754665e2245afe97b1044b8bf0cf28693",
+      "svgSha256": "085b3d762298380fb7b83d85a3852c8c0d03b9e1fa967c8249a4b5967a458e41",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.8,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-promotion",
+      "width": 527,
+      "height": 530,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "976557fe1ce416ed24c19bb64d4a9fb95172ebe1421b8977d5652318bf6dfd48",
+      "svgSha256": "28954ff5590c3237dc30008ccac16aed9a76478e927e68cec5f130c9e265d26b",
+      "htmlSvgMatches": true,
+      "printMinPt": 17.37,
+      "textCount": 26,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-voucher",
+      "width": 509,
+      "height": 647,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "2f29edbe0e125b060aabaee0afe6b50e8dee0b7d030955a1f6905d509328bf77",
+      "svgSha256": "7d24ae016326ad39444d010163720e0f927cb10db17079862b2d5de53f8c2d92",
+      "htmlSvgMatches": true,
+      "printMinPt": 17.99,
+      "textCount": 32,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-redemption",
+      "width": 524,
+      "height": 484,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "6f041446ceeeef0739c0ac322d01ae22b232bd810c05336f11f30e144d09cd1b",
+      "svgSha256": "f3fd79af6bdd0a0f6b4e61b24e05a989d68f8f2cd0c10350571a9be9eff95aa9",
+      "htmlSvgMatches": true,
+      "printMinPt": 17.47,
+      "textCount": 39,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-review",
+      "width": 574,
+      "height": 682,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "29605d9ec817d9b578dec2996f88c29255c8e6c5f7789b2f3a9e7d77b977287c",
+      "svgSha256": "df8e9dde5da3afa30380b052730c3b7311f95a272e1d9a74bede4d1213bf110e",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.95,
+      "textCount": 36,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-moderation",
+      "width": 262,
+      "height": 484,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "e9238439ec7bd154655a96c34a6725389d8a84416bdb901cdac78d9b0425dacf",
+      "svgSha256": "472859863b1adece28b1f557171213158a5a1460a14e1e7cf7526bccf1c1b3b4",
+      "htmlSvgMatches": true,
+      "printMinPt": 24.89,
+      "textCount": 20,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-business-docs",
+      "width": 643,
+      "height": 612,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "1079048e9cac72b422e5c1ab9ba8cf2fc84a26e3f83228e178ece3d9fc609d87",
+      "svgSha256": "bde3a6340632d5331a7ffeb0f9b32c6f01dda894a16c097b39358e8034844e56",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.24,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-branch-docs",
+      "width": 559,
+      "height": 741,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "b0a61853b6bf9e90d5812a5792263d8cc71ff32a5595044c7d6288c1c865cc75",
+      "svgSha256": "1cbe6a8952faa9950cd6901c447565dcc3a6b446a77ca38647492a50ae6a1daf",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.26,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-governance",
+      "width": 632,
+      "height": 1016,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "1b82069373b97bd73663a0f5972f93bd38a7c5b2dcd49576eb67e88e79603e14",
+      "svgSha256": "b84d4aa7b6994634567ed988c75684c4f5545cc31d6ac4576d231622bf40353b",
+      "htmlSvgMatches": true,
+      "printMinPt": 11.86,
+      "textCount": 50,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-ownership",
+      "width": 843,
+      "height": 484,
+      "orientation": "landscape",
+      "semanticPresentation": null,
+      "sourceSha256": "8b51e08ed91fe3e9de799c383df9cdf1d568d8b8ebde2c45f85f72e273c27b2e",
+      "svgSha256": "46f321fc12c8373f9a04355c96bafb849a5c0feb3a9a2baa4831acf895a55a94",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.83,
+      "textCount": 39,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-personal",
+      "width": 608,
+      "height": 683,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "3a2a3eb640e53bbfa374c5163ebba8a89ef80c1a84ebacee9927f6004b9d8d45",
+      "svgSha256": "08b111780a2b2069aa16597186a0207e4439f38a6cf020c330c95d84dc7e42d8",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.06,
+      "textCount": 37,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-notifications",
+      "width": 547,
+      "height": 663,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "dfc266820e012cde0a1de40a59ffef25cac1337b07d9ec5edeb4187c0f44408d",
+      "svgSha256": "62bf69e4d53e869270100a4ecad915eb6131d5bc7ffb2b29f0d9f3e7c38283a9",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.74,
+      "textCount": 36,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-media",
+      "width": 446,
+      "height": 804,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "00975a49d081235caf8827ffa55805bbee19cdc2bdca02b56a1f5191e6cc38e0",
+      "svgSha256": "e4c7515ba6fc51dc6bf8b73eff032058d91bb99cf1c5002ee54ff561d96b546d",
+      "htmlSvgMatches": true,
+      "printMinPt": 14.98,
+      "textCount": 40,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-legacy-loyalty",
+      "width": 544,
+      "height": 723,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "ae3949d391e22b53fa5a6129e8b77ce1da305f0e06659b40cb5b12b8dbcae55c",
+      "svgSha256": "e42cdd56f9e18916d899d7f8b194265ff05e0ed05883d34f4abf1ec4e7870e89",
+      "htmlSvgMatches": true,
+      "printMinPt": 16.66,
+      "textCount": 39,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    },
+    {
+      "id": "ERD-legacy-invoice",
+      "width": 600,
+      "height": 722,
+      "orientation": "portrait",
+      "semanticPresentation": null,
+      "sourceSha256": "2f09bc2a533fb8d71d59a176b01ae47c551e31ea39418a5d01a2de0e21575ec5",
+      "svgSha256": "03901244fdc67310ccec86010b90973aaa54e116a03548b21078df06c65f0506",
+      "htmlSvgMatches": true,
+      "printMinPt": 15.26,
+      "textCount": 39,
+      "outside": [],
+      "fonts": [
+        "\"Times New Roman\""
+      ]
+    }
+  ]
+}

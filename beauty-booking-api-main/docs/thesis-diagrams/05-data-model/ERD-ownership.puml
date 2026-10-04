@@ -1,0 +1,76 @@
+@startuml ERD-ownership
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**OwnershipTransfer**\n(ownership_transfers)" as OwnershipTransfer {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * oldOwnerId: String <<FK>>
+  * newOwnerUserId: String <<FK>>
+  legalEntityVersionId: String? <<FK>>
+  payoutAccountVersionId: String? <<FK>>
+  * requestedBy: String <<FK>>
+  ... 13 cot: xem tu dien
+}
+entity "**OwnershipHistory**\n(ownership_history)" as OwnershipHistory {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * ownerId: String <<FK>>
+  transferId: String? <<FK>>
+  * validFrom: DateTime 
+  validTo: DateTime? 
+  * createdAt: DateTime 
+}
+entity "**LegalEntityVersion**\n(legal_entity_versions)" as LegalEntityVersion {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * createdBy: String <<FK>>
+  * version: Int 
+  * legalName: String 
+  taxCode: String? 
+  registrationNumber: String? 
+  ... 6 cot: xem tu dien
+}
+entity "**PayoutAccountVersion**\n(payout_account_versions)" as PayoutAccountVersion {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * createdBy: String <<FK>>
+  * version: Int 
+  * bankName: String 
+  * accountHolder: String 
+  * accountNumberCiphertext: String 
+  ... 9 cot: xem tu dien
+}
+LegalEntityVersion |o--o{ OwnershipTransfer
+PayoutAccountVersion |o--o{ OwnershipTransfer
+OwnershipTransfer |o--o{ OwnershipHistory
+
+@enduml

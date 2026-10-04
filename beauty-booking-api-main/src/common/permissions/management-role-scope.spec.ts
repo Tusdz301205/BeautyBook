@@ -7,7 +7,6 @@ import { VouchersAdminService } from '../../promotions/vouchers-admin.service';
 import { CombosService } from '../../combos/combos.service';
 import { ReviewsService } from '../../reviews/reviews.service';
 import { UsersService } from '../../users/users.service';
-import { LoyaltyController } from '../../loyalty/loyalty.controller';
 import { OwnershipController } from '../../ownership/ownership.controller';
 import { PaymentsService } from '../../payments/payments.service';
 import { BusinessOnboardingService } from '../../business/business-onboarding.service';
@@ -199,15 +198,6 @@ describe('management scopes after retiring Manager', () => {
     await expect(users.assignRole('target', { roleCode: 'STAFF', businessId: 'other', branchId: 'counter' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
     expect(db.userRole.create).not.toHaveBeenCalled();
     expect(tokens.revokeAllForUser).not.toHaveBeenCalled();
-  });
-
-  it('loyalty configuration and financial liability require ownership', async () => {
-    const loyalty = { configureRule: jest.fn().mockResolvedValue({ ok: true }) };
-    const controller = new LoyaltyController(loyalty as never, fixture() as never);
-    await expect(controller.configure({ businessId: 'other' }, mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.liability('other', mixed)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(loyalty.configureRule).not.toHaveBeenCalled();
-    await expect(controller.configure({ businessId: 'owned' }, mixed)).resolves.toEqual({ ok: true });
   });
 
   it('ownership and legal-account versions cannot be read or changed using counter membership', async () => {

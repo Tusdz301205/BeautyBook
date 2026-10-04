@@ -1,0 +1,73 @@
+@startuml ERD-redemption
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**PriceAdjustment**\n(price_adjustments)" as PriceAdjustment {
+  * id: String <<PK>>
+  bookingId: String? <<FK>>
+  * branchId: String <<FK>>
+  customerId: String? <<FK>>
+  * type: PriceAdjustmentType 
+  sourceId: String? 
+  sourceVersion: Int? 
+  ... 10 cot: xem tu dien
+}
+entity "**PromotionRedemption**\n(promotion_redemptions)" as PromotionRedemption {
+  * id: String <<PK>>
+  * promotionId: String <<FK>>
+  * bookingId: String <<FK>>
+  * customerId: String <<FK>>
+  * branchId: String <<FK>>
+  * amount: Decimal 
+  * status: RedemptionStatus 
+  ... 6 cot: xem tu dien
+}
+entity "**VoucherRedemption**\n(voucher_redemptions)" as VoucherRedemption {
+  * id: String <<PK>>
+  * voucherId: String <<FK>>
+  customerVoucherId: String? <<FK>>
+  * customerId: String <<FK>>
+  * bookingId: String <<FK>>
+  * branchId: String <<FK>>
+  * amount: Decimal 
+  ... 7 cot: xem tu dien
+}
+entity "**CustomerBusinessSegment**\n(customer_business_segments)" as CustomerBusinessSegment {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * customerId: String <<FK>>
+  assignedBy: String? <<FK>>
+  * segment: String 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+}
+
+@enduml

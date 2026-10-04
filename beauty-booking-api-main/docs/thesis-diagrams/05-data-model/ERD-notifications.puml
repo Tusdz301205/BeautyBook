@@ -1,0 +1,71 @@
+@startuml ERD-notifications
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Notification**\n(notifications)" as Notification {
+  * id: String <<PK>>
+  * userId: String <<FK>>
+  relatedBookingId: String? <<FK>>
+  * type: NotificationType 
+  * severity: NotificationSeverity 
+  * title: String 
+  body: String? 
+  ... 7 cot: xem tu dien
+}
+entity "**NotificationOutbox**\n(notification_outbox)" as NotificationOutbox {
+  * id: String <<PK>>
+  * userId: String <<FK>>
+  relatedBookingId: String? <<FK>>
+  notificationId: String? <<FK>> <<UQ>>
+  * type: NotificationType 
+  * severity: NotificationSeverity 
+  * title: String 
+  ... 13 cot: xem tu dien
+}
+entity "**DeviceToken**\n(device_tokens)" as DeviceToken {
+  * id: String <<PK>>
+  * userId: String <<FK>>
+  * token: String <<UQ>>
+  * platform: DevicePlatform 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+}
+entity "**PlatformSetting**\n(platform_settings)" as PlatformSetting {
+  * id: String <<PK>>
+  * key: String <<UQ>>
+  * value: Json 
+  updatedBy: String? 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+}
+Notification |o--o| NotificationOutbox
+
+@enduml

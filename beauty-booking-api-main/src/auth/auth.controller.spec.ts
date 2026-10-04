@@ -124,4 +124,22 @@ describe('AuthController refresh cookie', () => {
 
     expect(authService.refresh).toHaveBeenCalledWith('body-token');
   });
+
+  it.each(['login', 'register', 'refresh'] as const)('%s returns a rotating token to explicit native body clients', async (action) => {
+    const { controller, request, response } = setup();
+    const result = action === 'login'
+      ? await controller.login({ email: user.email, password: 'Password123', refreshTokenTransport: 'BODY' }, request, response)
+      : action === 'register'
+        ? await controller.register({ email: user.email, password: 'Password123', fullName: 'Test User', refreshTokenTransport: 'BODY' }, request, response)
+        : await controller.refresh({ refreshToken: 'body-token', refreshTokenTransport: 'BODY' }, request, response);
+
+    expect(result).toMatchObject({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    expect(response.cookie).toHaveBeenCalled();
+  });
+
+  it('does not return a cookie sourced refresh token to a body transport request', async () => {
+    const { controller, request, response } = setup('development', false, 'bb_refresh=cookie-token');
+    const result = await controller.refresh({ refreshTokenTransport: 'BODY' }, request, response);
+    expect(result).not.toHaveProperty('refreshToken');
+  });
 });

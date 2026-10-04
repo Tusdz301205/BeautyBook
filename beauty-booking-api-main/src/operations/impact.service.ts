@@ -7,6 +7,8 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { ALL_TENANTS } from '../common/utils/multi-tenancy';
 import type { Prisma } from '@prisma/client';
+import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
+import { toBookingInterval } from '../common/utils/booking-datetime';
 
 @Injectable()
 export class ImpactService {
@@ -234,17 +236,42 @@ export class ImpactService {
   }
 
   private async transferBranch(booking: any, branchId: string, staffId: string | undefined, actorId: string, reason: string) {
+    if (!staffId) throw new BadRequestException('Chọn chuyên viên tại chi nhánh đích');
     return withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${booking.id} FOR UPDATE`;
+      const current = await tx.booking.findUnique({ where: { id: booking.id }, include: { bookingServices: true } });
+      if (!current || current.branchId !== booking.branchId || !['PENDING', 'CONFIRMED'].includes(current.status) || current.deletedAt) {
+        throw new ConflictException('Lịch hẹn đã thay đổi hoặc không còn được chuyển chi nhánh');
+      }
+      if (current.bookingServices.length !== booking.bookingServices.length ||
+        current.bookingServices.some((row) => !booking.bookingServices.some((old: any) => old.id === row.id && old.revision === row.revision && old.status === row.status)) ||
+        current.bookingServices.some((row) => row.status !== 'SCHEDULED')) {
+        throw new ConflictException('Dịch vụ trong lịch hẹn đã thay đổi');
+      }
       const branch = await tx.branch.findFirst({ where: { id: branchId, status: 'ACTIVE', operationalStatus: 'ACTIVE', deletedAt: null } });
       if (!branch) throw new BadRequestException('Chi nhánh đích không nhận lịch');
       const source = await tx.branch.findUniqueOrThrow({ where: { id: booking.branchId } });
       if (branch.businessId !== source.businessId) throw new BadRequestException('Chỉ được chuyển lịch trong cùng doanh nghiệp');
-      for (const item of booking.bookingServices) {
+      const interval = toBookingInterval(current.appointmentDate, current.appointmentStartTime, current.appointmentEndTime);
+      for (const item of current.bookingServices) {
         const replacement = await tx.branchServiceOffering.findFirst({ where: { branchId, businessServiceId: item.businessServiceId, status: 'ACTIVE', bookable: true, deletedAt: null } });
         if (!replacement) throw new ConflictException(`Chi nhánh đích không có dịch vụ ${item.serviceNameSnapshot}`);
-        await tx.bookingService.update({ where: { id: item.id }, data: { serviceId: replacement.id, staffId: staffId ?? null, revision: { increment: 1 } } });
+        if (replacement.durationMinutes !== item.durationMinutes) throw new ConflictException('Thời lượng dịch vụ ở chi nhánh đích đã khác; cần đặt lại lịch phù hợp');
+        const start = item.itemStartAt ?? interval.start;
+        const end = item.itemEndAt ?? new Date(start.getTime() + item.durationMinutes * 60_000);
+        await validateStaffForService(tx as unknown as PrismaService, staffId, replacement.id, start, end, branchId);
+        await assertNoOverlap(tx as unknown as PrismaService, staffId, current.id, start, end);
+        const changed = await tx.bookingService.updateMany({
+          where: { id: item.id, bookingId: current.id, status: 'SCHEDULED', revision: item.revision },
+          data: { serviceId: replacement.id, staffId, revision: { increment: 1 } },
+        });
+        if (changed.count !== 1) throw new ConflictException('Dịch vụ trong lịch hẹn vừa thay đổi');
       }
-      await tx.booking.update({ where: { id: booking.id }, data: { branchId } });
+      const moved = await tx.booking.updateMany({
+        where: { id: current.id, branchId: current.branchId, status: current.status, updatedAt: current.updatedAt },
+        data: { branchId },
+      });
+      if (moved.count !== 1) throw new ConflictException('Lịch hẹn vừa thay đổi');
       await tx.auditLog.create({ data: { userId: actorId, action: 'UPDATE', entityType: 'Booking', entityId: booking.id, oldData: { branchId: booking.branchId }, newData: { branchId }, reason } });
     }, { conflictMessage: 'Booking vừa được chuyển bởi thao tác khác' });
   }

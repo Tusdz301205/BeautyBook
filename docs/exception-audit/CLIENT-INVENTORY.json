@@ -1,0 +1,2162 @@
+[
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 145,
+    "text": "request('/auth/login', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 151,
+    "text": "request('/auth/register', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 157,
+    "text": "verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 158,
+    "text": "forgotPassword: (email) => request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 159,
+    "text": "resetPassword: (token, newPassword) => request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 160,
+    "text": "changePassword: (currentPassword, newPassword) => request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 161,
+    "text": "logout: () => request('/auth/logout', { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 162,
+    "text": "getSessions: () => request('/auth/sessions'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 163,
+    "text": "revokeSession: (sessionId) => request(`/auth/sessions/${sessionId}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 164,
+    "text": "revokeOtherSessions: () => request('/auth/sessions', { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 165,
+    "text": "getSecurityHistory: () => request('/auth/security-history'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 181,
+    "text": "selfBookingPolicy: (branchId) => request(`/bookings/self-booking-policy?branchId=${encodeURIComponent(branchId)}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 189,
+    "text": "return request(`/bookings?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 192,
+    "text": "getById: (id) => request(`/bookings/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 194,
+    "text": "getForceCancelPreview: (id) => request(`/bookings/${id}/force-cancel-preview`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 196,
+    "text": "forceCancel: (id, reason) => request(`/bookings/${id}/status`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 201,
+    "text": "getStats: () => request('/bookings/stats'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 204,
+    "text": "request(`/bookings/by-category?name=${encodeURIComponent(name)}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 206,
+    "text": "getByBranch: (branchId) => request(`/bookings/by-branch/${branchId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 208,
+    "text": "getByCustomer: (userId) => request(`/bookings/by-customer/${userId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 213,
+    "text": "return request(`/bookings/${id}/status`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 220,
+    "text": "request('/bookings', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 227,
+    "text": "request('/bookings/guest', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 241,
+    "text": "return request(`/bookings/available-slots?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 250,
+    "text": "request(`/bookings/${id}/move`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 256,
+    "text": "request(`/bookings/${id}/resize`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 261,
+    "text": "checkin: (id) => request(`/bookings/${id}/checkin`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 264,
+    "text": "request(`/bookings/${id}/assign`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 268,
+    "text": "addItem: (id, data) => request(`/bookings/${id}/items`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 269,
+    "text": "updateItem: (id, itemId, data) => request(`/bookings/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 273,
+    "text": "request(`/bookings/my-appointments?tab=${tab}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 275,
+    "text": "salonQueue: () => request('/bookings/salon-queue'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 277,
+    "text": "salonViolations: () => request('/bookings/salon-violations'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 280,
+    "text": "request('/bookings/preview-price', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 286,
+    "text": "request(`/bookings/${bookingId}/change-requests`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 292,
+    "text": "request(`/bookings/change-requests/${reqId}/approve`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 298,
+    "text": "request(`/bookings/change-requests/${reqId}/reject`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 303,
+    "text": "pendingChangeRequests: () => request('/bookings/change-requests/pending'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 308,
+    "text": "getOverview: () => request('/reports/overview'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 309,
+    "text": "getDashboardOverview: () => request('/reports/overview'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 311,
+    "text": "request(`/reports/revenue${year ? `?year=${year}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 312,
+    "text": "getCategories: () => request('/reports/categories'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 313,
+    "text": "getServices: () => request('/reports/services'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 314,
+    "text": "getTopSalons: (limit = 5) => request(`/reports/top-salons?limit=${limit}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 316,
+    "text": "request(`/reports/user-growth${year ? `?year=${year}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 324,
+    "text": "return request(`/reports/owner-dashboard?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 329,
+    "text": "return request(`/reports/financial-summary?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 342,
+    "text": "return request(`/users?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 345,
+    "text": "getById: (id) => request(`/users/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 346,
+    "text": "getMe: () => request('/users/me/profile'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 347,
+    "text": "updateMe: (data) => request('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 348,
+    "text": "suspend: (id, reason) => request(`/users/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 349,
+    "text": "assignRole: (id, data) => request(`/users/${id}/roles`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 354,
+    "text": "return request(`/users/${id}/roles/${roleCode}?${query.toString()}`, { method: 'DELETE' });"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 367,
+    "text": "return request(`/branches?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 375,
+    "text": "return request(`/branches/manage?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 378,
+    "text": "getAccessible: () => request('/branches/accessible'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 379,
+    "text": "getAccessibleById: (id) => request(`/branches/accessible/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 380,
+    "text": "getPreview: (id) => request(`/branches/${id}/preview`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 381,
+    "text": "getDistricts: () => request('/branches/locations/districts'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 382,
+    "text": "createDraft: (data) => request('/branches', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 386,
+    "text": "saveOnboarding: (id, data) => request(`/branches/${id}/onboarding`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 390,
+    "text": "copyServices: (id, sourceBranchId, serviceIds) => request(`/branches/${id}/copy-services`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 394,
+    "text": "attachDocument: (id, data) => request(`/branches/${id}/documents`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 398,
+    "text": "archiveDocument: (id, documentId) => request(`/branches/${id}/documents/${documentId}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 401,
+    "text": "submit: (id) => request(`/branches/${id}/submit`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 402,
+    "text": "publish: (id) => request(`/branches/${id}/publish`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 404,
+    "text": "update: (id, data) => request(`/branches/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 409,
+    "text": "getById: (id) => request(`/branches/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 410,
+    "text": "getDetail: (id) => request(`/branches/accessible/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 413,
+    "text": "request(`/branches/${id}/status`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 426,
+    "text": "return request(`/services/search${query.size ? `?${query.toString()}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 433,
+    "text": "return request(`/services${query.size ? `?${query.toString()}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 437,
+    "text": "request(`/services/manage${branchId ? `?branchId=${branchId}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 440,
+    "text": "request(`/services/workspace/manage${branchId && branchId !== 'ALL' ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 442,
+    "text": "getCategories: () => request('/services/categories'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 443,
+    "text": "getManageCategories: () => request('/services/categories/manage'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 444,
+    "text": "createCategory: (data) => request('/services/categories', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 447,
+    "text": "getCanonical: () => request('/services/canonical'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 448,
+    "text": "getCanonicalManage: () => request('/services/canonical/manage'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 449,
+    "text": "createCanonical: (data) => request('/services/canonical', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 452,
+    "text": "updateCanonical: (id, data) => request(`/services/canonical/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 456,
+    "text": "getById: (id) => request(`/services/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 457,
+    "text": "getVariants: (id) => request(`/services/${id}/variants`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 458,
+    "text": "createVariant: (id, data) => request(`/services/${id}/variants`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 459,
+    "text": "updateVariant: (id, data) => request(`/services/variants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 460,
+    "text": "addDependency: (id, data) => request(`/services/${id}/dependencies`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 461,
+    "text": "createPriceRule: (id, data) => request(`/services/${id}/price-rules`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 464,
+    "text": "request('/services', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 469,
+    "text": "createCatalog: (data) => request('/services/catalog', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 473,
+    "text": "updateCatalog: (id, data) => request(`/services/catalog/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 477,
+    "text": "archiveCatalog: (id) => request(`/services/catalog/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 480,
+    "text": "request(`/services/catalog/${id}/branches/${branchId}/${action}`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 482,
+    "text": "updateOfferingStatus: (id, data) => request(`/services/offerings/${id}/status`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 486,
+    "text": "updateOfferingPricing: (id, data) => request(`/services/offerings/${id}/pricing`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 491,
+    "text": "request(`/services/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 497,
+    "text": "request(`/services/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 505,
+    "text": "return request(`/staff/public?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 507,
+    "text": "getPublicById: (id) => request(`/staff/public/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 510,
+    "text": "request(`/staff${branchId ? `?branchId=${branchId}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 512,
+    "text": "getById: (id) => request(`/staff/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 513,
+    "text": "getMine: () => request('/staff/me'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 516,
+    "text": "request('/staff', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 522,
+    "text": "request(`/staff/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 527,
+    "text": "getOffboardingImpact: (id) => request(`/staff/${id}/offboarding-impact`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 529,
+    "text": "request(`/staff/${id}`, { method: 'DELETE', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 531,
+    "text": "getServices: (id) => request(`/staff/${id}/services`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 534,
+    "text": "request(`/staff/${id}/services`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 543,
+    "text": "return request(`/staff/${id}/commission?${params.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 545,
+    "text": "invite: (data) => request('/staff/invitations', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 549,
+    "text": "return request(`/staff/invitations?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 551,
+    "text": "getInvitationContext: (token) => request(`/staff/invitations/context?token=${encodeURIComponent(token)}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 552,
+    "text": "acceptExistingInvitation: (token) => request('/staff/invitations/accept-existing', { method: 'POST', body: JSON.stringify({ token }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 553,
+    "text": "resendInvitation: (id) => request(`/staff/invitations/${id}/resend`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 554,
+    "text": "changeInvitationEmail: (id, email) => request(`/staff/invitations/${id}/email`, { method: 'PATCH', body: JSON.stringify({ email }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 555,
+    "text": "revokeInvitation: (id) => request(`/staff/invitations/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 556,
+    "text": "acceptInvitation: (data) => request('/staff/invitations/accept', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 557,
+    "text": "upsertHoliday: (branchId, data) => request(`/staff/branches/${branchId}/holidays`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 558,
+    "text": "createSpecialDay: (branchId, data) => request(`/staff/branches/${branchId}/special-days`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 559,
+    "text": "assignBranch: (id, data) => request(`/staff/${id}/branch-assignments`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 574,
+    "text": "return request(`/promotions?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 578,
+    "text": "request(`/promotions/service/${serviceId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 581,
+    "text": "request('/promotions', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 587,
+    "text": "request(`/promotions/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 593,
+    "text": "request(`/promotions/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 598,
+    "text": "getPublic: (branchId) => request(`/combos/public${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 602,
+    "text": "return request(`/combos${query.size ? `?${query.toString()}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 604,
+    "text": "getById: (id) => request(`/combos/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 605,
+    "text": "create: (data) => request('/combos', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 606,
+    "text": "update: (id, data) => request(`/combos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 607,
+    "text": "remove: (id) => request(`/combos/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 612,
+    "text": "preview: (data) => request('/recurring/preview', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 613,
+    "text": "create: (data) => request('/recurring', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 614,
+    "text": "mine: () => request('/recurring/mine'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 615,
+    "text": "changeStatus: (id, status) => request(`/recurring/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 616,
+    "text": "cancelOccurrence: (id, bookingId) => request(`/recurring/${id}/occurrences/${bookingId}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 617,
+    "text": "cancel: (id) => request(`/recurring/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 626,
+    "text": "return request('/media/upload', { method: 'POST', body });"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 628,
+    "text": "remove: (id) => request(`/media/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 629,
+    "text": "download: (id) => request(`/media/${id}/content`, { responseType: 'blob' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 634,
+    "text": "getMine: () => request('/vouchers/mine'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 637,
+    "text": "request(`/vouchers${status ? `?status=${status}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 640,
+    "text": "request('/vouchers', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 646,
+    "text": "request(`/vouchers/${id}`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 652,
+    "text": "request(`/vouchers/${id}/grant`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 658,
+    "text": "request(`/vouchers/${id}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 672,
+    "text": "return request(`/notifications?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 675,
+    "text": "getUnreadCount: () => request('/notifications/unread-count'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 678,
+    "text": "request(`/notifications/${id}/read`, { method: 'PATCH' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 681,
+    "text": "request('/notifications/read-all', { method: 'PATCH' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 684,
+    "text": "request('/notifications/device-token', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 693,
+    "text": "request(`/reviews/business/${businessId}?page=${page}&limit=${limit}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 702,
+    "text": "return request(`/reviews/manage?${query.toString()}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 705,
+    "text": "getByStaff: (staffId) => request(`/reviews/staff/${staffId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 706,
+    "text": "getPublicByStaff: (staffId) => request(`/reviews/public/staff/${staffId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 707,
+    "text": "getByService: (serviceId) => request(`/reviews/service/${serviceId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 710,
+    "text": "request('/reviews', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 716,
+    "text": "request(`/reviews/${reviewId}/reply`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 722,
+    "text": "request(`/reviews/${reviewId}/moderate`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 726,
+    "text": "report: (reviewId, data) => request(`/reviews/${reviewId}/report`, { method: 'POST', body: JSON.stringify(typeof data === 'string' ? { reason: data } : data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 727,
+    "text": "appeal: (reviewId, reason) => request(`/reviews/${reviewId}/appeals`, { method: 'POST', body: JSON.stringify({ reason }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 728,
+    "text": "resolveAppeal: (appealId, data) => request(`/reviews/appeals/${appealId}`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 733,
+    "text": "getSettings: () => request('/admin/settings'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 734,
+    "text": "updateSettings: (settings) => request('/admin/settings', { method: 'PATCH', body: JSON.stringify({ settings }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 735,
+    "text": "resetSettings: () => request('/admin/settings/reset', { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 736,
+    "text": "getTrustSnapshots: () => request('/admin/trust-snapshots'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 737,
+    "text": "rebuildTrustSnapshots: () => request('/admin/trust-snapshots/rebuild', { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 738,
+    "text": "getTrustActions: () => request('/admin/trust-actions'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 739,
+    "text": "createTrustAction: (data) => request('/admin/trust-actions', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 740,
+    "text": "getAuditLogs: () => request('/admin/audit-logs'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 744,
+    "text": "return request(`/admin/business-directory${query.size ? `?${query.toString()}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 749,
+    "text": "return request(`/admin/branch-directory${query.size ? `?${query.toString()}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 751,
+    "text": "getComplianceQueue: () => request('/admin/compliance-queue'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 752,
+    "text": "getFinanceOverview: () => request('/admin/finance-overview'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 753,
+    "text": "getMarketingOverview: () => request('/admin/marketing-overview'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 757,
+    "text": "getPublic: () => request('/platform-settings/public'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 762,
+    "text": "getDetail: (businessId) => request(`/business/${businessId}/detail`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 763,
+    "text": "getMembers: (businessId) => request(`/business/${businessId}/members`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 764,
+    "text": "getCancellationPolicy: (businessId) => request(`/business/${businessId}/cancellation-policy`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 765,
+    "text": "updateCancellationPolicy: (businessId, policy) => request(`/business/${businessId}/cancellation-policy`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 769,
+    "text": "createDraft: (data) => request('/business/onboarding/draft', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 770,
+    "text": "getMyOnboarding: () => request('/business/onboarding/mine'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 771,
+    "text": "updateDraft: (businessId, data) => request(`/business/${businessId}/onboarding`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 772,
+    "text": "submit: (businessId) => request(`/business/${businessId}/submit`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 773,
+    "text": "review: (businessId, decision, note) => request(`/business/${businessId}/review`, { method: 'PATCH', body: JSON.stringify({ decision, note }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 778,
+    "text": "getAll: () => request('/payments'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 779,
+    "text": "collect: (bookingId, method, options = {}) => request('/payments/collect', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 783,
+    "text": "getProviders: () => request('/payments/providers'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 784,
+    "text": "getCheckout: (bookingId) => request(`/payments/checkout/${bookingId}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 786,
+    "text": "request(`/payments/transactions/${transactionId}/verify`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 791,
+    "text": "request(`/payments/transactions/${transactionId}/reverse`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 795,
+    "text": "getPolicies: (businessId) => request(`/payments/policies?businessId=${encodeURIComponent(businessId)}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 796,
+    "text": "createPolicy: (data) => request('/payments/policies', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 802,
+    "text": "return request(`/payments/ledger${query.size ? `?${query}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 804,
+    "text": "getStatements: (businessId) => request(`/payments/platform-statements${businessId ? `?businessId=${encodeURIComponent(businessId)}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 805,
+    "text": "generateStatement: (data) => request('/payments/platform-statements/generate', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 806,
+    "text": "transitionStatement: (id, data) => request(`/payments/platform-statements/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 812,
+    "text": "return request(`/payments/packages${query.size ? `?${query}` : ''}`);"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 814,
+    "text": "createPackage: (data) => request('/payments/packages', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 815,
+    "text": "purchasePackage: (packageId, data) => request(`/payments/packages/${packageId}/purchases`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 816,
+    "text": "getPackagePurchases: (businessId) => request(`/payments/package-purchases${businessId ? `?businessId=${encodeURIComponent(businessId)}` : ''}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 817,
+    "text": "payPackageInstallment: (installmentId, data) => request(`/payments/package-installments/${installmentId}/pay`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 818,
+    "text": "reservePackageSession: (purchaseId, data) => request(`/payments/package-purchases/${purchaseId}/sessions/reserve`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 820,
+    "text": "request(`/payments/${paymentId}/refund-requests`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 825,
+    "text": "request(`/payments/refunds/${refundId}/review`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 830,
+    "text": "request(`/payments/refunds/${refundId}/process`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 838,
+    "text": "getCenter: () => request('/privacy/center'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 839,
+    "text": "createDataRequest: (data) => request('/privacy/data-requests', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 843,
+    "text": "getDataRequests: () => request('/privacy/data-requests'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 844,
+    "text": "getMarketingPreferences: () => request('/privacy/marketing-preferences'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 845,
+    "text": "updateMarketingPreferences: (data) => request('/privacy/marketing-preferences', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 849,
+    "text": "createExport: (currentPassword) => request('/privacy/exports', {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 853,
+    "text": "downloadExport: (id, downloadToken) => request(`/privacy/exports/${id}/download`, {"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 861,
+    "text": "list: () => request('/customer/saved-services'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 862,
+    "text": "save: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 863,
+    "text": "remove: (serviceId) => request(`/customer/saved-services/${serviceId}`, { method: 'DELETE' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 867,
+    "text": "list: () => request('/operational-impacts'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 868,
+    "text": "detail: (id) => request(`/operational-impacts/${id}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 869,
+    "text": "resolve: (id, itemId, data) => request(`/operational-impacts/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 870,
+    "text": "resolveBatch: (id, data) => request(`/operational-impacts/${id}/items`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 871,
+    "text": "complete: (id) => request(`/operational-impacts/${id}/complete`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 875,
+    "text": "list: (businessId) => request(`/ownership-transfers?businessId=${encodeURIComponent(businessId)}`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 876,
+    "text": "platformQueue: () => request('/ownership-transfers/platform/pending'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 877,
+    "text": "incoming: () => request('/ownership-transfers/pending-for-me'),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 878,
+    "text": "create: (data) => request('/ownership-transfers', { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 879,
+    "text": "accept: (id) => request(`/ownership-transfers/${id}/accept`, { method: 'PATCH' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 880,
+    "text": "submitMoreInfo: (id, data) => request(`/ownership-transfers/${id}/submit-more-info`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 881,
+    "text": "cancel: (id, reason) => request(`/ownership-transfers/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 882,
+    "text": "review: (id, data) => request(`/ownership-transfers/${id}/review`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 883,
+    "text": "execute: (id) => request(`/ownership-transfers/${id}/execute`, { method: 'POST' }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 884,
+    "text": "versions: (businessId) => request(`/ownership-transfers/business/${businessId}/versions`),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 885,
+    "text": "legalVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/legal-entity`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 886,
+    "text": "payoutVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/payout-account`, { method: 'POST', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 887,
+    "text": "verifyLegalVersion: (id, data) => request(`/ownership-transfers/platform/legal-entity/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/api/apiClient.js",
+    "line": 888,
+    "text": "verifyPayoutVersion: (id, data) => request(`/ownership-transfers/platform/payout-account/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 5,
+    "text": "import { businessApi } from './api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 276,
+    "text": "<Route path=\"/login\" element={<LoginScreen />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 277,
+    "text": "<Route path=\"/register\" element={<RegisterScreen accountType=\"CUSTOMER\" />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 278,
+    "text": "<Route path=\"/register/business\" element={<RegisterScreen accountType=\"BUSINESS_OWNER\" />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 279,
+    "text": "<Route path=\"/for-business\" element={<BusinessLanding />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 280,
+    "text": "<Route path=\"/business\" element={<Navigate to=\"/for-business\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 281,
+    "text": "<Route path=\"/forgot-password\" element={<ForgotPassword />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 282,
+    "text": "<Route path=\"/reset-password\" element={<ResetPassword />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 283,
+    "text": "<Route path=\"/verify-email\" element={<VerifyEmail />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 284,
+    "text": "<Route path=\"/accept-invitation\" element={<AcceptInvitation />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 285,
+    "text": "<Route path=\"/explore\" element={<PublicHome exploreMode />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 286,
+    "text": "<Route path=\"/explore/branches/:id\" element={<PublicBranchDetail />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 287,
+    "text": "<Route path=\"/salon/branches/:id/preview\" element={<ProtectedRoute roles={['salon']}><PermissionGate fallback=\"/salon/profile\" anyOf={['branch:read:tenant']}><PublicBranchDetail preview /></PermissionGate></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 288,
+    "text": "<Route path=\"/explore/services/:id\" element={<PublicServiceDetail />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 289,
+    "text": "<Route path=\"/explore/staff/:id\" element={<PublicStaffDetail />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 292,
+    "text": "<Route"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 298,
+    "text": "<Route index element={<Navigate to=\"/customer/appointments\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 299,
+    "text": "<Route path=\"appointments\" element={<CustomerAppointments />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 300,
+    "text": "<Route path=\"appointments/:id\" element={<CustomerAppointmentDetail />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 301,
+    "text": "<Route path=\"notifications\" element={<CustomerNotifications />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 302,
+    "text": "<Route path=\"vouchers\" element={<CustomerVouchers />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 303,
+    "text": "<Route path=\"reviews\" element={<CustomerReviews />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 304,
+    "text": "<Route path=\"benefits\" element={<CustomerBenefits />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 305,
+    "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 306,
+    "text": "<Route path=\"profile\" element={<ProfileSettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 307,
+    "text": "<Route path=\"privacy\" element={<PrivacySettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 308,
+    "text": "<Route path=\"*\" element={<Navigate to=\"/customer/appointments\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 316,
+    "text": "<Route path=\"/book\" element={<ProtectedRoute roles={['customer']}><BookingStep1 /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 317,
+    "text": "<Route path=\"/book/staff\" element={<ProtectedRoute roles={['customer']}><BookingStep2 /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 318,
+    "text": "<Route path=\"/book/time\" element={<ProtectedRoute roles={['customer']}><BookingStep3 /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 319,
+    "text": "<Route path=\"/book/info\" element={<ProtectedRoute roles={['customer']}><BookingStep4 /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 320,
+    "text": "<Route path=\"/book/confirm\" element={<ProtectedRoute roles={['customer']}><BookingConfirm /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 321,
+    "text": "<Route path=\"/book/success\" element={<ProtectedRoute roles={['customer']}><BookingSuccess /></ProtectedRoute>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 324,
+    "text": "<Route"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 330,
+    "text": "<Route path=\"notifications\" element={<PermissionGate fallback=\"/salon\" anyOf={['notification:read:self']}><SalonNotifications /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 331,
+    "text": "<Route path=\"onboarding\" element={<PermissionGate fallback=\"/salon\" anyOf={['business:create:self', 'business:update:tenant']}><BusinessOnboardingRoute /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 332,
+    "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 333,
+    "text": "<Route path=\"account\" element={<ProfileSettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 334,
+    "text": "<Route element={<ApprovedBusinessGate />}>"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 335,
+    "text": "<Route index element={<SalonLanding />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 336,
+    "text": "<Route path=\"services\" element={<PermissionGate fallback=\"/salon\" anyOf={['business_service:update:tenant', 'branch_service_offering:status:tenant']}><SalonServices /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 337,
+    "text": "<Route path=\"combos\" element={<PermissionGate fallback=\"/salon\" anyOf={['combo:manage:tenant']}><SalonCombos /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 338,
+    "text": "<Route path=\"appointments\" element={<PermissionGate fallback=\"/salon\" anyOf={['booking:read:tenant', 'booking:read:branch']}><SalonAppointments /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 339,
+    "text": "<Route path=\"staff\" element={<PermissionGate fallback=\"/salon\" anyOf={['user:read:tenant', 'user:read:branch']}><SalonStaffManagement /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 341,
+    "text": "<Route path=\"staff/schedule\" element={<Navigate to=\"/salon/appointments\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 342,
+    "text": "<Route path=\"staff/:staffId\" element={<PermissionGate fallback=\"/salon\" anyOf={['user:read:tenant', 'user:read:branch', 'user:read:self']}><StaffDetail /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 343,
+    "text": "<Route path=\"branches/new\" element={<PermissionGate fallback=\"/salon/profile\" anyOf={['branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 344,
+    "text": "<Route path=\"branches/:branchId/setup\" element={<PermissionGate fallback=\"/salon/profile\" anyOf={['branch:update:tenant', 'branch:create:tenant']}><BranchOnboardingWizard /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 345,
+    "text": "<Route path=\"promotions\" element={<PermissionGate fallback=\"/salon\" anyOf={['promotion:manage:tenant']}><SalonPromotions /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 346,
+    "text": "<Route path=\"reviews\" element={<PermissionGate fallback=\"/salon\" anyOf={['review:moderate:tenant']}><SalonReviews /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 347,
+    "text": "<Route path=\"stats\" element={<PermissionGate fallback=\"/salon\" anyOf={['report:revenue:tenant', 'report:revenue:branch']}><SalonStats /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 348,
+    "text": "<Route path=\"profile\" element={<PermissionGate fallback=\"/salon\" anyOf={['branch:update:tenant']}><SalonProfile /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 349,
+    "text": "<Route path=\"payments\" element={<PermissionGate fallback=\"/salon\" anyOf={['payment:read:branch', 'payment:read:tenant']}><PaymentsWorkspace /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 350,
+    "text": "<Route path=\"operations\" element={<PermissionGate fallback=\"/salon\" anyOf={['booking:read:tenant', 'booking:read:branch', 'payment:read:tenant', 'payment:read:branch']}><SalonOperations /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 351,
+    "text": "<Route path=\"audit\" element={<PermissionGate fallback=\"/salon\" anyOf={['audit:read:tenant']}><SalonAudit /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 353,
+    "text": "<Route path=\"*\" element={<Navigate to=\"/salon\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 361,
+    "text": "<Route"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 367,
+    "text": "<Route index element={<AdminLanding />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 368,
+    "text": "<Route path=\"salons\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminSalons /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 369,
+    "text": "<Route path=\"branches/:branchId\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminBranchDetail /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 370,
+    "text": "<Route path=\"businesses/:businessId\" element={<PermissionGate fallback=\"/admin\" anyOf={['branch:read:platform']}><AdminBusinessDetail /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 371,
+    "text": "<Route path=\"users\" element={<PermissionGate fallback=\"/admin\" anyOf={['user:read:platform']}><AdminUsers /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 372,
+    "text": "<Route path=\"users/:userId\" element={<PermissionGate fallback=\"/admin\" anyOf={['user:read:platform']}><AdminUserDetail /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 373,
+    "text": "<Route path=\"appointments\" element={<PermissionGate fallback=\"/admin\" anyOf={['booking:read:platform']}><AdminAppointmentsView /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 374,
+    "text": "<Route path=\"payments\" element={<PermissionGate fallback=\"/admin\" anyOf={['payment:read:platform']}><PaymentsWorkspace /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 375,
+    "text": "<Route path=\"reports\" element={<PermissionGate fallback=\"/admin\" anyOf={['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']}><AdminReports /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 376,
+    "text": "<Route path=\"reviews\" element={<PermissionGate fallback=\"/admin\" anyOf={['review:moderate:platform']}><AdminReviewsModeration /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 377,
+    "text": "<Route path=\"ownership\" element={<PermissionGate fallback=\"/admin\" anyOf={['business:review:platform']}><AdminOwnership /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 378,
+    "text": "<Route path=\"violations\" element={<Navigate to=\"/admin/salons\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 379,
+    "text": "<Route path=\"audit\" element={<PermissionGate fallback=\"/admin\" anyOf={['audit:read:platform']}><AdminAudit /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 380,
+    "text": "<Route path=\"notifications\" element={<PermissionGate fallback=\"/admin\" anyOf={['notification:read:self']}><AdminNotifications /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 381,
+    "text": "<Route path=\"settings\" element={<PermissionGate fallback=\"/admin\" anyOf={['platform_setting:manage:platform']}><AdminSettings /></PermissionGate>} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 382,
+    "text": "<Route path=\"compliance\" element={<Navigate to=\"/admin/salons?view=review\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 383,
+    "text": "<Route path=\"security\" element={<SecuritySettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 384,
+    "text": "<Route path=\"profile\" element={<ProfileSettings />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 385,
+    "text": "<Route path=\"*\" element={<Navigate to=\"/admin\" replace />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 393,
+    "text": "<Route"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/App.jsx",
+    "line": 410,
+    "text": "<Route path=\"*\" element={<PublicNotFound />} />"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/admin/scheduler/BookingDetailDrawer.jsx",
+    "line": 5,
+    "text": "import { bookingsApi, servicesApi, staffApi } from '../../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/admin/scheduler/SchedulerListView.jsx",
+    "line": 4,
+    "text": "import { bookingsApi, servicesApi } from '../../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/admin/scheduler/SchedulerStats.jsx",
+    "line": 3,
+    "text": "import { bookingsApi } from '../../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/admin/scheduler/SchedulerView.jsx",
+    "line": 7,
+    "text": "import { bookingsApi, refreshSession } from '../../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/appointments/AppointmentQueues.jsx",
+    "line": 5,
+    "text": "import { bookingsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/customer/RescheduleModal.jsx",
+    "line": 4,
+    "text": "import { bookingsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/customer/ReviewModal.jsx",
+    "line": 4,
+    "text": "import { reviewsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/layout/AppShell.jsx",
+    "line": 5,
+    "text": "import { businessApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/layout/CustomerShell.jsx",
+    "line": 20,
+    "text": "import { notificationsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/media/FileUpload.jsx",
+    "line": 4,
+    "text": "import { mediaApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/notifications/NotificationCenter.jsx",
+    "line": 19,
+    "text": "import { notificationsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/components/salon/ChangeRequestCard.jsx",
+    "line": 5,
+    "text": "import { bookingsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminAppointmentsView.jsx",
+    "line": 3,
+    "text": "import { branchesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminAudit.jsx",
+    "line": 3,
+    "text": "import { adminApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminCompliance.jsx",
+    "line": 5,
+    "text": "import { adminApi, branchesApi, businessApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminEntityDetails.jsx",
+    "line": 4,
+    "text": "import { branchesApi, businessApi, usersApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminOverview.jsx",
+    "line": 4,
+    "text": "import { branchesApi, reportsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminOwnership.jsx",
+    "line": 4,
+    "text": "import { ownershipApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReports.jsx",
+    "line": 3,
+    "text": "import { bookingsApi, reportsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReviewsModeration.jsx",
+    "line": 4,
+    "text": "import { reviewsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSalons.jsx",
+    "line": 4,
+    "text": "import { adminApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminServiceTaxonomy.jsx",
+    "line": 4,
+    "text": "import { servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSettings.jsx",
+    "line": 4,
+    "text": "import { adminApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminUsers.jsx",
+    "line": 6,
+    "text": "import { usersApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminViolations.jsx",
+    "line": 4,
+    "text": "import { adminApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx",
+    "line": 6,
+    "text": "import { bookingsApi, recurringApi, servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep1.jsx",
+    "line": 4,
+    "text": "import { branchesApi, combosApi, servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep2.jsx",
+    "line": 4,
+    "text": "import { staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep3.jsx",
+    "line": 6,
+    "text": "import { bookingsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx",
+    "line": 18,
+    "text": "import { bookingsApi, platformPolicyApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointments.jsx",
+    "line": 6,
+    "text": "import { bookingsApi, branchesApi, platformPolicyApi, recurringApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx",
+    "line": 5,
+    "text": "import { ownershipApi, savedServicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerReviews.jsx",
+    "line": 4,
+    "text": "import { bookingsApi, platformPolicyApi, reviewsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerVouchers.jsx",
+    "line": 5,
+    "text": "import { vouchersApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/PrivacySettings.jsx",
+    "line": 12,
+    "text": "import { privacyApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Login/AuthActionPages.jsx",
+    "line": 4,
+    "text": "import { authApi, staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/ProfileSettings.jsx",
+    "line": 5,
+    "text": "import { usersApi } from '../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicDetails.jsx",
+    "line": 5,
+    "text": "import { branchesApi, reviewsApi, savedServicesApi, servicesApi, staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicHome.jsx",
+    "line": 19,
+    "text": "import { branchesApi, savedServicesApi, servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BranchOnboardingWizard.jsx",
+    "line": 34,
+    "text": "} from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BusinessOnboarding.jsx",
+    "line": 13,
+    "text": "import { businessApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx",
+    "line": 5,
+    "text": "import { paymentsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx",
+    "line": 4,
+    "text": "import { paymentsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx",
+    "line": 5,
+    "text": "import { bookingsApi, branchesApi, servicesApi, staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonCombos.jsx",
+    "line": 18,
+    "text": "import { branchesApi, combosApi, servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx",
+    "line": 5,
+    "text": "import { branchesApi, impactApi, ownershipApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOverview.jsx",
+    "line": 33,
+    "text": "import { bookingsApi, branchesApi, paymentsApi, reportsApi, reviewsApi, servicesApi, staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonProfile.jsx",
+    "line": 13,
+    "text": "import { branchesApi, businessApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonPromotions.jsx",
+    "line": 4,
+    "text": "import { branchesApi, combosApi, promotionsApi, servicesApi, vouchersApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonReviews.jsx",
+    "line": 4,
+    "text": "import { reviewsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonServices.jsx",
+    "line": 4,
+    "text": "import { branchesApi, servicesApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStaffManagement.jsx",
+    "line": 5,
+    "text": "import { branchesApi, servicesApi, staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStats.jsx",
+    "line": 4,
+    "text": "import { reportsApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/StaffDetail.jsx",
+    "line": 5,
+    "text": "import { staffApi } from '../../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/pages/SecuritySettings.jsx",
+    "line": 5,
+    "text": "import { authApi } from '../api/apiClient';"
+  },
+  {
+    "file": "beauty-booking-web-main/beauty-booking-web-main/src/store/authStore.js",
+    "line": 3,
+    "text": "import { authApi } from '../api/apiClient';"
+  },
+  {
+    "file": "mobile/src/api/bookings.ts",
+    "line": 67,
+    "text": "apiRequest(`/bookings/${id}/change-requests`, {"
+  },
+  {
+    "file": "mobile/src/api/bookings.ts",
+    "line": 75,
+    "text": "apiRequest(`/bookings/${id}/change-requests`, {"
+  },
+  {
+    "file": "mobile/src/api/privacy.ts",
+    "line": 5,
+    "text": "apiRequest('/privacy/data-requests', {"
+  },
+  {
+    "file": "mobile/src/components/home/DistrictPickerModal.tsx",
+    "line": 3,
+    "text": "import { branchesApi } from '../../api/branches';"
+  },
+  {
+    "file": "mobile/src/context/AuthContext.tsx",
+    "line": 2,
+    "text": "import { authApi } from '../api/auth';"
+  },
+  {
+    "file": "mobile/src/context/AuthContext.tsx",
+    "line": 9,
+    "text": "} from '../api/client';"
+  },
+  {
+    "file": "mobile/src/context/BookingsContext.tsx",
+    "line": 2,
+    "text": "import { bookingsApi, type CreateBookingInput } from '../api/bookings';"
+  },
+  {
+    "file": "mobile/src/context/FavoritesContext.tsx",
+    "line": 3,
+    "text": "import { savedServicesApi, type SavedService } from '../api/savedServices';"
+  },
+  {
+    "file": "mobile/src/hooks/useBranchDetail.ts",
+    "line": 2,
+    "text": "import { branchesApi } from '../api/branches';"
+  },
+  {
+    "file": "mobile/src/hooks/useBranchDetail.ts",
+    "line": 3,
+    "text": "import { combosApi } from '../api/combos';"
+  },
+  {
+    "file": "mobile/src/hooks/useBranchDetail.ts",
+    "line": 4,
+    "text": "import { reviewsApi } from '../api/reviews';"
+  },
+  {
+    "file": "mobile/src/hooks/useCatalog.ts",
+    "line": 2,
+    "text": "import { combosApi } from '../api/combos';"
+  },
+  {
+    "file": "mobile/src/hooks/useCatalog.ts",
+    "line": 3,
+    "text": "import { servicesApi } from '../api/services';"
+  },
+  {
+    "file": "mobile/src/hooks/useComboDetail.ts",
+    "line": 2,
+    "text": "import { branchesApi } from '../api/branches';"
+  },
+  {
+    "file": "mobile/src/hooks/useComboDetail.ts",
+    "line": 3,
+    "text": "import { combosApi } from '../api/combos';"
+  },
+  {
+    "file": "mobile/src/hooks/useExpertSearch.ts",
+    "line": 3,
+    "text": "import { staffApi } from '../api/staff';"
+  },
+  {
+    "file": "mobile/src/hooks/useServiceSearch.ts",
+    "line": 2,
+    "text": "import { servicesApi, ServiceSearchFilters } from '../api/services';"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 30,
+    "text": "<Stack.Screen name=\"AccountMain\" component={AccountScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 31,
+    "text": "<Stack.Screen name=\"Favorites\" component={FavoritesScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 32,
+    "text": "<Stack.Screen name=\"Messages\" component={MessagesScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 33,
+    "text": "<Stack.Screen name=\"Profile\" component={ProfileScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 34,
+    "text": "<Stack.Screen name=\"Forms\" component={FormsScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 35,
+    "text": "<Stack.Screen name=\"Settings\" component={SettingsScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 36,
+    "text": "<Stack.Screen name=\"Support\" component={SupportScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 37,
+    "text": "<Stack.Screen name=\"AddressForm\" component={AddressFormScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/AccountStack.tsx",
+    "line": 38,
+    "text": "<Stack.Screen name=\"ChangePassword\" component={ChangePasswordScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HoatDongStack.tsx",
+    "line": 35,
+    "text": "<Stack.Screen name=\"HoatDongMain\" component={LichHenScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HoatDongStack.tsx",
+    "line": 36,
+    "text": "<Stack.Screen name=\"AppointmentDetail\" component={AppointmentDetailScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HoatDongStack.tsx",
+    "line": 37,
+    "text": "<Stack.Screen name=\"CalendarView\" component={AppointmentCalendarScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HoatDongStack.tsx",
+    "line": 38,
+    "text": "<Stack.Screen name=\"Reschedule\" component={RescheduleScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 45,
+    "text": "<Stack.Screen name=\"HomeMain\" component={HomeScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 46,
+    "text": "<Stack.Screen name=\"ComboDetail\" component={ComboDetailScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 47,
+    "text": "<Stack.Screen name=\"VenueDetail\" component={VenueDetailScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 48,
+    "text": "<Stack.Screen name=\"Booking\" component={BookingScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 49,
+    "text": "<Stack.Screen name=\"AddService\" component={AddServiceScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/HomeStack.tsx",
+    "line": 50,
+    "text": "<Stack.Screen name=\"BookingSuccess\" component={BookingSuccessScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 30,
+    "text": "<Stack.Screen name=\"MainTabs\" component={RootTabs} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 31,
+    "text": "<Stack.Screen name=\"OtpVerify\" component={OtpVerifyScreen} options={{ presentation: 'modal' }} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 32,
+    "text": "<Stack.Screen name=\"Login\" component={LoginScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 33,
+    "text": "<Stack.Screen name=\"Register\" component={RegisterScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 34,
+    "text": "<Stack.Screen name=\"ForgotPassword\" component={ForgotPasswordScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 35,
+    "text": "<Stack.Screen name=\"ResetPassword\" component={ResetPasswordScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootStack.tsx",
+    "line": 36,
+    "text": "<Stack.Screen name=\"VerifyEmail\" component={VerifyEmailScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootTabs.tsx",
+    "line": 22,
+    "text": "<Tab.Screen name=\"DiaDiem\" component={HomeStack} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootTabs.tsx",
+    "line": 23,
+    "text": "<Tab.Screen name=\"TimKiem\" component={SearchScreen} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootTabs.tsx",
+    "line": 24,
+    "text": "<Tab.Screen name=\"LichHen\" component={HoatDongStack} />"
+  },
+  {
+    "file": "mobile/src/navigation/RootTabs.tsx",
+    "line": 25,
+    "text": "<Tab.Screen name=\"TaiKhoan\" component={AccountStack} />"
+  },
+  {
+    "file": "mobile/src/screens/AccountScreen.tsx",
+    "line": 17,
+    "text": "import { privacyApi } from '../api/privacy';"
+  },
+  {
+    "file": "mobile/src/screens/AddressFormScreen.tsx",
+    "line": 10,
+    "text": "import { usersApi } from '../api/users';"
+  },
+  {
+    "file": "mobile/src/screens/AddServiceScreen.tsx",
+    "line": 10,
+    "text": "import { servicesApi } from '../api/services';"
+  },
+  {
+    "file": "mobile/src/screens/AppointmentDetailScreen.tsx",
+    "line": 16,
+    "text": "import { reviewsApi } from '../api/reviews';"
+  },
+  {
+    "file": "mobile/src/screens/AppointmentDetailScreen.tsx",
+    "line": 17,
+    "text": "import { platformSettingsApi } from '../api/platformSettings';"
+  },
+  {
+    "file": "mobile/src/screens/BookingScreen.tsx",
+    "line": 12,
+    "text": "import { bookingsApi, type SelfBookingPolicy } from '../api/bookings';"
+  },
+  {
+    "file": "mobile/src/screens/BookingScreen.tsx",
+    "line": 13,
+    "text": "import { ApiError, createIdempotencyKey } from '../api/client';"
+  },
+  {
+    "file": "mobile/src/screens/BookingScreen.tsx",
+    "line": 14,
+    "text": "import { servicesApi } from '../api/services';"
+  },
+  {
+    "file": "mobile/src/screens/BookingScreen.tsx",
+    "line": 15,
+    "text": "import { staffApi } from '../api/staff';"
+  },
+  {
+    "file": "mobile/src/screens/ChangePasswordScreen.tsx",
+    "line": 9,
+    "text": "import { authApi } from '../api/auth';"
+  },
+  {
+    "file": "mobile/src/screens/ForgotPasswordScreen.tsx",
+    "line": 6,
+    "text": "import { authApi } from '../api/auth';"
+  },
+  {
+    "file": "mobile/src/screens/MessagesScreen.tsx",
+    "line": 9,
+    "text": "import { notificationsApi, type ApiNotification } from '../api/notifications';"
+  },
+  {
+    "file": "mobile/src/screens/ProfileScreen.tsx",
+    "line": 12,
+    "text": "import { usersApi } from '../api/users';"
+  },
+  {
+    "file": "mobile/src/screens/RescheduleScreen.tsx",
+    "line": 7,
+    "text": "import { bookingsApi } from '../api/bookings';"
+  },
+  {
+    "file": "mobile/src/screens/ResetPasswordScreen.tsx",
+    "line": 6,
+    "text": "import { authApi } from '../api/auth';"
+  },
+  {
+    "file": "mobile/src/screens/VerifyEmailScreen.tsx",
+    "line": 6,
+    "text": "import { authApi } from '../api/auth';"
+  }
+]

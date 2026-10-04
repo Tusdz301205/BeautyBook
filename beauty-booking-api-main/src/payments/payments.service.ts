@@ -36,7 +36,6 @@ import type {
   ReservePackageSessionDto,
   TransitionPlatformStatementDto,
 } from './dto/payments.dto';
-import { LoyaltyService } from '../loyalty/loyalty.service';
 
 @Injectable()
 export class PaymentsService {
@@ -44,7 +43,6 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     @Optional() private readonly config?: ConfigService,
     @Optional() private readonly providerRegistry?: PaymentProviderRegistry,
-    @Optional() private readonly loyalty?: LoyaltyService,
   ) {}
 
   private providers() {
@@ -382,7 +380,7 @@ export class PaymentsService {
           throw new ConflictException('Payment không thể refund');
         }
         const reserved = payment.refundRequests
-          .filter((request) => ['PENDING', 'APPROVED', 'REFUNDED'].includes(request.status))
+          .filter((request) => ['PENDING', 'APPROVED', 'PROCESSING', 'REFUNDED'].includes(request.status))
           .reduce((sum, request) => sum + Number(request.amount), 0);
         if (reserved + amount > Number(payment.amount)) {
           throw new BadRequestException('Số tiền refund vượt quá số tiền đã thanh toán');
@@ -542,15 +540,6 @@ export class PaymentsService {
           });
           await this.postRefundLedger(tx, refundId, user.id);
           await this.ensurePlatformFeeAdjustment(tx, refundId);
-          if (this.loyalty) {
-            await this.loyalty.adjustForRefund(
-              refund.payment.bookingId,
-              refundId,
-              Number(refund.amount),
-              user.id,
-              tx,
-            );
-          }
           return tx.refundRequest.findUniqueOrThrow({
             where: { id: refundId },
           });

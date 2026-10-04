@@ -39,7 +39,7 @@ function fixture() {
     $transaction: jest.fn(async (fn) => fn(tx)),
   };
   const service = new BookingsService(prisma, {} as any, { notifyBookingUpdated: jest.fn() } as any,
-    {} as any, {} as any, {} as any);
+    {} as any, {} as any);
   return { tx, service, booking, prisma };
 }
 

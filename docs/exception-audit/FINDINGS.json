@@ -1,0 +1,608 @@
+[
+  {
+    "id": "GAP-01",
+    "ids": [
+      "AUTH-005"
+    ],
+    "title": "Đổi mật khẩu và thu hồi phiên không nguyên tử",
+    "severity": "HIGH",
+    "trigger": "Tài khoản có phiên đang sống; Redis SET thất bại sau user.update trong resetPassword/changePassword.",
+    "current": "Mật khẩu đã đổi; revokeAllForUser ném lỗi nên userSession.updateMany chưa chạy. Refresh đọc session/hash mà không kiểm tra mốc Redis; phiên cũ có thể refresh.",
+    "expected": "Mật khẩu đổi thì mọi phiên cần thu hồi phải bị vô hiệu hóa bền vững, kể cả Redis lỗi.",
+    "race": "A đổi password commit → Redis SET lỗi → B dùng refresh cũ trên session chưa revoked; sau Redis phục hồi access cũ cũng không có mốc thu hồi mới.",
+    "evidence": [
+      "reset",
+      "refresh",
+      "blacklist",
+      "jwt"
+    ],
+    "protection": "JWT fail-closed khi Redis đọc lỗi; session/expiry/signature vẫn được kiểm tra. Các bảo vệ đó không thu hồi session đã bỏ sót.",
+    "impact": "Người đang giữ refresh token cũ tiếp tục truy cập sau thao tác đổi mật khẩu. Không suy ra người ngoài có thể lấy token.",
+    "fix": "Ghi password và revoke DB sessions trong một transaction; dùng DB làm nguồn thu hồi, outbox đồng bộ Redis; không coi lỗi hạ tầng là mật khẩu sai.",
+    "tests": "Fault injection Redis SET sau password write; chứng minh tất cả session cũ không refresh được, kể cả sau Redis hồi phục.",
+    "unknown": "Chưa gọi Redis thực hoặc endpoint đổi mật khẩu.",
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ]
+  },
+  {
+    "id": "GAP-02",
+    "ids": [
+      "AUTH-006"
+    ],
+    "title": "Token đặt lại mật khẩu được tiêu thụ bằng read rồi update không điều kiện",
+    "severity": "HIGH",
+    "trigger": "Hai request có cùng PASSWORD_RESET token hợp lệ, chưa dùng, cùng đến trước update usedAt.",
+    "current": "consumeAccountToken đọc usedAt:null rồi update chỉ theo id; cả hai có thể nhận record và ghi password khác nhau. Token cũng bị đánh dấu dùng trước khi password write thành công.",
+    "expected": "Một token chỉ có một lần tiêu thụ thành công, gắn nguyên tử với thay đổi tài khoản.",
+    "race": "A/B cùng read unused → A update usedAt → B update usedAt theo id → A/B ghi password; lần cuối thắng.",
+    "evidence": [
+      "consume",
+      "reset",
+      "tokenSchema"
+    ],
+    "protection": "Hash token unique, expiry, type và usedAt chặn token giả/hết hạn/replay tuần tự; UNIQUE không chặn hai update cùng row. ValidationPipe và rate limit không serialize token.",
+    "impact": "Vi phạm one-time credential; token hợp lệ bị dùng hai lần hoặc mất hiệu lực khi DB ghi password lỗi.",
+    "fix": "CAS updateMany usedAt:null + expiry trong transaction cùng password/revocation; xử lý count=0 rõ ràng.",
+    "tests": "Barrier hai request cùng token; chỉ một đổi password; rollback consume khi password write lỗi.",
+    "unknown": "Chưa tái hiện cạnh tranh trên PostgreSQL; trigger trong repository không bổ sung CAS cho account_tokens.",
+    "fe": [
+      "webAuth"
+    ]
+  },
+  {
+    "id": "GAP-03",
+    "ids": [
+      "PAY-002"
+    ],
+    "title": "Split payment xung đột chỉ mục một khoản đã thanh toán trên mỗi booking",
+    "severity": "MEDIUM",
+    "trigger": "Owner/receptionist thu tiền mặt một phần, sau đó thu phần còn lại bằng key mới; hoặc xác minh hai pending transfers cùng booking.",
+    "current": "collect hỗ trợ amount nhỏ hơn due và tạo Payment mới mỗi lần. Chỉ mục payments_one_settled_per_booking chặn Payment PAID thứ hai; transaction rollback và trả 409.",
+    "expected": "Luồng split payment và invariant DB phải thống nhất, vẫn chặn tổng thu vượt nghĩa vụ.",
+    "race": "Không cần race: booking minh họa 100, thu 40, thu 60 → unique conflict nếu migration đã áp dụng.",
+    "evidence": [
+      "collect",
+      "verify",
+      "paymentIndex",
+      "integrity"
+    ],
+    "protection": "Đã tìm toàn migrations: có CREATE unique index, không thấy DROP. Chỉ mục ngăn kết luận overpayment trên schema repository; serializable và CAS giữ từng transaction nguyên tử.",
+    "impact": "UI mời split payment nhưng không thể hoàn tất khoản thứ hai; pending attempts có thể tồn đọng. Không khẳng định đã thu quá tiền.",
+    "fix": "Chọn mô hình nhiều receipts/transactions với aggregate invariant hoặc một Payment tổng hợp; migration phải bảo toàn lịch sử và có kiểm chứng riêng.",
+    "tests": "PostgreSQL disposable áp dụng đầy đủ migrations: 40+60, 100+100 pending, cash+bank, refund/reversal rồi thu bổ sung.",
+    "unknown": "Chưa biết chỉ mục đã tồn tại trên demo; nếu thiếu thì verify chưa kiểm tra tổng due là rủi ro khác cần xác minh, chưa tính thêm gap.",
+    "fe": [
+      "webPay"
+    ]
+  },
+  {
+    "id": "GAP-04",
+    "ids": [
+      "OPS-001"
+    ],
+    "title": "Chuyển chi nhánh không kiểm tra chuyên viên đích",
+    "severity": "HIGH",
+    "trigger": "Owner có impact case của mình; TRANSFER_BRANCH đến branch cùng business; gửi replacementStaffId đang tồn tại nhưng thuộc tenant khác/không có kỹ năng; chọn slot không trùng.",
+    "current": "transferBranch kiểm tra business của branch, tìm offering thay thế, ghi staffId trực tiếp; không gọi validateStaffForService, không kiểm tra giờ mở cửa và revision/status của booking hiện tại.",
+    "expected": "Chuyên viên phải thuộc branch đích, có kỹ năng, active/bookable, đúng giờ và booking còn được phép chuyển.",
+    "race": "Không cần race cho staff sai scope. Với race, A đọc booking cũ → B hoàn tất item → A chuyển theo snapshot cũ.",
+    "evidence": [
+      "impactController",
+      "impact",
+      "impactTransfer",
+      "staffValid",
+      "schema",
+      "slotTrigger"
+    ],
+    "protection": "JWT/roles/permission và assertImpactAccess bảo vệ case nguồn; branch đích cùng business. FK chỉ chứng minh staff tồn tại; trigger slot chống overlap, không chứng minh staff cùng branch hoặc service.",
+    "impact": "Ghi phân công lịch của một doanh nghiệp sang staff ngoài phạm vi; notification tới staff đó; khả năng xem chi tiết sau đó còn chịu access guard, chưa khẳng định rò toàn booking.",
+    "fix": "Dùng cùng primitive điều chuyển đã kiểm tra eligibility, revision, trạng thái, slot và scope trong một transaction; derive target staff từ resource.",
+    "tests": "Owner A thử staff B, inactive/unskilled, giờ đóng cửa; chuyển sau COMPLETE; rollback toàn bộ items nếu một item lỗi.",
+    "unknown": "Chưa ghi thử booking thật; không xác nhận migration triển khai.",
+    "fe": [
+      "webOps"
+    ]
+  },
+  {
+    "id": "GAP-05",
+    "ids": [
+      "OWN-002"
+    ],
+    "title": "Cancel/review chuyển chủ có thể ghi đè kết quả execute",
+    "severity": "HIGH",
+    "trigger": "Transfer SCHEDULED đủ điều kiện execute; chủ cũ gửi cancel và tác vụ execute/admin chạy đồng thời.",
+    "current": "execute có row lock/Serializable; cancel đọc state ngoài transaction rồi update theo id không state predicate. Writer đến muộn có thể đổi COMPLETED thành CANCELLED mà quyền sở hữu đã chuyển.",
+    "expected": "Trạng thái cuối phản ánh đúng việc chuyển tài sản/quyền; cancel chỉ thành công nếu chưa execute.",
+    "race": "A cancel đọc SCHEDULED → B execute commit COMPLETED và đổi owner/roles → A update status=CANCELLED theo id.",
+    "evidence": [
+      "ownerCancel",
+      "ownerExecute",
+      "owner"
+    ],
+    "protection": "Controller giới hạn actor; execute kiểm tra phê duyệt, hiệu lực, nghĩa vụ tài chính, legal/payout và revoke sessions; accept có CAS. Không có CAS ở cancel/review; row lock của B không chặn A ghi sau commit.",
+    "impact": "Lịch sử chuyển quyền sai với owner thực tế; gây nhầm điều hành và recovery. Không khẳng định cấp quyền trực tiếp cho người chưa được duyệt.",
+    "fix": "Dùng cùng row lock hoặc CAS trạng thái/revision cho mọi transition; giữ history mutation cùng transaction.",
+    "tests": "Barrier cancel/execute và hai reviewer trái quyết định; assert owner, grants, history, transfer status nhất quán.",
+    "unknown": "Race chưa chạy DB thật; chỉ source chứng minh đường xen kẽ.",
+    "fe": [
+      "webOps"
+    ]
+  },
+  {
+    "id": "GAP-06",
+    "ids": [
+      "TECH-004"
+    ],
+    "title": "Xung đột idempotency Redis bị bắt như lỗi hạ tầng",
+    "severity": "MEDIUM",
+    "trigger": "Redis hoạt động; key đã in_flight hoặc fingerprint khác; request lặp trong TTL.",
+    "current": "resolveExisting ném ConflictException bên trong try Redis; catch chuyển thành 503 ở production, hoặc fallback memory ở development. Memory trống có thể cấp reservation thứ hai.",
+    "expected": "Trả 409 cho semantic conflict; không chuyển store khi store khỏe và key thuộc request khác.",
+    "race": "A SET NX thành công → B NX thất bại/GET in_flight → resolveExisting throws → catch dev dùng memory trống → B chạy handler.",
+    "evidence": [
+      "idem"
+    ],
+    "protection": "Guards chạy trước; invariant booking/financial DB còn bảo vệ. Auth routes bị loại khỏi cache. Tests hiện chạy memory nên chưa chứng minh nhánh Redis này.",
+    "impact": "Sai thông báo/retry; bỏ cơ chế dedupe của interceptor ở dev. Không suy ra mọi duplicate sẽ phá dữ liệu.",
+    "fix": "Tách lỗi I/O Redis khỏi ConflictException; reserve/complete/release có owner fence; test cả production và development Redis adapter.",
+    "tests": "Redis stub SET NX null/GET existing: assert 409 và next.handle không chạy; store outage thật tách biệt.",
+    "unknown": "Chưa chạy Redis; tác động runtime phụ thuộc REDIS_URL/NODE_ENV.",
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ]
+  },
+  {
+    "id": "GAP-07",
+    "ids": [
+      "BOOK-008"
+    ],
+    "title": "Lỗi thông báo sau commit làm booking báo thất bại",
+    "severity": "MEDIUM",
+    "trigger": "Booking create hoặc status transition commit xong; DB notification query/create lỗi.",
+    "current": "notifySalonMembers/notifyBookingBothParties được await ngoài transaction, lỗi truyền lên; idempotency release reservation. Khi COMPLETED, ensurePlatformFee chạy sau notify nên bị bỏ qua trong lượt đó.",
+    "expected": "Booking đã commit trả kết quả có thể truy hồi; thông báo/fee được ghi bền vững hoặc có recovery độc lập.",
+    "race": "A commit booking → notify lỗi → client nhận lỗi → retry; DB overlap/CAS có thể chặn retry nhưng client chưa nhận booking đã tạo.",
+    "evidence": [
+      "notifyCreate",
+      "notifyStatus",
+      "idem",
+      "outbox"
+    ],
+    "protection": "Slot guards, booking state CAS, snapshots trong transaction vẫn đúng. ChangeRequestsService.create có notification trong transaction nên không thuộc gap này.",
+    "impact": "Người dùng không biết lịch đã tạo; thiếu notification/socket update; fee có thể được bổ sung qua luồng khác nhưng không có bảo đảm từ bước này.",
+    "fix": "Outbox cùng transaction; tách response khỏi side effect; durable operation result/key và đối soát fee sau partial failure.",
+    "tests": "Inject notify failure sau commit, retry cùng key, assert một booking + response truy hồi được + outbox eventually delivered.",
+    "unknown": "Không tái hiện bằng cách phá DB demo; chưa xác minh các nguồn fee recovery ngoài call sites đã thấy.",
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ]
+  },
+  {
+    "id": "GAP-08",
+    "ids": [
+      "STAFF-001"
+    ],
+    "title": "Gửi email thất bại bị coi là hoàn tất lời mời",
+    "severity": "MEDIUM",
+    "trigger": "Owner mời staff; SMTP lỗi trong MailService.sendMail.",
+    "current": "MailService catch/log rồi resolve; StaffInvitationsService catch rollback không chạy, trả invitation PENDING dù email không được gửi.",
+    "expected": "Ghi trạng thái delivery/retry rõ; không báo đã gửi khi chưa có kết quả.",
+    "race": "Không cần race: tạo invitation/profile → sendMail reject → MailService swallow → invite resolve.",
+    "evidence": [
+      "mail",
+      "invite"
+    ],
+    "protection": "Token hash, expiry 7 ngày, role/scope/profile checks vẫn có; production thiếu creds bị chặn startup. Chống enumeration ở forgot-password là chủ ý, không tính là false success riêng.",
+    "impact": "Nhân sự bị giữ INVITED nhưng chưa nhận link; phải mời lại thủ công.",
+    "fix": "Mail outbox/retry hoặc kết quả typed delivery failure; không hủy chứng cứ sau lỗi gửi; log an toàn.",
+    "tests": "SMTP stub reject qua MailService thật, không chỉ mock invite.sendInvitationEmail reject; assert delivery state/retry.",
+    "unknown": "Không gửi email thật; chưa quan sát nhà cung cấp.",
+    "fe": []
+  },
+  {
+    "id": "GAP-09",
+    "ids": [
+      "OPS-002"
+    ],
+    "title": "Impact PROCESSING và các bước con thiếu recovery bền vững",
+    "severity": "MEDIUM",
+    "trigger": "Process dừng sau claim PROCESSING, hoặc REASSIGN nhiều items lỗi ở item sau/finalize.",
+    "current": "Claim ngoài transaction, từng bookingItems.update commit riêng; catch chỉ trả impact item về PENDING, không hoàn tác item đã đổi. Crash không chạy catch để giải phóng PROCESSING.",
+    "expected": "Kết quả có checkpoint/compensation và lease recovery, không kẹt vô thời hạn; mô tả partial success chính xác.",
+    "race": "A claim PROCESSING → commit item1 → crash trước item2/finalize; B retry gặp count=0.",
+    "evidence": [
+      "impact",
+      "items",
+      "outbox"
+    ],
+    "protection": "CAS ngăn hai worker cùng claim; mỗi item riêng có revision, transaction; finalize+outbox atomic. OperationsModule chỉ đăng ký deadline worker, không reclaim processing.",
+    "impact": "Case không hoàn tất; phân công thay đổi một phần nhưng workflow chưa phản ánh.",
+    "fix": "Transaction chung khi có thể hoặc saga checkpoint/lease owner, idempotent steps, recovery worker và trạng thái cần can thiệp.",
+    "tests": "Crash ở mỗi checkpoint; fault item2/finalize; assert recovery không lặp side effects.",
+    "unknown": "Chưa chạy kill-process test; compensation cần quyết định nghiệp vụ.",
+    "fe": [
+      "webOps"
+    ]
+  },
+  {
+    "id": "GAP-10",
+    "ids": [
+      "CAT-003"
+    ],
+    "title": "Impact COMPLETED cũ có thể cho phép đóng chi nhánh khi có lịch mới",
+    "severity": "MEDIUM",
+    "trigger": "Branch từng hoàn tất impact PAUSE/SUSPEND, đã RESTORE, nhận booking mới rồi lại cùng transition.",
+    "current": "BranchStateService tìm bất kỳ COMPLETED case cùng subject/action; cả precheck và tx recheck chỉ xem tồn tại, không đối chiếu booking hiện tại với items đã giải quyết.",
+    "expected": "Lần chuyển mới phải giải quyết mọi lịch bị ảnh hưởng hiện tại.",
+    "race": "Không cần race: complete case cũ → restore → booking mới → pause lần nữa; case cũ vẫn làm điều kiện đủ.",
+    "evidence": [
+      "branchState",
+      "impact"
+    ],
+    "protection": "Transition có row lock, state table, reason và audit; kiểm tra active count có nhưng boolean completedImpact quá rộng.",
+    "impact": "Lịch còn hoạt động nằm ở chi nhánh đã đóng/tạm dừng mà không vào workflow mới.",
+    "fix": "Gắn case với transition/version và tập lịch; recheck chưa giải quyết trong transaction, không tái sử dụng approval lịch sử vô hạn.",
+    "tests": "Hai chu kỳ pause/restore và thêm lịch giữa complete với transition; bảo đảm case mới được tạo/đòi xử lý.",
+    "unknown": "Không đổi trạng thái branch thực.",
+    "fe": [
+      "webOps"
+    ]
+  },
+  {
+    "id": "GAP-11",
+    "ids": [
+      "AUTH-007"
+    ],
+    "title": "Refresh lỗi hạ tầng tiêu thụ token rồi trả 401",
+    "severity": "MEDIUM",
+    "trigger": "Refresh token hợp lệ; DB đọc user hoặc issueTokens lỗi sau CAS rotating marker.",
+    "current": "refreshTokenHash đã thay bằng rotating:<random>; catch toàn hàm chuyển mọi lỗi thành UnauthorizedException. Lần retry token cũ không còn khớp.",
+    "expected": "Phân biệt credentials invalid với hạ tầng; rotate nguyên tử hoặc recover được khi phát hành thất bại.",
+    "race": "A CAS rotating → user lookup/token persistence fail → 401 → B retry old token mismatch.",
+    "evidence": [
+      "refresh"
+    ],
+    "protection": "CAS chống replay đúng khi không có lỗi; expiry/signature vẫn kiểm tra; đây là availability/recovery, không bypass auth.",
+    "impact": "Logout cưỡng bức khi dependency gián đoạn; client mất phiên dù token ban đầu hợp lệ.",
+    "fix": "Transaction/fence phù hợp cho claim+issue+persist và rollback; 503 cho lỗi hạ tầng đã phân loại.",
+    "tests": "Inject từng điểm giữa CAS và persist, assert rollback/recovery và mã lỗi; giữ test chống replay.",
+    "unknown": "Chưa fault injection DB thực.",
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ]
+  },
+  {
+    "id": "GAP-12",
+    "ids": [
+      "UI-002"
+    ],
+    "title": "Response refresh đến muộn có thể ghi đè phiên đã đổi",
+    "severity": "MEDIUM",
+    "trigger": "Web/mobile có refresh hoặc restore đang chờ; người dùng logout hoặc đăng nhập tài khoản khác trước response.",
+    "current": "setSession/setUser/token handlers không gắn session generation; refresh thành công đến muộn vẫn ghi auth state. Mobile active flag chỉ kiểm tra mount.",
+    "expected": "Chỉ response của thế hệ phiên hiện tại được phép cập nhật credentials và UI.",
+    "race": "A refresh user1 đang chờ → B logout/login user2 → A resolves → store nhận user1.",
+    "evidence": [
+      "webAuth",
+      "webApi",
+      "mobileAuth",
+      "mobileApi"
+    ],
+    "protection": "Backend session/role guards vẫn kiểm tra request kế tiếp; BookingsContext có dataOwnerId/currentUserIdRef bảo vệ booking data. Không suy ra server cho phép session đã revoked.",
+    "impact": "UI quay lại user cũ hoặc mất phiên mới; nhầm tài khoản khi dùng chung thiết bị.",
+    "fix": "Session epoch tăng khi login/logout/switch; fence mọi refresh/restore; hủy pending requests và đồng bộ tab.",
+    "tests": "Deferred refresh rồi logout/login; assert token/user/storage vẫn thuộc phiên mới; nhiều tab.",
+    "unknown": "Chưa chạy browser/device timing; phạm vi ảnh hưởng dữ liệu từng màn hình cần E2E.",
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ]
+  },
+  {
+    "id": "GAP-13",
+    "ids": [
+      "UI-003"
+    ],
+    "title": "Lỗi mạng khi refresh tự động làm xóa phiên",
+    "severity": "MEDIUM",
+    "trigger": "Access hết hạn trả 401; refresh gặp offline/5xx, không phải token invalid.",
+    "current": "Web catch refresh xóa session; mobile refreshAccessToken network catch trả null, caller gọi unauthorizedHandler. Không có timeout mặc định cho fetch ở cả hai client.",
+    "expected": "Giữ phiên có thể khôi phục với lỗi tạm thời; phân biệt 401 thật và offline/timeout.",
+    "race": "Không cần race: API 401 → refresh network failure → clearSession/clearAuthSession.",
+    "evidence": [
+      "webApi",
+      "mobileApi",
+      "mobileAuth"
+    ],
+    "protection": "Có single-flight; mobile restore khởi động có giữ cached state khi lỗi non-401, nhưng nhánh auto-refresh khác.",
+    "impact": "Người dùng buộc đăng nhập lại khi mất mạng; request treo có thể giữ loading.",
+    "fix": "Typed transient error, timeout/AbortSignal theo operation, retry có giới hạn; chỉ clear khi xác thực phiên bị từ chối.",
+    "tests": "Offline và 503 giữa request/refresh; không xóa credentials; timeout mutation hiển thị trạng thái chưa rõ và reconcile.",
+    "unknown": "Chưa mô phỏng mạng trên emulator/browser.",
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ]
+  },
+  {
+    "id": "GAP-14",
+    "ids": [
+      "TECH-001"
+    ],
+    "title": "Body dạng inline type/any không được ValidationPipe kiểm tra kiểu",
+    "severity": "MEDIUM",
+    "trigger": "Người đăng nhập PATCH users/me/profile gửi fullName là object; owner PATCH impact gửi reason sai kiểu.",
+    "current": "TypeScript type bị xóa runtime; service gọi .trim trước kiểm tra kiểu nên TypeError/500. Danh sách users dùng parseInt/page/limit không clamp đầy đủ.",
+    "expected": "Trả 400 rõ ràng cho sai kiểu và range trước khi ghi; giới hạn pagination.",
+    "race": "Không cần race; request minh họa fullName:{} tới profile của chính mình.",
+    "evidence": [
+      "main",
+      "userInput",
+      "impactController",
+      "impactBatch"
+    ],
+    "protection": "Guards/resource scope và service whitelisting các field ngăn mass assignment tự do; real DTO vẫn được forbidNonWhitelisted. Không kết luận mọi endpoint đều thiếu validation.",
+    "impact": "500 không cần thiết, form recovery yếu; batch trả error.message có thể đưa chi tiết nội bộ ra UI.",
+    "fix": "DTO class cho endpoints thiếu metatype, nested validation/ranges; trả structured error an toàn cho batch.",
+    "tests": "Wrong primitive, array/object/null, invalid dates, negative/huge/NaN pagination; assert 400 và không write.",
+    "unknown": "Không fuzz live; fullName/object đường lỗi đọc tĩnh.",
+    "fe": [
+      "webApi",
+      "webOps"
+    ]
+  },
+  {
+    "id": "GAP-15",
+    "ids": [
+      "BOOK-009"
+    ],
+    "title": "Catalog thay đổi sau lần đọc trước transaction tạo booking",
+    "severity": "MEDIUM",
+    "trigger": "Create đã load offering ACTIVE và tính giá; owner pause/archive/update offering trước khi create vào transaction.",
+    "current": "Trong transaction có recheck branch/staff/slot, nhưng dùng services/giá/thời lượng từ trước tx; validateStaffForService không đọc offering status. Archive cũng precheck future count ngoài tx.",
+    "expected": "Quy định snapshot phải rõ và revalidate phiên bản/eligibility lúc nhận booking, không nhận service đã dừng trước commit.",
+    "race": "A load service/quote → B pause/archive commit → A tx validate staff + insert booking với snapshot cũ.",
+    "evidence": [
+      "create",
+      "staffValid",
+      "catalog",
+      "price"
+    ],
+    "protection": "Promotion/voucher reserve có version+quota locks; combo quota có conditional update; FK/history snapshots giữ dữ liệu, không chặn service inactive.",
+    "impact": "Lịch mới cho offering vừa dừng, giá/thời lượng không phản ánh thay đổi trước xác nhận; không phải lỗi sửa lịch sử snapshot.",
+    "fix": "Lock/version offering và catalog cần thiết trong transaction; revalidate eligibility/quote version; archive dùng cùng protocol.",
+    "tests": "Barrier pause/archive/reprice giữa quote và create; assert reject/requote hoặc snapshot contract đã quy định.",
+    "unknown": "Chưa tái hiện DB concurrency; không mặc định giá phải đổi hồi tố.",
+    "fe": [
+      "webConfirm"
+    ]
+  },
+  {
+    "id": "GAP-16",
+    "ids": [
+      "BG-002"
+    ],
+    "title": "Preview lịch lặp chưa kiểm tra slot đã bị chiếm",
+    "severity": "MEDIUM",
+    "trigger": "Customer preview recurring ở giờ đã có booking khác của staff, eligibility và branch hours hợp lệ.",
+    "current": "findStaff chỉ gọi validateStaffForService; không assertNoOverlap. availableCount có thể báo còn chỗ. create gọi BookingsService nên phát hiện conflict rồi bù chuỗi, kể cả skipConflicts=true.",
+    "expected": "Preview phản ánh conflict hiện hữu; skipConflicts bỏ đúng occurrence; create vẫn recheck race mới.",
+    "race": "Không cần race: seed fixture slot đã chiếm → preview → create cùng input.",
+    "evidence": [
+      "recurring",
+      "staffValid",
+      "overlap",
+      "create"
+    ],
+    "protection": "Booking create vẫn ngăn double booking; compensation và creation fence có sẵn. Không cáo buộc recurring ghi lịch chồng.",
+    "impact": "UI báo còn chỗ sai, chuỗi thất bại thay vì bỏ kỳ đã chọn, các kỳ trước bị hủy bù.",
+    "fix": "Dùng availability chung trong preview; thiết kế skipConflicts với revalidation từng kỳ và thông báo outcome chính xác.",
+    "tests": "Occupied slot với SAME_STAFF/ANY, skip true/false; lỗi DB trong findStaff không được biến thành hết nhân viên.",
+    "unknown": "Chưa chạy E2E lịch lặp.",
+    "fe": [
+      "webConfirm"
+    ]
+  },
+  {
+    "id": "GAP-17",
+    "ids": [
+      "USER-001"
+    ],
+    "title": "Endpoint suspend trả nguyên User có passwordHash",
+    "severity": "MEDIUM",
+    "trigger": "PLATFORM_ADMIN có user:suspend:platform gọi suspend thành công.",
+    "current": "prisma.user.update không select trả toàn scalar User; service return updated; controller forward trực tiếp. Không có serializer/Prisma omit toàn cục.",
+    "expected": "Response quản trị chỉ chứa DTO an toàn, không có passwordHash.",
+    "race": "Không cần race; đọc JSON response bằng tài khoản test admin.",
+    "evidence": [
+      "userSuspend",
+      "userSchema",
+      "app"
+    ],
+    "protection": "JWT/permission chặn anonymous và tenant role. Hash không phải plaintext; test serialization chỉ regex user:true nên không phát hiện update trực tiếp.",
+    "impact": "Credential hash xuất hiện ở client quản trị/devtools/response logging ngoài nơi lưu credential; phạm vi admin có quyền nên xếp MEDIUM.",
+    "fix": "Select safe fields/response DTO; kiểm soát serialization cho root User lẫn relation.",
+    "tests": "Test API response recursively không có passwordHash/reset/refresh token; suspend success và unlock.",
+    "unknown": "Chưa gọi suspend trên dữ liệu thật; không đọc/hash credentials thật.",
+    "fe": [
+      "webApi"
+    ]
+  },
+  {
+    "id": "GAP-18",
+    "ids": [
+      "PAY-004"
+    ],
+    "title": "Khoản refund PROCESSING không được tính vào số dư giữ chỗ",
+    "severity": "MEDIUM",
+    "trigger": "Một payment có refund APPROVED rồi START→PROCESSING; owner tạo refund khác cùng amount.",
+    "current": "requestRefund và impact CANCEL_REFUND chỉ cộng PENDING/APPROVED/REFUNDED, bỏ PROCESSING. Yêu cầu thứ hai được tạo/duyệt dù nghĩa vụ đã giữ chỗ.",
+    "expected": "Mọi refund đang xử lý phải reserve balance cho đến FAILED/REJECTED/cancel theo chính sách.",
+    "race": "Tuần tự đủ: A START 100 → B request 100; không cần race.",
+    "evidence": [
+      "refund",
+      "processRefund",
+      "impact"
+    ],
+    "protection": "CONFIRM lock payment, kiểm tra tổng REFUNDED và settlement reference nên chặn ghi hoàn vượt ở bước cuối. Gateway tự động không tồn tại.",
+    "impact": "Overcommit hàng đợi và thao tác chuyển khoản thủ công nhầm; chưa chứng minh tiền thật đã hoàn hai lần.",
+    "fix": "Một hàm reservedRefundBalance chung gồm PROCESSING; kiểm tra lại ở START và CONFIRM.",
+    "tests": "PROCESSING giữ số dư, FAIL giải phóng theo policy; hai requests/START đồng thời; giữ cap ở CONFIRM.",
+    "unknown": "Không giao dịch tiền thật; hành động ngoài ngân hàng không quan sát được.",
+    "fe": [
+      "webPay"
+    ]
+  },
+  {
+    "id": "GAP-19",
+    "ids": [
+      "PKG-003"
+    ],
+    "title": "Reserve lượt gói vào booking đã kết thúc",
+    "severity": "MEDIUM",
+    "trigger": "Customer sở hữu package ACTIVE còn hạn/lượt và booking COMPLETED/CANCELLED cùng customer/business.",
+    "current": "reservePackageSession kiểm tra package, permission, relation item/booking/customer/business; không kiểm tra trạng thái item/booking hay branch cụ thể của purchase. Lượt được đặt RESERVED sau lifecycle terminal, không còn transition để redeem/release tự động.",
+    "expected": "Reserve chỉ cho item/booking còn phù hợp và đúng branch policy; terminal phải reject hoặc xử lý rõ.",
+    "race": "Không cần race; reserve vào booking CANCELLED trước đó. Race với cancel cần cùng fence để không bỏ sót release.",
+    "evidence": [
+      "reservePackage",
+      "packageSchema"
+    ],
+    "protection": "Serializable, unique redeemedBookingServiceId và sequence ngăn hai lượt cho một item; không ngăn liên kết terminal state.",
+    "impact": "Lượt gói bị giữ không sử dụng, sai entitlement lifecycle; không khẳng định mất tiền trực tiếp.",
+    "fix": "Kiểm tra trạng thái + branch trong transaction có khóa booking/purchase; sửa service contract cho late reserve nếu cần.",
+    "tests": "Reserve sau terminal, race reserve/cancel/complete, wrong branch trong cùng business, expiry boundary.",
+    "unknown": "Chưa chạy API; mobile chưa có consumer package.",
+    "fe": [
+      "webApi"
+    ]
+  },
+  {
+    "id": "GAP-20",
+    "ids": [
+      "DOC-001"
+    ],
+    "title": "OpenAPI lệch scope của route đọc booking theo branch",
+    "severity": "LOW",
+    "trigger": "Chạy test contract với worktree hiện tại.",
+    "current": "GET /bookings/by-branch/{branchId} có x-scope-requirement trong JSON generated nhưng metadata controller hiện không có RequireScope. Test assertion line 19 fail.",
+    "expected": "Tài liệu phản ánh runtime metadata và service-bound scope thật.",
+    "race": "N/A: lỗi tĩnh deterministic.",
+    "evidence": [
+      "openapiTest",
+      "access"
+    ],
+    "protection": "Role/permission và BookingsAccessService vẫn hiện hữu; khác biệt docs không tự chứng minh route bỏ tenant guard.",
+    "impact": "Client/reviewer hiểu sai contract, CI fail.",
+    "fix": "Sau khi quyết định metadata mong muốn, cập nhật generator output trong task sửa riêng và rerun contract.",
+    "tests": "Test hiện có đã fail đúng mismatch; không cần bịa test mới.",
+    "unknown": "Chưa gán nguyên nhân cho commit nào; audit không sửa ứng dụng/OpenAPI.",
+    "fe": []
+  },
+  {
+    "id": "GAP-21",
+    "ids": [
+      "OWN-003"
+    ],
+    "title": "Link tiếp nhận ownership trỏ vào workspace CUSTOMER không tương thích",
+    "severity": "MEDIUM",
+    "trigger": "New owner là tài khoản operational hợp lệ theo account separation; nhận notification tiếp nhận.",
+    "current": "actionUrl /customer/benefits?tab=ownership; incoming UI chỉ ở CustomerBenefits, được ProtectedRoute customer bọc. Tài khoản CUSTOMER lại bị assertAccountRoleCompatible khi tạo đề nghị.",
+    "expected": "Có màn hình incoming cho đúng workspace/newOwnerUserId và quyền API không phụ thuộc customer.",
+    "race": "Không cần race: owner đề nghị tài khoản operational → người nhận mở link.",
+    "evidence": [
+      "owner",
+      "ownerAccept",
+      "separation",
+      "webOwner",
+      "webRoutes"
+    ],
+    "protection": "API accept dùng newOwnerUserId+status CAS, nên không mất bảo vệ ownership; có thể gọi API trực tiếp nếu principal hợp lệ.",
+    "impact": "Luồng chuẩn trên web không hoàn tất được bước nhận quyền; mobile không triển khai incoming ownership.",
+    "fix": "Đặt incoming ownership trong workspace/account center phù hợp; link theo route thật; giữ authorization theo recipient.",
+    "tests": "E2E operational recipient, CUSTOMER bị từ chối đúng, recipient khác 403/409; deep link sau login.",
+    "unknown": "Chưa mở demo và xác minh redirects runtime.",
+    "fe": [
+      "webOwner",
+      "webRoutes"
+    ]
+  },
+  {
+    "id": "GAP-22",
+    "ids": [
+      "CAT-004"
+    ],
+    "title": "Hai quyết định duyệt business có thể cùng thành công",
+    "severity": "MEDIUM",
+    "trigger": "Hai admin đều đọc business PENDING_REVIEW rồi quyết định APPROVE/REJECT khác nhau.",
+    "current": "review kiểm tra status trước transaction; tx.business.update where id và document updates không CAS/version. Cả hai ghi review events fromStatus cũ, trạng thái cuối last-write-wins.",
+    "expected": "Một quyết định thắng; request còn lại 409 và reload, history phản ánh chuỗi transition thực.",
+    "race": "A/B đọc pending → A tx approve commit → B tx reject theo id commit.",
+    "evidence": [
+      "businessReview"
+    ],
+    "protection": "Role/admin permission, reason cho reject, transaction business+documents+events có; không có row lock/recheck sau khi tx bắt đầu.",
+    "impact": "Hồ sơ và kết luận thay đổi bởi quyết định stale; không suy ra business tự public khi chỉ APPROVED.",
+    "fix": "CAS status/revision hoặc lock+re-read; áp dụng cùng contract cho submit/updateDraft.",
+    "tests": "Hai reviewer và submit/edit/review xen kẽ; assertion chỉ một decision/consistent events.",
+    "unknown": "Chưa chạy PostgreSQL race.",
+    "fe": [
+      "webApi"
+    ]
+  },
+  {
+    "id": "GAP-23",
+    "ids": [
+      "BG-004"
+    ],
+    "title": "Nhắc lịch dùng cửa sổ 5 phút không có catch-up/dedupe nguyên tử",
+    "severity": "MEDIUM",
+    "trigger": "PolicyNotificationCron được đăng ký trong SchedulerModule; timer dừng/chậm quá cửa sổ5phút hoặc hai process cùng tick.",
+    "current": "Lọc start trong [now+lead, now+lead+5m); không có persisted watermark/catch-up. Read notifications rồi createMany tách rời; Notification không có unique booking/type/recipient.",
+    "expected": "Sau restart/chậm tick vẫn nhắc lịch chưa gửi đúng policy; một logical reminder không bị nhân đôi.",
+    "race": "A/B cùng đọc notifications rỗng → A createMany → B createMany. Miss: timer ngừng qua cửa sổ → lần tick sau start <reminderTarget nên không còn selected.",
+    "evidence": [
+      "reminder",
+      "outbox",
+      "app"
+    ],
+    "protection": "Có check notifications.length và giới hạn2000row nhưng không CAS; outbox có dedupe song cron này ghi Notification trực tiếp. Global HTTP idempotency không áp cho timer.",
+    "impact": "Khách bỏ lỡ nhắc lịch hoặc nhận trùng, không làm mất booking. Không khẳng định email/push đã được gửi vì cron chỉ ghi in-app.",
+    "fix": "Dùng durable reminder key/outbox, watermark/catch-up bounded theo policy; điều phối nhiều instance; phân trang ổn định.",
+    "tests": "Clock fake bỏ qua10phút/restart; hai worker barrier cùng booking; assert một reminder và không bỏ sót.",
+    "unknown": "Chưa chạy timer thật; topology/runtime load chưa biết.",
+    "fe": [
+      "webApi"
+    ]
+  },
+  {
+    "id": "GAP-24",
+    "ids": [
+      "STAFF-002"
+    ],
+    "title": "Cập nhật staff trực tiếp bỏ qua luồng xử lý lịch tương lai",
+    "severity": "MEDIUM",
+    "trigger": "Owner đúng business PATCH staff/:id với status INACTIVE/LOCKED hoặc isBookable=false trong khi còn lịch được phân công.",
+    "current": "StaffService.update ghi các field status/bookable trực tiếp sau assertExists. Không offboardingImpact/reassignment; endpoint deactivate riêng mới chạy workflow và thu hồi role/session.",
+    "expected": "Phải tách rõ pause nhận lịch mới và offboard/khóa nhân sự; thao tác làm nhân sự không thể phục vụ cần xử lý lịch đã nhận theo cùng invariant.",
+    "race": "Không cần race: cùng staff có future booking, PATCH status INACTIVE thay vì gọi deactivate. Race mới với create là kiểm tra bổ sung.",
+    "evidence": [
+      "staffUpdate",
+      "staffOffboard",
+      "staffValid"
+    ],
+    "protection": "Owner scope và whitelist fields còn đúng; booking lịch sử không bị xóa; tạo lịch mới sẽ reject inactive staff. Không suy ra tài khoản bị khóa chỉ từ staff.status.",
+    "impact": "Staff inactive vẫn được gắn các lịch đang chờ, trong khi API chuyên biệt yêu cầu giải quyết impact; trạng thái UI và khả năng phục vụ thiếu nhất quán.",
+    "fix": "Một transition service chung; nếu pause chủ ý vẫn phục vụ lịch cũ, đặt tên/state và UI policy rõ, không cho PATCH dùng state offboard thay thế workflow.",
+    "tests": "Cùng future booking đi qua PATCH và deactivate; verify quy tắc thống nhất, không mất lịch/thu hồi sai quyền.",
+    "unknown": "Chưa xác nhận business semantics mong muốn của LOCKED/INACTIVE trên UI; đường bypass workflow được xác định bằng source.",
+    "fe": [
+      "webApi"
+    ]
+  }
+]

@@ -1,0 +1,74 @@
+@startuml ERD-review
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Review**\n(reviews)" as Review {
+  * id: String <<PK>>
+  * bookingId: String <<FK>> <<UQ>>
+  * customerId: String <<FK>>
+  * overallRating: Int 
+  comment: String? 
+  * isAnonymous: Boolean 
+  * status: ReviewStatus 
+  ... 3 cot: xem tu dien
+}
+entity "**ReviewServiceRating**\n(review_service_ratings)" as ReviewServiceRating {
+  * id: String <<PK>>
+  * reviewId: String <<FK>>
+  * bookingServiceId: String <<FK>> <<UQ>>
+  staffId: String? <<FK>>
+  * rating: Int 
+  comment: String? 
+  * createdAt: DateTime 
+}
+entity "**BusinessComment**\n(business_comments)" as BusinessComment {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  * customerId: String <<FK>>
+  parentCommentId: String? <<FK>>
+  reviewId: String? <<FK>> <<UQ>>
+  * content: String 
+  * status: CommentStatus 
+  ... 3 cot: xem tu dien
+}
+entity "**ReviewReport**\n(review_reports)" as ReviewReport {
+  * id: String <<PK>>
+  * reviewId: String <<FK>>
+  * reporterId: String <<FK>>
+  * reason: String 
+  * createdAt: DateTime 
+}
+Review ||--o{ ReviewServiceRating
+BusinessComment |o--o{ BusinessComment
+Review |o--o| BusinessComment
+Review ||--o{ ReviewReport
+
+@enduml

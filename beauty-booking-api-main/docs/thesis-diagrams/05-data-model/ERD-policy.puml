@@ -1,0 +1,86 @@
+@startuml ERD-policy
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**AppointmentChangeRequest**\n(appointment_change_requests)" as AppointmentChangeRequest {
+  * id: String <<PK>>
+  * bookingId: String <<FK>>
+  * requestedBy: String <<FK>>
+  proposedStaffId: String? <<FK>>
+  reviewedBy: String? <<FK>>
+  * requestedByType: CancelledByType 
+  * requestType: ChangeRequestType 
+  ... 9 cot: xem tu dien
+}
+entity "**BookingViolationEvent**\n(booking_violation_events)" as BookingViolationEvent {
+  * id: String <<PK>>
+  * bookingId: String <<FK>>
+  * customerId: String <<FK>>
+  * businessId: String <<FK>>
+  sourceRequestId: String? <<FK>> <<UQ>>
+  * recordedById: String <<FK>>
+  voidedById: String? <<FK>>
+  ... 7 cot: xem tu dien
+}
+entity "**CustomerBookingPolicy**\n(customer_booking_policies)" as CustomerBookingPolicy {
+  * id: String <<PK>>
+  * customerId: String <<FK>>
+  * businessId: String <<FK>>
+  triggeredByViolationEventId: String? <<FK>> <<UQ>>
+  * revision: Int 
+  startsAt: DateTime? 
+  endsAt: DateTime? 
+  ... 2 cot: xem tu dien
+}
+entity "**RecurringBookingPlan**\n(recurring_booking_plans)" as RecurringBookingPlan {
+  * id: String <<PK>>
+  * customerId: String <<FK>>
+  * branchId: String <<FK>>
+  comboId: String? <<FK>>
+  staffId: String? <<FK>>
+  * frequency: RecurrenceFrequency 
+  * serviceIds: Json 
+  ... 13 cot: xem tu dien
+}
+entity "**OverbookingOverride**\n(overbooking_overrides)" as OverbookingOverride {
+  * id: String <<PK>>
+  * bookingId: String <<FK>> <<UQ>>
+  * branchId: String 
+  * actorId: String 
+  * reason: String 
+  * policyLimit: Int 
+  * startAt: DateTime 
+  ... 2 cot: xem tu dien
+}
+AppointmentChangeRequest |o--o| BookingViolationEvent
+BookingViolationEvent |o--o| CustomerBookingPolicy
+
+@enduml

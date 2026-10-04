@@ -1,0 +1,44 @@
+@startuml BUC-governance
+' Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+skinparam ArrowColor #773b4a
+left to right direction
+actor "Đại diện cơ sở" as BA <<business actor>>
+rectangle "Hoạt động phối hợp BeautyBook và cơ sở" {
+actor "Điều phối nền tảng" as BW <<business worker>>
+usecase "BUC-10\nChuyển giao quyền sở hữu" as BUC_10
+usecase "BUC-11\nGiám sát chất lượng và hiệu quả sàn" as BUC_11
+}
+BA -right- BUC_10
+BUC_10 -right- BW
+BA -right- BUC_11
+BUC_11 -right- BW
+@enduml

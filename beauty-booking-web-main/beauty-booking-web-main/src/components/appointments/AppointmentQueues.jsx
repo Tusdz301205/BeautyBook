@@ -45,7 +45,7 @@ export default function AppointmentQueues({ branchIds = [], branches = [], onCou
       setQueue(queueResult?.data ?? queueResult ?? []);
       setRequests(Array.isArray(requestResult) ? requestResult : requestResult?.data ?? []);
     } catch (loadError) {
-      setError(loadError.message || 'Không thể tải hàng chờ lịch hẹn.');
+      setError(loadError.message || 'Không thể tải các lịch cần xử lý.');
     } finally {
       setLoading(false);
     }
@@ -126,14 +126,14 @@ export default function AppointmentQueues({ branchIds = [], branches = [], onCou
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-[var(--bb-ink)]">Trung tâm hành động</h2>
-          <p className="mt-1 text-sm text-[var(--bb-muted)]">Hàng chờ hỗ trợ cho lịch vận hành; mọi hành động vẫn được hệ thống kiểm tra quyền và phạm vi.</p>
+          <p className="mt-1 text-sm text-[var(--bb-muted)]">Xác nhận lịch mới, xử lý yêu cầu thay đổi và phân công nhân viên trong phạm vi được cấp.</p>
         </div>
         <Button variant="secondary" size="sm" onClick={refreshAll}>
           <RefreshCw size={15} /> Tải lại
         </Button>
       </div>
 
-      <div role="tablist" aria-label="Hàng chờ lịch hẹn" className="flex gap-1 overflow-x-auto border-b border-[var(--bb-border)]">
+      <div role="tablist" aria-label="Lịch hẹn cần xử lý" className="flex flex-wrap gap-1 border-b border-[var(--bb-border)] sm:flex-nowrap sm:overflow-x-auto">
         <QueueTab active={tab === 'pending'} onClick={() => setTab('pending')} icon={CalendarCheck}>Cần xác nhận ({scopedQueue.length})</QueueTab>
         {canApproveChanges && <QueueTab active={tab === 'requests'} onClick={() => setTab('requests')} icon={ShieldAlert}>Yêu cầu thay đổi ({scopedRequests.length})</QueueTab>}
         <QueueTab active={tab === 'unassigned'} onClick={() => setTab('unassigned')} icon={UserRoundX}>Chưa phân công ({unassigned.length})</QueueTab>
@@ -168,7 +168,7 @@ export default function AppointmentQueues({ branchIds = [], branches = [], onCou
         open={Boolean(reject)}
         onClose={() => setReject(null)}
         title="Từ chối lịch hẹn"
-        description={`Lịch ${reject?.bookingCode || reject?.id || '—'} sẽ chuyển sang CANCELLED với lý do gửi cho khách.`}
+        description={`Lịch ${reject?.bookingCode || reject?.id || '—'} sẽ được hủy. Khách hàng sẽ nhận được lý do từ chối.`}
         footer={<><Button variant="secondary" onClick={() => setReject(null)}>Hủy</Button><Button variant="danger" loading={busy === reject?.id} disabled={reason.trim().length < 3} onClick={submitReject}>Xác nhận từ chối</Button></>}
       >
         <Field label="Lý do" required><Textarea value={reason} onChange={(event) => setReason(event.target.value)} /></Field>

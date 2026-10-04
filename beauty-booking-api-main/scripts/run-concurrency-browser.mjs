@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -214,27 +214,6 @@ try {
     ],
     expectedSuccesses: 1,
     expectedConflicts: 1,
-  };
-
-  const claimToken = randomUUID() + randomUUID();
-  const offeredStart = new Date(singleSlots[14].start);
-  const waitlist = await db.waitlistEntry.create({ data: {
-    customerId: customers[0].customerId,
-    businessId: receptionGrant.businessId,
-    branchId: offering.branchId,
-    serviceId: offering.id,
-    staffId: staff.id,
-    windowStart: new Date(offeredStart.getTime() - 60_000),
-    windowEnd: new Date(offeredStart.getTime() + 60_000),
-    status: 'OFFERED',
-    offeredStartAt: offeredStart,
-    offerExpiresAt: new Date(Date.now() + 30 * 60_000),
-    offerTokenHash: createHash('sha256').update(claimToken).digest('hex'),
-    offerSlotKey: `${offering.branchId}:${staff.id}:${offeredStart.toISOString()}:${suffix}`,
-  } });
-  scenarios.PW_RACE_WAITLIST_ACCEPT_JSON = {
-    actors: [customers[0]],
-    requests: [0, 1].map(() => ({ actor: 0, method: 'PATCH', path: `/waitlist/${waitlist.id}/accept`, data: { token: claimToken } })),
   };
 
   const negativeCases = [

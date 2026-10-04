@@ -1,0 +1,1708 @@
+[
+  {
+    "id": "AUTH-001",
+    "module": "Authentication",
+    "operation": "login",
+    "scenario": "Sai mật khẩu/unknown/inactive account",
+    "trigger": "Public login thông tin sai/user inactive.",
+    "handling": "DETECTED AND HANDLED: lỗi xác thực thống nhất, bcrypt compare, throttle email chuẩn hóa+IP.",
+    "status": "HANDLED",
+    "be": [
+      "auth",
+      "app"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "Email unique; isActive được kiểm tra.",
+    "test": "common/guards/user-aware-throttler.guard.spec.ts",
+    "coverage": "Assert tracker theo normalized email/IP; chưa distributed throttling.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "AUTH-002",
+    "module": "Authentication",
+    "operation": "register",
+    "scenario": "Trùng email hoặc tự gửi role",
+    "trigger": "Public register customer gửi email trùng hoặc role trái phép.",
+    "handling": "PREVENTED: DTO forbid unknown, normalize; role do service chọn; user/profile/role chung tx; P2002→409.",
+    "status": "HANDLED",
+    "be": [
+      "register",
+      "separation",
+      "main"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "Unique email và account separation migration.",
+    "test": "auth/dto/auth.dto.spec.ts",
+    "coverage": "Assert client role/weak password/invalid phone rejected; auth.service.spec email conflict mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "AUTH-003",
+    "module": "Authentication",
+    "operation": "JWT",
+    "scenario": "Token sai/hết hạn/session revoked",
+    "trigger": "Protected request dùng token không còn hợp lệ.",
+    "handling": "DETECTED AND HANDLED: signature/expiry, DB session, blacklist; user active và grants tải lại.",
+    "status": "HANDLED",
+    "be": [
+      "jwt",
+      "app"
+    ],
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ],
+    "db": "UserSession revokedAt/expiresAt.",
+    "test": null,
+    "coverage": "Source JwtStrategy chứng minh checks; không có jwt.strategy.spec.ts. Scheduler reauthorization tests chỉ gián tiếp với auth stub, không kiểm chứng passport/DB/Redis toàn luồng.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "AUTH-004",
+    "module": "Authentication",
+    "operation": "refresh healthy dependencies",
+    "scenario": "Replay refresh token session-backed",
+    "trigger": "Request lặp, dependencies hoạt động.",
+    "handling": "PREVENTED: hash compare + conditional updateMany claim, chỉ một winner; workspace từ persistent session.",
+    "status": "HANDLED",
+    "be": [
+      "refresh"
+    ],
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ],
+    "db": "RefreshTokenHash CAS; GAP-11 riêng cho lỗi sau CAS.",
+    "test": null,
+    "coverage": "Có code CAS; chưa test hai PostgreSQL connections.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "AUTH-005",
+    "module": "Authentication",
+    "operation": "reset/change password",
+    "scenario": "Đổi mật khẩu và thu hồi phiên không nguyên tử",
+    "trigger": "Tài khoản có phiên đang sống; Redis SET thất bại sau user.update trong resetPassword/changePassword.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: Mật khẩu đã đổi; revokeAllForUser ném lỗi nên userSession.updateMany chưa chạy. Refresh đọc session/hash mà không kiểm tra mốc Redis; phiên cũ có thể refresh.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "reset",
+      "refresh",
+      "blacklist",
+      "jwt"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "JWT fail-closed khi Redis đọc lỗi; session/expiry/signature vẫn được kiểm tra. Các bảo vệ đó không thu hồi session đã bỏ sót.",
+    "test": "auth/auth.service.spec.ts",
+    "coverage": "logout test kiểm tra revoked session, không inject Redis sau password write.",
+    "severity": "HIGH",
+    "risk": "Người đang giữ refresh token cũ tiếp tục truy cập sau thao tác đổi mật khẩu. Không suy ra người ngoài có thể lấy token.",
+    "recommendation": "Ghi password và revoke DB sessions trong một transaction; dùng DB làm nguồn thu hồi, outbox đồng bộ Redis; không coi lỗi hạ tầng là mật khẩu sai.",
+    "gap": "GAP-01"
+  },
+  {
+    "id": "AUTH-006",
+    "module": "Authentication",
+    "operation": "consume reset token",
+    "scenario": "Token đặt lại mật khẩu được tiêu thụ bằng read rồi update không điều kiện",
+    "trigger": "Hai request có cùng PASSWORD_RESET token hợp lệ, chưa dùng, cùng đến trước update usedAt.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: consumeAccountToken đọc usedAt:null rồi update chỉ theo id; cả hai có thể nhận record và ghi password khác nhau. Token cũng bị đánh dấu dùng trước khi password write thành công.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "consume",
+      "reset",
+      "tokenSchema"
+    ],
+    "fe": [
+      "webAuth"
+    ],
+    "db": "Hash token unique, expiry, type và usedAt chặn token giả/hết hạn/replay tuần tự; UNIQUE không chặn hai update cùng row. ValidationPipe và rate limit không serialize token.",
+    "test": "auth/auth.service.spec.ts",
+    "coverage": "Không assertion reset đồng thời cùng token.",
+    "severity": "HIGH",
+    "risk": "Vi phạm one-time credential; token hợp lệ bị dùng hai lần hoặc mất hiệu lực khi DB ghi password lỗi.",
+    "recommendation": "CAS updateMany usedAt:null + expiry trong transaction cùng password/revocation; xử lý count=0 rõ ràng.",
+    "gap": "GAP-02"
+  },
+  {
+    "id": "AUTH-007",
+    "module": "Authentication",
+    "operation": "refresh infrastructure failure",
+    "scenario": "Refresh lỗi hạ tầng tiêu thụ token rồi trả 401",
+    "trigger": "Refresh token hợp lệ; DB đọc user hoặc issueTokens lỗi sau CAS rotating marker.",
+    "handling": "DETECTED BUT POORLY HANDLED: refreshTokenHash đã thay bằng rotating:<random>; catch toàn hàm chuyển mọi lỗi thành UnauthorizedException. Lần retry token cũ không còn khớp.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "refresh"
+    ],
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ],
+    "db": "CAS chống replay đúng khi không có lỗi; expiry/signature vẫn kiểm tra; đây là availability/recovery, không bypass auth.",
+    "test": "auth/auth.service.spec.ts",
+    "coverage": "Không inject lỗi giữa rotation CAS và token persistence.",
+    "severity": "MEDIUM",
+    "risk": "Logout cưỡng bức khi dependency gián đoạn; client mất phiên dù token ban đầu hợp lệ.",
+    "recommendation": "Transaction/fence phù hợp cho claim+issue+persist và rollback; 503 cho lỗi hạ tầng đã phân loại.",
+    "gap": "GAP-11"
+  },
+  {
+    "id": "AUTH-008",
+    "module": "Authentication",
+    "operation": "cookie/BODY transport",
+    "scenario": "Cookie refresh bị yêu cầu trả JSON token",
+    "trigger": "Cookie-only request gửi transport BODY; native có explicit body token.",
+    "handling": "PREVENTED: cookie-only không được nâng thành BODY token; native transport rõ; web cookie HttpOnly/SameSite.",
+    "status": "HANDLED",
+    "be": [
+      "transport"
+    ],
+    "fe": [
+      "webApi",
+      "mobileAuth"
+    ],
+    "db": "N/A: transport; session vẫn hash token.",
+    "test": "auth/auth.controller.spec.ts",
+    "coverage": "Assert transport login/refresh; chưa kiểm tra proxy/iOS cookie runtime.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "AUTH-009",
+    "module": "Authentication",
+    "operation": "logout",
+    "scenario": "Token session đã logout",
+    "trigger": "User logout phiên hiện tại rồi reuse access token.",
+    "handling": "PREVENTED: revoke DB session trước response, JWT kiểm tra lại DB; client reset state.",
+    "status": "HANDLED",
+    "be": [
+      "logout",
+      "jwt"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "updateMany session/user scope.",
+    "test": "auth/auth.service.spec.ts",
+    "coverage": "Assert session revoke và audit event với mock; chưa E2E đa thiết bị.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "ACL-001",
+    "module": "Authorization",
+    "operation": "booking resource",
+    "scenario": "Owner/staff giả ID ngoài phạm vi",
+    "trigger": "Owner A/staff chưa assigned gọi read/update B.",
+    "handling": "PREVENTED: BookingsAccessService load resource DB, kiểm tra customer/branch/business/assigned staff ngoài coarse guards.",
+    "status": "HANDLED",
+    "be": [
+      "access",
+      "policy",
+      "app"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Resource scope derive DB, không tin headers.",
+    "test": "bookings/bookings-access.spec.ts",
+    "coverage": "Assert foreign owner/unassigned staff/deleted/missing booking rejected với mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "ACL-002",
+    "module": "Authorization",
+    "operation": "workspace/grants",
+    "scenario": "Mixed/retired/expired role",
+    "trigger": "User grants bị revoke/expire hoặc retired manager.",
+    "handling": "PREVENTED: reload grants; separation không suy CUSTOMER từ profile; unknown permission deny.",
+    "status": "HANDLED",
+    "be": [
+      "jwt",
+      "separation",
+      "policy"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "Account separation migration/session scope; runtime chưa xác nhận.",
+    "test": "auth/auth-workspace.spec.ts",
+    "coverage": "Assert retired/mixed/invalid branch không nâng quyền; DB integration chưa chạy.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "ACL-003",
+    "module": "Authorization",
+    "operation": "create identity/channel",
+    "scenario": "Giả customerId/source booking",
+    "trigger": "Customer giả profile; staff forge ONLINE_WEB/APP.",
+    "handling": "PREVENTED: controller derive customer authenticated; channel policy role-bound trước tạo guest.",
+    "status": "HANDLED",
+    "be": [
+      "create",
+      "access"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Không tin client role/profile.",
+    "test": "bookings/bookings.controller.spec.ts",
+    "coverage": "Assert forge source không tạo guest, ONLINE_APP preserved, customer auth profile.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "ACL-004",
+    "module": "Authorization",
+    "operation": "management queries",
+    "scenario": "Mượn role ở tenant khác",
+    "trigger": "Owner A đồng thời receptionist B gọi management B.",
+    "handling": "PREVENTED: restrictToRoles trước resolveBusinessIds/assertBranch; role cần khớp resource.",
+    "status": "HANDLED",
+    "be": [
+      "policy",
+      "access",
+      "reports"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "DB relations scope query.",
+    "test": "common/permissions/management-role-scope.spec.ts",
+    "coverage": "Assert payment/media/catalog/staff/review/ownership không mượn role tenant khác; mocked DB.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-001",
+    "module": "Booking",
+    "operation": "create/move/resize/assign",
+    "scenario": "Slot bị chiếm sau availability",
+    "trigger": "Hai khách/sửa lịch tranh staff-slot.",
+    "handling": "PREVENTED: Serializable, recheck eligibility/slot, advisory locks, DB overlap trigger; conflict 409.",
+    "status": "HANDLED",
+    "be": [
+      "create",
+      "overlap",
+      "tx",
+      "slotTrigger"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Half-open interval trigger/customer overlap; chỉ source migration.",
+    "test": "bookings/postgres-hardening.integration.spec.ts",
+    "coverage": "CHƯA CHẠY integration; unit overlap/helper pass chỉ query/error classification.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-002",
+    "module": "Booking",
+    "operation": "datetime",
+    "scenario": "Ngày quá khứ/duration/timezone sai",
+    "trigger": "Customer/operations gửi quá khứ hoặc interval không hợp lệ.",
+    "handling": "DETECTED AND HANDLED: future/duration; date/time nghiệp vụ UTC+7; interval [start,end).",
+    "status": "HANDLED",
+    "be": [
+      "time",
+      "staffValid",
+      "create"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "DATE/TIME và interval guards; không áp DST ngoài triển khai UTC+7.",
+    "test": "common/utils/booking-datetime.spec.ts",
+    "coverage": "Assert Vietnam round-trip, different dates, adjacent intervals, legacy cross-midnight.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-003",
+    "module": "Booking",
+    "operation": "transition",
+    "scenario": "Sai state/role/time hoặc stale update",
+    "trigger": "Cố COMPLETE trước giờ hoặc request khác đã đổi state.",
+    "handling": "PREVENTED: role/state/time gates, reread trong tx và CAS status, history atomic.",
+    "status": "HANDLED",
+    "be": [
+      "create",
+      "noShow",
+      "tx"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Parent/status history transaction.",
+    "test": "bookings/bookings-time-guard.spec.ts",
+    "coverage": "Hai promises cho 1 success/1 ConflictException bằng mock count1/0; không DB race.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-004",
+    "module": "Booking",
+    "operation": "item mutation",
+    "scenario": "Revision cũ/price hoặc duration sai",
+    "trigger": "Staff/owner gửi stale revision, NaN/âm/quá precision.",
+    "handling": "PREVENTED: value validators, revision CAS, sibling overlap, amount adjustments trong tx.",
+    "status": "HANDLED",
+    "be": [
+      "items"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Conditional revision, FK/geometry constraints.",
+    "test": "bookings/booking-item-values.spec.ts",
+    "coverage": "Assert invalid price/duration rejects trước tx; lifecycle mock child failure aborts parent.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-005",
+    "module": "Booking",
+    "operation": "cancel/change request",
+    "scenario": "Hủy sát giờ/pending request trùng",
+    "trigger": "Customer own PENDING/CONFIRMED quanh cutoff4h.",
+    "handling": "DETECTED AND HANDLED: fixed4h; late request+violation+notification trong tx; reject tại/past start; khóa booking.",
+    "status": "HANDLED",
+    "be": [
+      "cancel",
+      "change",
+      "customerPolicy"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Booking FOR UPDATE + Serializable; violation source constraints. Không tìm thấy partial UNIQUE pending request trong migration; một pending được bảo vệ bởi lock của service.",
+    "test": "bookings/customer-change-request.spec.ts",
+    "coverage": "Assert exact4h, start/past rejection, one pending, notification failure prevents mock commit.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-006",
+    "module": "Booking",
+    "operation": "NO_SHOW",
+    "scenario": "Trước grace/sau attendance/request hủy",
+    "trigger": "Owner/receptionist confirmed, explicit true; <=start+15m hoặc có attendance/request.",
+    "handling": "PREVENTED: strict >15m, true ack, reread state/history/request; audit+violation atomic.",
+    "status": "HANDLED",
+    "be": [
+      "noShow",
+      "customerPolicy"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Status/history/violation transaction và event uniqueness.",
+    "test": "bookings/no-show-policy.spec.ts",
+    "coverage": "Assert -1/0/+1ms, cancellation request kể cả expired, audit failure abort; mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-007",
+    "module": "Booking",
+    "operation": "customer restriction",
+    "scenario": "Vi phạm thay đổi cùng confirm",
+    "trigger": "Score3 cần true ack; sự kiện score>=4 tạo restriction.",
+    "handling": "PREVENTED: customer/business revision fence; 90day, late1/no-show2, 30day restriction; GET không khởi tạo lại.",
+    "status": "HANDLED",
+    "be": [
+      "customerPolicy",
+      "create"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Unique policy state và valid event/source triggers.",
+    "test": "bookings/customer-booking-policy.spec.ts",
+    "coverage": "Assert strict boolean, business scope, exact expiry/90day/30day; integration không chạy.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; không phát hiện gap riêng trong tình huống hẹp này. Không khẳng định toàn module an toàn.",
+    "recommendation": "Duy trì invariant; bổ sung kiểm chứng runtime cô lập khi còn thiếu."
+  },
+  {
+    "id": "BOOK-008",
+    "module": "Booking",
+    "operation": "create/status post-commit",
+    "scenario": "Lỗi thông báo sau commit làm booking báo thất bại",
+    "trigger": "Booking create hoặc status transition commit xong; DB notification query/create lỗi.",
+    "handling": "DETECTED BUT POORLY HANDLED: notifySalonMembers/notifyBookingBothParties được await ngoài transaction, lỗi truyền lên; idempotency release reservation. Khi COMPLETED, ensurePlatformFee chạy sau notify nên bị bỏ qua trong lượt đó.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "notifyCreate",
+      "notifyStatus",
+      "idem",
+      "outbox"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Slot guards, booking state CAS, snapshots trong transaction vẫn đúng. ChangeRequestsService.create có notification trong transaction nên không thuộc gap này.",
+    "test": "bookings/customer-change-request.spec.ts",
+    "coverage": "Notification failure aborts CHANGE REQUEST mock transaction; không chứng minh create/status sau commit an toàn.",
+    "severity": "MEDIUM",
+    "risk": "Người dùng không biết lịch đã tạo; thiếu notification/socket update; fee có thể được bổ sung qua luồng khác nhưng không có bảo đảm từ bước này.",
+    "recommendation": "Outbox cùng transaction; tách response khỏi side effect; durable operation result/key và đối soát fee sau partial failure.",
+    "gap": "GAP-07"
+  },
+  {
+    "id": "BOOK-009",
+    "module": "Booking",
+    "operation": "catalog stale at create",
+    "scenario": "Catalog thay đổi sau lần đọc trước transaction tạo booking",
+    "trigger": "Create đã load offering ACTIVE và tính giá; owner pause/archive/update offering trước khi create vào transaction.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: Trong transaction có recheck branch/staff/slot, nhưng dùng services/giá/thời lượng từ trước tx; validateStaffForService không đọc offering status. Archive cũng precheck future count ngoài tx.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "create",
+      "staffValid",
+      "catalog",
+      "price"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Promotion/voucher reserve có version+quota locks; combo quota có conditional update; FK/history snapshots giữ dữ liệu, không chặn service inactive.",
+    "test": "promotions/pricing-engine.service.spec.ts",
+    "coverage": "Promotion quote eligible line/quantity; không barrier pause/archive vs create.",
+    "severity": "MEDIUM",
+    "risk": "Lịch mới cho offering vừa dừng, giá/thời lượng không phản ánh thay đổi trước xác nhận; không phải lỗi sửa lịch sử snapshot.",
+    "recommendation": "Lock/version offering và catalog cần thiết trong transaction; revalidate eligibility/quote version; archive dùng cùng protocol.",
+    "gap": "GAP-15"
+  },
+  {
+    "id": "CAT-001",
+    "module": "Catalog / Branch",
+    "operation": "publish",
+    "scenario": "Branch chưa approved/readiness",
+    "trigger": "Owner publish branch draft/incomplete hoặc parent business chưa duyệt.",
+    "handling": "DETECTED AND HANDLED: readiness+parent approval+canonical transition/public predicates.",
+    "status": "HANDLED",
+    "be": [
+      "branchPublish",
+      "branchState"
+    ],
+    "fe": [
+      "webRoutes"
+    ],
+    "db": "Branch status/review/operational lifecycle.",
+    "test": "branches/branches.service.spec.ts",
+    "coverage": "Assert incomplete branch chưa activate; parent pending không approve; publish ready approved.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "CAT-002",
+    "module": "Catalog / Branch",
+    "operation": "staff eligibility/hours",
+    "scenario": "Inactive/unbookable/không skill/branch closed",
+    "trigger": "Booking staff không eligible/ngày holiday không special opening.",
+    "handling": "PREVENTED: staff/account active/bookable+skill/branch, holiday/special/working-hour lookup.",
+    "status": "HANDLED",
+    "be": [
+      "staffValid"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "Staff-service FK, app eligibility, slot trigger.",
+    "test": "bookings/bookings.validation.spec.ts",
+    "coverage": "Assert inactive linked user và closed branch reject, special opening overrides holiday.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "CAT-003",
+    "module": "Catalog / Branch",
+    "operation": "pause/suspend/close",
+    "scenario": "Impact COMPLETED cũ có thể cho phép đóng chi nhánh khi có lịch mới",
+    "trigger": "Branch từng hoàn tất impact PAUSE/SUSPEND, đã RESTORE, nhận booking mới rồi lại cùng transition.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: BranchStateService tìm bất kỳ COMPLETED case cùng subject/action; cả precheck và tx recheck chỉ xem tồn tại, không đối chiếu booking hiện tại với items đã giải quyết.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "branchState",
+      "impact"
+    ],
+    "fe": [
+      "webOps"
+    ],
+    "db": "Transition có row lock, state table, reason và audit; kiểm tra active count có nhưng boolean completedImpact quá rộng.",
+    "test": "branches/branch-state.service.spec.ts",
+    "coverage": "Revalidate guards sau row lock; không repeated pause/restore với case cũ.",
+    "severity": "MEDIUM",
+    "risk": "Lịch còn hoạt động nằm ở chi nhánh đã đóng/tạm dừng mà không vào workflow mới.",
+    "recommendation": "Gắn case với transition/version và tập lịch; recheck chưa giải quyết trong transaction, không tái sử dụng approval lịch sử vô hạn.",
+    "gap": "GAP-10"
+  },
+  {
+    "id": "CAT-004",
+    "module": "Catalog / Branch",
+    "operation": "business review concurrency",
+    "scenario": "Hai quyết định duyệt business có thể cùng thành công",
+    "trigger": "Hai admin đều đọc business PENDING_REVIEW rồi quyết định APPROVE/REJECT khác nhau.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: review kiểm tra status trước transaction; tx.business.update where id và document updates không CAS/version. Cả hai ghi review events fromStatus cũ, trạng thái cuối last-write-wins.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "businessReview"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Role/admin permission, reason cho reject, transaction business+documents+events có; không có row lock/recheck sau khi tx bắt đầu.",
+    "test": "business/business-onboarding.service.spec.ts",
+    "coverage": "Reject nonpending/require reason/approve success trong mock; không hai reviewer thật.",
+    "severity": "MEDIUM",
+    "risk": "Hồ sơ và kết luận thay đổi bởi quyết định stale; không suy ra business tự public khi chỉ APPROVED.",
+    "recommendation": "CAS status/revision hoặc lock+re-read; áp dụng cùng contract cho submit/updateDraft.",
+    "gap": "GAP-22"
+  },
+  {
+    "id": "UI-001",
+    "module": "Client recovery",
+    "operation": "booking state",
+    "scenario": "Response user cũ ghi booking state user mới",
+    "trigger": "Mobile reload/add đang chờ rồi đổi user.",
+    "handling": "PREVENTED: request counter/currentUserIdRef/dataOwnerId; addBooking recheck; web latestRequest helper chọn request mới nhất.",
+    "status": "HANDLED",
+    "be": [
+      "mobileBookings",
+      "webAsync"
+    ],
+    "fe": [
+      "mobileBookings",
+      "webAsync"
+    ],
+    "db": "N/A: race state client.",
+    "test": "utils/latestRequest.test.js",
+    "coverage": "Assert stale success/error không thắng mới; mobile chưa có runtime test.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "UI-002",
+    "module": "Client recovery",
+    "operation": "refresh/restore vs switch account",
+    "scenario": "Response refresh đến muộn có thể ghi đè phiên đã đổi",
+    "trigger": "Web/mobile có refresh hoặc restore đang chờ; người dùng logout hoặc đăng nhập tài khoản khác trước response.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: setSession/setUser/token handlers không gắn session generation; refresh thành công đến muộn vẫn ghi auth state. Mobile active flag chỉ kiểm tra mount.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "webAuth",
+      "webApi",
+      "mobileAuth",
+      "mobileApi"
+    ],
+    "fe": [
+      "webAuth",
+      "mobileAuth"
+    ],
+    "db": "N/A: scenario thuộc auth state client hoặc artifact OpenAPI; không có mutation DB trực tiếp cần constraint mới.",
+    "test": "utils/authScope.test.js",
+    "coverage": "Scope/session shape thuần, không asynchronous session race.",
+    "severity": "MEDIUM",
+    "risk": "UI quay lại user cũ hoặc mất phiên mới; nhầm tài khoản khi dùng chung thiết bị.",
+    "recommendation": "Session epoch tăng khi login/logout/switch; fence mọi refresh/restore; hủy pending requests và đồng bộ tab.",
+    "gap": "GAP-12"
+  },
+  {
+    "id": "UI-003",
+    "module": "Client recovery",
+    "operation": "offline during refresh",
+    "scenario": "Lỗi mạng khi refresh tự động làm xóa phiên",
+    "trigger": "Access hết hạn trả 401; refresh gặp offline/5xx, không phải token invalid.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: Web catch refresh xóa session; mobile refreshAccessToken network catch trả null, caller gọi unauthorizedHandler. Không có timeout mặc định cho fetch ở cả hai client.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "webApi",
+      "mobileApi",
+      "mobileAuth"
+    ],
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ],
+    "db": "N/A: scenario thuộc auth state client hoặc artifact OpenAPI; không có mutation DB trực tiếp cần constraint mới.",
+    "test": "utils/latestRequest.test.js",
+    "coverage": "Latest request fence không chứng minh auto-refresh offline.",
+    "severity": "MEDIUM",
+    "risk": "Người dùng buộc đăng nhập lại khi mất mạng; request treo có thể giữ loading.",
+    "recommendation": "Typed transient error, timeout/AbortSignal theo operation, retry có giới hạn; chỉ clear khi xác thực phiên bị từ chối.",
+    "gap": "GAP-13"
+  },
+  {
+    "id": "UI-004",
+    "module": "Client recovery",
+    "operation": "confirm click/409",
+    "scenario": "Double click/slot conflict",
+    "trigger": "Customer confirm booking đơn trên web.",
+    "handling": "PREVENTED / DETECTED AND HANDLED: submittingRef+key theo mount; policy/price loading/errors khóa confirm;409 về chọn giờ.",
+    "status": "HANDLED",
+    "be": [
+      "idem",
+      "create"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Booking locks/fingerprint; reload/crash response ở GAP-07.",
+    "test": "store/bookingStore.test.js",
+    "coverage": "Store persistence/reset thuần pass; chưa browser double click E2E.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "DOC-001",
+    "module": "Documentation contract",
+    "operation": "OpenAPI route scope",
+    "scenario": "OpenAPI lệch scope của route đọc booking theo branch",
+    "trigger": "Chạy test contract với worktree hiện tại.",
+    "handling": "DETECTED BUT POORLY HANDLED: GET /bookings/by-branch/{branchId} có x-scope-requirement trong JSON generated nhưng metadata controller hiện không có RequireScope. Test assertion line 19 fail.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "openapiTest",
+      "access"
+    ],
+    "fe": [],
+    "db": "N/A: scenario thuộc auth state client hoặc artifact OpenAPI; không có mutation DB trực tiếp cần constraint mới.",
+    "test": "common/permissions/openapi-contract.spec.ts",
+    "coverage": "FAILED x-scope-requirement tại GET /bookings/by-branch/{branchId}; 2 test khác của suite pass.",
+    "severity": "LOW",
+    "risk": "Client/reviewer hiểu sai contract, CI fail.",
+    "recommendation": "Sau khi quyết định metadata mong muốn, cập nhật generator output trong task sửa riêng và rerun contract.",
+    "gap": "GAP-20"
+  },
+  {
+    "id": "TECH-001",
+    "module": "Infrastructure",
+    "operation": "inline body validation",
+    "scenario": "Body dạng inline type/any không được ValidationPipe kiểm tra kiểu",
+    "trigger": "Người đăng nhập PATCH users/me/profile gửi fullName là object; owner PATCH impact gửi reason sai kiểu.",
+    "handling": "DETECTED BUT POORLY HANDLED: TypeScript type bị xóa runtime; service gọi .trim trước kiểm tra kiểu nên TypeError/500. Danh sách users dùng parseInt/page/limit không clamp đầy đủ.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "main",
+      "userInput",
+      "impactController",
+      "impactBatch"
+    ],
+    "fe": [
+      "webApi",
+      "webOps"
+    ],
+    "db": "Guards/resource scope và service whitelisting các field ngăn mass assignment tự do; real DTO vẫn được forbidNonWhitelisted. Không kết luận mọi endpoint đều thiếu validation.",
+    "test": "auth/dto/auth.dto.spec.ts",
+    "coverage": "DTO auth validation không chứng minh inline type/any được validate.",
+    "severity": "MEDIUM",
+    "risk": "500 không cần thiết, form recovery yếu; batch trả error.message có thể đưa chi tiết nội bộ ra UI.",
+    "recommendation": "DTO class cho endpoints thiếu metatype, nested validation/ranges; trả structured error an toàn cho batch.",
+    "gap": "GAP-14"
+  },
+  {
+    "id": "TECH-002",
+    "module": "Infrastructure",
+    "operation": "Prisma mapping",
+    "scenario": "Duplicate/FK/notfound/conflict/pool/schema error",
+    "trigger": "Known Prisma error tới global filter.",
+    "handling": "DETECTED AND HANDLED: 2002/2003→409,2025→404,2034→409,2024/2021/2022→503; sanitized body/requestId.",
+    "status": "HANDLED",
+    "be": [
+      "filter",
+      "main"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "DB reject invalid write; filter không rollback business ngoài tx.",
+    "test": "common/filters/prisma-exception.filter.spec.ts",
+    "coverage": "Assert status/safe body từng code, unknown không lộ raw DB error.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "TECH-003",
+    "module": "Infrastructure",
+    "operation": "Serializable retry",
+    "scenario": "Deadlock/serialization exhaustion",
+    "trigger": "Caller helper gặp P2034/40001/40P01.",
+    "handling": "DETECTED AND HANDLED: bounded retries+jitter; exhausted409;23P01→409; không retry unknown.",
+    "status": "HANDLED",
+    "be": [
+      "tx"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Serializable chỉ caller dùng helper.",
+    "test": "common/utils/serializable-transaction.spec.ts",
+    "coverage": "Assert tx call count2, exhausted ConflictException, unrelated không retry; synthetic errors.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "TECH-004",
+    "module": "Infrastructure",
+    "operation": "reserve idempotency key",
+    "scenario": "Xung đột idempotency Redis bị bắt như lỗi hạ tầng",
+    "trigger": "Redis hoạt động; key đã in_flight hoặc fingerprint khác; request lặp trong TTL.",
+    "handling": "DETECTED BUT POORLY HANDLED: resolveExisting ném ConflictException bên trong try Redis; catch chuyển thành 503 ở production, hoặc fallback memory ở development. Memory trống có thể cấp reservation thứ hai.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "idem"
+    ],
+    "fe": [
+      "webApi",
+      "mobileApi"
+    ],
+    "db": "Guards chạy trước; invariant booking/financial DB còn bảo vệ. Auth routes bị loại khỏi cache. Tests hiện chạy memory nên chưa chứng minh nhánh Redis này.",
+    "test": "common/interceptors/idempotency.interceptor.spec.ts",
+    "coverage": "Replay/mismatch assertions dùng memory, config.get undefined; không chạy Redis branch.",
+    "severity": "MEDIUM",
+    "risk": "Sai thông báo/retry; bỏ cơ chế dedupe của interceptor ở dev. Không suy ra mọi duplicate sẽ phá dữ liệu.",
+    "recommendation": "Tách lỗi I/O Redis khỏi ConflictException; reserve/complete/release có owner fence; test cả production và development Redis adapter.",
+    "gap": "GAP-06"
+  },
+  {
+    "id": "MEDIA-001",
+    "module": "Media",
+    "operation": "upload validation",
+    "scenario": "Magic/MIME/ext/size sai hoặc PDF sai entity",
+    "trigger": "Authenticated upload unsupported payload.",
+    "handling": "DETECTED AND HANDLED: signature allowlist/mime/ext/size10MB, legal-only PDF; random key safePath; write wx.",
+    "status": "HANDLED",
+    "be": [
+      "media"
+    ],
+    "fe": [
+      "webMedia"
+    ],
+    "db": "DB attach transaction, unlink khi DB failure; không bảo đảm crash cleanup.",
+    "test": null,
+    "coverage": "Có code; scope tests không chứng minh content scanner/decoder an toàn mọi tệp.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "MEDIA-002",
+    "module": "Media",
+    "operation": "scope/private read",
+    "scenario": "Foreign tenant hoặc public GET legal file",
+    "trigger": "User ngoài scope/anonymous vào tài liệu private.",
+    "handling": "PREVENTED: derive scope entity, canAccessStoredMedia; public PRIVATE→404; delete reference transaction.",
+    "status": "HANDLED",
+    "be": [
+      "mediaScope",
+      "media"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Visibility PRIVATE và resource relations.",
+    "test": "media/media.service.spec.ts",
+    "coverage": "Assert forged business/cross tenant reject; legal scope derived; access suite kiểm tra private capability mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "NOTIF-001",
+    "module": "Notifications",
+    "operation": "Đọc/đánh dấu notification người khác",
+    "scenario": "Đọc/đánh dấu notification người khác",
+    "trigger": "Người dùng xác thực truy cập tài nguyên thuộc người khác hoặc quyền/session đã thay đổi.",
+    "handling": "PREVENTED: list/count/mutate dùng userId principal; updateMany id+userId, read-all chỉ own unread.",
+    "status": "HANDLED",
+    "be": [
+      "notifications"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Notification.userId filter; idempotent isRead update.",
+    "test": null,
+    "coverage": "Source đủ chứng minh own scope; chưa test service/API riêng.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu mất authorization; nguồn hiện có bảo vệ tình huống này.",
+    "recommendation": "Giữ resource scope và bổ sung runtime đa phiên nếu cần."
+  },
+  {
+    "id": "OPS-001",
+    "module": "Operations",
+    "operation": "TRANSFER_BRANCH",
+    "scenario": "Chuyển chi nhánh không kiểm tra chuyên viên đích",
+    "trigger": "Owner có impact case của mình; TRANSFER_BRANCH đến branch cùng business; gửi replacementStaffId đang tồn tại nhưng thuộc tenant khác/không có kỹ năng; chọn slot không trùng.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: transferBranch kiểm tra business của branch, tìm offering thay thế, ghi staffId trực tiếp; không gọi validateStaffForService, không kiểm tra giờ mở cửa và revision/status của booking hiện tại.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "impactController",
+      "impact",
+      "impactTransfer",
+      "staffValid",
+      "schema",
+      "slotTrigger"
+    ],
+    "fe": [
+      "webOps"
+    ],
+    "db": "JWT/roles/permission và assertImpactAccess bảo vệ case nguồn; branch đích cùng business. FK chỉ chứng minh staff tồn tại; trigger slot chống overlap, không chứng minh staff cùng branch hoặc service.",
+    "test": "operations/impact.controller.spec.ts",
+    "coverage": "Reject receptionist/staff trước load case; không kiểm tra replacementStaffId của owner.",
+    "severity": "HIGH",
+    "risk": "Ghi phân công lịch của một doanh nghiệp sang staff ngoài phạm vi; notification tới staff đó; khả năng xem chi tiết sau đó còn chịu access guard, chưa khẳng định rò toàn booking.",
+    "recommendation": "Dùng cùng primitive điều chuyển đã kiểm tra eligibility, revision, trạng thái, slot và scope trong một transaction; derive target staff từ resource.",
+    "gap": "GAP-04"
+  },
+  {
+    "id": "OPS-002",
+    "module": "Operations",
+    "operation": "resolve impact",
+    "scenario": "Impact PROCESSING và các bước con thiếu recovery bền vững",
+    "trigger": "Process dừng sau claim PROCESSING, hoặc REASSIGN nhiều items lỗi ở item sau/finalize.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: Claim ngoài transaction, từng bookingItems.update commit riêng; catch chỉ trả impact item về PENDING, không hoàn tác item đã đổi. Crash không chạy catch để giải phóng PROCESSING.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "impact",
+      "items",
+      "outbox"
+    ],
+    "fe": [
+      "webOps"
+    ],
+    "db": "CAS ngăn hai worker cùng claim; mỗi item riêng có revision, transaction; finalize+outbox atomic. OperationsModule chỉ đăng ký deadline worker, không reclaim processing.",
+    "test": "operations/impact.service.spec.ts",
+    "coverage": "Chỉ assert scoped case query; không crash/partial multi-item.",
+    "severity": "MEDIUM",
+    "risk": "Case không hoàn tất; phân công thay đổi một phần nhưng workflow chưa phản ánh.",
+    "recommendation": "Transaction chung khi có thể hoặc saga checkpoint/lease owner, idempotent steps, recovery worker và trạng thái cần can thiệp.",
+    "gap": "GAP-09"
+  },
+  {
+    "id": "OWN-002",
+    "module": "Ownership",
+    "operation": "cancel/review vs execute",
+    "scenario": "Cancel/review chuyển chủ có thể ghi đè kết quả execute",
+    "trigger": "Transfer SCHEDULED đủ điều kiện execute; chủ cũ gửi cancel và tác vụ execute/admin chạy đồng thời.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: execute có row lock/Serializable; cancel đọc state ngoài transaction rồi update theo id không state predicate. Writer đến muộn có thể đổi COMPLETED thành CANCELLED mà quyền sở hữu đã chuyển.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "ownerCancel",
+      "ownerExecute",
+      "owner"
+    ],
+    "fe": [
+      "webOps"
+    ],
+    "db": "Controller giới hạn actor; execute kiểm tra phê duyệt, hiệu lực, nghĩa vụ tài chính, legal/payout và revoke sessions; accept có CAS. Không có CAS ở cancel/review; row lock của B không chặn A ghi sau commit.",
+    "test": "ownership/ownership.service.spec.ts",
+    "coverage": "Không dựng xen kẽ cancel read / execute commit / cancel update trên DB thật.",
+    "severity": "HIGH",
+    "risk": "Lịch sử chuyển quyền sai với owner thực tế; gây nhầm điều hành và recovery. Không khẳng định cấp quyền trực tiếp cho người chưa được duyệt.",
+    "recommendation": "Dùng cùng row lock hoặc CAS trạng thái/revision cho mọi transition; giữ history mutation cùng transaction.",
+    "gap": "GAP-05"
+  },
+  {
+    "id": "OWN-003",
+    "module": "Ownership",
+    "operation": "incoming accept UI",
+    "scenario": "Link tiếp nhận ownership trỏ vào workspace CUSTOMER không tương thích",
+    "trigger": "New owner là tài khoản operational hợp lệ theo account separation; nhận notification tiếp nhận.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: actionUrl /customer/benefits?tab=ownership; incoming UI chỉ ở CustomerBenefits, được ProtectedRoute customer bọc. Tài khoản CUSTOMER lại bị assertAccountRoleCompatible khi tạo đề nghị.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "owner",
+      "ownerAccept",
+      "separation",
+      "webOwner",
+      "webRoutes"
+    ],
+    "fe": [
+      "webOwner",
+      "webRoutes"
+    ],
+    "db": "API accept dùng newOwnerUserId+status CAS, nên không mất bảo vệ ownership; có thể gọi API trực tiếp nếu principal hợp lệ.",
+    "test": "utils/operationsScope.test.js",
+    "coverage": "Operations scope thuần; không E2E recipient deep link.",
+    "severity": "MEDIUM",
+    "risk": "Luồng chuẩn trên web không hoàn tất được bước nhận quyền; mobile không triển khai incoming ownership.",
+    "recommendation": "Đặt incoming ownership trong workspace/account center phù hợp; link theo route thật; giữ authorization theo recipient.",
+    "gap": "GAP-21"
+  },
+  {
+    "id": "PKG-001",
+    "module": "Packages",
+    "operation": "purchase",
+    "scenario": "Nested purchase tạo một phần",
+    "trigger": "Counter purchase hợp lệ có nested write lỗi.",
+    "handling": "PREVENTED: purchase/snapshot/installments/entitlements cùng Serializable tx, scope/customer/branch kiểm tra.",
+    "status": "HANDLED",
+    "be": [
+      "package",
+      "tx"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Purchase/sequence unique, FKs, nested transaction.",
+    "test": null,
+    "coverage": "Có code; chưa test rollback đầy đủ nested writes trên DB.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PKG-002",
+    "module": "Packages",
+    "operation": "pay installment",
+    "scenario": "Thu hai lần cùng kỳ",
+    "trigger": "Hai collector xử lý cùng DUE/FAILED installment.",
+    "handling": "PREVENTED: FOR UPDATE kỳ, reject PENDING/PAID, intent key unique và ledger atomic.",
+    "status": "HANDLED",
+    "be": [
+      "installment"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Installment lock/PaymentIntent business key unique.",
+    "test": null,
+    "coverage": "Source có state/lock; chưa DB contention.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PKG-003",
+    "module": "Packages",
+    "operation": "reserve entitlement",
+    "scenario": "Reserve lượt gói vào booking đã kết thúc",
+    "trigger": "Customer sở hữu package ACTIVE còn hạn/lượt và booking COMPLETED/CANCELLED cùng customer/business.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: reservePackageSession kiểm tra package, permission, relation item/booking/customer/business; không kiểm tra trạng thái item/booking hay branch cụ thể của purchase. Lượt được đặt RESERVED sau lifecycle terminal, không còn transition để redeem/release tự động.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "reservePackage",
+      "packageSchema"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Serializable, unique redeemedBookingServiceId và sequence ngăn hai lượt cho một item; không ngăn liên kết terminal state.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Foreign tenant package list denied; chưa assertion reserve terminal booking.",
+    "severity": "MEDIUM",
+    "risk": "Lượt gói bị giữ không sử dụng, sai entitlement lifecycle; không khẳng định mất tiền trực tiếp.",
+    "recommendation": "Kiểm tra trạng thái + branch trong transaction có khóa booking/purchase; sửa service contract cho late reserve nếu cần.",
+    "gap": "GAP-19"
+  },
+  {
+    "id": "PAY-001",
+    "module": "Payments",
+    "operation": "collect authorization",
+    "scenario": "Customer tự xác nhận cash/collector khác branch",
+    "trigger": "Customer hoặc receptionist ngoài scope gọi collect.",
+    "handling": "PREVENTED: controller role+resource can; provider cash/manual bank; amount finite và <=due ở collect.",
+    "status": "HANDLED",
+    "be": [
+      "collect",
+      "provider"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "Booking FOR UPDATE/Serializable, settled unique index.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Assert customer/foreign branch denied, cash PAID mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PAY-002",
+    "module": "Payments",
+    "operation": "collect/verify split payment",
+    "scenario": "Split payment xung đột chỉ mục một khoản đã thanh toán trên mỗi booking",
+    "trigger": "Owner/receptionist thu tiền mặt một phần, sau đó thu phần còn lại bằng key mới; hoặc xác minh hai pending transfers cùng booking.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: collect hỗ trợ amount nhỏ hơn due và tạo Payment mới mỗi lần. Chỉ mục payments_one_settled_per_booking chặn Payment PAID thứ hai; transaction rollback và trả 409.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "collect",
+      "verify",
+      "paymentIndex",
+      "integrity"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "Đã tìm toàn migrations: có CREATE unique index, không thấy DROP. Chỉ mục ngăn kết luận overpayment trên schema repository; serializable và CAS giữ từng transaction nguyên tử.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Cash PAID trong mock không thi hành partial unique index.",
+    "severity": "MEDIUM",
+    "risk": "UI mời split payment nhưng không thể hoàn tất khoản thứ hai; pending attempts có thể tồn đọng. Không khẳng định đã thu quá tiền.",
+    "recommendation": "Chọn mô hình nhiều receipts/transactions với aggregate invariant hoặc một Payment tổng hợp; migration phải bảo toàn lịch sử và có kiểm chứng riêng.",
+    "gap": "GAP-03"
+  },
+  {
+    "id": "PAY-003",
+    "module": "Payments",
+    "operation": "refund review",
+    "scenario": "Tự duyệt hoặc hai reviewer",
+    "trigger": "Refund PENDING; requester approve hoặc competing review.",
+    "handling": "PREVENTED: requester≠reviewer, conditional PENDING updateMany count1.",
+    "status": "HANDLED",
+    "be": [
+      "reviewRefund"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "CAS state; scope payment.booking.branch.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Assert self-review ForbiddenException và lost CAS ConflictException bằng mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PAY-004",
+    "module": "Payments",
+    "operation": "refund reservation",
+    "scenario": "Khoản refund PROCESSING không được tính vào số dư giữ chỗ",
+    "trigger": "Một payment có refund APPROVED rồi START→PROCESSING; owner tạo refund khác cùng amount.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: requestRefund và impact CANCEL_REFUND chỉ cộng PENDING/APPROVED/REFUNDED, bỏ PROCESSING. Yêu cầu thứ hai được tạo/duyệt dù nghĩa vụ đã giữ chỗ.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "refund",
+      "processRefund",
+      "impact"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "CONFIRM lock payment, kiểm tra tổng REFUNDED và settlement reference nên chặn ghi hoàn vượt ở bước cuối. Gateway tự động không tồn tại.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Pending refunds reserve amount; không assert PROCESSING giữ chỗ.",
+    "severity": "MEDIUM",
+    "risk": "Overcommit hàng đợi và thao tác chuyển khoản thủ công nhầm; chưa chứng minh tiền thật đã hoàn hai lần.",
+    "recommendation": "Một hàm reservedRefundBalance chung gồm PROCESSING; kiểm tra lại ở START và CONFIRM.",
+    "gap": "GAP-18"
+  },
+  {
+    "id": "PAY-005",
+    "module": "Payments",
+    "operation": "refund settlement",
+    "scenario": "Thiếu chứng từ/vượt tổng đã trả",
+    "trigger": "Platform START/CONFIRM refund đã duyệt.",
+    "handling": "DETECTED AND HANDLED: START chỉ PROCESSING; CONFIRM cần settlement evidence, khóa payment, cap tổng REFUNDED; ledger/payment/refund atomic.",
+    "status": "HANDLED",
+    "be": [
+      "processRefund",
+      "tx"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "Settlement reference unique + payment lock, không payout ngoài tự động.",
+    "test": "payments/payments.service.spec.ts",
+    "coverage": "Assert START chưa settled, missing evidence reject, CONFIRM payment/ledger state mock.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "SET-001",
+    "module": "Platform settings",
+    "operation": "update",
+    "scenario": "Unknown key/invalid type/range/cutoff",
+    "trigger": "Admin update settings sai hoặc giảm cutoff hủy.",
+    "handling": "DETECTED AND HANDLED: aliases, known keys, integer ranges/booleans; effective cancellation4h.",
+    "status": "HANDLED",
+    "be": [
+      "settings"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Setting key unique; audit helper không đảm bảo atomic delivery.",
+    "test": "platform-settings/platform-settings.service.spec.ts",
+    "coverage": "Assert invalid range/legacy alias, stored cutoff cũ vẫn effective4.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PRIV-001",
+    "module": "Privacy",
+    "operation": "export",
+    "scenario": "Password sai/foreign customer export",
+    "trigger": "Customer xuất dữ liệu, không được chọn profile ngoài principal.",
+    "handling": "PREVENTED: self permission, reauth bcrypt; scope mọi domain; encrypted package+request cùng tx.",
+    "status": "HANDLED",
+    "be": [
+      "privacy"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "AES-GCM, token hash, customer FKs.",
+    "test": "privacy/privacy-center.service.spec.ts",
+    "coverage": "Assert query mọi exported domain authenticated customer/user; cipher tests authentication/missing key.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PRIV-002",
+    "module": "Privacy",
+    "operation": "one-time download",
+    "scenario": "Token sai/expired/reuse",
+    "trigger": "Customer tải bằng token sai hoặc cạnh tranh cùng grant.",
+    "handling": "PREVENTED: hash+owner+expiry+downloadedAt; CAS claim count1 trước decrypt.",
+    "status": "HANDLED",
+    "be": [
+      "privacyDownload"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Conditional claim, hash storage.",
+    "test": null,
+    "coverage": "Chưa DB concurrency; source đủ chống replay; mất response sau claim cần export mới theo one-time contract.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PROM-001",
+    "module": "Promotions / Combos",
+    "operation": "reserve discount",
+    "scenario": "Quota hết/version đổi",
+    "trigger": "Quote trước khi quota/version thay đổi.",
+    "handling": "PREVENTED: promotion/voucher row locks, active/version, total/customer quotas; redemption/priceAdjustment snapshots trong booking tx.",
+    "status": "HANDLED",
+    "be": [
+      "price",
+      "create"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Unique redemption links, counters/Serializable.",
+    "test": "bookings/bookings-voucher-lifecycle.spec.ts",
+    "coverage": "Assert apply/release theo lifecycle mock; pricing quote test eligible value; quota DB race chưa chạy.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "PROM-002",
+    "module": "Promotions / Combos",
+    "operation": "combo",
+    "scenario": "Duplicate/foreign service/exhausted combo",
+    "trigger": "Owner combo <2 services/duplicate/cross-branch; customer quota exhausted.",
+    "handling": "DETECTED AND HANDLED: uniqueness/branch/active skill checks; conditional combo quota update trong booking create.",
+    "status": "HANDLED",
+    "be": [
+      "combo",
+      "create"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Nested combo items, max_usage predicate.",
+    "test": "combos/combos.service.spec.ts",
+    "coverage": "Assert <2 services/cross-branch reject; server price/duration snapshots, normalized order và snapshot presentation. Không quota contention DB.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "NA-001",
+    "module": "Removed features",
+    "operation": "removed modules",
+    "scenario": "Điểm thưởng/waitlist/invoice đã gỡ",
+    "status": "NOT APPLICABLE",
+    "trigger": "Không controller/module active cho các chức năng này.",
+    "handling": "Bảng/migration lịch sử không chứng minh reachable; payment/ledger/refund/packages vẫn audit.",
+    "be": [
+      "app"
+    ],
+    "fe": [
+      "webRoutes"
+    ],
+    "db": "Giữ lịch sử; không migrate/drop.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Không thuộc triển khai hiện tại.",
+    "recommendation": "Không khôi phục feature đã bỏ để bổ sung xử lý ngoại lệ."
+  },
+  {
+    "id": "NA-002",
+    "module": "Removed features",
+    "operation": "payment webhook",
+    "scenario": "Chữ ký webhook gateway online",
+    "status": "NOT APPLICABLE",
+    "trigger": "Registry chỉ cash và manual bank transfer.",
+    "handling": "Unsupported gateway bị reject; không webhook online đăng ký.",
+    "be": [
+      "provider"
+    ],
+    "fe": [
+      "webPay"
+    ],
+    "db": "N/A: không external gateway settlement.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Không thuộc triển khai hiện tại.",
+    "recommendation": "Chỉ thiết kế signature/replay khi gateway thật được triển khai."
+  },
+  {
+    "id": "NA-003",
+    "module": "Removed features",
+    "operation": "individual workforce",
+    "scenario": "Ca làm/nghỉ phép/chấm công cá nhân",
+    "status": "NOT APPLICABLE",
+    "trigger": "Capacity hiện từ giờ chi nhánh và staff bookable.",
+    "handling": "Individual shifts/leaves không tham gia booking validation hiện tại.",
+    "be": [
+      "staffValid",
+      "app"
+    ],
+    "fe": [
+      "webRoutes"
+    ],
+    "db": "Migration workforce cũ không chứng minh module active.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Không thuộc triển khai hiện tại.",
+    "recommendation": "Không áp luật workforce cũ vào booking đang triển khai."
+  },
+  {
+    "id": "REPORT-001",
+    "module": "Reports / Admin",
+    "operation": "owner dashboard",
+    "scenario": "Foreign branch/date range sai",
+    "trigger": "Owner yêu cầu dashboard ngoài scope.",
+    "handling": "PREVENTED: controller resolve scope, date1–366days; KPI/chart cùng scoped query.",
+    "status": "HANDLED",
+    "be": [
+      "reports",
+      "policy"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Read-only DB filters.",
+    "test": "reports/owner-dashboard.service.spec.ts",
+    "coverage": "Assert cùng branch/date source query KPI/chart mock, không reconcile live figures.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "REV-001",
+    "module": "Reviews",
+    "operation": "create",
+    "scenario": "Foreign/incomplete/duplicate booking review",
+    "trigger": "Customer giả booking/item/staff hoặc gửi trùng.",
+    "handling": "PREVENTED: principal+ownership+COMPLETED; rating item/staff match; duplicate precheck và DB unique→409.",
+    "status": "HANDLED",
+    "be": [
+      "review",
+      "filter"
+    ],
+    "fe": [
+      "webApi",
+      "mobileBookings"
+    ],
+    "db": "Review.bookingId UNIQUE và nested create.",
+    "test": "reviews/reviews.service.spec.ts",
+    "coverage": "reviews.service.spec.ts assert foreign bookingServiceId bị reject trước create và valid COMPLETED review được APPROVED; không assertion trực tiếp mọi nhánh ownership hoặc concurrent UNIQUE.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "REV-002",
+    "module": "Reviews",
+    "operation": "public projection",
+    "scenario": "Lộ tên anonymous/hidden review",
+    "trigger": "Public feed gồm anonymous hoặc chưa APPROVED.",
+    "handling": "PREVENTED: approved/nondeleted query; mask name/avatar; aggregate toàn tập, không chỉ50feed.",
+    "status": "HANDLED",
+    "be": [
+      "reviewPublic"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "N/A: query/projection, không cần constraint mới.",
+    "test": "reviews/reviews-public-identity.spec.ts",
+    "coverage": "Assert mask name/avatar; public-summary suite assert aggregate approved trên mock.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "DEP-001",
+    "module": "Runtime limits",
+    "operation": "DB deployment",
+    "scenario": "Migration thực sự đã áp dụng",
+    "status": "CANNOT CONFIRM",
+    "trigger": "Demo DB không được truy cập trong audit.",
+    "handling": "Source có constraints/triggers, chưa biết migration history runtime.",
+    "be": [
+      "schema",
+      "paymentIndex",
+      "slotTrigger"
+    ],
+    "fe": [],
+    "db": "Chỉ schema/migrations repository.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Chưa đủ căn cứ định mức tác động runtime.",
+    "recommendation": "Môi trường riêng: đối chiếu pg_indexes/pg_trigger/_prisma_migrations trước test ghi."
+  },
+  {
+    "id": "DEP-002",
+    "module": "Runtime limits",
+    "operation": "scheduler replicas",
+    "scenario": "Fan-out giữa nhiều API replicas",
+    "status": "CANNOT CONFIRM",
+    "trigger": "Topology production chưa xác minh.",
+    "handling": "Gateway có rooms/auth lease; chưa thấy Redis adapter đăng ký; chưa biết số replicas.",
+    "be": [
+      "socket",
+      "app"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "N/A: transport topology.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Chưa đủ căn cứ định mức tác động runtime.",
+    "recommendation": "Test hai instance disposable, revocation/fan-out/reconnect và missed-event resync."
+  },
+  {
+    "id": "DEP-003",
+    "module": "Runtime limits",
+    "operation": "offboarding date query",
+    "scenario": "So DATE với new Date có phần giờ",
+    "status": "CANNOT CONFIRM",
+    "trigger": "offboardingImpact lọc appointmentDate @db.Date >= new Date().",
+    "handling": "Cần xác minh parameter/cast PrismaPg thực trước kết luận bỏ sót lịch trong ngày.",
+    "be": [
+      "staffOffboard",
+      "time"
+    ],
+    "fe": [],
+    "db": "DATE column; adapter casting chưa quan sát.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Chưa đủ căn cứ định mức tác động runtime.",
+    "recommendation": "Fixture chiều cùng ngày/UTC+7 boundary, inspect generated SQL và futureBookingCount."
+  },
+  {
+    "id": "DEP-004",
+    "module": "Runtime limits",
+    "operation": "browser/device",
+    "scenario": "Recovery UI và mạng yếu thực tế",
+    "status": "CANNOT CONFIRM",
+    "trigger": "Chưa có E2E disposable DB đã xác minh.",
+    "handling": "Trace source và frontend tests thuần; chưa chạy browser/device/screenshot trong audit.",
+    "be": [
+      "webApi",
+      "mobileApi"
+    ],
+    "fe": [
+      "webConfirm",
+      "mobileBookings"
+    ],
+    "db": "N/A: UI runtime.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Chưa đủ căn cứ định mức tác động runtime.",
+    "recommendation": "Dedicated accounts/DB, fault injection offline/delay/refresh switch; không coi static là demo test."
+  },
+  {
+    "id": "DEP-005",
+    "module": "Runtime limits",
+    "operation": "audit durability",
+    "scenario": "Audit log có thể mất khi ghi thất bại",
+    "status": "CANNOT CONFIRM",
+    "trigger": "Helper/interceptor bỏ qua lỗi ghi; log pipeline/SLA chưa biết.",
+    "handling": "Code fail-open có chủ ý; sensitive flows còn direct tx audit. Chưa biết yêu cầu delivery/retention và monitoring runtime.",
+    "be": [
+      "audit",
+      "app"
+    ],
+    "fe": [],
+    "db": "Integrity trigger bảo vệ row đã có, không tạo row bị mất.",
+    "test": null,
+    "coverage": "Chưa kiểm chứng runtime; không tính skipped là passed.",
+    "severity": "—",
+    "risk": "Chưa đủ căn cứ định mức tác động runtime.",
+    "recommendation": "Xác minh yêu cầu audit; kiểm tra outbox hoặc atomic logs ở thao tác bắt buộc và log sink."
+  },
+  {
+    "id": "SAVE-001",
+    "module": "Saved services",
+    "operation": "save/remove",
+    "scenario": "Duplicate save/foreign removal",
+    "trigger": "Customer thao tác saved offering.",
+    "handling": "PREVENTED: customer auth/public eligibility; upsert compound key, deleteMany customer scope.",
+    "status": "HANDLED",
+    "be": [
+      "saved"
+    ],
+    "fe": [
+      "webOwner"
+    ],
+    "db": "Unique customer/service pair.",
+    "test": "saved-services/saved-services.service.spec.ts",
+    "coverage": "Assert public offering condition và removal pair; mock chưa DB race.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "SOCKET-001",
+    "module": "Scheduler",
+    "operation": "Socket stale session/scope",
+    "scenario": "Socket stale session/scope",
+    "trigger": "Người dùng xác thực truy cập tài nguyên thuộc người khác hoặc quyền/session đã thay đổi.",
+    "handling": "PREVENTED: handshake JWT và DB principal, server-derived rooms, lease giới hạn, reauth15s/timeout5s, revoked disconnect; staff chỉ nhận resync.",
+    "status": "HANDLED",
+    "be": [
+      "socket",
+      "jwt"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Persistent session/grants; memory lease/fence, không DB mutation.",
+    "test": "scheduler/scheduler-reauthorization.spec.ts",
+    "coverage": "Assert revoked socket disconnect, rooms replace, expired lease no delivery, late auth cannot rejoin; mock authorization. Có socket transport test local, không production DB.",
+    "severity": "HIGH",
+    "risk": "Tác động tiềm tàng HIGH nếu mất authorization; nguồn hiện có bảo vệ tình huống này.",
+    "recommendation": "Giữ resource scope và bổ sung runtime đa phiên nếu cần."
+  },
+  {
+    "id": "STAFF-001",
+    "module": "Staff / Mail",
+    "operation": "invite/sendMail",
+    "scenario": "Gửi email thất bại bị coi là hoàn tất lời mời",
+    "trigger": "Owner mời staff; SMTP lỗi trong MailService.sendMail.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: MailService catch/log rồi resolve; StaffInvitationsService catch rollback không chạy, trả invitation PENDING dù email không được gửi.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "mail",
+      "invite"
+    ],
+    "fe": [],
+    "db": "Token hash, expiry 7 ngày, role/scope/profile checks vẫn có; production thiếu creds bị chặn startup. Chống enumeration ở forgot-password là chủ ý, không tính là false success riêng.",
+    "test": "mail/mail.service.spec.ts",
+    "coverage": "Missing production creds throw; không assert SMTP failure đi xuyên invitation.",
+    "severity": "MEDIUM",
+    "risk": "Nhân sự bị giữ INVITED nhưng chưa nhận link; phải mời lại thủ công.",
+    "recommendation": "Mail outbox/retry hoặc kết quả typed delivery failure; không hủy chứng cứ sau lỗi gửi; log an toàn.",
+    "gap": "GAP-08"
+  },
+  {
+    "id": "STAFF-002",
+    "module": "Staff / Mail",
+    "operation": "PATCH staff status",
+    "scenario": "Cập nhật staff trực tiếp bỏ qua luồng xử lý lịch tương lai",
+    "trigger": "Owner đúng business PATCH staff/:id với status INACTIVE/LOCKED hoặc isBookable=false trong khi còn lịch được phân công.",
+    "handling": "PREVENTED một phần; StaffService.update ghi các field status/bookable trực tiếp sau assertExists. Không offboardingImpact/reassignment; endpoint deactivate riêng mới chạy workflow và thu hồi role/session.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "staffUpdate",
+      "staffOffboard",
+      "staffValid"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Owner scope và whitelist fields còn đúng; booking lịch sử không bị xóa; tạo lịch mới sẽ reject inactive staff. Không suy ra tài khoản bị khóa chỉ từ staff.status.",
+    "test": null,
+    "coverage": "Không tìm thấy test trực tiếp cho trigger này; source audit, chưa runtime.",
+    "severity": "MEDIUM",
+    "risk": "Staff inactive vẫn được gắn các lịch đang chờ, trong khi API chuyên biệt yêu cầu giải quyết impact; trạng thái UI và khả năng phục vụ thiếu nhất quán.",
+    "recommendation": "Một transition service chung; nếu pause chủ ý vẫn phục vụ lịch cũ, đặt tên/state và UI policy rõ, không cho PATCH dùng state offboard thay thế workflow.",
+    "gap": "GAP-24"
+  },
+  {
+    "id": "USER-001",
+    "module": "User management",
+    "operation": "suspend response",
+    "scenario": "Endpoint suspend trả nguyên User có passwordHash",
+    "trigger": "PLATFORM_ADMIN có user:suspend:platform gọi suspend thành công.",
+    "handling": "Không tìm thấy cơ chế lọc scalar response. prisma.user.update không select trả toàn scalar User; service return updated; controller forward trực tiếp. Không có serializer/Prisma omit toàn cục.",
+    "status": "NOT HANDLED",
+    "be": [
+      "userSuspend",
+      "userSchema",
+      "app"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "JWT/permission chặn anonymous và tenant role. Hash không phải plaintext; test serialization chỉ regex user:true nên không phát hiện update trực tiếp.",
+    "test": "common/security/serialization-contract.spec.ts",
+    "coverage": "Regex chỉ cấm user:true; không kiểm tra root prisma.user.update response.",
+    "severity": "MEDIUM",
+    "risk": "Credential hash xuất hiện ở client quản trị/devtools/response logging ngoài nơi lưu credential; phạm vi admin có quyền nên xếp MEDIUM.",
+    "recommendation": "Select safe fields/response DTO; kiểm soát serialization cho root User lẫn relation.",
+    "gap": "GAP-17"
+  },
+  {
+    "id": "BG-001",
+    "module": "Workers / Recurring",
+    "operation": "outbox",
+    "scenario": "Hai worker claim/crash projection",
+    "trigger": "Due outbox hoặc stale PROCESSING.",
+    "handling": "PREVENTED / DETECTED AND HANDLED: attempts fence, stale reclaim, notification+SENT tx; bounded retry/backoff/dead-letter.",
+    "status": "HANDLED",
+    "be": [
+      "outbox"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Unique dedupeKey, atomic projection/status.",
+    "test": "notifications/notification-outbox.worker.spec.ts",
+    "coverage": "Assert notification.create once, SENT attempts fence, lost claim no project; mock không DB contenders.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "BG-002",
+    "module": "Workers / Recurring",
+    "operation": "preview/skip conflicts",
+    "scenario": "Preview lịch lặp chưa kiểm tra slot đã bị chiếm",
+    "trigger": "Customer preview recurring ở giờ đã có booking khác của staff, eligibility và branch hours hợp lệ.",
+    "handling": "PREVENTED một phần bởi bảo vệ liệt kê; nhánh còn thiếu: findStaff chỉ gọi validateStaffForService; không assertNoOverlap. availableCount có thể báo còn chỗ. create gọi BookingsService nên phát hiện conflict rồi bù chuỗi, kể cả skipConflicts=true.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "recurring",
+      "staffValid",
+      "overlap",
+      "create"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Booking create vẫn ngăn double booking; compensation và creation fence có sẵn. Không cáo buộc recurring ghi lịch chồng.",
+    "test": "recurring/recurring.service.spec.ts",
+    "coverage": "Mock compensation không chứng minh preview kiểm tra occupied slot.",
+    "severity": "MEDIUM",
+    "risk": "UI báo còn chỗ sai, chuỗi thất bại thay vì bỏ kỳ đã chọn, các kỳ trước bị hủy bù.",
+    "recommendation": "Dùng availability chung trong preview; thiết kế skipConflicts với revalidation từng kỳ và thông báo outcome chính xác.",
+    "gap": "GAP-16"
+  },
+  {
+    "id": "BG-003",
+    "module": "Workers / Recurring",
+    "operation": "stale CREATING recovery",
+    "scenario": "Recurring plan không heartbeat",
+    "trigger": "Plan CREATING stale vượt ngưỡng worker.",
+    "handling": "DETECTED AND HANDLED: CAS stale claim, count committed bookings, FAILED+outbox tx, giữ bookings; fresh heartbeat no-op.",
+    "status": "HANDLED",
+    "be": [
+      "recurringRecover",
+      "recurring"
+    ],
+    "fe": [
+      "webConfirm"
+    ],
+    "db": "Creation fence+CAS+outbox.",
+    "test": "recurring/recurring-plan-recovery.worker.spec.ts",
+    "coverage": "Assert stale/fresh, notice failure rollback, tick guard release; chưa kill-process.",
+    "severity": "MEDIUM",
+    "risk": "Tác động tiềm tàng MEDIUM nếu bỏ bảo vệ; chưa thấy gap riêng trong tình huống hẹp này.",
+    "recommendation": "Duy trì invariant; bổ sung runtime test cô lập theo giới hạn bằng chứng."
+  },
+  {
+    "id": "BG-004",
+    "module": "Workers / Recurring",
+    "operation": "policy reminder cron",
+    "scenario": "Nhắc lịch dùng cửa sổ 5 phút không có catch-up/dedupe nguyên tử",
+    "trigger": "PolicyNotificationCron được đăng ký trong SchedulerModule; timer dừng/chậm quá cửa sổ5phút hoặc hai process cùng tick.",
+    "handling": "PREVENTED một phần; Lọc start trong [now+lead, now+lead+5m); không có persisted watermark/catch-up. Read notifications rồi createMany tách rời; Notification không có unique booking/type/recipient.",
+    "status": "PARTIALLY HANDLED",
+    "be": [
+      "reminder",
+      "outbox",
+      "app"
+    ],
+    "fe": [
+      "webApi"
+    ],
+    "db": "Có check notifications.length và giới hạn2000row nhưng không CAS; outbox có dedupe song cron này ghi Notification trực tiếp. Global HTTP idempotency không áp cho timer.",
+    "test": null,
+    "coverage": "Không tìm thấy test trực tiếp cho trigger này; source audit, chưa runtime.",
+    "severity": "MEDIUM",
+    "risk": "Khách bỏ lỡ nhắc lịch hoặc nhận trùng, không làm mất booking. Không khẳng định email/push đã được gửi vì cron chỉ ghi in-app.",
+    "recommendation": "Dùng durable reminder key/outbox, watermark/catch-up bounded theo policy; điều phối nhiều instance; phân trang ổn định.",
+    "gap": "GAP-23"
+  }
+]

@@ -1,0 +1,335 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TRACEABILITY.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Ma trận truy vết xuyên suốt</h1>
+<p>Nhiều–nhiều. Không bắt buộc bảng hỗ trợ/di sản có UC trực tiếp; model-coverage giải thích toàn bộ.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>BUC</th>
+<th>SUC</th>
+<th>Lớp phân tích / hình</th>
+<th>Lớp thiết kế / hình</th>
+<th>Model/bảng</th>
+<th>Source evidence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>BUC-01</td>
+<td>SUC-01 Tra cứu dịch vụ và cơ sở</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-catalog.puml">DC-catalog</a>: ServicesController, ServicesService, CombosService, PrismaService</td>
+<td>Branch / branches; BranchServiceOffering / services; StaffProfile / staff_profiles; Review / reviews</td>
+<td><a href="../../src/services/services.controller.ts">ServicesController.search</a> (dòng 70); <a href="../../src/branches/branches.controller.ts">BranchesController.findAll</a> (dòng 59); <a href="../../src/staff/staff.controller.ts">StaffController.findPublicOne</a> (dòng 174)</td>
+</tr>
+<tr>
+<td>BUC-12</td>
+<td>SUC-02 Thiết lập tài khoản và đăng nhập</td>
+<td><a href="03-analysis-classes/AC-identity.puml">AC-identity</a>: KenhTaiKhoan, BaoVeDanhTinh, TaiKhoan, PhienTruyCap, YeuCauDuLieu</td>
+<td><a href="04-design-classes/DC-auth.puml">DC-auth</a>: AuthController, AuthService, TokenBlacklistService, PrismaService</td>
+<td>User / users; CustomerProfile / customer_profiles; BusinessOwnerProfile / business_owner_profiles; UserSession / user_sessions; AccountToken / account_tokens</td>
+<td><a href="../../src/auth/auth.controller.ts">AuthController.register</a> (dòng 96); <a href="../../src/auth/auth.controller.ts">AuthController.login</a> (dòng 71); <a href="../../src/auth/auth.service.ts">AuthService.register</a> (dòng 141)</td>
+</tr>
+<tr>
+<td>BUC-12</td>
+<td>SUC-03 Khôi phục và bảo vệ truy cập</td>
+<td><a href="03-analysis-classes/AC-identity.puml">AC-identity</a>: KenhTaiKhoan, BaoVeDanhTinh, TaiKhoan, PhienTruyCap, YeuCauDuLieu</td>
+<td><a href="04-design-classes/DC-auth.puml">DC-auth</a>: AuthController, AuthService, TokenBlacklistService, PrismaService</td>
+<td>AccountToken / account_tokens; UserSession / user_sessions; User / users</td>
+<td><a href="../../src/auth/auth.controller.ts">AuthController.verifyEmail</a> (dòng 131); <a href="../../src/auth/auth.controller.ts">AuthController.forgotPassword</a> (dòng 138); <a href="../../src/auth/auth.controller.ts">AuthController.resetPassword</a> (dòng 146)</td>
+</tr>
+<tr>
+<td>BUC-12</td>
+<td>SUC-04 Duy trì hồ sơ cá nhân</td>
+<td><a href="03-analysis-classes/AC-identity.puml">AC-identity</a>: KenhTaiKhoan, BaoVeDanhTinh, TaiKhoan, PhienTruyCap, YeuCauDuLieu</td>
+<td><a href="04-design-classes/DC-self.puml">DC-self</a>: UsersService, SavedServicesService, PrismaService</td>
+<td>User / users; CustomerProfile / customer_profiles; StaffProfile / staff_profiles; MediaFile / media_files</td>
+<td><a href="../../src/users/users.controller.ts">UsersController.me</a> (dòng 34); <a href="../../src/users/users.controller.ts">UsersController.updateMe</a> (dòng 41); <a href="../../src/users/users.service.ts">UsersService.updateSelf</a> (dòng 56)</td>
+</tr>
+<tr>
+<td>BUC-02</td>
+<td>SUC-05 Tự đặt lịch dịch vụ</td>
+<td><a href="03-analysis-classes/AC-booking.puml">AC-booking</a>: KenhTiepNhan, DieuPhoiDatLich, LichHen, PhanDichVu, NangLucPhucVu; <a href="03-analysis-classes/AC-overview.puml">AC-overview</a>: KhachHang, LichHen, PhanDichVu, DichVuCungCap, ChuyenVien, KhoanThu</td>
+<td><a href="04-design-classes/DC-overview.puml">DC-overview</a>: BookingsService, PricingEngineService, PaymentsService, SchedulerGateway, PrismaService; <a href="04-design-classes/DC-booking.puml">DC-booking</a>: BookingsController, BookingsService, PrismaService</td>
+<td>Booking / bookings; BookingService / booking_services; BookingContact / booking_contacts; BranchServiceOffering / services; StaffProfile / staff_profiles</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.create</a> (dòng 237); <a href="../../src/bookings/bookings.controller.ts">BookingsController.createGuest</a> (dòng 199); <a href="../../src/bookings/bookings.service.ts">BookingsService.create</a> (dòng 817)</td>
+</tr>
+<tr>
+<td>BUC-02</td>
+<td>SUC-06 Kiểm tra giờ còn khả dụng</td>
+<td><a href="03-analysis-classes/AC-booking.puml">AC-booking</a>: KenhTiepNhan, DieuPhoiDatLich, LichHen, PhanDichVu, NangLucPhucVu</td>
+<td><a href="04-design-classes/DC-booking.puml">DC-booking</a>: BookingsController, BookingsService, PrismaService</td>
+<td>BranchWorkingHour / branch_working_hours; BranchHoliday / branch_holidays; SpecialWorkingDay / special_working_days; StaffService / staff_services; BookingService / booking_services</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.getAvailableSlots</a> (dòng 724); <a href="../../src/bookings/bookings.service.ts">BookingsService.getAvailableSlots</a> (dòng 1917)</td>
+</tr>
+<tr>
+<td>BUC-02, BUC-06</td>
+<td>SUC-07 Xem giá và ưu đãi đặt lịch</td>
+<td><a href="03-analysis-classes/AC-booking.puml">AC-booking</a>: KenhTiepNhan, DieuPhoiDatLich, LichHen, PhanDichVu, NangLucPhucVu</td>
+<td><a href="04-design-classes/DC-overview.puml">DC-overview</a>: BookingsService, PricingEngineService, PaymentsService, SchedulerGateway, PrismaService; <a href="04-design-classes/DC-marketing.puml">DC-marketing</a>: PromotionsService, VouchersAdminService, PricingEngineService, PrismaService</td>
+<td>Voucher / vouchers; Promotion / promotions; PriceAdjustment / price_adjustments; BranchServiceOffering / services</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.previewPrice</a> (dòng 308); <a href="../../src/bookings/vouchers.service.ts">VouchersService.preview</a> (dòng 15); <a href="../../src/promotions/pricing-engine.service.ts">PricingEngineService.quote</a> (dòng 28)</td>
+</tr>
+<tr>
+<td>BUC-02, BUC-03</td>
+<td>SUC-08 Theo dõi lịch và chính sách tự đặt</td>
+<td><a href="03-analysis-classes/AC-change.puml">AC-change</a>: KenhYeuCau, XuLyThayDoi, YeuCauThayDoi, LichHen, LichSuViPham</td>
+<td><a href="04-design-classes/DC-access.puml">DC-access</a>: BookingsController, BookingsAccessService, PrismaService</td>
+<td>Booking / bookings; BookingViolationEvent / booking_violation_events; CustomerBookingPolicy / customer_booking_policies</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.myAppointments</a> (dòng 545); <a href="../../src/bookings/bookings.controller.ts">BookingsController.findOne</a> (dòng 858); <a href="../../src/bookings/bookings.controller.ts">BookingsController.selfBookingPolicy</a> (dòng 185)</td>
+</tr>
+<tr>
+<td>BUC-03</td>
+<td>SUC-09 Tự hủy lịch đủ sớm</td>
+<td><a href="03-analysis-classes/AC-change.puml">AC-change</a>: KenhYeuCau, XuLyThayDoi, YeuCauThayDoi, LichHen, LichSuViPham</td>
+<td><a href="04-design-classes/DC-change.puml">DC-change</a>: ChangeRequestsService, BookingsService, PlatformSettingsService, PrismaService</td>
+<td>Booking / bookings; BookingService / booking_services; BookingStatusHistory / booking_status_histories</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977); <a href="../../src/bookings/bookings.service.ts">BookingsService.updateStatus</a> (dòng 421)</td>
+</tr>
+<tr>
+<td>BUC-03</td>
+<td>SUC-10 Gửi yêu cầu đổi hoặc hủy lịch</td>
+<td><a href="03-analysis-classes/AC-change.puml">AC-change</a>: KenhYeuCau, XuLyThayDoi, YeuCauThayDoi, LichHen, LichSuViPham</td>
+<td><a href="04-design-classes/DC-change.puml">DC-change</a>: ChangeRequestsService, BookingsService, PlatformSettingsService, PrismaService</td>
+<td>AppointmentChangeRequest / appointment_change_requests; Booking / bookings; BookingViolationEvent / booking_violation_events</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.createChangeRequest</a> (dòng 1186); <a href="../../src/bookings/change-requests.service.ts">ChangeRequestsService.create</a> (dòng 56)</td>
+</tr>
+<tr>
+<td>BUC-02, BUC-06</td>
+<td>SUC-11 Sắp xếp chuỗi lịch định kỳ</td>
+<td><a href="03-analysis-classes/AC-recurring.puml">AC-recurring</a>: KenhLichDinhKy, SapXepChuoi, ChuoiLich, KyHen, NangLucPhucVu</td>
+<td><a href="04-design-classes/DC-recurring.puml">DC-recurring</a>: RecurringController, RecurringService, BookingsService, PrismaService</td>
+<td>RecurringBookingPlan / recurring_booking_plans; Booking / bookings</td>
+<td><a href="../../src/recurring/recurring.controller.ts">RecurringController.preview</a> (dòng 16); <a href="../../src/recurring/recurring.controller.ts">RecurringController.create</a> (dòng 22); <a href="../../src/recurring/recurring.controller.ts">RecurringController.status</a> (dòng 35)</td>
+</tr>
+<tr>
+<td>BUC-01, BUC-06</td>
+<td>SUC-12 Lưu dịch vụ quan tâm</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-self.puml">DC-self</a>: UsersService, SavedServicesService, PrismaService</td>
+<td>CustomerSavedService / customer_saved_services; CustomerProfile / customer_profiles; BranchServiceOffering / services</td>
+<td><a href="../../src/saved-services/saved-services.controller.ts">SavedServicesController.list</a> (dòng 14); <a href="../../src/saved-services/saved-services.controller.ts">SavedServicesController.save</a> (dòng 19); <a href="../../src/saved-services/saved-services.service.ts">SavedServicesService.save</a> (dòng 56)</td>
+</tr>
+<tr>
+<td>BUC-02</td>
+<td>SUC-13 Tạo lịch hộ tại cơ sở</td>
+<td><a href="03-analysis-classes/AC-booking.puml">AC-booking</a>: KenhTiepNhan, DieuPhoiDatLich, LichHen, PhanDichVu, NangLucPhucVu</td>
+<td><a href="04-design-classes/DC-access.puml">DC-access</a>: BookingsController, BookingsAccessService, PrismaService; <a href="04-design-classes/DC-booking.puml">DC-booking</a>: BookingsController, BookingsService, PrismaService</td>
+<td>CustomerProfile / customer_profiles; BookingContact / booking_contacts; Booking / bookings; BookingService / booking_services</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.create</a> (dòng 237); <a href="../../src/bookings/bookings.service.ts">BookingsService.create</a> (dòng 817)</td>
+</tr>
+<tr>
+<td>BUC-02, BUC-04</td>
+<td>SUC-14 Điều phối lịch và phân công</td>
+<td><a href="03-analysis-classes/AC-delivery.puml">AC-delivery</a>: BangDieuPhoi, DieuPhoiThucHien, PhanDichVu, ChuyenVien, HoSoTacDong</td>
+<td><a href="04-design-classes/DC-access.puml">DC-access</a>: BookingsController, BookingsAccessService, PrismaService; <a href="04-design-classes/DC-booking.puml">DC-booking</a>: BookingsController, BookingsService, PrismaService</td>
+<td>Booking / bookings; BookingService / booking_services; StaffProfile / staff_profiles</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.moveBooking</a> (dòng 1072); <a href="../../src/bookings/bookings.controller.ts">BookingsController.assignStaff</a> (dòng 1105); <a href="../../src/bookings/bookings.controller.ts">BookingsController.addBookingItem</a> (dòng 1118)</td>
+</tr>
+<tr>
+<td>BUC-03</td>
+<td>SUC-15 Xử lý yêu cầu thay đổi lịch</td>
+<td><a href="03-analysis-classes/AC-change.puml">AC-change</a>: KenhYeuCau, XuLyThayDoi, YeuCauThayDoi, LichHen, LichSuViPham</td>
+<td><a href="04-design-classes/DC-change.puml">DC-change</a>: ChangeRequestsService, BookingsService, PlatformSettingsService, PrismaService</td>
+<td>AppointmentChangeRequest / appointment_change_requests; Booking / bookings; BookingService / booking_services</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.approveChangeRequest</a> (dòng 1209); <a href="../../src/bookings/bookings.controller.ts">BookingsController.rejectChangeRequest</a> (dòng 1227); <a href="../../src/bookings/change-requests.service.ts">ChangeRequestsService.approve</a> (dòng 194)</td>
+</tr>
+<tr>
+<td>BUC-04</td>
+<td>SUC-16 Tiếp nhận khách và ghi no-show</td>
+<td><a href="03-analysis-classes/AC-change.puml">AC-change</a>: KenhYeuCau, XuLyThayDoi, YeuCauThayDoi, LichHen, LichSuViPham; <a href="03-analysis-classes/AC-delivery.puml">AC-delivery</a>: BangDieuPhoi, DieuPhoiThucHien, PhanDichVu, ChuyenVien, HoSoTacDong</td>
+<td><a href="04-design-classes/DC-booking.puml">DC-booking</a>: BookingsController, BookingsService, PrismaService</td>
+<td>Booking / bookings; BookingStatusHistory / booking_status_histories; BookingViolationEvent / booking_violation_events</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.checkin</a> (dòng 1297); <a href="../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977); <a href="../../src/bookings/bookings.service.ts">BookingsService.checkin</a> (dòng 2797)</td>
+</tr>
+<tr>
+<td>BUC-04</td>
+<td>SUC-17 Thực hiện phần dịch vụ được giao</td>
+<td><a href="03-analysis-classes/AC-delivery.puml">AC-delivery</a>: BangDieuPhoi, DieuPhoiThucHien, PhanDichVu, ChuyenVien, HoSoTacDong; <a href="03-analysis-classes/AC-overview.puml">AC-overview</a>: KhachHang, LichHen, PhanDichVu, DichVuCungCap, ChuyenVien, KhoanThu</td>
+<td><a href="04-design-classes/DC-items.puml">DC-items</a>: BookingItemsService, BookingsService, PrismaService</td>
+<td>BookingService / booking_services; BookingServiceAdjustment / booking_service_adjustments; Booking / bookings</td>
+<td><a href="../../src/bookings/bookings.controller.ts">BookingsController.updateBookingItem</a> (dòng 1147); <a href="../../src/bookings/booking-items.service.ts">BookingItemsService.update</a> (dòng 85)</td>
+</tr>
+<tr>
+<td>BUC-05</td>
+<td>SUC-18 Thu tiền và xác minh giao dịch</td>
+<td><a href="03-analysis-classes/AC-finance.puml">AC-finance</a>: KenhQuyetToan, KiemSoatSoDu, KhoanThu, YeuCauHoan, QuyenDungBuoi; <a href="03-analysis-classes/AC-overview.puml">AC-overview</a>: KhachHang, LichHen, PhanDichVu, DichVuCungCap, ChuyenVien, KhoanThu</td>
+<td><a href="04-design-classes/DC-overview.puml">DC-overview</a>: BookingsService, PricingEngineService, PaymentsService, SchedulerGateway, PrismaService; <a href="04-design-classes/DC-payment.puml">DC-payment</a>: PaymentsController, PaymentsService, PaymentProviderRegistry, PrismaService; <a href="04-design-classes/DC-providers.puml">DC-providers</a>: PaymentProvider, CashPaymentAdapter, ManualBankTransferAdapter, PaymentProviderRegistry</td>
+<td>Payment / payments; PaymentIntent / payment_intents; PaymentTransaction / payment_transactions; FinancialLedgerEntry / financial_ledger_entries</td>
+<td><a href="../../src/payments/payments.controller.ts">PaymentsController.collect</a> (dòng 36); <a href="../../src/payments/payments.controller.ts">PaymentsController.verifyTransaction</a> (dòng 61); <a href="../../src/payments/payments.service.ts">PaymentsService.collect</a> (dòng 149)</td>
+</tr>
+<tr>
+<td>BUC-05</td>
+<td>SUC-19 Đề nghị và xét duyệt hoàn tiền</td>
+<td><a href="03-analysis-classes/AC-finance.puml">AC-finance</a>: KenhQuyetToan, KiemSoatSoDu, KhoanThu, YeuCauHoan, QuyenDungBuoi</td>
+<td><a href="04-design-classes/DC-payment.puml">DC-payment</a>: PaymentsController, PaymentsService, PaymentProviderRegistry, PrismaService</td>
+<td>RefundRequest / refund_requests; Payment / payments</td>
+<td><a href="../../src/payments/payments.controller.ts">PaymentsController.requestRefund</a> (dòng 227); <a href="../../src/payments/payments.controller.ts">PaymentsController.review</a> (dòng 239); <a href="../../src/payments/payments.service.ts">PaymentsService.requestRefund</a> (dòng 363)</td>
+</tr>
+<tr>
+<td>BUC-05</td>
+<td>SUC-20 Ghi kết quả xử lý hoàn tiền</td>
+<td><a href="03-analysis-classes/AC-finance.puml">AC-finance</a>: KenhQuyetToan, KiemSoatSoDu, KhoanThu, YeuCauHoan, QuyenDungBuoi</td>
+<td><a href="04-design-classes/DC-payment.puml">DC-payment</a>: PaymentsController, PaymentsService, PaymentProviderRegistry, PrismaService</td>
+<td>RefundRequest / refund_requests; RefundAllocation / refund_allocations; FinancialLedgerEntry / financial_ledger_entries; Payment / payments</td>
+<td><a href="../../src/payments/payments.controller.ts">PaymentsController.process</a> (dòng 251); <a href="../../src/payments/payments.service.ts">PaymentsService.processRefund</a> (dòng 421)</td>
+</tr>
+<tr>
+<td>BUC-05, BUC-06</td>
+<td>SUC-21 Quản lý gói buổi dịch vụ</td>
+<td><a href="03-analysis-classes/AC-finance.puml">AC-finance</a>: KenhQuyetToan, KiemSoatSoDu, KhoanThu, YeuCauHoan, QuyenDungBuoi</td>
+<td><a href="04-design-classes/DC-payment.puml">DC-payment</a>: PaymentsController, PaymentsService, PaymentProviderRegistry, PrismaService</td>
+<td>TreatmentPackage / treatment_packages; PackagePurchase / package_purchases; PackageInstallment / package_installments; PackageSessionEntitlement / package_session_entitlements</td>
+<td><a href="../../src/payments/payments.controller.ts">PaymentsController.createPackage</a> (dòng 163); <a href="../../src/payments/payments.controller.ts">PaymentsController.purchasePackage</a> (dòng 174); <a href="../../src/payments/payments.controller.ts">PaymentsController.reservePackageSession</a> (dòng 212)</td>
+</tr>
+<tr>
+<td>BUC-07</td>
+<td>SUC-22 Chuẩn bị và nộp hồ sơ doanh nghiệp</td>
+<td><a href="03-analysis-classes/AC-onboarding.puml">AC-onboarding</a>: KenhHoSo, ThamDinhCoSo, HoSoDoanhNghiep, ChiNhanh, BangChungPhapLy</td>
+<td><a href="04-design-classes/DC-business.puml">DC-business</a>: BusinessController, BusinessOnboardingService, PrismaService</td>
+<td>Business / businesses; BusinessDocument / business_documents; BusinessDocumentVersion / business_document_versions; BusinessReviewEvent / business_review_events</td>
+<td><a href="../../src/business/business.controller.ts">BusinessController.createDraft</a> (dòng 28); <a href="../../src/business/business.controller.ts">BusinessController.submit</a> (dòng 62); <a href="../../src/business/business-onboarding.service.ts">BusinessOnboardingService.updateDraft</a> (dòng 527)</td>
+</tr>
+<tr>
+<td>BUC-07, BUC-11</td>
+<td>SUC-23 Thẩm định doanh nghiệp và chi nhánh</td>
+<td><a href="03-analysis-classes/AC-onboarding.puml">AC-onboarding</a>: KenhHoSo, ThamDinhCoSo, HoSoDoanhNghiep, ChiNhanh, BangChungPhapLy</td>
+<td><a href="04-design-classes/DC-business.puml">DC-business</a>: BusinessController, BusinessOnboardingService, PrismaService</td>
+<td>BusinessReviewEvent / business_review_events; BranchReviewRequest / branch_review_requests; BranchReviewEvent / branch_review_events; DocumentReviewEvent / document_review_events</td>
+<td><a href="../../src/business/business.controller.ts">BusinessController.review</a> (dòng 73); <a href="../../src/branches/branches.controller.ts">BranchesController.review</a> (dòng 261); <a href="../../src/business/business-onboarding.service.ts">BusinessOnboardingService.review</a> (dòng 666)</td>
+</tr>
+<tr>
+<td>BUC-07, BUC-08</td>
+<td>SUC-24 Thiết lập và công bố chi nhánh</td>
+<td><a href="03-analysis-classes/AC-onboarding.puml">AC-onboarding</a>: KenhHoSo, ThamDinhCoSo, HoSoDoanhNghiep, ChiNhanh, BangChungPhapLy</td>
+<td><a href="04-design-classes/DC-branch.puml">DC-branch</a>: BranchesController, BranchesService, BranchStateService, PrismaService</td>
+<td>Branch / branches; BranchOnboardingProgress / branch_onboarding_progress; BranchWorkingHour / branch_working_hours; BranchDocument / branch_documents</td>
+<td><a href="../../src/branches/branches.controller.ts">BranchesController.saveOnboarding</a> (dòng 186); <a href="../../src/branches/branches.controller.ts">BranchesController.publish</a> (dòng 285); <a href="../../src/branches/branches.service.ts">BranchesService.getReadiness</a> (dòng 764)</td>
+</tr>
+<tr>
+<td>BUC-08</td>
+<td>SUC-25 Quản lý dịch vụ và giá tại cơ sở</td>
+<td><a href="03-analysis-classes/AC-capacity.puml">AC-capacity</a>: KenhQuanLyCoSo, QuanLyNangLuc, DichVuCungCap, ChuyenVien, GoiDichVu</td>
+<td><a href="04-design-classes/DC-catalog.puml">DC-catalog</a>: ServicesController, ServicesService, CombosService, PrismaService</td>
+<td>CanonicalService / canonical_services; BusinessService / business_services; BranchServiceOffering / services; ServiceVariant / service_variants; ServicePriceRule / service_price_rules</td>
+<td><a href="../../src/services/services.controller.ts">ServicesController.createCatalog</a> (dòng 187); <a href="../../src/services/services.controller.ts">ServicesController.updateOfferingPricing</a> (dòng 265); <a href="../../src/services/services.controller.ts">ServicesController.archiveCatalog</a> (dòng 214)</td>
+</tr>
+<tr>
+<td>BUC-08</td>
+<td>SUC-26 Quản lý chuyên viên và lời mời</td>
+<td><a href="03-analysis-classes/AC-capacity.puml">AC-capacity</a>: KenhQuanLyCoSo, QuanLyNangLuc, DichVuCungCap, ChuyenVien, GoiDichVu</td>
+<td><a href="04-design-classes/DC-staff.puml">DC-staff</a>: StaffController, StaffService, StaffInvitationsService, PrismaService</td>
+<td>StaffProfile / staff_profiles; StaffInvitation / staff_invitations; StaffBranchAssignment / staff_branch_assignments; StaffService / staff_services; UserRole / user_roles</td>
+<td><a href="../../src/staff/staff.controller.ts">StaffController.create</a> (dòng 226); <a href="../../src/staff/staff.controller.ts">StaffController.invite</a> (dòng 79); <a href="../../src/staff/staff.controller.ts">StaffController.acceptInvitation</a> (dòng 113)</td>
+</tr>
+<tr>
+<td>BUC-08, BUC-06</td>
+<td>SUC-27 Quản lý combo dịch vụ</td>
+<td><a href="03-analysis-classes/AC-capacity.puml">AC-capacity</a>: KenhQuanLyCoSo, QuanLyNangLuc, DichVuCungCap, ChuyenVien, GoiDichVu</td>
+<td><a href="04-design-classes/DC-catalog.puml">DC-catalog</a>: ServicesController, ServicesService, CombosService, PrismaService</td>
+<td>Combo / combos; ComboService / combo_services; BranchServiceOffering / services</td>
+<td><a href="../../src/combos/combos.controller.ts">CombosController.create</a> (dòng 36); <a href="../../src/combos/combos.controller.ts">CombosController.update</a> (dòng 44); <a href="../../src/combos/combos.service.ts">CombosService.resolveForBooking</a> (dòng 136)</td>
+</tr>
+<tr>
+<td>BUC-06</td>
+<td>SUC-28 Thiết lập khuyến mãi và voucher</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-marketing.puml">DC-marketing</a>: PromotionsService, VouchersAdminService, PricingEngineService, PrismaService</td>
+<td>Promotion / promotions; Voucher / vouchers; CustomerVoucher / customer_vouchers; PromotionRedemption / promotion_redemptions; VoucherRedemption / voucher_redemptions</td>
+<td><a href="../../src/promotions/promotions.controller.ts">PromotionsController.create</a> (dòng 78); <a href="../../src/promotions/vouchers.controller.ts">VouchersController.create</a> (dòng 56); <a href="../../src/promotions/vouchers.controller.ts">VouchersController.grant</a> (dòng 98)</td>
+</tr>
+<tr>
+<td>BUC-06</td>
+<td>SUC-29 Đánh giá dịch vụ đã dùng</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-review.puml">DC-review</a>: ReviewsController, ReviewsService, PrismaService</td>
+<td>Review / reviews; ReviewServiceRating / review_service_ratings; BookingService / booking_services</td>
+<td><a href="../../src/reviews/reviews.controller.ts">ReviewsController.create</a> (dòng 106); <a href="../../src/reviews/reviews.service.ts">ReviewsService.create</a> (dòng 280)</td>
+</tr>
+<tr>
+<td>BUC-06, BUC-11</td>
+<td>SUC-30 Phản hồi và xem xét đánh giá</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-review.puml">DC-review</a>: ReviewsController, ReviewsService, PrismaService</td>
+<td>BusinessComment / business_comments; ReviewReport / review_reports; ReviewAppeal / review_appeals; ReviewModerationEvent / review_moderation_events</td>
+<td><a href="../../src/reviews/reviews.controller.ts">ReviewsController.reply</a> (dòng 163); <a href="../../src/reviews/reviews.controller.ts">ReviewsController.report</a> (dòng 147); <a href="../../src/reviews/reviews.controller.ts">ReviewsController.moderate</a> (dòng 189)</td>
+</tr>
+<tr>
+<td>BUC-06, BUC-12</td>
+<td>SUC-31 Theo dõi thông báo cá nhân</td>
+<td><a href="03-analysis-classes/AC-relations.puml">AC-relations</a>: KenhTuongTac, ChamSocKhach, DanhGia, UuDai, DichVuQuanTam</td>
+<td><a href="04-design-classes/DC-communication.puml">DC-communication</a>: NotificationsService, MediaService, PrismaService</td>
+<td>Notification / notifications; NotificationOutbox / notification_outbox; DeviceToken / device_tokens</td>
+<td><a href="../../src/notifications/notifications.controller.ts">NotificationsController.findMy</a> (dòng 28); <a href="../../src/notifications/notifications.controller.ts">NotificationsController.markAsRead</a> (dòng 65); <a href="../../src/notifications/notifications.service.ts">NotificationsService.findByUser</a> (dòng 12)</td>
+</tr>
+<tr>
+<td>BUC-12</td>
+<td>SUC-32 Kiểm soát quyền dữ liệu</td>
+<td><a href="03-analysis-classes/AC-identity.puml">AC-identity</a>: KenhTaiKhoan, BaoVeDanhTinh, TaiKhoan, PhienTruyCap, YeuCauDuLieu</td>
+<td><a href="04-design-classes/DC-privacy.puml">DC-privacy</a>: PrivacyController, PrivacyCenterService, SensitiveDataCipherService, PrismaService</td>
+<td>DataSubjectRequest / data_subject_requests; PrivacyExportPackage / privacy_export_packages; MarketingPreference / marketing_preferences</td>
+<td><a href="../../src/privacy/privacy.controller.ts">PrivacyController.createDataRequest</a> (dòng 33); <a href="../../src/privacy/privacy.controller.ts">PrivacyController.export</a> (dòng 67); <a href="../../src/privacy/privacy-center.service.ts">PrivacyCenterService.createExport</a> (dòng 204)</td>
+</tr>
+<tr>
+<td>BUC-09</td>
+<td>SUC-33 Giải quyết tác động vận hành</td>
+<td><a href="03-analysis-classes/AC-delivery.puml">AC-delivery</a>: BangDieuPhoi, DieuPhoiThucHien, PhanDichVu, ChuyenVien, HoSoTacDong</td>
+<td><a href="04-design-classes/DC-branch.puml">DC-branch</a>: BranchesController, BranchesService, BranchStateService, PrismaService; <a href="04-design-classes/DC-impact.puml">DC-impact</a>: ImpactController, ImpactService, BookingsService, PrismaService</td>
+<td>OperationalImpactCase / operational_impact_cases; OperationalImpactItem / operational_impact_items; BranchStateTransition / branch_state_transitions</td>
+<td><a href="../../src/operations/impact.controller.ts">ImpactController.resolve</a> (dòng 40); <a href="../../src/operations/impact.controller.ts">ImpactController.complete</a> (dòng 52); <a href="../../src/operations/impact.service.ts">ImpactService.resolveItem</a> (dòng 50)</td>
+</tr>
+<tr>
+<td>BUC-10</td>
+<td>SUC-34 Đề nghị và tiếp nhận chuyển chủ</td>
+<td><a href="03-analysis-classes/AC-governance.puml">AC-governance</a>: KenhQuanTri, KiemSoatTrachNhiem, HoSoChuyenChu, QuyetDinhQuanTri, DauVet</td>
+<td><a href="04-design-classes/DC-ownership.puml">DC-ownership</a>: OwnershipController, OwnershipService, SensitiveDataCipherService, PrismaService</td>
+<td>OwnershipTransfer / ownership_transfers; Business / businesses; BusinessOwnerProfile / business_owner_profiles</td>
+<td><a href="../../src/ownership/ownership.controller.ts">OwnershipController.create</a> (dòng 14); <a href="../../src/ownership/ownership.controller.ts">OwnershipController.accept</a> (dòng 35); <a href="../../src/ownership/ownership.service.ts">OwnershipService.create</a> (dòng 13)</td>
+</tr>
+<tr>
+<td>BUC-10</td>
+<td>SUC-35 Thẩm định và thực hiện chuyển chủ</td>
+<td><a href="03-analysis-classes/AC-governance.puml">AC-governance</a>: KenhQuanTri, KiemSoatTrachNhiem, HoSoChuyenChu, QuyetDinhQuanTri, DauVet</td>
+<td><a href="04-design-classes/DC-ownership.puml">DC-ownership</a>: OwnershipController, OwnershipService, SensitiveDataCipherService, PrismaService</td>
+<td>OwnershipTransfer / ownership_transfers; OwnershipHistory / ownership_history; LegalEntityVersion / legal_entity_versions; PayoutAccountVersion / payout_account_versions</td>
+<td><a href="../../src/ownership/ownership.controller.ts">OwnershipController.review</a> (dòng 63); <a href="../../src/ownership/ownership.controller.ts">OwnershipController.execute</a> (dòng 84); <a href="../../src/ownership/ownership.service.ts">OwnershipService.execute</a> (dòng 148)</td>
+</tr>
+<tr>
+<td>BUC-05, BUC-11</td>
+<td>SUC-36 Xem hiệu quả và đối soát</td>
+<td><a href="03-analysis-classes/AC-finance.puml">AC-finance</a>: KenhQuyetToan, KiemSoatSoDu, KhoanThu, YeuCauHoan, QuyenDungBuoi</td>
+<td><a href="04-design-classes/DC-payment.puml">DC-payment</a>: PaymentsController, PaymentsService, PaymentProviderRegistry, PrismaService; <a href="04-design-classes/DC-governance.puml">DC-governance</a>: AdminController, TrustSnapshotService, ReportsService, PrismaService</td>
+<td>FinancialLedgerEntry / financial_ledger_entries; PlatformStatement / platform_statements; PlatformStatementLine / platform_statement_lines; Booking / bookings; Payment / payments</td>
+<td><a href="../../src/reports/reports.controller.ts">ReportsController.getRevenue</a> (dòng 62); <a href="../../src/reports/reports.controller.ts">ReportsController.getDashboardOverview</a> (dòng 25); <a href="../../src/payments/payments.controller.ts">PaymentsController.ledger</a> (dòng 111)</td>
+</tr>
+<tr>
+<td>BUC-11</td>
+<td>SUC-37 Quản trị truy cập người dùng</td>
+<td><a href="03-analysis-classes/AC-governance.puml">AC-governance</a>: KenhQuanTri, KiemSoatTrachNhiem, HoSoChuyenChu, QuyetDinhQuanTri, DauVet</td>
+<td><a href="04-design-classes/DC-self.puml">DC-self</a>: UsersService, SavedServicesService, PrismaService</td>
+<td>User / users; UserRole / user_roles; UserPermission / user_permissions; Role / roles; Permission / permissions</td>
+<td><a href="../../src/users/users.controller.ts">UsersController.suspend</a> (dòng 109); <a href="../../src/users/users.controller.ts">UsersController.assignRole</a> (dòng 160); <a href="../../src/users/users.controller.ts">UsersController.grantDirectPermission</a> (dòng 128)</td>
+</tr>
+<tr>
+<td>BUC-08, BUC-11</td>
+<td>SUC-38 Quản trị danh mục và chính sách</td>
+<td><a href="03-analysis-classes/AC-capacity.puml">AC-capacity</a>: KenhQuanLyCoSo, QuanLyNangLuc, DichVuCungCap, ChuyenVien, GoiDichVu</td>
+<td><a href="04-design-classes/DC-catalog.puml">DC-catalog</a>: ServicesController, ServicesService, CombosService, PrismaService</td>
+<td>CanonicalService / canonical_services; ServiceCategory / service_categories; PlatformSetting / platform_settings</td>
+<td><a href="../../src/services/services.controller.ts">ServicesController.createCanonical</a> (dòng 111); <a href="../../src/admin/admin.controller.ts">AdminController.updateSettings</a> (dòng 39); <a href="../../src/platform-settings/platform-settings.service.ts">PlatformSettingsService.validate</a> (dòng 78)</td>
+</tr>
+<tr>
+<td>BUC-11</td>
+<td>SUC-39 Giám sát và xử lý độ tin cậy</td>
+<td><a href="03-analysis-classes/AC-governance.puml">AC-governance</a>: KenhQuanTri, KiemSoatTrachNhiem, HoSoChuyenChu, QuyetDinhQuanTri, DauVet</td>
+<td><a href="04-design-classes/DC-governance.puml">DC-governance</a>: AdminController, TrustSnapshotService, ReportsService, PrismaService</td>
+<td>SalonTrustSnapshot / salon_trust_snapshots; TrustAction / trust_actions; AuditLog / audit_logs</td>
+<td><a href="../../src/admin/admin.controller.ts">AdminController.snapshots</a> (dòng 57); <a href="../../src/admin/admin.controller.ts">AdminController.trustAction</a> (dòng 78); <a href="../../src/admin/admin.controller.ts">AdminController.auditLogs</a> (dòng 91)</td>
+</tr>
+<tr>
+<td>BUC-07, BUC-08, BUC-12</td>
+<td>SUC-40 Lưu và sử dụng tài liệu hình ảnh</td>
+<td><a href="03-analysis-classes/AC-onboarding.puml">AC-onboarding</a>: KenhHoSo, ThamDinhCoSo, HoSoDoanhNghiep, ChiNhanh, BangChungPhapLy</td>
+<td><a href="04-design-classes/DC-communication.puml">DC-communication</a>: NotificationsService, MediaService, PrismaService</td>
+<td>MediaFile / media_files; BusinessImage / business_images; BranchImage / branch_images; ServiceImage / service_images; StaffImage / staff_images</td>
+<td><a href="../../src/media/media.controller.ts">MediaController.upload</a> (dòng 29); <a href="../../src/media/media.controller.ts">MediaController.privateContent</a> (dòng 54); <a href="../../src/media/media.service.ts">MediaService.upload</a> (dòng 39)</td>
+</tr>
+</tbody></table></div>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

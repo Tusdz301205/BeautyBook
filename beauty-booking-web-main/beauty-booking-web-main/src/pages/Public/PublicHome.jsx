@@ -21,7 +21,7 @@ import { PublicShell } from '../../components/layout/PublicShell';
 import { HomeMedia } from '../../components/public/HomeMedia';
 import { MarketplaceRail } from '../../components/public/MarketplaceRail';
 import { Select } from '../../components/ui';
-import { getHomeMedia, homeMediaRatios } from '../../config/homeMedia';
+import { getBranchFallbackMedia, getCategoryMedia, getHomeMedia, getServiceFallbackMedia, homeMediaRatios } from '../../config/homeMedia';
 import { useAuthStore } from '../../store/authStore';
 import { CUSTOMER_ACCOUNT_REQUIRED } from '../../utils/authScope';
 
@@ -45,7 +45,7 @@ const bookingSteps = [
 
 const benefits = [
   [BadgeCheck, 'Cơ sở đủ điều kiện nhận lịch', 'Danh sách công khai chỉ trả về chi nhánh đang hoạt động, có dịch vụ và nhân viên khả dụng.'],
-  [Search, 'Tìm theo nhu cầu thật', 'Lọc theo tên cơ sở, dịch vụ, nhóm dịch vụ, khu vực và khoảng giá từ API.'],
+  [Search, 'Tìm theo nhu cầu thật', 'Lọc theo tên cơ sở, dịch vụ, nhóm dịch vụ, khu vực và khoảng giá.'],
   [Clock3, 'Kiểm tra lịch trước khi xác nhận', 'Giờ trống được xác định sau khi bạn chọn dịch vụ và chuyên viên.'],
   [ShieldCheck, 'Đánh giá đã kiểm duyệt', 'Điểm đánh giá trên thẻ cơ sở chỉ tổng hợp từ các đánh giá đã được duyệt.'],
   [UserRoundCheck, 'Chọn người thực hiện', 'Luồng đặt lịch cho phép chọn chuyên viên phù hợp với dịch vụ đã chọn.'],
@@ -82,6 +82,7 @@ function SectionHeading({ kicker, title, description, action }) {
 function HomeSearch({ categories, initialValues, compact = false }) {
   const navigate = useNavigate();
   const [draft, setDraft] = useState(() => ({ ...emptyFilters, ...initialValues }));
+  const advancedCount = ['minRating', 'minPrice', 'maxPrice', 'sort'].filter((key) => String(draft[key] || '').trim()).length;
 
   useEffect(() => {
     setDraft({ ...emptyFilters, ...initialValues });
@@ -156,7 +157,7 @@ function HomeSearch({ categories, initialValues, compact = false }) {
       </div>
 
       <details className="bb-home-search__advanced">
-        <summary>Bộ lọc chi tiết <ChevronDown size={15} aria-hidden="true" /></summary>
+        <summary>Bộ lọc chi tiết{advancedCount ? ` (${advancedCount})` : ''} <ChevronDown size={15} aria-hidden="true" /></summary>
         <div className="bb-home-search__advanced-grid">
           <label>
             <span>Đánh giá tối thiểu</span>
@@ -223,11 +224,13 @@ function CategorySection({ categories, loading, error, retry }) {
         <InlineState title="Chưa tải được nhóm dịch vụ" description={error} onRetry={retry} />
       ) : categories.length ? (
         <MarketplaceRail label="Nhóm dịch vụ làm đẹp" className="bb-home-category-grid">
-          {categories.slice(0, 8).map((category, index) => (
+          {categories.slice(0, 8).map((category, index) => {
+            const categoryMedia = getCategoryMedia(category);
+            return (
             <Link className="bb-home-category" key={category.id} to={`/explore?categoryId=${encodeURIComponent(category.id)}`}>
               <HomeMedia
-                src={getHomeMedia('categories', category.id)}
-                alt={`Minh họa nhóm dịch vụ ${category.name}`}
+                src={categoryMedia}
+                alt={categoryMedia?.alt || `Minh họa nhóm dịch vụ ${category.name}`}
                 ratio={homeMediaRatios.category}
                 label={category.name}
               />
@@ -235,7 +238,7 @@ function CategorySection({ categories, loading, error, retry }) {
               <h3>{category.name}</h3>
               <span className="bb-home-category__action">Khám phá <ArrowRight size={15} aria-hidden="true" /></span>
             </Link>
-          ))}
+          );})}
         </MarketplaceRail>
       ) : (
         <InlineState title="Chưa có nhóm dịch vụ" description="Danh mục sẽ hiển thị khi có nhóm dịch vụ công khai." />
@@ -256,7 +259,9 @@ function EstablishmentCard({ branch }) {
       <Link className="bb-home-establishment-card__link" to={detailPath} aria-label={`Xem cơ sở ${title}`}>
         <div className="bb-home-establishment-card__media">
           <HomeMedia
-            src={branch.coverImage || getHomeMedia('salons', branch.id)}
+            src={branch.coverImage || null}
+            fallbackSrc={getBranchFallbackMedia(branch)}
+            fallbackAlt={'Ảnh minh họa nhóm dịch vụ tại ' + (branch.name || branch.business?.name || 'cơ sở làm đẹp')}
             alt={`Hình ảnh cơ sở ${title}`}
             ratio={homeMediaRatios.salon}
             label={title}
@@ -324,19 +329,24 @@ function EstablishmentSection({ branches, loading, error, retry }) {
   );
 }
 
-function SalonCard({ branch: service, saved, onToggleSaved }) {
+function SalonCard({ branch: service, saved, onToggleSaved, returnTo }) {
   const title = service.displayName || service.name;
   const branchName = service.branchName || 'Chi nhánh';
   const businessName = service.businessName || '';
   const category = service.canonicalServiceName || service.categoryName || 'Dịch vụ làm đẹp';
   const address = [service.address, service.districtName, service.provinceName].filter(Boolean).join(', ');
+  const serviceImage = service.images?.[0]?.media?.url || service.images?.[0]?.url || service.imageUrl || service.coverImage || null;
+  const fallbackMedia = getServiceFallbackMedia(service);
+  const detailState = returnTo ? { returnTo } : undefined;
 
   return (
     <article className="bb-home-salon-card">
-      <Link className="bb-home-salon-card__media-link" to={`/explore/services/${service.id}`} aria-label={`Xem ${title}`}>
+      <Link className="bb-home-salon-card__media-link" to={`/explore/services/${service.id}`} state={detailState} aria-label={`Xem ${title}`}>
         <HomeMedia
-          src={getHomeMedia('salons', service.branchId)}
+          src={serviceImage}
+          fallbackSrc={fallbackMedia}
           alt={`Hình ảnh dịch vụ ${title}`}
+          fallbackAlt={`Minh họa dịch vụ ${title}`}
           ratio={homeMediaRatios.salon}
           label={title}
         />
@@ -347,7 +357,7 @@ function SalonCard({ branch: service, saved, onToggleSaved }) {
           <span>{category}</span>
           <strong>{formatMoney(service.price)}</strong>
         </div>
-        <h3><Link to={`/explore/services/${service.id}`}>{title}</Link></h3>
+        <h3><Link to={`/explore/services/${service.id}`} state={detailState}>{title}</Link></h3>
         <p className="bb-home-salon-card__business">{branchName}{businessName ? ` · ${businessName}` : ''}</p>
         <p className="bb-home-salon-card__address"><MapPin size={15} aria-hidden="true" />{address || 'Địa chỉ đang được cập nhật'}</p>
         <p className="bb-home-salon-card__facts">
@@ -357,7 +367,7 @@ function SalonCard({ branch: service, saved, onToggleSaved }) {
         </p>
         <div className="bb-home-salon-card__actions">
           {onToggleSaved ? <button type="button" onClick={() => onToggleSaved(service.id)} aria-label={saved ? `Bỏ lưu ${title}` : `Lưu ${title}`}><Heart size={15} fill={saved ? 'currentColor' : 'none'} />{saved ? 'Đã lưu' : 'Lưu'}</button> : <Link to="/login" state={{ from: `/explore/services/${service.id}` }}><Heart size={15} />Lưu</Link>}
-          <Link to={`/explore/services/${service.id}`}>Xem chi tiết</Link>
+          <Link to={`/explore/services/${service.id}`} state={detailState}>Xem chi tiết</Link>
           <Link to={`/book?branchId=${encodeURIComponent(service.branchId)}&serviceId=${encodeURIComponent(service.id)}`}>Đặt dịch vụ <ArrowRight size={15} /></Link>
         </div>
       </div>
@@ -365,7 +375,7 @@ function SalonCard({ branch: service, saved, onToggleSaved }) {
   );
 }
 
-function SalonSection({ branches, loading, error, retry, exploreMode = false, kicker, title, description, savedIds, onToggleSaved }) {
+function SalonSection({ branches, loading, error, retry, exploreMode = false, kicker, title, description, savedIds, onToggleSaved, returnTo }) {
   return (
     <section id={exploreMode ? 'results' : undefined} className={`bb-home-section bb-home-salons ${exploreMode ? 'bb-home-salons--explore' : ''}`}>
       <SectionHeading
@@ -380,7 +390,7 @@ function SalonSection({ branches, loading, error, retry, exploreMode = false, ki
         <InlineState title="Chưa tải được danh sách cơ sở" description={error} onRetry={retry} />
       ) : branches.length ? (
         exploreMode
-          ? <div className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} saved={savedIds?.has(branch.id)} onToggleSaved={onToggleSaved} key={branch.id} />)}</div>
+          ? <div className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} saved={savedIds?.has(branch.id)} onToggleSaved={onToggleSaved} returnTo={returnTo} key={branch.id} />)}</div>
           : <MarketplaceRail label={title || 'Cơ sở được đề xuất'} className="bb-home-salon-grid">{branches.map((branch) => <SalonCard branch={branch} saved={savedIds?.has(branch.id)} onToggleSaved={onToggleSaved} key={branch.id} />)}</MarketplaceRail>
       ) : (
         <div className="bb-home-empty-results">
@@ -405,7 +415,7 @@ function AvailabilitySection() {
       </div>
       <HomeMedia
         src={getHomeMedia('availability', 'editorial')}
-        alt="Không gian dành cho hình ảnh trải nghiệm đặt lịch"
+        alt="Ảnh minh họa lịch hẹn làm đẹp với đồng hồ và vật dụng chăm sóc"
         ratio={homeMediaRatios.editorial}
         label="Your time, beautifully planned"
       />
@@ -459,7 +469,7 @@ function FinalCta() {
     <section className="bb-home-final-cta">
       <HomeMedia
         src={getHomeMedia('finalCta', 'editorial')}
-        alt="Không gian dành cho hình ảnh BeautyBook"
+        alt="Ảnh minh họa vật dụng cho một buổi chăm sóc sắc đẹp"
         ratio={homeMediaRatios.editorial}
         label="A little time for yourself"
       />
@@ -611,7 +621,7 @@ export default function PublicHome({ exploreMode = false }) {
             <HomeSearch categories={categories} initialValues={filters} compact />
           </div>
           <div className="bb-home-boundary">
-            <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} exploreMode savedIds={savedIds} onToggleSaved={toggleSaved} />
+            <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} exploreMode savedIds={savedIds} onToggleSaved={toggleSaved} returnTo={`/explore${queryKey ? `?${queryKey}` : ''}`} />
             {hasMoreBranches && !branchesError ? <div className="bb-explore-load-more"><button type="button" className="bb-home-button bb-home-button--secondary" disabled={loadingMoreBranches} onClick={() => loadBranches(branchPage + 1, true)}>{loadingMoreBranches ? 'Đang tải…' : 'Xem thêm dịch vụ'}</button></div> : null}
           </div>
         </div>
@@ -638,7 +648,7 @@ export default function PublicHome({ exploreMode = false }) {
             <div className="bb-home-hero__visual">
               <HomeMedia
                 src={getHomeMedia('hero', 'primary')}
-                alt="Không gian hình ảnh chủ đạo của BeautyBook"
+                alt="Bộ sản phẩm chăm sóc sắc đẹp và dụng cụ làm tóc"
                 ratio={homeMediaRatios.hero}
                 label="Beauty, on your time"
                 eager

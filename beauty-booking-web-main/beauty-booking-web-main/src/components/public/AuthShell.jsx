@@ -40,7 +40,7 @@ export function AuthShell({ mode = 'login', eyebrow, title, description, childre
         </div>
         <HomeMedia
           src={getHomeMedia('auth', mode)}
-          alt={`Không gian hình ảnh cho trang ${title}`}
+          alt=""
           ratio={homeMediaRatios.auth}
           label="Your beauty ritual"
           className="bb-auth-editorial__media"

@@ -166,7 +166,6 @@ const preparedRaces = [
   ['reschedule and create race leaves the losing booking unchanged', 'PW_RACE_RESCHEDULE_CREATE_JSON'],
   ['cancel and create race leaves a consistent slot owner', 'PW_RACE_CANCEL_CREATE_JSON'],
   ['voucher quota one is consumed by one booking only', 'PW_RACE_VOUCHER_QUOTA_JSON'],
-  ['waitlist offer can be accepted once only', 'PW_RACE_WAITLIST_ACCEPT_JSON'],
 ];
 
 for (const [title, environmentName] of preparedRaces) {

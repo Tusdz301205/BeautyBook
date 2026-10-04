@@ -92,6 +92,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bb-scheduler-branch-select .bb-select__value {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+.bb-scheduler-branch-select .bb-select__trigger { padding-block: 0.5rem; }
 .bb-select__placeholder { color: var(--color-neutral-600); }
 .bb-select__leading { display: grid; flex: 0 0 auto; color: var(--color-berry-700); }
 .bb-select__chevron {
@@ -299,7 +306,7 @@
 .bb-home-search__submit { box-shadow: var(--shadow-sm); }
 
 .bb-explore-hero {
-  padding-block: clamp(3.75rem, 6vw, 5rem) clamp(4.75rem, 7vw, 6rem);
+  padding-block: clamp(6.25rem, 8vw, 7rem) clamp(4.75rem, 7vw, 6rem);
   background: var(--gradient-public-section);
   border-color: var(--color-border-soft);
 }

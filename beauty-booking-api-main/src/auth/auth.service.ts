@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, UnauthorizedException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -284,17 +284,24 @@ export class AuthService {
    * Refresh access token bằng refresh token hợp lệ.
    */
   async refresh(refreshToken: string) {
+    let payload: JwtPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
       });
-      let sessionId = payload.sessionId;
+    } catch {
+      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+    }
+    // Every issued token has a DB session. Legacy sessionless tokens cannot be
+    // revoked durably and must not be accepted after a password change.
+    if (!payload.sessionId) throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+    const sessionId = payload.sessionId;
+    try {
       let sessionContext: {
         workspace: AuthWorkspaceName;
         businessId: string | null;
         branchId: string | null;
       } | null = null;
-      if (sessionId) {
         const session = await this.prisma.userSession.findFirst({
           where: {
             id: sessionId,
@@ -313,19 +320,6 @@ export class AuthService {
         if (session.refreshTokenHash && session.refreshTokenHash !== presentedHash) {
           throw new UnauthorizedException('Refresh token đã được sử dụng hoặc thay thế');
         }
-        const claimed = await this.prisma.userSession.updateMany({
-          where: { id: session.id, userId: payload.sub, revokedAt: null, refreshTokenHash: session.refreshTokenHash },
-          data: { refreshTokenHash: `rotating:${randomBytes(16).toString('hex')}`, lastActiveAt: new Date() },
-        });
-        if (claimed.count !== 1) throw new UnauthorizedException('Refresh token đã được sử dụng');
-      } else {
-        sessionContext = {
-          workspace: payload.workspace ?? this.workspaceFromSessionType(payload.sessionType),
-          businessId: payload.businessId ?? null,
-          branchId: payload.branchId ?? null,
-        };
-        sessionId = await this.createSession(payload.sub, sessionContext, {});
-      }
       const current = await this.prisma.user.findUnique({
         where: { id: payload.sub },
         include: {
@@ -380,23 +374,32 @@ export class AuthService {
         ),
         sessionId,
       };
+      const tokens = await this.issueTokens(authUser, sessionId, false);
+      const rotated = await this.prisma.userSession.updateMany({
+        where: {
+          id: sessionId, userId: payload.sub, revokedAt: null,
+          expiresAt: { gt: new Date() }, refreshTokenHash: presentedHash,
+        },
+        data: {
+          refreshTokenHash: createHash('sha256').update(tokens.refreshToken).digest('hex'),
+          lastActiveAt: new Date(),
+        },
+      });
+      if (rotated.count !== 1) throw new UnauthorizedException('Refresh token đã được sử dụng hoặc phiên đã bị thu hồi');
       return {
         user: authUser,
-        ...(await this.issueTokens(authUser, sessionId)),
+        ...tokens,
       };
-    } catch {
-      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+    } catch (error) {
+      if (error instanceof UnauthorizedException || error instanceof BadRequestException) throw error;
+      throw new ServiceUnavailableException('Không thể làm mới phiên lúc này. Vui lòng thử lại.');
     }
   }
 
   async verifyEmail(token: string) {
-    const accountToken = await this.consumeAccountToken(
-      token,
-      'EMAIL_VERIFICATION',
-    );
-    await this.prisma.user.update({
-      where: { id: accountToken.userId },
-      data: { isEmailVerified: true },
+    await this.prisma.$transaction(async (tx) => {
+      const accountToken = await this.consumeAccountToken(token, 'EMAIL_VERIFICATION', tx);
+      await tx.user.update({ where: { id: accountToken.userId }, data: { isEmailVerified: true } });
     });
     return { ok: true };
   }
@@ -424,14 +427,14 @@ export class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string) {
-    const accountToken = await this.consumeAccountToken(token, 'PASSWORD_RESET');
-    await this.prisma.user.update({
-      where: { id: accountToken.userId },
-      data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_COST) },
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    const userId = await this.prisma.$transaction(async (tx) => {
+      const accountToken = await this.consumeAccountToken(token, 'PASSWORD_RESET', tx);
+      await tx.user.update({ where: { id: accountToken.userId }, data: { passwordHash } });
+      await tx.userSession.updateMany({ where: { userId: accountToken.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      return accountToken.userId;
     });
-    await this.tokenBlacklist.revokeAllForUser(accountToken.userId);
-    await this.prisma.userSession.updateMany({ where: { userId: accountToken.userId, revokedAt: null }, data: { revokedAt: new Date() } });
-    await auditLog(this.prisma, { userId: accountToken.userId, action: 'UPDATE', entityType: 'Password', entityId: accountToken.userId, reason: 'Đặt lại mật khẩu bằng token' });
+    await auditLog(this.prisma, { userId, action: 'UPDATE', entityType: 'Password', entityId: userId, reason: 'Đặt lại mật khẩu bằng token' });
     return { ok: true, requiresLogin: true };
   }
 
@@ -443,12 +446,13 @@ export class AuthService {
     if (await bcrypt.compare(newPassword, user.passwordHash)) {
       throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
     }
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: await bcrypt.hash(newPassword, BCRYPT_COST) },
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    await this.prisma.$transaction(async (tx) => {
+      // CAS protects a concurrent password change after the bcrypt comparison.
+      const changed = await tx.user.updateMany({ where: { id: userId, passwordHash: user.passwordHash }, data: { passwordHash } });
+      if (changed.count !== 1) throw new ConflictException('Mật khẩu đã được thay đổi. Vui lòng đăng nhập lại.');
+      await tx.userSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     });
-    await this.tokenBlacklist.revokeAllForUser(userId);
-    await this.prisma.userSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
     await auditLog(this.prisma, {
       userId, action: 'UPDATE', entityType: 'Password', entityId: userId,
       newData: { previousSessionId: currentSessionId ?? null }, reason: 'Người dùng đổi mật khẩu',
@@ -536,7 +540,7 @@ export class AuthService {
     return sessionType === 'admin' ? 'PLATFORM' : sessionType === 'salon' ? 'SALON' : 'CUSTOMER';
   }
 
-  private async issueTokens(user: AuthUser, sessionId?: string) {
+  private async issueTokens(user: AuthUser, sessionId?: string, persist = true) {
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -560,7 +564,7 @@ export class AuthService {
       secret: this.config.get<string>('JWT_REFRESH_SECRET'),
       expiresIn: refreshExpiresIn as any,
     });
-    if (sessionId) {
+    if (sessionId && persist) {
       await this.prisma.userSession.update({
         where: { id: sessionId },
         data: { refreshTokenHash: createHash('sha256').update(refreshToken).digest('hex'), lastActiveAt: new Date() },
@@ -618,8 +622,9 @@ export class AuthService {
   private async consumeAccountToken(
     token: string,
     type: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET',
+    tx: Prisma.TransactionClient,
   ) {
-    const record = await this.prisma.accountToken.findFirst({
+    const record = await tx.accountToken.findFirst({
       where: {
         tokenHash: this.hashToken(token),
         type: type as any,
@@ -628,10 +633,11 @@ export class AuthService {
       },
     });
     if (!record) throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
-    await this.prisma.accountToken.update({
-      where: { id: record.id },
+    const consumed = await tx.accountToken.updateMany({
+      where: { id: record.id, type, usedAt: null, expiresAt: { gt: new Date() } },
       data: { usedAt: new Date() },
     });
+    if (consumed.count !== 1) throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
     return record;
   }
 

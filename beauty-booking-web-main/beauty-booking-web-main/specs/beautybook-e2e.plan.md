@@ -108,7 +108,7 @@ BeautyBook is a multi-tenant salon/spa booking platform. This plan verifies publ
     - expect: commit order decides the winner and prior state remains intact on loser rollback.
   3. Retry one idempotency key with the same and then a different payload.
     - expect: the same payload returns the same booking and a changed payload is rejected without a second record.
-  4. Race multi-service, voucher quota one, and waitlist accept.
+  4. Race multi-service and voucher quota one.
     - expect: all affected resources commit once or roll back together.
 
 ### 7. Responsive and accessibility

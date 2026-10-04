@@ -38,9 +38,8 @@ function serviceFor(existing: Record<string, unknown>) {
   );
   const mail = { sendBookingConfirmation: jest.fn(), sendBookingCancellation: jest.fn() };
   const gateway = { notifyBookingUpdated: jest.fn() };
-  const loyalty = { earnForBooking: jest.fn(), reverseRedemptionForBooking: jest.fn() };
   return {
-    service: new BookingsService(prisma as never, mail as never, gateway as never, {} as never, {} as never, loyalty as never),
+    service: new BookingsService(prisma as never, mail as never, gateway as never, {} as never, {} as never),
     updateMany,
     voucherRedemptionUpdateMany: prisma.voucherRedemption.updateMany,
     prisma,

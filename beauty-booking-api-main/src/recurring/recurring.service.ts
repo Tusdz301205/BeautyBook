@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingsService } from '../bookings/bookings.service';
-import { validateStaffForService } from '../bookings/bookings.validation';
+import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import type { CreateRecurringPlanDto, RecurringPreviewDto } from './dto/recurring.dto';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
@@ -271,9 +271,11 @@ export class RecurringService {
       if (new Set(candidate.staffServices.map((item) => item.serviceId)).size !== serviceIds.length) continue;
       try {
         for (const serviceId of serviceIds) await validateStaffForService(this.prisma, candidate.id, serviceId, start, end, input.branchId);
+        await assertNoOverlap(this.prisma, candidate.id, null, start, end);
         return candidate.id;
-      } catch {
-        // Try the next eligible staff member.
+      } catch (error) {
+        // Availability conflicts are expected; DB/Redis outages are not.
+        if (!(error instanceof BadRequestException || error instanceof ConflictException)) throw error;
       }
     }
     return null;

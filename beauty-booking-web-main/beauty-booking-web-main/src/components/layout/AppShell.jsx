@@ -33,6 +33,7 @@ const navigation = {
     ['profile', 'Hồ sơ cơ sở', Store, ['branch:update:tenant']],
     ['onboarding', 'Đăng ký doanh nghiệp', ClipboardCheck, ['business:create:self', 'business:update:tenant']],
     ['account', 'Tài khoản', UserCog],
+    ['incoming-ownership', 'Lời mời chuyển chủ', Building2],
     ['security', 'Bảo mật', ShieldCheck],
   ],
   platform: [
@@ -51,8 +52,8 @@ const navigation = {
 const roleLabels = { PLATFORM_ADMIN: 'Quản trị hệ thống', BUSINESS_OWNER: 'Chủ doanh nghiệp', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng' };
 
 const roleNavigation = {
-  STAFF: new Set(['appointments', 'notifications', 'account', 'security']),
-  RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security']),
+  STAFF: new Set(['appointments', 'notifications', 'account', 'security', 'incoming-ownership']),
+  RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security', 'incoming-ownership']),
 };
 
 const roleSpaceTitles = {
@@ -109,7 +110,7 @@ export function AppShell({ zone, children }) {
   }, [mainRole, zone]);
 
   const items = useMemo(() => navigation[zone].filter(([path, , , permissions]) => {
-    if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security'].includes(path)) return false;
+    if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security', 'incoming-ownership'].includes(path)) return false;
     if (businessApproved && path === 'onboarding') return false;
     if (permissions && !permissions.some((code) => can(code))) return false;
     return !!mainRole && (!roleNavigation[mainRole] || roleNavigation[mainRole].has(path));
@@ -128,9 +129,9 @@ export function AppShell({ zone, children }) {
     {mobileOpen && <button className="fixed inset-0 z-[var(--z-sticky)] bg-[var(--color-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Đóng menu" />}
     <aside className={cx('bb-app-sidebar fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-[min(86vw,304px)] flex-col border-r border-white/10 bg-zinc-950 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')} aria-label="Điều hướng chính">
       <div className="flex min-h-20 items-center gap-3 border-b border-white/10 px-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--bb-brand)]"><Sparkles size={19} /></span><div className="min-w-0"><p className="bb-display truncate text-lg font-bold">BeautyBook</p><p className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{meta.eyebrow}</p></div><IconButton label="Đóng menu" className="ml-auto text-zinc-300 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(false)}><X size={19} /></IconButton></div>
-      <nav className="bb-scrollbar flex-1 space-y-1 overflow-y-auto p-3">{items.map(([path, label, Icon]) => <NavLink key={path || 'home'} end={!path} to={path ? `${meta.base}/${path}` : meta.base} onClick={() => setMobileOpen(false)} className={({ isActive }) => cx('group flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white', isActive && 'bg-white/10 text-white')}><Icon size={18} aria-hidden="true" /><span className="min-w-0 flex-1 truncate">{navLabel(path, label)}</span><ChevronRight size={14} className="opacity-0 transition-opacity group-hover:opacity-70" /></NavLink>)}</nav>
+      <nav className="bb-scrollbar flex-1 space-y-1 overflow-y-auto p-3">{items.map(([path, label, Icon]) => <NavLink key={path || 'home'} end={!path} to={path ? `${meta.base}/${path}` : meta.base} onClick={() => setMobileOpen(false)} className={({ isActive }) => cx('group flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white', isActive && 'bg-white/10 text-white')}><Icon size={18} aria-hidden="true" /><span className="min-w-0 flex-1 break-words py-2 leading-snug">{navLabel(path, label)}</span><ChevronRight size={14} className="shrink-0 opacity-0 transition-opacity group-hover:opacity-70" /></NavLink>)}</nav>
       <div className="border-t border-white/10 p-3"><button onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"><LogOut size={18} />Đăng xuất</button></div>
     </aside>
-    <div className="min-w-0"><header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-[var(--bb-border)] bg-white/95 px-3 backdrop-blur sm:px-5 lg:px-8"><IconButton label="Mở menu" className="lg:hidden" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold sm:text-base">{meta.title}</p><p className="hidden truncate text-xs text-[var(--bb-muted)] sm:block">{roleLabels[mainRole] || mainRole || 'Tài khoản BeautyBook'}</p></div>{zone !== 'customer' && <IconButton label="Mở thông báo" onClick={() => navigate(`${meta.base}/notifications`)}><Bell size={19} /></IconButton>}<button onClick={() => navigate(`${meta.base}/${zone === 'salon' ? 'account' : 'profile'}`)} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 text-left hover:bg-[var(--bb-surface-subtle)]"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span><span className="hidden max-w-44 sm:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Chưa cập nhật'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">{user?.email}</span></span></button></header><main id="main-content" tabIndex="-1" className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main></div>
+    <div className="min-w-0"><header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-[var(--bb-border)] bg-white/95 px-3 backdrop-blur sm:px-5 lg:px-8"><IconButton label="Mở menu" className="lg:hidden" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><div className="min-w-0 flex-1"><p className="break-words text-sm font-bold leading-snug sm:text-base"><span className="sm:hidden">{zone === 'platform' ? 'Quản trị BeautyBook' : meta.title}</span><span className="hidden sm:inline">{meta.title}</span></p><p className="hidden truncate text-xs text-[var(--bb-muted)] sm:block">{roleLabels[mainRole] || mainRole || 'Tài khoản BeautyBook'}</p></div>{zone !== 'customer' && <IconButton label="Mở thông báo" onClick={() => navigate(`${meta.base}/notifications`)}><Bell size={19} /></IconButton>}<button onClick={() => navigate(`${meta.base}/${zone === 'salon' ? 'account' : 'profile'}`)} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 text-left hover:bg-[var(--bb-surface-subtle)]"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span><span className="hidden max-w-44 sm:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Chưa cập nhật'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">{user?.email}</span></span></button></header><main id="main-content" tabIndex="-1" className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main></div>
   </div>;
 }

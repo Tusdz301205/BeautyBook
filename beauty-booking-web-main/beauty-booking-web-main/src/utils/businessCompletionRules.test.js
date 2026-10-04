@@ -1,14 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canSubmitInvoiceRequest, ownershipVersionsReady, savedServiceBookingPath } from './businessCompletionRules.js';
+import { ownershipVersionsReady, savedServiceBookingPath } from './businessCompletionRules.js';
 import { sanitizeApiErrorMessage, toUserFacingRequestError } from './requestError.js';
-
-test('invoice request needs a completed booking from the loaded customer list and buyer name', () => {
-  const bookings = [{ id: 'booking-1' }];
-  assert.equal(canSubmitInvoiceRequest({ bookingId: 'booking-1', buyerName: 'Người mua' }, bookings), true);
-  assert.equal(canSubmitInvoiceRequest({ bookingId: 'booking-other', buyerName: 'Người mua' }, bookings), false);
-  assert.equal(canSubmitInvoiceRequest({ bookingId: 'booking-1', buyerName: ' ' }, bookings), false);
-});
 
 test('ownership approval is ready only after both versions are verified', () => {
   assert.equal(ownershipVersionsReady({ legalEntityVersion: { verificationStatus: 'VERIFIED' }, payoutAccountVersion: { verificationStatus: 'PENDING' } }), false);

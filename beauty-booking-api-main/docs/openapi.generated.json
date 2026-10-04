@@ -93,7 +93,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 90
+        "x-source-line": 91
       }
     },
     "/admin/branch-directory": {
@@ -150,7 +150,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 178
+        "x-source-line": 179
       }
     },
     "/admin/business-directory": {
@@ -207,7 +207,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 105
+        "x-source-line": 106
       }
     },
     "/admin/compliance-queue": {
@@ -264,7 +264,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 263
+        "x-source-line": 264
       }
     },
     "/admin/finance-overview": {
@@ -321,7 +321,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 305
+        "x-source-line": 308
       }
     },
     "/admin/marketing-overview": {
@@ -378,7 +378,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 330
+        "x-source-line": 333
       }
     },
     "/admin/settings": {
@@ -435,7 +435,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 31
+        "x-source-line": 32
       },
       "patch": {
         "tags": [
@@ -501,7 +501,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 38
+        "x-source-line": 39
       }
     },
     "/admin/settings/reset": {
@@ -569,7 +569,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 46
+        "x-source-line": 47
       }
     },
     "/admin/trust-actions": {
@@ -626,7 +626,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 70
+        "x-source-line": 71
       },
       "post": {
         "tags": [
@@ -692,7 +692,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 77
+        "x-source-line": 78
       }
     },
     "/admin/trust-snapshots": {
@@ -749,7 +749,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 56
+        "x-source-line": 57
       }
     },
     "/admin/trust-snapshots/rebuild": {
@@ -817,7 +817,7 @@
           }
         },
         "x-source": "src/admin/admin.controller.ts",
-        "x-source-line": 63
+        "x-source-line": 64
       }
     },
     "/auth/change-password": {
@@ -1537,7 +1537,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 421
+        "x-source-line": 418
       }
     },
     "/bookings/{id}": {
@@ -1611,7 +1611,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 866
+        "x-source-line": 858
       },
       "put": {
         "tags": [
@@ -1689,7 +1689,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 910
+        "x-source-line": 902
       }
     },
     "/bookings/{id}/assign": {
@@ -1769,7 +1769,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1113
+        "x-source-line": 1105
       }
     },
     "/bookings/{id}/change-requests": {
@@ -1867,7 +1867,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1194
+        "x-source-line": 1186
       }
     },
     "/bookings/{id}/checkin": {
@@ -1947,7 +1947,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1305
+        "x-source-line": 1297
       }
     },
     "/bookings/{id}/force-cancel-preview": {
@@ -2014,7 +2014,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1036
+        "x-source-line": 1028
       }
     },
     "/bookings/{id}/items": {
@@ -2114,7 +2114,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1126
+        "x-source-line": 1118
       }
     },
     "/bookings/{id}/items/{itemId}": {
@@ -2204,7 +2204,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1155
+        "x-source-line": 1147
       }
     },
     "/bookings/{id}/move": {
@@ -2284,7 +2284,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1080
+        "x-source-line": 1072
       }
     },
     "/bookings/{id}/refund": {
@@ -2382,7 +2382,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1277
+        "x-source-line": 1269
       }
     },
     "/bookings/{id}/resize": {
@@ -2461,7 +2461,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1099
+        "x-source-line": 1091
       }
     },
     "/bookings/{id}/status": {
@@ -2546,7 +2546,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 985
+        "x-source-line": 977
       }
     },
     "/bookings/available-slots": {
@@ -2572,7 +2572,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 727
+        "x-source-line": 724
       }
     },
     "/bookings/by-branch/{branchId}": {
@@ -2597,19 +2597,6 @@
           "booking:read:tenant",
           "booking:read:platform"
         ],
-        "x-scope-requirement": {
-          "roles": [
-            "BUSINESS_OWNER",
-            "RECEPTIONIST",
-            "PLATFORM_ADMIN"
-          ],
-          "scopeLevel": "branch",
-          "permissions": [
-            "booking:read:branch",
-            "booking:read:tenant",
-            "booking:read:platform"
-          ]
-        },
         "parameters": [
           {
             "name": "branchId",
@@ -2656,7 +2643,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 816
+        "x-source-line": 813
       }
     },
     "/bookings/by-category": {
@@ -2716,7 +2703,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 803
+        "x-source-line": 800
       }
     },
     "/bookings/by-customer/{userId}": {
@@ -2789,7 +2776,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 832
+        "x-source-line": 824
       }
     },
     "/bookings/change-requests/{reqId}/approve": {
@@ -2869,7 +2856,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1217
+        "x-source-line": 1209
       }
     },
     "/bookings/change-requests/{reqId}/reject": {
@@ -2949,7 +2936,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1235
+        "x-source-line": 1227
       }
     },
     "/bookings/change-requests/pending": {
@@ -3008,7 +2995,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1253
+        "x-source-line": 1245
       }
     },
     "/bookings/guest": {
@@ -3155,7 +3142,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 548
+        "x-source-line": 545
       }
     },
     "/bookings/preview-price": {
@@ -3283,7 +3270,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 639
+        "x-source-line": 636
       }
     },
     "/bookings/salon-violations": {
@@ -3342,7 +3329,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 679
+        "x-source-line": 676
       }
     },
     "/bookings/scheduler": {
@@ -3404,7 +3391,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 753
+        "x-source-line": 750
       }
     },
     "/bookings/self-booking-policy": {
@@ -3521,7 +3508,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 781
+        "x-source-line": 778
       }
     },
     "/branches": {
@@ -4882,7 +4869,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 190
+        "x-source-line": 198
       },
       "patch": {
         "tags": [
@@ -4958,7 +4945,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 203
+        "x-source-line": 211
       }
     },
     "/business/{businessId}/detail": {
@@ -5025,7 +5012,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 78
+        "x-source-line": 85
       }
     },
     "/business/{businessId}/members": {
@@ -5092,7 +5079,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 175
+        "x-source-line": 183
       }
     },
     "/business/{businessId}/onboarding": {
@@ -5170,7 +5157,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 43
+        "x-source-line": 50
       }
     },
     "/business/{businessId}/review": {
@@ -5248,7 +5235,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 66
+        "x-source-line": 73
       }
     },
     "/business/{businessId}/submit": {
@@ -5326,7 +5313,64 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 55
+        "x-source-line": 62
+      }
+    },
+    "/business/onboarding/config": {
+      "get": {
+        "tags": [
+          "business"
+        ],
+        "operationId": "BusinessController_getOnboardingConfig_get",
+        "summary": "get Onboarding Config",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "BUSINESS_OWNER"
+        ],
+        "x-permissions": [
+          "business:create:self"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/business/business.controller.ts",
+        "x-source-line": 36
       }
     },
     "/business/onboarding/draft": {
@@ -5452,7 +5496,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 36
+        "x-source-line": 43
       }
     },
     "/combos": {
@@ -6084,575 +6128,6 @@
         "x-source-line": 29
       }
     },
-    "/finance-operations/invoice-requests": {
-      "post": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_requestInvoice_post",
-        "summary": "request Invoice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "payment:read:self"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 37
-      },
-      "get": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_invoiceRequests_get",
-        "summary": "invoice Requests",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "RECEPTIONIST",
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "payment:read:self",
-          "payment:read:tenant",
-          "payment:read:branch"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 46
-      }
-    },
-    "/finance-operations/invoice-requests/{id}/cancel": {
-      "patch": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_cancelInvoiceRequest_patch",
-        "summary": "cancel Invoice Request",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "payment:read:self"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 58
-      }
-    },
-    "/finance-operations/invoice-requests/{id}/reject": {
-      "patch": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_rejectInvoiceRequest_patch",
-        "summary": "reject Invoice Request",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER"
-        ],
-        "x-permissions": [
-          "payment:create:tenant",
-          "payment:create:branch"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 67
-      }
-    },
-    "/finance-operations/invoices": {
-      "post": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_issue_post",
-        "summary": "issue",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "RECEPTIONIST"
-        ],
-        "x-permissions": [
-          "payment:create:tenant",
-          "payment:create:branch"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 23
-      },
-      "get": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_invoices_get",
-        "summary": "invoices",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "RECEPTIONIST",
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "payment:read:self",
-          "payment:read:tenant",
-          "payment:read:branch"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 77
-      }
-    },
-    "/finance-operations/invoices/{id}/cancel": {
-      "patch": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_cancelInvoice_patch",
-        "summary": "cancel Invoice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER"
-        ],
-        "x-permissions": [
-          "payment:create:tenant"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 89
-      }
-    },
-    "/finance-operations/invoices/{id}/reissue": {
-      "post": {
-        "tags": [
-          "finance-operations"
-        ],
-        "operationId": "FinanceController_reissueInvoice_post",
-        "summary": "reissue Invoice",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER"
-        ],
-        "x-permissions": [
-          "payment:create:tenant"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/finance/finance.controller.ts",
-        "x-source-line": 98
-      }
-    },
     "/health": {
       "get": {
         "tags": [
@@ -6729,188 +6204,6 @@
         },
         "x-source": "src/health.controller.ts",
         "x-source-line": 31
-      }
-    },
-    "/loyalty/liability": {
-      "get": {
-        "tags": [
-          "loyalty"
-        ],
-        "operationId": "LoyaltyController_liability_get",
-        "summary": "liability",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER"
-        ],
-        "x-permissions": [
-          "report:revenue:tenant"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 33
-      }
-    },
-    "/loyalty/mine": {
-      "get": {
-        "tags": [
-          "loyalty"
-        ],
-        "operationId": "LoyaltyController_mine_get",
-        "summary": "mine",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "user:read:self"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 15
-      }
-    },
-    "/loyalty/rules": {
-      "post": {
-        "tags": [
-          "loyalty"
-        ],
-        "operationId": "LoyaltyController_configure_post",
-        "summary": "configure",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER"
-        ],
-        "x-permissions": [
-          "promotion:manage:tenant"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/loyalty/loyalty.controller.ts",
-        "x-source-line": 25
       }
     },
     "/media/{id}": {
@@ -16417,7 +15710,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 63
+        "x-source-line": 54
       }
     },
     "/users/{id}": {
@@ -16489,7 +15782,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 92
+        "x-source-line": 89
       }
     },
     "/users/{id}/permissions": {
@@ -16556,7 +15849,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 124
+        "x-source-line": 121
       },
       "post": {
         "tags": [
@@ -16632,7 +15925,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 131
+        "x-source-line": 128
       }
     },
     "/users/{id}/permissions/{permissionCode}": {
@@ -16707,7 +16000,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 147
+        "x-source-line": 144
       }
     },
     "/users/{id}/roles": {
@@ -16787,7 +16080,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 163
+        "x-source-line": 160
       }
     },
     "/users/{id}/roles/{roleCode}": {
@@ -16864,7 +16157,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 180
+        "x-source-line": 177
       }
     },
     "/users/{id}/suspend": {
@@ -16942,7 +16235,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 112
+        "x-source-line": 109
       }
     },
     "/users/me/profile": {
@@ -17003,7 +16296,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 32
+        "x-source-line": 34
       },
       "patch": {
         "tags": [
@@ -17073,7 +16366,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 39
+        "x-source-line": 41
       }
     },
     "/vouchers": {
@@ -17506,426 +16799,6 @@
         },
         "x-source": "src/promotions/vouchers.controller.ts",
         "x-source-line": 34
-      }
-    },
-    "/waitlist": {
-      "post": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_join_post",
-        "summary": "join",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "booking:create:self"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 28
-      }
-    },
-    "/waitlist/{id}/accept": {
-      "patch": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_accept_patch",
-        "summary": "accept",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "booking:create:self"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 49
-      }
-    },
-    "/waitlist/{id}/cancel": {
-      "patch": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_cancel_patch",
-        "summary": "cancel",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "booking:update:self"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 42
-      }
-    },
-    "/waitlist/{id}/offer": {
-      "post": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_offer_post",
-        "summary": "offer",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "RECEPTIONIST"
-        ],
-        "x-permissions": [
-          "booking:update:branch",
-          "booking:update:tenant"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 66
-      }
-    },
-    "/waitlist/branch": {
-      "get": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_branch_get",
-        "summary": "branch",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "BUSINESS_OWNER",
-          "RECEPTIONIST"
-        ],
-        "x-permissions": [
-          "booking:read:branch",
-          "booking:read:tenant"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 56
-      }
-    },
-    "/waitlist/mine": {
-      "get": {
-        "tags": [
-          "waitlist"
-        ],
-        "operationId": "WaitlistController_mine_get",
-        "summary": "mine",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "booking:read:self"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/operations/waitlist.controller.ts",
-        "x-source-line": 35
       }
     }
   },

@@ -8,7 +8,7 @@ import { CategoryPieChart } from '../../components/charts/CategoryPieChart';
 import { TopSalonsBarChart } from '../../components/charts/TopSalonsBarChart';
 
 const workspaces = [
-  ['/admin/salons?view=review', 'Xét duyệt hồ sơ', 'Duyệt hồ sơ doanh nghiệp và chi nhánh trong một hàng chờ.', Scale, ['business:review:platform']],
+  ['/admin/salons?view=review', 'Xét duyệt hồ sơ', 'Duyệt hồ sơ doanh nghiệp và chi nhánh cần xử lý.', Scale, ['business:review:platform']],
   ['/admin/appointments', 'Điều phối lịch hẹn', 'Theo dõi lịch, danh sách và các thao tác vận hành.', CalendarCheck, ['booking:read:platform']],
   ['/admin/payments', 'Tài chính & hoàn tiền', 'Thu tiền, phê duyệt và xử lý hoàn tiền theo quyền.', CircleDollarSign, ['payment:read:platform']],
   ['/admin/reviews', 'Kiểm duyệt đánh giá', 'Xử lý nội dung đánh giá theo chính sách.', Star, ['review:moderate:platform']],

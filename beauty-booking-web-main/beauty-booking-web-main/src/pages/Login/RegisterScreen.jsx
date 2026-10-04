@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 const fieldIds = ['fullName', 'email', 'phone', 'password', 'confirmPassword', 'terms'];
 
 function normalizePhone(value) {
-  return value.trim().replace(/[\s.-]/g, '');
+  return value.trim().replace(/[\s().-]/g, '');
 }
 
 function validate(form) {
@@ -18,7 +18,7 @@ function validate(form) {
   const phone = normalizePhone(form.phone);
   if (name.length < 2) errors.fullName = 'Nhập họ và tên có ít nhất 2 ký tự.';
   else if (name.length > 100) errors.fullName = 'Họ và tên không được vượt quá 100 ký tự.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Nhập địa chỉ email hợp lệ, ví dụ ten@domain.vn.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) errors.email = 'Nhập email hợp lệ, tối đa 254 ký tự.';
   if (phone && !/^(?:0\d{9}|\+84\d{9})$/.test(phone)) errors.phone = 'Dùng 10 chữ số bắt đầu bằng 0, hoặc mã quốc gia +84.';
   if (form.password.length < 8 || !/[a-z]/.test(form.password) || !/[A-Z]/.test(form.password) || !/\d/.test(form.password)) {
     errors.password = 'Dùng ít nhất 8 ký tự, gồm chữ hoa, chữ thường và số.';
@@ -38,9 +38,10 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { register, isAuthenticated, user } = useAuthStore();
-  const isOwner = accountType === 'BUSINESS_OWNER';
   const [form, setForm] = useState({ accountType, fullName: '', email: '', phone: '', password: '', confirmPassword: '', terms: false });
+  const isOwner = form.accountType === 'BUSINESS_OWNER';
   const [touched, setTouched] = useState({});
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
   const errors = useMemo(() => validate(form), [form]);
@@ -57,10 +58,15 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
   const update = (field) => (event) => {
     const value = field === 'terms' ? event.target.checked : event.target.value;
     setForm((current) => ({ ...current, [field]: value }));
+    setServerFieldErrors((current) => ({ ...current, [field]: '' }));
+    setServerError('');
+  };
+  const selectAccountType = (nextType) => {
+    setForm((current) => ({ ...current, accountType: nextType }));
     setServerError('');
   };
   const blur = (field) => () => setTouched((current) => ({ ...current, [field]: true }));
-  const errorFor = (field) => touched[field] ? errors[field] : '';
+  const errorFor = (field) => touched[field] ? serverFieldErrors[field] || errors[field] : '';
 
   const submit = async (event) => {
     event.preventDefault();
@@ -89,10 +95,28 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
     } catch (error) {
       if (error.status === 409 && /email/i.test(error.message)) {
         setTouched((current) => ({ ...current, email: true }));
+        setServerFieldErrors((current) => ({ ...current, email: 'Email này đã có tài khoản.' }));
         setServerError('Email này đã có tài khoản. Đăng nhập hoặc dùng chức năng quên mật khẩu.');
         document.getElementById('register-email')?.focus();
+      } else if (error.status === 409 && /phone|điện thoại/i.test(error.message)) {
+        setTouched((current) => ({ ...current, phone: true }));
+        setServerFieldErrors((current) => ({ ...current, phone: 'Số điện thoại này đã được sử dụng.' }));
+        setServerError('Số điện thoại này đã được sử dụng. Hãy nhập số khác.');
+        document.getElementById('register-phone')?.focus();
       } else {
-        setServerError(error.message || 'Chưa thể tạo tài khoản. Kiểm tra kết nối rồi thử lại.');
+        const field = error.status === 400 ? [
+          [/email/i, 'email'], [/điện thoại|phone/i, 'phone'],
+          [/mật khẩu|password/i, 'password'], [/họ tên|fullName/i, 'fullName'],
+        ].find(([pattern]) => pattern.test(error.message || ''))?.[1] : null;
+        const message = !error.status ? 'Chưa thể kết nối máy chủ. Kiểm tra kết nối rồi thử lại.'
+          : error.status === 429 ? 'Bạn đang thao tác quá nhanh. Đợi một lát rồi thử lại.'
+            : field && /^(Email|Số điện thoại|Mật khẩu|Họ tên)/i.test(error.message) ? error.message
+              : 'Chưa thể tạo tài khoản. Kiểm tra thông tin và thử lại sau.';
+        if (field) {
+          setServerFieldErrors((current) => ({ ...current, [field]: message }));
+          document.getElementById(`register-${field}`)?.focus();
+        }
+        setServerError(message);
       }
     } finally {
       setLoading(false);
@@ -109,16 +133,36 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
         : 'Tạo tài khoản cá nhân để đặt lịch và quản lý các cuộc hẹn của bạn.'}
     >
       <form className="bb-auth-form bb-auth-form--register" onSubmit={submit} noValidate>
-        <section className="bb-auth-account-type" aria-label="Loại tài khoản">
+        <fieldset className="bb-auth-account-type" disabled={loading}>
+          <legend>Chọn loại tài khoản</legend>
           <div>
-            <div className="is-selected">
-              <span aria-hidden="true">{isOwner ? <Store size={20} /> : <UserRound size={20} />}</span>
-              <strong>{isOwner ? 'Chủ doanh nghiệp' : 'Khách hàng'}</strong>
-              <small>{isOwner ? 'Đăng ký cơ sở để chờ xét duyệt' : 'Tìm cơ sở và quản lý lịch hẹn'}</small>
-            </div>
+            <label className={form.accountType === 'CUSTOMER' ? 'is-selected' : ''}>
+              <input
+                type="radio"
+                name="accountType"
+                value="CUSTOMER"
+                checked={form.accountType === 'CUSTOMER'}
+                onChange={() => selectAccountType('CUSTOMER')}
+              />
+              <span aria-hidden="true"><UserRound size={20} /></span>
+              <strong>Khách hàng</strong>
+              <small>Tìm cơ sở và quản lý lịch hẹn</small>
+            </label>
+            <label className={form.accountType === 'BUSINESS_OWNER' ? 'is-selected' : ''}>
+              <input
+                type="radio"
+                name="accountType"
+                value="BUSINESS_OWNER"
+                checked={form.accountType === 'BUSINESS_OWNER'}
+                onChange={() => selectAccountType('BUSINESS_OWNER')}
+              />
+              <span aria-hidden="true"><Store size={20} /></span>
+              <strong>Chủ doanh nghiệp</strong>
+              <small>Đăng ký cơ sở để chờ xét duyệt</small>
+            </label>
           </div>
           {isOwner ? <p>Cơ sở chưa được công khai cho đến khi hồ sơ và giấy tờ được duyệt.</p> : null}
-        </section>
+        </fieldset>
         <AuthField id="register-fullName" label="Họ và tên" required error={errorFor('fullName')}>
           <AuthInput autoComplete="name" maxLength={100} value={form.fullName} onChange={update('fullName')} onBlur={blur('fullName')} />
         </AuthField>
@@ -126,7 +170,7 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
           <AuthInput type="email" inputMode="email" autoComplete="email" maxLength={254} value={form.email} onChange={update('email')} onBlur={blur('email')} />
         </AuthField>
         <AuthField id="register-phone" label="Số điện thoại" hint="Không bắt buộc · ví dụ 0912 345 678" error={errorFor('phone')}>
-          <AuthInput type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={update('phone')} onBlur={blur('phone')} />
+          <AuthInput type="tel" inputMode="tel" autoComplete="tel" maxLength={18} value={form.phone} onChange={update('phone')} onBlur={blur('phone')} />
         </AuthField>
         <AuthField id="register-password" label="Mật khẩu" required error={errorFor('password')} hint="Ít nhất 8 ký tự, có chữ hoa, chữ thường và số.">
           <PasswordControl label="mật khẩu" autoComplete="new-password" maxLength={128} value={form.password} onChange={update('password')} onBlur={blur('password')} />
@@ -150,8 +194,6 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
       </form>
       <div className="bb-auth-alternate">
         <p>Đã có tài khoản?</p><Link to="/login">Đăng nhập</Link>
-        <p>{isOwner ? 'Bạn là khách hàng?' : 'Bạn quản lý cơ sở?'}</p>
-        <Link to={isOwner ? '/register' : '/for-business'}>{isOwner ? 'Đăng ký cá nhân' : 'BeautyBook Business'}</Link>
       </div>
     </AuthShell>
   );

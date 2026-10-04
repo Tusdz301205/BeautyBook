@@ -26,6 +26,21 @@ describe('RegisterDto', () => {
     });
   });
 
+  it('normalizes phone separators consistently when parentheses are present', async () => {
+    const value = await pipe.transform(
+      {
+        email: 'owner@example.com',
+        password: 'Password123',
+        fullName: 'Chủ thử',
+        phone: '(0912) 345-678',
+        accountType: 'BUSINESS_OWNER',
+      },
+      { type: 'body', metatype: RegisterDto },
+    );
+    expect(value.phone).toBe('+84912345678');
+    expect(value.accountType).toBe('BUSINESS_OWNER');
+  });
+
   it('rejects a client-supplied role', async () => {
     await expect(pipe.transform(
       {

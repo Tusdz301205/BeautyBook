@@ -1,0 +1,76 @@
+@startuml ERD-branch
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Branch**\n(branches)" as Branch {
+  * id: String <<PK>>
+  * businessId: String <<FK>>
+  districtId: String? <<FK>>
+  * name: String 
+  publicName: String? 
+  description: String? 
+  addressLine: String? 
+  ... 30 cot: xem tu dien
+}
+entity "**BranchOnboardingProgress**\n(branch_onboarding_progress)" as BranchOnboardingProgress {
+  * id: String <<PK>>
+  * branchId: String <<FK>> <<UQ>>
+  * currentStep: Int 
+  * completedSteps: Json 
+  draftData: Json? 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+}
+entity "**BranchBookingPolicy**\n(branch_booking_policies)" as BranchBookingPolicy {
+  * id: String <<PK>>
+  * branchId: String <<FK>> <<UQ>>
+  * leadTimeMinutes: Int 
+  * bookingHorizonDays: Int 
+  * cancellationHours: Int 
+  * rescheduleHours: Int 
+  noShowHandling: String? 
+  ... 11 cot: xem tu dien
+}
+entity "**BranchStateTransition**\n(branch_state_transitions)" as BranchStateTransition {
+  * id: String <<PK>>
+  * branchId: String <<FK>>
+  * actorId: String <<FK>>
+  * fromStatus: String 
+  * toStatus: String 
+  * fromReviewStatus: String 
+  * toReviewStatus: String 
+  ... 5 cot: xem tu dien
+}
+Branch ||--o| BranchOnboardingProgress
+Branch ||--o| BranchBookingPolicy
+Branch ||--o{ BranchStateTransition
+
+@enduml

@@ -12,7 +12,7 @@ import {
   makeHours,
 } from '../../../utils/bookingCalendar.utils';
 
-const STAFF_WIDTH = 220;
+const STAFF_WIDTH = 260;
 
 export default function SchedulerDayView({
   currentDate,
@@ -102,16 +102,16 @@ export default function SchedulerDayView({
   };
 
   return (
-    <div className="h-full scroll-pt-16 overflow-auto bg-white" ref={gridRef}>
+    <div className="h-full scroll-pt-20 overflow-auto bg-white" ref={gridRef}>
       <div className="min-w-max" style={{ width: 72 + Math.max(1, visibleStaff.length) * STAFF_WIDTH }}>
         <div className="sticky top-0 z-30 grid border-b border-zinc-200 bg-white/95 backdrop-blur" style={{ gridTemplateColumns: `72px repeat(${Math.max(1, visibleStaff.length)}, ${STAFF_WIDTH}px)` }}>
           <div className="sticky left-0 z-40 border-r border-zinc-200 bg-white" />
           {visibleStaff.map((staff) => (
-            <div key={staff.id} className="flex h-16 items-center gap-2 border-r border-zinc-200 px-3">
+            <div key={staff.id} className="flex h-20 items-center gap-2 border-r border-zinc-200 px-3">
               <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-pink-50 text-xs font-bold text-pink-700">
                 {staff.avatarUrl ? <img src={staff.avatarUrl} alt="" className="h-full w-full object-cover" /> : staff.name.slice(0, 2).toUpperCase()}
               </span>
-              <span className="min-w-0 truncate text-sm font-semibold text-zinc-900">{staff.name}</span>
+              <span className="min-w-0 break-words text-sm font-semibold leading-snug text-zinc-900">{staff.name}</span>
             </div>
           ))}
         </div>

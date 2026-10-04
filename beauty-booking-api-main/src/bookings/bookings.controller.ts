@@ -313,7 +313,6 @@ export class BookingsController {
     @Body('serviceIds') serviceIds: string[],
     @Body('branchId') branchId: string,
     @Body('comboId') comboId: string | undefined,
-    @Body('loyaltyPoints') loyaltyPoints: number | undefined,
     @Body('variantSelections') variantSelections: Record<string, string> | undefined,
     @Body('appointmentDate') appointmentDate: string | undefined,
     @CurrentUser() user: AuthUser,
@@ -351,7 +350,6 @@ export class BookingsController {
         comboId,
         serviceIds: comboItems.map((item) => item.serviceId),
         lineItems,
-        loyaltyPoints,
       });
     }
     const services = await this.prisma.branchServiceOffering.findMany({
@@ -407,7 +405,6 @@ export class BookingsController {
       subtotal,
       serviceIds,
       lineItems,
-      loyaltyPoints,
     });
   }
 
@@ -816,11 +813,6 @@ export class BookingsController {
   @Get('by-branch/:branchId')
   @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
-  @RequireScope({
-    roles: ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN'],
-    scopeLevel: 'branch',
-    permissions: ['booking:read:branch', 'booking:read:tenant', 'booking:read:platform'],
-  })
   async getByBranch(
     @Param('branchId') branchId: string,
     @CurrentUser() user: AuthUser,

@@ -53,3 +53,25 @@ test('reset removes contact details, consent and selections before another accou
   assert.equal(state.customerInfo.note, '');
   assert.equal(Boolean(state.customerInfo.consent), false);
 });
+
+test('review labels follow selections and clear with dependent choices', () => {
+  useBookingStore.getState().reset();
+  useBookingStore.getState().setBranch('branch-a', 'Chi nhánh A', '123 Đường Hoa');
+  useBookingStore.getState().toggleService('haircut');
+  useBookingStore.getState().setStaff('staff-a', 'Nguyễn Thị Phương Anh');
+  assert.equal(useBookingStore.getState().branchName, 'Chi nhánh A');
+  assert.equal(useBookingStore.getState().branchAddress, '123 Đường Hoa');
+  assert.equal(useBookingStore.getState().staffName, 'Nguyễn Thị Phương Anh');
+  useBookingStore.getState().toggleService('manicure');
+  assert.equal(useBookingStore.getState().staffId, null);
+  assert.equal(useBookingStore.getState().staffName, '');
+  assert.equal(useBookingStore.getState().branchName, 'Chi nhánh A');
+  useBookingStore.getState().setStaff('staff-b');
+  useBookingStore.getState().setStaffName('staff-a', 'Tên cũ');
+  assert.equal(useBookingStore.getState().staffName, '');
+  useBookingStore.getState().setStaffName('staff-b', 'Tên đúng');
+  assert.equal(useBookingStore.getState().staffName, 'Tên đúng');
+  useBookingStore.getState().reset();
+  assert.equal(useBookingStore.getState().branchName, '');
+  assert.equal(useBookingStore.getState().staffName, '');
+});

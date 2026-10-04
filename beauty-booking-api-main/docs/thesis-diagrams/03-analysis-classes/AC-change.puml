@@ -1,0 +1,68 @@
+@startuml AC-change
+' Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+class "**Kênh yêu cầu**" as KenhYeuCau <<boundary>> {
+  phạm vi tương tác
+  --
+  tiếp nhận yêu cầu()
+}
+class "**Xử lý thay đổi**" as XuLyThayDoi <<control>> {
+  phạm vi tương tác
+  --
+  kiểm tra điều kiện()
+}
+class "**Yêu cầu thay đổi**" as YeuCauThayDoi <<entity>> {
+  loại
+  hạn xử lý
+  trạng thái
+  --
+  ghi nhận quyết định()
+}
+class "**Lịch hẹn**" as LichHen <<entity>> {
+  mã lịch
+  thời điểm
+  trạng thái
+  --
+  ghi nhận cam kết()
+}
+class "**Lịch sử vi phạm**" as LichSuViPham <<entity>> {
+  loại
+  thời điểm
+  hiệu lực
+  --
+  tính điểm trong cửa sổ()
+}
+KenhYeuCau ..> XuLyThayDoi
+XuLyThayDoi ..> YeuCauThayDoi
+XuLyThayDoi ..> LichHen
+XuLyThayDoi ..> LichSuViPham
+@enduml

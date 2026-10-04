@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "test": "node --test src/utils/businessCompletionRules.test.js src/utils/latestRequest.test.js src/store/bookingStore.test.js src/utils/schedulerSocketEvents.test.js src/utils/authScope.test.js src/utils/operationsScope.test.js src/utils/customerCancellation.test.js",
+    "build": "node scripts/generate-seo-files.mjs && node scripts/sync-entity-media.mjs && node scripts/build-vite.mjs",
+    "seo:generate": "node scripts/generate-seo-files.mjs",
+    "test": "node --test src/utils/businessCompletionRules.test.js src/utils/businessOnboardingValidation.test.js src/utils/mediaValidation.test.js src/utils/latestRequest.test.js src/store/bookingStore.test.js src/utils/schedulerSocketEvents.test.js src/utils/authScope.test.js src/utils/operationsScope.test.js src/utils/customerCancellation.test.js",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
     "test:e2e:critical": "playwright test --project=chromium --grep @critical",
     "test:e2e:rbac": "playwright test --project=chromium --grep @rbac",
     "test:e2e:concurrency": "playwright test --project=chromium --grep @concurrency",
-    "test:e2e:responsive": "playwright test --grep @responsive"
+    "test:e2e:responsive": "playwright test --grep @responsive",
+    "qa:entity-images": "node scripts/qa-entity-image-uniqueness.mjs",
+    "qa:explore-images": "node scripts/qa-explore-service-images.mjs",
+    "qa:public-pages": "node scripts/qa-public-pages.mjs",
+    "images:optimize-entities": "node scripts/optimize-entity-images.mjs",
+    "images:sync-entity-media": "node scripts/sync-entity-media.mjs"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

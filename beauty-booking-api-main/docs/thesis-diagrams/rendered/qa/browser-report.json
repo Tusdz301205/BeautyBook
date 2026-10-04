@@ -1,0 +1,20 @@
+{
+  "date": "2026-09-26T07:51:35.814Z",
+  "contactSheets": 15,
+  "results": [
+    {
+      "width": 1440,
+      "images": 86,
+      "brokenImages": [],
+      "overflow": false,
+      "errors": []
+    },
+    {
+      "width": 375,
+      "images": 86,
+      "brokenImages": [],
+      "overflow": false,
+      "errors": []
+    }
+  ]
+}

@@ -1,13 +1,68 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Check } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { PublicShell } from '../layout/PublicShell';
-import { Card, cx } from '../ui';
+import { Button, Card, cx } from '../ui';
 
-const steps = ['Dịch vụ', 'Nhân viên', 'Thời gian', 'Thông tin', 'Xác nhận'];
+const steps = ['Dịch vụ', 'Chuyên viên', 'Thời gian', 'Thông tin', 'Xác nhận'];
+
 export function BookingLayout({ step, title, description, children, aside }) {
-  return <PublicShell><div className="mx-auto max-w-6xl"><nav aria-label="Tiến trình đặt lịch" className="mb-7 overflow-x-auto pb-2"><ol className="flex min-w-[640px] items-center">{steps.map((label, index) => { const number = index + 1; const done = number < step; const current = number === step; return <li key={label} className="flex flex-1 items-center last:flex-none"><span className="flex items-center gap-2"><span className={cx('grid h-8 w-8 place-items-center rounded-full border text-xs font-bold', done && 'border-[var(--bb-brand)] bg-[var(--bb-brand)] text-white', current && 'border-zinc-950 bg-zinc-950 text-white', !done && !current && 'border-[var(--bb-border)] bg-white text-[var(--bb-muted)]')}>{done ? <Check size={14} /> : number}</span><span className={cx('whitespace-nowrap text-xs font-semibold', current ? 'text-[var(--bb-ink)]' : 'text-[var(--bb-muted)]')}>{label}</span></span>{index < steps.length - 1 && <span className="mx-3 h-px flex-1 bg-[var(--bb-border)]" />}</li>; })}</ol></nav><header><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bb-brand-strong)]">Bước {step} / 5</p><h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>{description && <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--bb-muted)]">{description}</p>}</header><div className={cx('mt-7 grid gap-6', aside && 'lg:grid-cols-[minmax(0,1fr)_320px]')}><Card className="p-4 sm:p-6">{children}</Card>{aside && <aside>{aside}</aside>}</div></div></PublicShell>;
+  const { pathname } = useLocation();
+  useLayoutEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return <PublicShell>
+    <div className="bb-booking mx-auto max-w-6xl">
+      <nav aria-label="Tiến trình đặt lịch" className="bb-booking-progress mb-7">
+        <ol className="bb-booking-progress__list">
+          {steps.map((label, index) => {
+            const number = index + 1;
+            const done = number < step;
+            const current = number === step;
+            return <li key={label} className={cx('bb-booking-progress__step', current && 'bb-booking-progress__step--current')} aria-current={current ? 'step' : undefined}>
+              <span className={cx('bb-booking-progress__number', done && 'bb-booking-progress__number--done', current && 'bb-booking-progress__number--current')}>
+                {done ? <Check size={14} aria-label="Đã hoàn thành" /> : number}
+              </span>
+              <span className="bb-booking-progress__label">{label}</span>
+            </li>;
+          })}
+        </ol>
+      </nav>
+      <header className="bb-booking-heading">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--bb-brand-strong)]">Bước {step} / 5</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--bb-muted)]">{description}</p>}
+      </header>
+      <div className={cx('bb-booking-content mt-7 grid gap-6', aside && 'lg:grid-cols-[minmax(0,1fr)_320px]')}>
+        <Card className="bb-booking-panel min-w-0 p-4 sm:p-6">{children}</Card>
+        {aside && <aside className="bb-booking-aside min-w-0">{aside}</aside>}
+      </div>
+    </div>
+  </PublicShell>;
 }
 
-export function SelectionCard({ selected, title, meta, trailing, icon, onClick, disabled }) { return <button type="button" disabled={disabled} aria-pressed={selected} onClick={onClick} className={cx('flex min-h-20 w-full items-center gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-50', selected ? 'border-[var(--bb-brand)] bg-[var(--bb-brand-soft)]' : 'border-[var(--bb-border)] bg-white hover:border-zinc-400 hover:bg-zinc-50')} >{icon && <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white text-[var(--bb-brand-strong)] shadow-sm">{icon}</span>}<span className="min-w-0 flex-1"><span className="block font-bold text-[var(--bb-ink)]">{title}</span>{meta && <span className="mt-1 block text-xs leading-5 text-[var(--bb-muted)]">{meta}</span>}</span>{trailing && <span className="shrink-0 text-sm font-bold text-[var(--bb-brand-strong)]">{trailing}</span>}</button>; }
+export function SelectionCard({ selected, title, meta, trailing, icon, onClick, disabled }) {
+  return <button type="button" disabled={disabled} aria-pressed={selected} onClick={onClick} className={cx('bb-booking-selection min-h-20 w-full rounded-xl border p-4 text-left transition-colors disabled:opacity-50', selected ? 'border-[var(--bb-brand)] bg-[var(--bb-brand-soft)]' : 'border-[var(--bb-border)] bg-white hover:border-zinc-400 hover:bg-zinc-50')}>
+    {icon && <span className="bb-booking-selection__icon grid h-10 w-10 place-items-center rounded-lg bg-white text-[var(--bb-brand-strong)] shadow-sm">{icon}</span>}
+    <span className="bb-booking-selection__body">
+      <span className="bb-booking-selection__title font-bold text-[var(--bb-ink)]">{title}</span>
+      {meta && <span className="bb-booking-selection__meta mt-1 text-xs leading-5 text-[var(--bb-muted)]">{meta}</span>}
+      {trailing && <span className="bb-booking-selection__trailing text-sm font-bold text-[var(--bb-brand-strong)]">{trailing}</span>}
+    </span>
+  </button>;
+}
 
-export function WizardActions({ back, next, nextLabel = 'Tiếp tục', nextDisabled, loading }) { return <div className="mt-6 flex flex-col-reverse gap-2 border-t border-[var(--bb-border)] pt-5 sm:flex-row sm:justify-between">{back}<span className="sm:ml-auto">{React.isValidElement(next) ? next : null}</span></div>; }
+export function BookingActions({ back, onNext, nextLabel = 'Tiếp tục', disabled = false, loading = false, type = 'button', form, summary }) {
+  const buttonProps = { type, form, disabled, loading, onClick: onNext };
+  return <>
+    <div className="bb-booking-actions mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--bb-border)] pt-5">
+      {back || <span />}
+      <Button {...buttonProps}>{nextLabel}</Button>
+    </div>
+    <div className="bb-booking-mobile-action" role="group" aria-label="Thao tác đặt lịch">
+      <div className="bb-booking-mobile-action__inner">
+        {summary && <span className="bb-booking-mobile-action__summary">{summary}</span>}
+        {back && <span className="bb-booking-mobile-action__back">{back}</span>}
+        <Button {...buttonProps} className="bb-booking-mobile-action__next">{nextLabel}</Button>
+      </div>
+    </div>
+  </>;
+}

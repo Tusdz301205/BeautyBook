@@ -1,0 +1,70 @@
+@startuml ERD-opening
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**Province**\n(provinces)" as Province {
+  * id: String <<PK>>
+  * name: String <<UQ>>
+  code: String? <<UQ>>
+  * createdAt: DateTime 
+}
+entity "**District**\n(districts)" as District {
+  * id: String <<PK>>
+  * provinceId: String <<FK>>
+  * name: String 
+  code: String? 
+  * createdAt: DateTime 
+}
+entity "**BranchWorkingHour**\n(branch_working_hours)" as BranchWorkingHour {
+  * id: String <<PK>>
+  * branchId: String <<FK>>
+  * dayOfWeek: Int 
+  * openTime: DateTime 
+  * closeTime: DateTime 
+  * isClosed: Boolean 
+}
+entity "**BranchHoliday**\n(branch_holidays)" as BranchHoliday {
+  * id: String <<PK>>
+  * branchId: String <<FK>>
+  * date: DateTime 
+  * name: String 
+  * isClosed: Boolean 
+}
+entity "**SpecialWorkingDay**\n(special_working_days)" as SpecialWorkingDay {
+  * id: String <<PK>>
+  * branchId: String <<FK>>
+  * date: DateTime 
+  * startTime: DateTime 
+  * endTime: DateTime 
+}
+Province ||--o{ District
+
+@enduml

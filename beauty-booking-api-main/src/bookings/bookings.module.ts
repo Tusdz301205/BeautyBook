@@ -9,11 +9,10 @@ import { PaymentsModule } from '../payments/payments.module';
 import { PendingBookingsCron } from './pending-bookings.cron';
 import { PromotionsModule } from '../promotions/promotions.module';
 import { BookingItemsService } from './booking-items.service';
-import { LoyaltyModule } from '../loyalty/loyalty.module';
 import { ChangeRequestExpiryWorker } from './change-request-expiry.worker';
 
 @Module({
-  imports: [SchedulerModule, PaymentsModule, PromotionsModule, LoyaltyModule],
+  imports: [SchedulerModule, PaymentsModule, PromotionsModule],
   controllers: [BookingsController],
   providers: [
     BookingsService,

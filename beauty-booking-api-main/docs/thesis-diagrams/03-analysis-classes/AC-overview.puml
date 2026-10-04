@@ -1,0 +1,73 @@
+@startuml AC-overview
+' Các liên kết khái niệm; một lịch phải có phần dịch vụ theo luật tạo lịch, schema không tự ép tối thiểu đó.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+class "**Khách hàng**" as KhachHang {
+mã khách
+--
+yêu cầu phục vụ()
+}
+class "**Lịch hẹn**" as LichHen {
+thời điểm
+  trạng thái
+--
+ghi nhận cam kết()
+}
+class "**Phần dịch vụ**" as PhanDichVu {
+giá tại lúc đặt
+  trạng thái
+--
+ghi nhận tiến độ()
+}
+class "**Dịch vụ cung cấp**" as DichVuCungCap {
+tên
+  thời lượng
+--
+xác định giá()
+}
+class "**Chuyên viên**" as ChuyenVien {
+tên
+  kỹ năng
+--
+thực hiện()
+}
+class "**Khoản thu**" as KhoanThu {
+số tiền
+  trạng thái
+--
+ghi nhận đã trả()
+}
+KhachHang "1" -- "0..*" LichHen
+LichHen "1" -- "1..*" PhanDichVu
+DichVuCungCap "1" -- "0..*" PhanDichVu
+ChuyenVien "0..1" -- "0..*" PhanDichVu
+LichHen "1" -- "0..*" KhoanThu
+@enduml

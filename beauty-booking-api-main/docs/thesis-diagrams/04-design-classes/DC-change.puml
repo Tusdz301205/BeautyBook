@@ -1,0 +1,68 @@
+@startuml DC-change
+' Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+top to bottom direction
+class "**ChangeRequestsService**" as ChangeRequestsService {
+  -prisma: PrismaService
+  -platformSettings: PlatformSettingsService
+  -bookings: BookingsService
+  --
+  +create(...)
+  +approve(...)
+  +reject(...)
+}
+class "**BookingsService**" as BookingsService {
+  -prisma: PrismaService
+  -platformSettings: PlatformSettingsService
+  --
+  +updateStatus(...)
+  +create(data: ...)
+  +getAvailableSlots(params: ...)
+}
+class "**PlatformSettingsService**" as PlatformSettingsService {
+  -prisma: PrismaService
+  --
+  +validate(input: Record<string, unknown>)
+  +getConfigured(): Promise<...>
+  +getEffective(): Promise<PlatformSettings>
+}
+class "**PrismaService**" as PrismaService {
+  --
+  +onModuleInit()
+  +onModuleDestroy()
+}
+ChangeRequestsService ..> PrismaService : inject
+ChangeRequestsService ..> PlatformSettingsService : inject
+ChangeRequestsService ..> BookingsService : inject
+BookingsService ..> PrismaService : inject
+BookingsService ..> PlatformSettingsService : inject
+PlatformSettingsService ..> PrismaService : inject
+@enduml

@@ -1,0 +1,64 @@
+@startuml DC-catalog
+' Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+top to bottom direction
+class "**ServicesController**" as ServicesController {
+  -servicesService: ServicesService
+  -prisma: PrismaService
+  --
+  +search(...)
+  +canonicalCatalog()
+  +canonicalManagement()
+}
+class "**ServicesService**" as ServicesService {
+  -prisma: PrismaService
+  --
+  +findAll(...)
+  +getBusinessCategories(businessIds: string[])
+  +createCategory(data: ...)
+}
+class "**CombosService**" as CombosService {
+  -prisma: PrismaService
+  --
+  +publicList(branchId?: string)
+  +list(user: AuthUser, filter: ...)
+  +detail(id: string, user: AuthUser)
+}
+class "**PrismaService**" as PrismaService {
+  --
+  +onModuleInit()
+  +onModuleDestroy()
+}
+ServicesController ..> ServicesService : inject
+ServicesController ..> PrismaService : inject
+ServicesService ..> PrismaService : inject
+CombosService ..> PrismaService : inject
+@enduml

@@ -112,7 +112,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
   const tabs = useMemo(() => [
     { id: 'calendar', label: 'Lịch hẹn', icon: CalendarDays },
     ...(zone === 'salon' && !staffOnly && (can('change_request:approve:branch') || can('change_request:approve:tenant'))
-      ? [{ id: 'queue', label: 'Hàng chờ & yêu cầu', icon: List }] : []),
+      ? [{ id: 'queue', label: 'Việc cần xử lý', icon: List }] : []),
     ...(!staffOnly ? [
       { id: 'list', label: 'Danh sách', icon: List },
       { id: 'stats', label: 'Thống kê', icon: BarChart3 },
@@ -139,7 +139,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
     ? staffOnly
       ? 'Chỉ hiển thị các lịch đã được phân công cho bạn; bộ lọc nhân viên được khóa theo hồ sơ hiện tại.'
       : receptionist
-        ? 'Tiếp nhận khách, xử lý lịch chờ, xác nhận khách đến và theo dõi hoạt động tại chi nhánh được cấp.'
+      ? 'Tiếp nhận khách, xác nhận lịch hẹn và theo dõi hoạt động tại chi nhánh được cấp.'
         : owner
           ? 'Theo dõi lịch hẹn trên toàn doanh nghiệp hoặc lọc theo từng chi nhánh.'
           : 'Theo dõi lịch hẹn, trạng thái và phân công nhân viên trong phạm vi chi nhánh được cấp.'
@@ -169,7 +169,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
             <div className="flex min-w-0 gap-2">
               <div className="relative min-w-0 flex-1 xl:w-72 xl:flex-none">
                 <span className="sr-only">Chi nhánh</span>
-                <Select aria-label="Chi nhánh" icon={<MapPin size={16} />} value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)} loading={branchesLoading} disabled={branchesLoading || visibleBranches.length === 0} searchable searchPlaceholder="Tìm chi nhánh">
+                <Select className="bb-scheduler-branch-select" aria-label="Chi nhánh" icon={<MapPin size={16} />} value={selectedBranch} onChange={(event) => setSelectedBranch(event.target.value)} loading={branchesLoading} disabled={branchesLoading || visibleBranches.length === 0} searchable searchPlaceholder="Tìm chi nhánh">
                   {branchesLoading && <option value="">Đang tải chi nhánh...</option>}
                   {!branchesLoading && visibleBranches.length === 0 && <option value="">Không có chi nhánh</option>}
                   {visibleBranches.length > 1 && (owner || isPlatform) && <option value="__all__">Tất cả chi nhánh ({visibleBranches.length})</option>}
@@ -200,7 +200,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
           </div>
         </section>
 
-        <nav className="mt-5 flex gap-1 overflow-x-auto" aria-label="Các phần lịch hẹn">
+        <nav className="mt-5 flex flex-wrap gap-1 sm:flex-nowrap sm:overflow-x-auto" aria-label="Các phần lịch hẹn">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)} aria-current={activeTab === id ? 'page' : undefined} className={`flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition sm:px-4 ${activeTab === id ? 'border-pink-600 text-pink-700' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}>
               <Icon size={17} /> {label}
@@ -227,7 +227,7 @@ export function AdminAppointmentsView() {
 }
 
 function SingleBranchNotice() {
-  return <div className="grid h-full place-items-center px-6 text-center"><div><MapPin className="mx-auto text-zinc-400" /><p className="mt-3 font-semibold text-zinc-900">Chọn một chi nhánh để xem phần này</p><p className="mt-1 text-sm text-zinc-500">Calendar vẫn hỗ trợ xem gộp nhiều chi nhánh.</p></div></div>;
+      return <div className="grid h-full place-items-center px-6 text-center"><div><MapPin className="mx-auto text-zinc-400" /><p className="mt-3 font-semibold text-zinc-900">Chọn một chi nhánh để xem phần này</p><p className="mt-1 text-sm text-zinc-500">Lịch vẫn hỗ trợ xem gộp nhiều chi nhánh.</p></div></div>;
 }
 
 function StatCard({ label, value, tone, onClick }) {
@@ -244,7 +244,7 @@ function StatCard({ label, value, tone, onClick }) {
   return (
     <button type="button" onClick={onClick} className={`min-w-0 rounded-xl border px-3 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tones[tone]}`}>
       <span className="block text-2xl font-bold tabular-nums">{value}</span>
-      <span className="mt-0.5 block truncate text-xs font-semibold opacity-75">{label}</span>
+      <span className="mt-0.5 block break-words text-xs font-semibold leading-snug opacity-75">{label}</span>
     </button>
   );
 }

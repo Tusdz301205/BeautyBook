@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBookingStore } from '../../store/bookingStore';
 import { useAuthStore } from '../../store/authStore';
 import { Button, Field, InlineNotice, Input, Textarea } from '../../components/ui';
-import { BookingLayout } from '../../components/customer/BookingLayout';
+import { BookingActions, BookingLayout } from '../../components/customer/BookingLayout';
 
 const normalizePhone = (value) => value.trim().replace(/[\s.-]/g, '');
 
@@ -42,7 +42,7 @@ export default function BookingStep4() {
       title="Thông tin liên hệ"
       description="Cơ sở dùng thông tin trong tài khoản để xác nhận lịch với bạn."
     >
-      <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2" noValidate>
+      <form id="bb-booking-contact-form" onSubmit={submit} className="grid gap-5 sm:grid-cols-2" noValidate>
         <Field label="Họ và tên" required error={errors.fullName} className="sm:col-span-2">
           <Input autoComplete="name" required value={customerInfo.fullName} onChange={(event) => setCustomerInfo({ fullName: event.target.value })} />
         </Field>
@@ -63,10 +63,7 @@ export default function BookingStep4() {
           {errors.consent && <p role="alert" className="mt-1 text-xs text-[var(--bb-danger)]">{errors.consent}</p>}
         </div>
         <div className="sm:col-span-2"><InlineNotice tone="success">Bạn đang đặt lịch bằng tài khoản {user?.email}.</InlineNotice></div>
-        <div className="flex flex-col-reverse gap-2 border-t border-[var(--bb-border)] pt-5 sm:col-span-2 sm:flex-row sm:justify-between">
-          <Button variant="secondary" onClick={() => navigate('/book/time')}>Quay lại</Button>
-          <Button type="submit">Xem lại và xác nhận</Button>
-        </div>
+        <div className="sm:col-span-2"><BookingActions back={<Button variant="secondary" onClick={() => navigate('/book/time')}>Quay lại</Button>} type="submit" form="bb-booking-contact-form" nextLabel="Xem lại lịch hẹn" /></div>
       </form>
     </BookingLayout>
   );

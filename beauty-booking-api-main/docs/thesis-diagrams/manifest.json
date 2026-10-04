@@ -1,0 +1,3189 @@
+{
+  "schemaSha256": "b30eb0d487134d656702fff56da633b58975ff51980530fe42f126a8f05b8215",
+  "models": 121,
+  "enums": 92,
+  "actors": {
+    "V": "Người chưa đăng nhập",
+    "C": "Khách hàng",
+    "O": "Chủ doanh nghiệp",
+    "R": "Lễ tân",
+    "S": "Chuyên viên",
+    "A": "Quản trị nền tảng"
+  },
+  "roles": {
+    "V": "PUBLIC",
+    "C": "CUSTOMER",
+    "O": "BUSINESS_OWNER",
+    "R": "RECEPTIONIST",
+    "S": "STAFF",
+    "A": "PLATFORM_ADMIN"
+  },
+  "bucs": [
+    {
+      "id": "BUC-01",
+      "name": "Tìm dịch vụ phù hợp"
+    },
+    {
+      "id": "BUC-02",
+      "name": "Thỏa thuận lịch phục vụ"
+    },
+    {
+      "id": "BUC-03",
+      "name": "Điều chỉnh cam kết lịch hẹn"
+    },
+    {
+      "id": "BUC-04",
+      "name": "Tiếp nhận và hoàn tất phục vụ"
+    },
+    {
+      "id": "BUC-05",
+      "name": "Quyết toán khoản phải trả"
+    },
+    {
+      "id": "BUC-06",
+      "name": "Duy trì quan hệ với khách"
+    },
+    {
+      "id": "BUC-07",
+      "name": "Đưa cơ sở đủ điều kiện lên sàn"
+    },
+    {
+      "id": "BUC-08",
+      "name": "Bảo đảm danh mục và năng lực phục vụ"
+    },
+    {
+      "id": "BUC-09",
+      "name": "Xử lý gián đoạn hoạt động"
+    },
+    {
+      "id": "BUC-10",
+      "name": "Chuyển giao quyền sở hữu"
+    },
+    {
+      "id": "BUC-11",
+      "name": "Giám sát chất lượng và hiệu quả sàn"
+    },
+    {
+      "id": "BUC-12",
+      "name": "Bảo vệ tài khoản và quyền dữ liệu"
+    }
+  ],
+  "sucs": [
+    {
+      "id": "SUC-01",
+      "name": "Tra cứu dịch vụ và cơ sở",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-02",
+      "name": "Thiết lập tài khoản và đăng nhập",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-03",
+      "name": "Khôi phục và bảo vệ truy cập",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-04",
+      "name": "Duy trì hồ sơ cá nhân",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-05",
+      "name": "Tự đặt lịch dịch vụ",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-06",
+      "name": "Kiểm tra giờ còn khả dụng",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-07",
+      "name": "Xem giá và ưu đãi đặt lịch",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-08",
+      "name": "Theo dõi lịch và chính sách tự đặt",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-09",
+      "name": "Tự hủy lịch đủ sớm",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-10",
+      "name": "Gửi yêu cầu đổi hoặc hủy lịch",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-11",
+      "name": "Sắp xếp chuỗi lịch định kỳ",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-12",
+      "name": "Lưu dịch vụ quan tâm",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-13",
+      "name": "Tạo lịch hộ tại cơ sở",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-14",
+      "name": "Điều phối lịch và phân công",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-15",
+      "name": "Xử lý yêu cầu thay đổi lịch",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-16",
+      "name": "Tiếp nhận khách và ghi no-show",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-17",
+      "name": "Thực hiện phần dịch vụ được giao",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-18",
+      "name": "Thu tiền và xác minh giao dịch",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-19",
+      "name": "Đề nghị và xét duyệt hoàn tiền",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-20",
+      "name": "Ghi kết quả xử lý hoàn tiền",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-21",
+      "name": "Quản lý gói buổi dịch vụ",
+      "status": "Triển khai một phần: backend có các hành động; web xác minh được tạo gói, chưa xác minh đầy đủ UI mua/dùng buổi."
+    },
+    {
+      "id": "SUC-22",
+      "name": "Chuẩn bị và nộp hồ sơ doanh nghiệp",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-23",
+      "name": "Thẩm định doanh nghiệp và chi nhánh",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-24",
+      "name": "Thiết lập và công bố chi nhánh",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-25",
+      "name": "Quản lý dịch vụ và giá tại cơ sở",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-26",
+      "name": "Quản lý chuyên viên và lời mời",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-27",
+      "name": "Quản lý combo dịch vụ",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-28",
+      "name": "Thiết lập khuyến mãi và voucher",
+      "status": "Triển khai web OWNER/API; thao tác PLATFORM có API, cần xác minh đường UI quản lý đầy đủ."
+    },
+    {
+      "id": "SUC-29",
+      "name": "Đánh giá dịch vụ đã dùng",
+      "status": "Đã triển khai web/API; mobile cần phân biệt caller thật với ReviewsContext cục bộ."
+    },
+    {
+      "id": "SUC-30",
+      "name": "Phản hồi và xem xét đánh giá",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-31",
+      "name": "Theo dõi thông báo cá nhân",
+      "status": "Đã triển khai in-app qua web/API; push ngoài chưa xác minh"
+    },
+    {
+      "id": "SUC-32",
+      "name": "Kiểm soát quyền dữ liệu",
+      "status": "Triển khai một phần: tiếp nhận/yêu cầu và export có API/UI; chưa thấy quy trình xử lý mọi quyền dữ liệu end-to-end."
+    },
+    {
+      "id": "SUC-33",
+      "name": "Giải quyết tác động vận hành",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-34",
+      "name": "Đề nghị và tiếp nhận chuyển chủ",
+      "status": "Triển khai một phần: backend có xử lý, web lệch workspace khi nhận chuyển giao; create yêu cầu OWNER, accept không có Roles decorator và kiểm tra newOwnerUserId."
+    },
+    {
+      "id": "SUC-35",
+      "name": "Thẩm định và thực hiện chuyển chủ",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-36",
+      "name": "Xem hiệu quả và đối soát",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-37",
+      "name": "Quản trị truy cập người dùng",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-38",
+      "name": "Quản trị danh mục và chính sách",
+      "status": "API có triển khai; web settings đã nối, taxonomy route cần xác minh (GAP-04)."
+    },
+    {
+      "id": "SUC-39",
+      "name": "Giám sát và xử lý độ tin cậy",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    },
+    {
+      "id": "SUC-40",
+      "name": "Lưu và sử dụng tài liệu hình ảnh",
+      "status": "Đã triển khai qua code web/API; chưa kiểm chứng runtime"
+    }
+  ],
+  "diagrams": [
+    {
+      "id": "BUC-overview",
+      "group": "01-business-use-cases",
+      "title": "Tổng quan hành trình giá trị khách hàng",
+      "scope": "Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.",
+      "source": "01-business-use-cases/BUC-overview.puml",
+      "bucs": [
+        "BUC-01",
+        "BUC-02",
+        "BUC-04"
+      ]
+    },
+    {
+      "id": "BUC-service",
+      "group": "01-business-use-cases",
+      "title": "Cam kết và thực hiện dịch vụ",
+      "scope": "Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.",
+      "source": "01-business-use-cases/BUC-service.puml",
+      "bucs": [
+        "BUC-02",
+        "BUC-03",
+        "BUC-04"
+      ]
+    },
+    {
+      "id": "BUC-financial",
+      "group": "01-business-use-cases",
+      "title": "Quyết toán, quan hệ khách hàng và dữ liệu",
+      "scope": "Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.",
+      "source": "01-business-use-cases/BUC-financial.puml",
+      "bucs": [
+        "BUC-05",
+        "BUC-06",
+        "BUC-12"
+      ]
+    },
+    {
+      "id": "BUC-operations",
+      "group": "01-business-use-cases",
+      "title": "Gia nhập và duy trì năng lực cơ sở",
+      "scope": "Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.",
+      "source": "01-business-use-cases/BUC-operations.puml",
+      "bucs": [
+        "BUC-07",
+        "BUC-08",
+        "BUC-09"
+      ]
+    },
+    {
+      "id": "BUC-governance",
+      "group": "01-business-use-cases",
+      "title": "Chuyển giao và giám sát nền tảng",
+      "scope": "Mục tiêu kinh doanh; nhân sự bên trong ranh giới là worker, không phải role kế thừa.",
+      "source": "01-business-use-cases/BUC-governance.puml",
+      "bucs": [
+        "BUC-10",
+        "BUC-11"
+      ]
+    },
+    {
+      "id": "SUC-overview",
+      "group": "02-system-use-cases",
+      "title": "Các tương tác cốt lõi",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-overview.puml",
+      "sucs": [
+        "SUC-01",
+        "SUC-05",
+        "SUC-13",
+        "SUC-17",
+        "SUC-23"
+      ]
+    },
+    {
+      "id": "SUC-discovery",
+      "group": "02-system-use-cases",
+      "title": "Khám phá và lưu dịch vụ",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-discovery.puml",
+      "sucs": [
+        "SUC-01",
+        "SUC-06",
+        "SUC-12"
+      ]
+    },
+    {
+      "id": "SUC-auth",
+      "group": "02-system-use-cases",
+      "title": "Thiết lập và khôi phục truy cập",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-auth.puml",
+      "sucs": [
+        "SUC-02",
+        "SUC-03"
+      ]
+    },
+    {
+      "id": "SUC-customer-account",
+      "group": "02-system-use-cases",
+      "title": "Tài khoản và quyền dữ liệu khách",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-customer-account.puml",
+      "sucs": [
+        "SUC-03",
+        "SUC-04",
+        "SUC-31",
+        "SUC-32"
+      ]
+    },
+    {
+      "id": "SUC-staff-account",
+      "group": "02-system-use-cases",
+      "title": "Tài khoản nhân sự",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-staff-account.puml",
+      "sucs": [
+        "SUC-03",
+        "SUC-04",
+        "SUC-31"
+      ]
+    },
+    {
+      "id": "SUC-admin-account",
+      "group": "02-system-use-cases",
+      "title": "Tài khoản quản trị",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-admin-account.puml",
+      "sucs": [
+        "SUC-03",
+        "SUC-04",
+        "SUC-31"
+      ]
+    },
+    {
+      "id": "SUC-booking",
+      "group": "02-system-use-cases",
+      "title": "Tự đặt và theo dõi lịch",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-booking.puml",
+      "sucs": [
+        "SUC-05",
+        "SUC-06",
+        "SUC-07",
+        "SUC-08"
+      ]
+    },
+    {
+      "id": "SUC-change",
+      "group": "02-system-use-cases",
+      "title": "Hủy, đổi và lịch định kỳ",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-change.puml",
+      "sucs": [
+        "SUC-09",
+        "SUC-10",
+        "SUC-11"
+      ]
+    },
+    {
+      "id": "SUC-counter",
+      "group": "02-system-use-cases",
+      "title": "Điều phối tại quầy",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-counter.puml",
+      "sucs": [
+        "SUC-13",
+        "SUC-14",
+        "SUC-15",
+        "SUC-16"
+      ]
+    },
+    {
+      "id": "SUC-delivery",
+      "group": "02-system-use-cases",
+      "title": "Phân công và thực hiện dịch vụ",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-delivery.puml",
+      "sucs": [
+        "SUC-14",
+        "SUC-17"
+      ]
+    },
+    {
+      "id": "SUC-payments",
+      "group": "02-system-use-cases",
+      "title": "Thu và hoàn tiền",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-payments.puml",
+      "sucs": [
+        "SUC-18",
+        "SUC-19",
+        "SUC-20"
+      ]
+    },
+    {
+      "id": "SUC-packages",
+      "group": "02-system-use-cases",
+      "title": "Gói buổi và đối soát",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-packages.puml",
+      "sucs": [
+        "SUC-21",
+        "SUC-36"
+      ]
+    },
+    {
+      "id": "SUC-onboarding",
+      "group": "02-system-use-cases",
+      "title": "Thẩm định và công bố",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-onboarding.puml",
+      "sucs": [
+        "SUC-22",
+        "SUC-23",
+        "SUC-24"
+      ]
+    },
+    {
+      "id": "SUC-resources",
+      "group": "02-system-use-cases",
+      "title": "Chuẩn bị dịch vụ và nhân sự",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-resources.puml",
+      "sucs": [
+        "SUC-25",
+        "SUC-26",
+        "SUC-27",
+        "SUC-40"
+      ]
+    },
+    {
+      "id": "SUC-invitation",
+      "group": "02-system-use-cases",
+      "title": "Người nhận lời mời nhân sự",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-invitation.puml",
+      "sucs": [
+        "SUC-26"
+      ]
+    },
+    {
+      "id": "SUC-relations",
+      "group": "02-system-use-cases",
+      "title": "Ưu đãi và đánh giá",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-relations.puml",
+      "sucs": [
+        "SUC-28",
+        "SUC-29",
+        "SUC-30"
+      ]
+    },
+    {
+      "id": "SUC-continuity",
+      "group": "02-system-use-cases",
+      "title": "Tác động vận hành và chuyển chủ",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-continuity.puml",
+      "sucs": [
+        "SUC-33",
+        "SUC-34",
+        "SUC-35"
+      ]
+    },
+    {
+      "id": "SUC-governance",
+      "group": "02-system-use-cases",
+      "title": "Quản trị và báo cáo",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-governance.puml",
+      "sucs": [
+        "SUC-36",
+        "SUC-37",
+        "SUC-38",
+        "SUC-39"
+      ]
+    },
+    {
+      "id": "SUC-media",
+      "group": "02-system-use-cases",
+      "title": "Tài liệu và media theo scope",
+      "scope": "Association thể hiện tham gia; quyền chi tiết nằm trong đặc tả. Không dùng include/extend để mô tả thứ tự.",
+      "source": "02-system-use-cases/SUC-media.puml",
+      "sucs": [
+        "SUC-40"
+      ]
+    },
+    {
+      "id": "AC-booking",
+      "group": "03-analysis-classes",
+      "title": "Đặt lịch",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-booking.puml",
+      "sucs": [
+        "SUC-05",
+        "SUC-06",
+        "SUC-07",
+        "SUC-13"
+      ],
+      "concepts": [
+        "KenhTiepNhan",
+        "DieuPhoiDatLich",
+        "LichHen",
+        "PhanDichVu",
+        "NangLucPhucVu"
+      ],
+      "design": [
+        "BookingsController",
+        "BookingsService",
+        "PricingEngineService"
+      ],
+      "models": [
+        "Booking",
+        "BookingService",
+        "StaffService"
+      ]
+    },
+    {
+      "id": "AC-change",
+      "group": "03-analysis-classes",
+      "title": "Thay đổi cam kết",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-change.puml",
+      "sucs": [
+        "SUC-08",
+        "SUC-09",
+        "SUC-10",
+        "SUC-15",
+        "SUC-16"
+      ],
+      "concepts": [
+        "KenhYeuCau",
+        "XuLyThayDoi",
+        "YeuCauThayDoi",
+        "LichHen",
+        "LichSuViPham"
+      ],
+      "design": [
+        "ChangeRequestsService",
+        "BookingsService"
+      ],
+      "models": [
+        "AppointmentChangeRequest",
+        "BookingViolationEvent",
+        "CustomerBookingPolicy"
+      ]
+    },
+    {
+      "id": "AC-delivery",
+      "group": "03-analysis-classes",
+      "title": "Thực hiện tại cơ sở",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-delivery.puml",
+      "sucs": [
+        "SUC-14",
+        "SUC-16",
+        "SUC-17",
+        "SUC-33"
+      ],
+      "concepts": [
+        "BangDieuPhoi",
+        "DieuPhoiThucHien",
+        "PhanDichVu",
+        "ChuyenVien",
+        "HoSoTacDong"
+      ],
+      "design": [
+        "BookingItemsService",
+        "BookingsService",
+        "ImpactService"
+      ],
+      "models": [
+        "BookingService",
+        "StaffProfile",
+        "OperationalImpactCase"
+      ]
+    },
+    {
+      "id": "AC-finance",
+      "group": "03-analysis-classes",
+      "title": "Khoản thu và hoàn trả",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-finance.puml",
+      "sucs": [
+        "SUC-18",
+        "SUC-19",
+        "SUC-20",
+        "SUC-21",
+        "SUC-36"
+      ],
+      "concepts": [
+        "KenhQuyetToan",
+        "KiemSoatSoDu",
+        "KhoanThu",
+        "YeuCauHoan",
+        "QuyenDungBuoi"
+      ],
+      "design": [
+        "PaymentsService",
+        "FinancialMetricsService"
+      ],
+      "models": [
+        "Payment",
+        "RefundRequest",
+        "PackageSessionEntitlement"
+      ]
+    },
+    {
+      "id": "AC-onboarding",
+      "group": "03-analysis-classes",
+      "title": "Thẩm định cơ sở",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-onboarding.puml",
+      "sucs": [
+        "SUC-22",
+        "SUC-23",
+        "SUC-24",
+        "SUC-40"
+      ],
+      "concepts": [
+        "KenhHoSo",
+        "ThamDinhCoSo",
+        "HoSoDoanhNghiep",
+        "ChiNhanh",
+        "BangChungPhapLy"
+      ],
+      "design": [
+        "BusinessOnboardingService",
+        "BranchesService",
+        "MediaService"
+      ],
+      "models": [
+        "Business",
+        "Branch",
+        "BusinessDocument"
+      ]
+    },
+    {
+      "id": "AC-capacity",
+      "group": "03-analysis-classes",
+      "title": "Danh mục và năng lực",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-capacity.puml",
+      "sucs": [
+        "SUC-25",
+        "SUC-26",
+        "SUC-27",
+        "SUC-38"
+      ],
+      "concepts": [
+        "KenhQuanLyCoSo",
+        "QuanLyNangLuc",
+        "DichVuCungCap",
+        "ChuyenVien",
+        "GoiDichVu"
+      ],
+      "design": [
+        "ServicesService",
+        "StaffService",
+        "StaffInvitationsService",
+        "CombosService"
+      ],
+      "models": [
+        "BusinessService",
+        "BranchServiceOffering",
+        "StaffProfile",
+        "Combo"
+      ]
+    },
+    {
+      "id": "AC-relations",
+      "group": "03-analysis-classes",
+      "title": "Quan hệ khách hàng",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-relations.puml",
+      "sucs": [
+        "SUC-01",
+        "SUC-12",
+        "SUC-28",
+        "SUC-29",
+        "SUC-30",
+        "SUC-31"
+      ],
+      "concepts": [
+        "KenhTuongTac",
+        "ChamSocKhach",
+        "DanhGia",
+        "UuDai",
+        "DichVuQuanTam"
+      ],
+      "design": [
+        "ReviewsService",
+        "PromotionsService",
+        "VouchersAdminService",
+        "SavedServicesService",
+        "NotificationsService"
+      ],
+      "models": [
+        "Review",
+        "Voucher",
+        "CustomerSavedService",
+        "Notification"
+      ]
+    },
+    {
+      "id": "AC-governance",
+      "group": "03-analysis-classes",
+      "title": "Quản trị và chuyển giao",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-governance.puml",
+      "sucs": [
+        "SUC-34",
+        "SUC-35",
+        "SUC-37",
+        "SUC-39"
+      ],
+      "concepts": [
+        "KenhQuanTri",
+        "KiemSoatTrachNhiem",
+        "HoSoChuyenChu",
+        "QuyetDinhQuanTri",
+        "DauVet"
+      ],
+      "design": [
+        "OwnershipService",
+        "UsersService",
+        "TrustSnapshotService"
+      ],
+      "models": [
+        "OwnershipTransfer",
+        "TrustAction",
+        "AuditLog"
+      ]
+    },
+    {
+      "id": "AC-identity",
+      "group": "03-analysis-classes",
+      "title": "Tài khoản và dữ liệu",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-identity.puml",
+      "sucs": [
+        "SUC-02",
+        "SUC-03",
+        "SUC-04",
+        "SUC-32"
+      ],
+      "concepts": [
+        "KenhTaiKhoan",
+        "BaoVeDanhTinh",
+        "TaiKhoan",
+        "PhienTruyCap",
+        "YeuCauDuLieu"
+      ],
+      "design": [
+        "AuthService",
+        "UsersService",
+        "PrivacyCenterService"
+      ],
+      "models": [
+        "User",
+        "UserSession",
+        "DataSubjectRequest"
+      ]
+    },
+    {
+      "id": "AC-recurring",
+      "group": "03-analysis-classes",
+      "title": "Lịch định kỳ",
+      "scope": "Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.",
+      "source": "03-analysis-classes/AC-recurring.puml",
+      "sucs": [
+        "SUC-11"
+      ],
+      "concepts": [
+        "KenhLichDinhKy",
+        "SapXepChuoi",
+        "ChuoiLich",
+        "KyHen",
+        "NangLucPhucVu"
+      ],
+      "design": [
+        "RecurringService",
+        "BookingsService"
+      ],
+      "models": [
+        "RecurringBookingPlan",
+        "Booking",
+        "StaffService"
+      ]
+    },
+    {
+      "id": "AC-overview",
+      "group": "03-analysis-classes",
+      "title": "Khái niệm nghiệp vụ lõi",
+      "scope": "Các liên kết khái niệm; một lịch phải có phần dịch vụ theo luật tạo lịch, schema không tự ép tối thiểu đó.",
+      "source": "03-analysis-classes/AC-overview.puml",
+      "sucs": [
+        "SUC-05",
+        "SUC-17",
+        "SUC-18"
+      ],
+      "concepts": [
+        "KhachHang",
+        "LichHen",
+        "PhanDichVu",
+        "DichVuCungCap",
+        "ChuyenVien",
+        "KhoanThu"
+      ],
+      "design": [
+        "BookingsService",
+        "PaymentsService"
+      ],
+      "models": [
+        "CustomerProfile",
+        "Booking",
+        "BookingService",
+        "BranchServiceOffering",
+        "StaffProfile",
+        "Payment"
+      ]
+    },
+    {
+      "id": "DC-overview",
+      "group": "04-design-classes",
+      "title": "Phối hợp nghiệp vụ",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-overview.puml",
+      "sucs": [
+        "SUC-05",
+        "SUC-07",
+        "SUC-18"
+      ],
+      "classes": [
+        "BookingsService",
+        "PricingEngineService",
+        "PaymentsService",
+        "SchedulerGateway",
+        "PrismaService"
+      ],
+      "methods": [
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PricingEngineService.quote",
+        "PricingEngineService.reserve",
+        "PaymentsService.collect",
+        "PaymentsService.requestRefund",
+        "PaymentsService.processRefund",
+        "SchedulerGateway.afterInit",
+        "SchedulerGateway.handleConnection",
+        "SchedulerGateway.handleDisconnect",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-auth",
+      "group": "04-design-classes",
+      "title": "Xác thực và phiên",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-auth.puml",
+      "sucs": [
+        "SUC-02",
+        "SUC-03"
+      ],
+      "classes": [
+        "AuthController",
+        "AuthService",
+        "TokenBlacklistService",
+        "PrismaService"
+      ],
+      "methods": [
+        "AuthController.login",
+        "AuthController.register",
+        "AuthController.refresh",
+        "AuthService.login",
+        "AuthService.refresh",
+        "AuthService.revokeSession",
+        "TokenBlacklistService.revokeAllForUser",
+        "TokenBlacklistService.isRevoked",
+        "TokenBlacklistService.onModuleDestroy",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-access",
+      "group": "04-design-classes",
+      "title": "Kiểm tra quyền lịch",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-access.puml",
+      "sucs": [
+        "SUC-08",
+        "SUC-13",
+        "SUC-14"
+      ],
+      "classes": [
+        "BookingsController",
+        "BookingsAccessService",
+        "PrismaService"
+      ],
+      "methods": [
+        "BookingsController.create",
+        "BookingsController.getAvailableSlots",
+        "BookingsController.updateBookingItem",
+        "BookingsAccessService.loadAndAssert",
+        "BookingsAccessService.assertWrite",
+        "BookingsAccessService.assertCustomerCreate",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-booking",
+      "group": "04-design-classes",
+      "title": "Tạo và điều phối lịch",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-booking.puml",
+      "sucs": [
+        "SUC-05",
+        "SUC-06",
+        "SUC-13",
+        "SUC-14",
+        "SUC-16"
+      ],
+      "classes": [
+        "BookingsController",
+        "BookingsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "BookingsController.create",
+        "BookingsController.getAvailableSlots",
+        "BookingsController.updateBookingItem",
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-change",
+      "group": "04-design-classes",
+      "title": "Yêu cầu thay đổi",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-change.puml",
+      "sucs": [
+        "SUC-09",
+        "SUC-10",
+        "SUC-15"
+      ],
+      "classes": [
+        "ChangeRequestsService",
+        "BookingsService",
+        "PlatformSettingsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "ChangeRequestsService.create",
+        "ChangeRequestsService.approve",
+        "ChangeRequestsService.reject",
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PlatformSettingsService.validate",
+        "PlatformSettingsService.getConfigured",
+        "PlatformSettingsService.getEffective",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-items",
+      "group": "04-design-classes",
+      "title": "Tiến độ dịch vụ",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-items.puml",
+      "sucs": [
+        "SUC-17"
+      ],
+      "classes": [
+        "BookingItemsService",
+        "BookingsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "BookingItemsService.add",
+        "BookingItemsService.update",
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-recurring",
+      "group": "04-design-classes",
+      "title": "Chuỗi lịch",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-recurring.puml",
+      "sucs": [
+        "SUC-11"
+      ],
+      "classes": [
+        "RecurringController",
+        "RecurringService",
+        "BookingsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "RecurringController.preview",
+        "RecurringController.create",
+        "RecurringController.mine",
+        "RecurringService.preview",
+        "RecurringService.create",
+        "RecurringService.mine",
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-payment",
+      "group": "04-design-classes",
+      "title": "Thu và hoàn tiền",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-payment.puml",
+      "sucs": [
+        "SUC-18",
+        "SUC-19",
+        "SUC-20",
+        "SUC-21",
+        "SUC-36"
+      ],
+      "classes": [
+        "PaymentsController",
+        "PaymentsService",
+        "PaymentProviderRegistry",
+        "PrismaService"
+      ],
+      "methods": [
+        "PaymentsController.list",
+        "PaymentsController.collect",
+        "PaymentsController.providerCapabilities",
+        "PaymentsService.collect",
+        "PaymentsService.requestRefund",
+        "PaymentsService.processRefund",
+        "PaymentProviderRegistry.resolve",
+        "PaymentProviderRegistry.capabilities",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-providers",
+      "group": "04-design-classes",
+      "title": "Hợp đồng adapter thanh toán",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-providers.puml",
+      "sucs": [
+        "SUC-18"
+      ],
+      "classes": [
+        "PaymentProvider",
+        "CashPaymentAdapter",
+        "ManualBankTransferAdapter",
+        "PaymentProviderRegistry"
+      ],
+      "methods": [
+        "PaymentProvider.initiate",
+        "CashPaymentAdapter.initiate",
+        "ManualBankTransferAdapter.initiate",
+        "PaymentProviderRegistry.resolve",
+        "PaymentProviderRegistry.capabilities"
+      ]
+    },
+    {
+      "id": "DC-business",
+      "group": "04-design-classes",
+      "title": "Hồ sơ doanh nghiệp",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-business.puml",
+      "sucs": [
+        "SUC-22",
+        "SUC-23"
+      ],
+      "classes": [
+        "BusinessController",
+        "BusinessOnboardingService",
+        "PrismaService"
+      ],
+      "methods": [
+        "BusinessController.createDraft",
+        "BusinessController.getOnboardingConfig",
+        "BusinessController.findMine",
+        "BusinessOnboardingService.getOnboardingConfig",
+        "BusinessOnboardingService.createDraft",
+        "BusinessOnboardingService.updateDraft",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-branch",
+      "group": "04-design-classes",
+      "title": "Chi nhánh và trạng thái",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-branch.puml",
+      "sucs": [
+        "SUC-24",
+        "SUC-33"
+      ],
+      "classes": [
+        "BranchesController",
+        "BranchesService",
+        "BranchStateService",
+        "PrismaService"
+      ],
+      "methods": [
+        "BranchesController.findAll",
+        "BranchesController.findAllForManagement",
+        "BranchesController.listDistricts",
+        "BranchesService.listDistricts",
+        "BranchesService.findAll",
+        "BranchesService.findAccessible",
+        "BranchStateService.canonicalState",
+        "BranchStateService.transition",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-catalog",
+      "group": "04-design-classes",
+      "title": "Catalog và combo",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-catalog.puml",
+      "sucs": [
+        "SUC-01",
+        "SUC-25",
+        "SUC-27",
+        "SUC-38"
+      ],
+      "classes": [
+        "ServicesController",
+        "ServicesService",
+        "CombosService",
+        "PrismaService"
+      ],
+      "methods": [
+        "ServicesController.search",
+        "ServicesController.canonicalCatalog",
+        "ServicesController.canonicalManagement",
+        "ServicesService.findAll",
+        "ServicesService.getBusinessCategories",
+        "ServicesService.createCategory",
+        "CombosService.publicList",
+        "CombosService.list",
+        "CombosService.detail",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-staff",
+      "group": "04-design-classes",
+      "title": "Nhân sự và lời mời",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-staff.puml",
+      "sucs": [
+        "SUC-26"
+      ],
+      "classes": [
+        "StaffController",
+        "StaffService",
+        "StaffInvitationsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "StaffController.invite",
+        "StaffController.listInvitations",
+        "StaffController.invitationContext",
+        "StaffService.create",
+        "StaffService.deactivate",
+        "StaffService.assignServices",
+        "StaffInvitationsService.invite",
+        "StaffInvitationsService.list",
+        "StaffInvitationsService.getContext",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-marketing",
+      "group": "04-design-classes",
+      "title": "Ưu đãi và định giá",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-marketing.puml",
+      "sucs": [
+        "SUC-07",
+        "SUC-28"
+      ],
+      "classes": [
+        "PromotionsService",
+        "VouchersAdminService",
+        "PricingEngineService",
+        "PrismaService"
+      ],
+      "methods": [
+        "PromotionsService.findAll",
+        "PromotionsService.create",
+        "PromotionsService.update",
+        "VouchersAdminService.findMine",
+        "VouchersAdminService.findAll",
+        "VouchersAdminService.create",
+        "PricingEngineService.quote",
+        "PricingEngineService.reserve",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-review",
+      "group": "04-design-classes",
+      "title": "Đánh giá và kiểm duyệt",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-review.puml",
+      "sucs": [
+        "SUC-29",
+        "SUC-30"
+      ],
+      "classes": [
+        "ReviewsController",
+        "ReviewsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "ReviewsController.findByBusiness",
+        "ReviewsController.findForManagement",
+        "ReviewsController.findByStaff",
+        "ReviewsService.create",
+        "ReviewsService.replyToReview",
+        "ReviewsService.moderate",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-privacy",
+      "group": "04-design-classes",
+      "title": "Quyền dữ liệu",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-privacy.puml",
+      "sucs": [
+        "SUC-32"
+      ],
+      "classes": [
+        "PrivacyController",
+        "PrivacyCenterService",
+        "SensitiveDataCipherService",
+        "PrismaService"
+      ],
+      "methods": [
+        "PrivacyController.center",
+        "PrivacyController.createDataRequest",
+        "PrivacyController.dataRequests",
+        "PrivacyCenterService.center",
+        "PrivacyCenterService.createDataRequest",
+        "PrivacyCenterService.listDataRequests",
+        "SensitiveDataCipherService.encrypt",
+        "SensitiveDataCipherService.decrypt",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-ownership",
+      "group": "04-design-classes",
+      "title": "Chuyển giao trách nhiệm",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-ownership.puml",
+      "sucs": [
+        "SUC-34",
+        "SUC-35"
+      ],
+      "classes": [
+        "OwnershipController",
+        "OwnershipService",
+        "SensitiveDataCipherService",
+        "PrismaService"
+      ],
+      "methods": [
+        "OwnershipController.create",
+        "OwnershipController.pendingForMe",
+        "OwnershipController.platformPending",
+        "OwnershipService.create",
+        "OwnershipService.accept",
+        "OwnershipService.execute",
+        "SensitiveDataCipherService.encrypt",
+        "SensitiveDataCipherService.decrypt",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-impact",
+      "group": "04-design-classes",
+      "title": "Tác động vận hành",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-impact.puml",
+      "sucs": [
+        "SUC-33"
+      ],
+      "classes": [
+        "ImpactController",
+        "ImpactService",
+        "BookingsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "ImpactController.list",
+        "ImpactController.detail",
+        "ImpactController.resolve",
+        "ImpactService.list",
+        "ImpactService.detail",
+        "ImpactService.resolveItem",
+        "BookingsService.updateStatus",
+        "BookingsService.create",
+        "BookingsService.getAvailableSlots",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-governance",
+      "group": "04-design-classes",
+      "title": "Quản trị và báo cáo",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-governance.puml",
+      "sucs": [
+        "SUC-36",
+        "SUC-39"
+      ],
+      "classes": [
+        "AdminController",
+        "TrustSnapshotService",
+        "ReportsService",
+        "PrismaService"
+      ],
+      "methods": [
+        "AdminController.settings",
+        "AdminController.updateSettings",
+        "AdminController.resetSettings",
+        "TrustSnapshotService.computeForBusiness",
+        "TrustSnapshotService.upsertSnapshot",
+        "TrustSnapshotService.listAllSnapshots",
+        "ReportsService.getRevenue",
+        "ReportsService.getCategoryStats",
+        "ReportsService.getServiceStats",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-self",
+      "group": "04-design-classes",
+      "title": "Hồ sơ và dịch vụ đã lưu",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-self.puml",
+      "sucs": [
+        "SUC-04",
+        "SUC-12",
+        "SUC-37"
+      ],
+      "classes": [
+        "UsersService",
+        "SavedServicesService",
+        "PrismaService"
+      ],
+      "methods": [
+        "UsersService.getSelf",
+        "UsersService.updateSelf",
+        "UsersService.findAll",
+        "SavedServicesService.list",
+        "SavedServicesService.save",
+        "SavedServicesService.remove",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "DC-communication",
+      "group": "04-design-classes",
+      "title": "Thông báo và media",
+      "scope": "Tên/method/visibility lấy từ TypeScript AST. Dấu ... lược chữ ký dài; chữ ký đầy đủ trong source inventory. DI được vẽ dependency, không suy composition.",
+      "source": "04-design-classes/DC-communication.puml",
+      "sucs": [
+        "SUC-31",
+        "SUC-40"
+      ],
+      "classes": [
+        "NotificationsService",
+        "MediaService",
+        "PrismaService"
+      ],
+      "methods": [
+        "NotificationsService.findByUser",
+        "NotificationsService.markAsRead",
+        "NotificationsService.markAllAsRead",
+        "MediaService.upload",
+        "MediaService.read",
+        "MediaService.readForUser",
+        "PrismaService.onModuleInit",
+        "PrismaService.onModuleDestroy"
+      ]
+    },
+    {
+      "id": "ERD-overview",
+      "group": "05-data-model",
+      "title": "Lõi đặt lịch và tài chính",
+      "scope": "ERD tổng quan; cardinality là ràng buộc schema, không phải minimum của quy trình. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-overview.puml",
+      "models": [
+        "CustomerProfile",
+        "Booking",
+        "BookingService",
+        "BranchServiceOffering",
+        "Payment"
+      ],
+      "relations": [
+        {
+          "from": "Booking",
+          "to": "CustomerProfile",
+          "fields": [
+            "customerId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "customer"
+        },
+        {
+          "from": "BookingService",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "booking"
+        },
+        {
+          "from": "BookingService",
+          "to": "BranchServiceOffering",
+          "fields": [
+            "serviceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "service"
+        },
+        {
+          "from": "Payment",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "booking"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 12
+    },
+    {
+      "id": "ERD-identity",
+      "group": "05-data-model",
+      "title": "Định danh và phiên",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-identity.puml",
+      "models": [
+        "User",
+        "AccountToken",
+        "UserSession",
+        "CustomerProfile",
+        "BusinessOwnerProfile"
+      ],
+      "relations": [
+        {
+          "from": "AccountToken",
+          "to": "User",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "user"
+        },
+        {
+          "from": "UserSession",
+          "to": "User",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "user"
+        },
+        {
+          "from": "CustomerProfile",
+          "to": "User",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "user"
+        },
+        {
+          "from": "BusinessOwnerProfile",
+          "to": "User",
+          "fields": [
+            "userId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "user"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 1
+    },
+    {
+      "id": "ERD-rbac",
+      "group": "05-data-model",
+      "title": "Vai trò và cấp quyền",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-rbac.puml",
+      "models": [
+        "Role",
+        "Permission",
+        "RolePermission",
+        "UserRole",
+        "UserPermission"
+      ],
+      "relations": [
+        {
+          "from": "RolePermission",
+          "to": "Permission",
+          "fields": [
+            "permissionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "permission"
+        },
+        {
+          "from": "RolePermission",
+          "to": "Role",
+          "fields": [
+            "roleId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "role"
+        },
+        {
+          "from": "UserPermission",
+          "to": "Permission",
+          "fields": [
+            "permissionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "permission"
+        },
+        {
+          "from": "UserRole",
+          "to": "Role",
+          "fields": [
+            "roleId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "role"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-business",
+      "group": "05-data-model",
+      "title": "Doanh nghiệp và thành viên",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-business.puml",
+      "models": [
+        "Business",
+        "SalonMember",
+        "CancellationPolicy"
+      ],
+      "relations": [
+        {
+          "from": "SalonMember",
+          "to": "Business",
+          "fields": [
+            "businessId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "business"
+        },
+        {
+          "from": "CancellationPolicy",
+          "to": "Business",
+          "fields": [
+            "businessId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Cascade",
+          "name": "business"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 4
+    },
+    {
+      "id": "ERD-branch",
+      "group": "05-data-model",
+      "title": "Chi nhánh",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-branch.puml",
+      "models": [
+        "Branch",
+        "BranchOnboardingProgress",
+        "BranchBookingPolicy",
+        "BranchStateTransition"
+      ],
+      "relations": [
+        {
+          "from": "BranchOnboardingProgress",
+          "to": "Branch",
+          "fields": [
+            "branchId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Cascade",
+          "name": "branch"
+        },
+        {
+          "from": "BranchBookingPolicy",
+          "to": "Branch",
+          "fields": [
+            "branchId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Cascade",
+          "name": "branch"
+        },
+        {
+          "from": "BranchStateTransition",
+          "to": "Branch",
+          "fields": [
+            "branchId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_branchId"
+        }
+      ],
+      "relationCount": 3,
+      "omittedInternalFK": [],
+      "externalFK": 3
+    },
+    {
+      "id": "ERD-opening",
+      "group": "05-data-model",
+      "title": "Địa bàn và giờ mở cửa",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-opening.puml",
+      "models": [
+        "Province",
+        "District",
+        "BranchWorkingHour",
+        "BranchHoliday",
+        "SpecialWorkingDay"
+      ],
+      "relations": [
+        {
+          "from": "District",
+          "to": "Province",
+          "fields": [
+            "provinceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "province"
+        }
+      ],
+      "relationCount": 1,
+      "omittedInternalFK": [],
+      "externalFK": 3
+    },
+    {
+      "id": "ERD-staff",
+      "group": "05-data-model",
+      "title": "Nhân sự và kỹ năng",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-staff.puml",
+      "models": [
+        "StaffProfile",
+        "StaffInvitation",
+        "StaffBranchAssignment",
+        "StaffService"
+      ],
+      "relations": [
+        {
+          "from": "StaffInvitation",
+          "to": "StaffProfile",
+          "fields": [
+            "staffProfileId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "staffProfile"
+        },
+        {
+          "from": "StaffBranchAssignment",
+          "to": "StaffProfile",
+          "fields": [
+            "staffId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "staff"
+        },
+        {
+          "from": "StaffService",
+          "to": "StaffProfile",
+          "fields": [
+            "staffId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "staff"
+        }
+      ],
+      "relationCount": 3,
+      "omittedInternalFK": [],
+      "externalFK": 4
+    },
+    {
+      "id": "ERD-catalog",
+      "group": "05-data-model",
+      "title": "Phân tầng catalog",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-catalog.puml",
+      "models": [
+        "ServiceCategory",
+        "CanonicalService",
+        "BusinessService",
+        "BranchServiceOffering"
+      ],
+      "relations": [
+        {
+          "from": "ServiceCategory",
+          "to": "ServiceCategory",
+          "fields": [
+            "parentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "parent"
+        },
+        {
+          "from": "CanonicalService",
+          "to": "CanonicalService",
+          "fields": [
+            "parentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "parent"
+        },
+        {
+          "from": "CanonicalService",
+          "to": "CanonicalService",
+          "fields": [
+            "replacementCanonicalId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "replacement"
+        },
+        {
+          "from": "BusinessService",
+          "to": "ServiceCategory",
+          "fields": [
+            "categoryId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "category"
+        },
+        {
+          "from": "BusinessService",
+          "to": "CanonicalService",
+          "fields": [
+            "canonicalServiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "canonicalService"
+        },
+        {
+          "from": "BranchServiceOffering",
+          "to": "BusinessService",
+          "fields": [
+            "businessServiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "businessService"
+        }
+      ],
+      "relationCount": 6,
+      "omittedInternalFK": [
+        {
+          "from": "BranchServiceOffering",
+          "to": "ServiceCategory",
+          "fields": [
+            "categoryId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "category"
+        }
+      ],
+      "externalFK": 3
+    },
+    {
+      "id": "ERD-variants",
+      "group": "05-data-model",
+      "title": "Biến thể và phụ thuộc",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-variants.puml",
+      "models": [
+        "ServiceVariant",
+        "ServicePriceRule",
+        "ServiceDependency"
+      ],
+      "relations": [
+        {
+          "from": "ServicePriceRule",
+          "to": "ServiceVariant",
+          "fields": [
+            "variantId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_variantId"
+        }
+      ],
+      "relationCount": 1,
+      "omittedInternalFK": [],
+      "externalFK": 4
+    },
+    {
+      "id": "ERD-combo",
+      "group": "05-data-model",
+      "title": "Combo",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-combo.puml",
+      "models": [
+        "Combo",
+        "ComboService",
+        "ComboImage"
+      ],
+      "relations": [
+        {
+          "from": "ComboImage",
+          "to": "Combo",
+          "fields": [
+            "comboId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "combo"
+        },
+        {
+          "from": "ComboService",
+          "to": "Combo",
+          "fields": [
+            "comboId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "combo"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 4
+    },
+    {
+      "id": "ERD-booking",
+      "group": "05-data-model",
+      "title": "Lịch và phần dịch vụ",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-booking.puml",
+      "models": [
+        "Booking",
+        "BookingService",
+        "BookingContact",
+        "BookingStatusHistory",
+        "BookingServiceAdjustment"
+      ],
+      "relations": [
+        {
+          "from": "BookingContact",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Cascade",
+          "name": "booking"
+        },
+        {
+          "from": "BookingService",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "booking"
+        },
+        {
+          "from": "BookingStatusHistory",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "booking"
+        },
+        {
+          "from": "BookingServiceAdjustment",
+          "to": "BookingService",
+          "fields": [
+            "bookingServiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_bookingServiceId"
+        },
+        {
+          "from": "BookingServiceAdjustment",
+          "to": "Booking",
+          "fields": [
+            "bookingId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_bookingId"
+        }
+      ],
+      "relationCount": 5,
+      "omittedInternalFK": [],
+      "externalFK": 12
+    },
+    {
+      "id": "ERD-policy",
+      "group": "05-data-model",
+      "title": "Yêu cầu và chính sách khách",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-policy.puml",
+      "models": [
+        "AppointmentChangeRequest",
+        "BookingViolationEvent",
+        "CustomerBookingPolicy",
+        "RecurringBookingPlan",
+        "OverbookingOverride"
+      ],
+      "relations": [
+        {
+          "from": "BookingViolationEvent",
+          "to": "AppointmentChangeRequest",
+          "fields": [
+            "sourceRequestId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "sourceRequest"
+        },
+        {
+          "from": "CustomerBookingPolicy",
+          "to": "BookingViolationEvent",
+          "fields": [
+            "triggeredByViolationEventId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "triggeredByViolationEvent"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 16
+    },
+    {
+      "id": "ERD-payment",
+      "group": "05-data-model",
+      "title": "Thanh toán",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-payment.puml",
+      "models": [
+        "Payment",
+        "PaymentIntent",
+        "PaymentTransaction",
+        "PricingSnapshot",
+        "PaymentPolicySnapshot"
+      ],
+      "relations": [
+        {
+          "from": "PaymentTransaction",
+          "to": "PaymentIntent",
+          "fields": [
+            "intentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "SetNull",
+          "name": "intent"
+        },
+        {
+          "from": "PaymentTransaction",
+          "to": "Payment",
+          "fields": [
+            "paymentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "SetNull",
+          "name": "payment"
+        },
+        {
+          "from": "PaymentTransaction",
+          "to": "PaymentTransaction",
+          "fields": [
+            "reversalOfId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "reversalOf"
+        }
+      ],
+      "relationCount": 3,
+      "omittedInternalFK": [],
+      "externalFK": 18
+    },
+    {
+      "id": "ERD-refund",
+      "group": "05-data-model",
+      "title": "Hoàn tiền và sổ cái",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-refund.puml",
+      "models": [
+        "RefundRequest",
+        "RefundAllocation",
+        "FinancialLedgerEntry",
+        "PaymentPolicy"
+      ],
+      "relations": [
+        {
+          "from": "FinancialLedgerEntry",
+          "to": "RefundRequest",
+          "fields": [
+            "refundId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "refund"
+        },
+        {
+          "from": "RefundAllocation",
+          "to": "RefundRequest",
+          "fields": [
+            "refundId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "refund"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 10
+    },
+    {
+      "id": "ERD-statement",
+      "group": "05-data-model",
+      "title": "Phí và đối soát nền tảng",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-statement.puml",
+      "models": [
+        "PlatformFeeEntry",
+        "PlatformFeeAdjustment",
+        "PlatformStatement",
+        "PlatformStatementLine"
+      ],
+      "relations": [
+        {
+          "from": "PlatformFeeAdjustment",
+          "to": "PlatformFeeEntry",
+          "fields": [
+            "platformFeeId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "platformFee"
+        },
+        {
+          "from": "PlatformStatementLine",
+          "to": "PlatformStatement",
+          "fields": [
+            "statementId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "statement"
+        },
+        {
+          "from": "PlatformStatementLine",
+          "to": "PlatformFeeEntry",
+          "fields": [
+            "platformFeeId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "platformFee"
+        },
+        {
+          "from": "PlatformStatementLine",
+          "to": "PlatformFeeAdjustment",
+          "fields": [
+            "feeAdjustmentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "feeAdjustment"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 7
+    },
+    {
+      "id": "ERD-package",
+      "group": "05-data-model",
+      "title": "Gói buổi dịch vụ",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-package.puml",
+      "models": [
+        "TreatmentPackage",
+        "PackagePurchase",
+        "PackageInstallment",
+        "PackageSessionEntitlement"
+      ],
+      "relations": [
+        {
+          "from": "PackagePurchase",
+          "to": "TreatmentPackage",
+          "fields": [
+            "packageId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "package"
+        },
+        {
+          "from": "PackageInstallment",
+          "to": "PackagePurchase",
+          "fields": [
+            "purchaseId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "purchase"
+        },
+        {
+          "from": "PackageSessionEntitlement",
+          "to": "PackagePurchase",
+          "fields": [
+            "purchaseId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "purchase"
+        }
+      ],
+      "relationCount": 3,
+      "omittedInternalFK": [],
+      "externalFK": 7
+    },
+    {
+      "id": "ERD-promotion",
+      "group": "05-data-model",
+      "title": "Khuyến mãi và phạm vi",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-promotion.puml",
+      "models": [
+        "Promotion",
+        "PromotionBusiness",
+        "PromotionBranch",
+        "PromotionService",
+        "PromotionCombo"
+      ],
+      "relations": [
+        {
+          "from": "PromotionBusiness",
+          "to": "Promotion",
+          "fields": [
+            "promotionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "promotion"
+        },
+        {
+          "from": "PromotionBranch",
+          "to": "Promotion",
+          "fields": [
+            "promotionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "promotion"
+        },
+        {
+          "from": "PromotionService",
+          "to": "Promotion",
+          "fields": [
+            "promotionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "promotion"
+        },
+        {
+          "from": "PromotionCombo",
+          "to": "Promotion",
+          "fields": [
+            "promotionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "promotion"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-voucher",
+      "group": "05-data-model",
+      "title": "Voucher và phạm vi",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-voucher.puml",
+      "models": [
+        "Voucher",
+        "CustomerVoucher",
+        "VoucherBranchScope",
+        "VoucherServiceScope",
+        "VoucherComboScope"
+      ],
+      "relations": [
+        {
+          "from": "CustomerVoucher",
+          "to": "Voucher",
+          "fields": [
+            "voucherId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "voucher"
+        },
+        {
+          "from": "VoucherBranchScope",
+          "to": "Voucher",
+          "fields": [
+            "voucherId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "voucher"
+        },
+        {
+          "from": "VoucherServiceScope",
+          "to": "Voucher",
+          "fields": [
+            "voucherId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "voucher"
+        },
+        {
+          "from": "VoucherComboScope",
+          "to": "Voucher",
+          "fields": [
+            "voucherId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "voucher"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-redemption",
+      "group": "05-data-model",
+      "title": "Áp dụng ưu đãi",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-redemption.puml",
+      "models": [
+        "PriceAdjustment",
+        "PromotionRedemption",
+        "VoucherRedemption",
+        "CustomerBusinessSegment"
+      ],
+      "relations": [],
+      "relationCount": 0,
+      "omittedInternalFK": [],
+      "externalFK": 15
+    },
+    {
+      "id": "ERD-review",
+      "group": "05-data-model",
+      "title": "Đánh giá",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-review.puml",
+      "models": [
+        "Review",
+        "ReviewServiceRating",
+        "BusinessComment",
+        "ReviewReport"
+      ],
+      "relations": [
+        {
+          "from": "ReviewServiceRating",
+          "to": "Review",
+          "fields": [
+            "reviewId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "review"
+        },
+        {
+          "from": "BusinessComment",
+          "to": "BusinessComment",
+          "fields": [
+            "parentCommentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "parent"
+        },
+        {
+          "from": "BusinessComment",
+          "to": "Review",
+          "fields": [
+            "reviewId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "review"
+        },
+        {
+          "from": "ReviewReport",
+          "to": "Review",
+          "fields": [
+            "reviewId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "review"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 7
+    },
+    {
+      "id": "ERD-moderation",
+      "group": "05-data-model",
+      "title": "Kiểm duyệt và khiếu nại",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-moderation.puml",
+      "models": [
+        "ReviewModerationEvent",
+        "ReviewAppeal"
+      ],
+      "relations": [],
+      "relationCount": 0,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-business-docs",
+      "group": "05-data-model",
+      "title": "Hồ sơ doanh nghiệp",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-business-docs.puml",
+      "models": [
+        "BusinessDocument",
+        "BusinessDocumentVersion",
+        "BusinessReviewEvent",
+        "DocumentReviewEvent"
+      ],
+      "relations": [
+        {
+          "from": "BusinessDocumentVersion",
+          "to": "BusinessDocument",
+          "fields": [
+            "documentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "document"
+        },
+        {
+          "from": "DocumentReviewEvent",
+          "to": "BusinessDocument",
+          "fields": [
+            "documentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "document"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 6
+    },
+    {
+      "id": "ERD-branch-docs",
+      "group": "05-data-model",
+      "title": "Hồ sơ chi nhánh",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-branch-docs.puml",
+      "models": [
+        "BranchDocument",
+        "BranchDocumentVersion",
+        "BranchReviewRequest",
+        "BranchReviewEvent"
+      ],
+      "relations": [
+        {
+          "from": "BranchDocumentVersion",
+          "to": "BranchDocument",
+          "fields": [
+            "documentId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Cascade",
+          "name": "document"
+        }
+      ],
+      "relationCount": 1,
+      "omittedInternalFK": [],
+      "externalFK": 8
+    },
+    {
+      "id": "ERD-governance",
+      "group": "05-data-model",
+      "title": "Giám sát và tác động",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-governance.puml",
+      "models": [
+        "SalonTrustSnapshot",
+        "TrustAction",
+        "OperationalImpactCase",
+        "OperationalImpactItem",
+        "AuditLog"
+      ],
+      "relations": [
+        {
+          "from": "TrustAction",
+          "to": "TrustAction",
+          "fields": [
+            "restoreOfActionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "SetNull",
+          "name": "restoreOf"
+        },
+        {
+          "from": "OperationalImpactItem",
+          "to": "OperationalImpactCase",
+          "fields": [
+            "caseId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_caseId"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 13
+    },
+    {
+      "id": "ERD-ownership",
+      "group": "05-data-model",
+      "title": "Chuyển chủ và phiên bản",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-ownership.puml",
+      "models": [
+        "OwnershipTransfer",
+        "OwnershipHistory",
+        "LegalEntityVersion",
+        "PayoutAccountVersion"
+      ],
+      "relations": [
+        {
+          "from": "OwnershipTransfer",
+          "to": "LegalEntityVersion",
+          "fields": [
+            "legalEntityVersionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_legalEntityVersionId"
+        },
+        {
+          "from": "OwnershipTransfer",
+          "to": "PayoutAccountVersion",
+          "fields": [
+            "payoutAccountVersionId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_payoutAccountVersionId"
+        },
+        {
+          "from": "OwnershipHistory",
+          "to": "OwnershipTransfer",
+          "fields": [
+            "transferId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_transferId"
+        }
+      ],
+      "relationCount": 3,
+      "omittedInternalFK": [],
+      "externalFK": 11
+    },
+    {
+      "id": "ERD-personal",
+      "group": "05-data-model",
+      "title": "Quyền dữ liệu và dịch vụ lưu",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-personal.puml",
+      "models": [
+        "DataSubjectRequest",
+        "PrivacyExportPackage",
+        "MarketingPreference",
+        "CustomerSavedService"
+      ],
+      "relations": [
+        {
+          "from": "PrivacyExportPackage",
+          "to": "DataSubjectRequest",
+          "fields": [
+            "requestId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "request"
+        }
+      ],
+      "relationCount": 1,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-notifications",
+      "group": "05-data-model",
+      "title": "Thông báo và cấu hình",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-notifications.puml",
+      "models": [
+        "Notification",
+        "NotificationOutbox",
+        "DeviceToken",
+        "PlatformSetting"
+      ],
+      "relations": [
+        {
+          "from": "NotificationOutbox",
+          "to": "Notification",
+          "fields": [
+            "notificationId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "notification"
+        }
+      ],
+      "relationCount": 1,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-media",
+      "group": "05-data-model",
+      "title": "Ảnh và media",
+      "scope": "Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-media.puml",
+      "models": [
+        "MediaFile",
+        "BusinessImage",
+        "BranchImage",
+        "ServiceImage",
+        "StaffImage"
+      ],
+      "relations": [
+        {
+          "from": "BusinessImage",
+          "to": "MediaFile",
+          "fields": [
+            "mediaId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "media"
+        },
+        {
+          "from": "BranchImage",
+          "to": "MediaFile",
+          "fields": [
+            "mediaId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "media"
+        },
+        {
+          "from": "ServiceImage",
+          "to": "MediaFile",
+          "fields": [
+            "mediaId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "media"
+        },
+        {
+          "from": "StaffImage",
+          "to": "MediaFile",
+          "fields": [
+            "mediaId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "mặc định Prisma (không ghi trong schema)",
+          "name": "media"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 5
+    },
+    {
+      "id": "ERD-legacy-loyalty",
+      "group": "05-data-model",
+      "title": "DI SẢN: điểm thưởng và danh sách chờ",
+      "scope": "Phụ lục vật lý di sản, không là chức năng đang cung cấp. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-legacy-loyalty.puml",
+      "models": [
+        "LoyaltyRule",
+        "LoyaltyAccount",
+        "LoyaltyTransaction",
+        "WaitlistEntry"
+      ],
+      "relations": [
+        {
+          "from": "LoyaltyTransaction",
+          "to": "LoyaltyAccount",
+          "fields": [
+            "accountId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_accountId"
+        },
+        {
+          "from": "LoyaltyTransaction",
+          "to": "LoyaltyTransaction",
+          "fields": [
+            "reversalOfId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_reversalOfId"
+        }
+      ],
+      "relationCount": 2,
+      "omittedInternalFK": [],
+      "externalFK": 16
+    },
+    {
+      "id": "ERD-legacy-invoice",
+      "group": "05-data-model",
+      "title": "DI SẢN: hóa đơn và phiếu thu",
+      "scope": "Phụ lục vật lý di sản, không là chức năng đang cung cấp. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.",
+      "source": "05-data-model/ERD-legacy-invoice.puml",
+      "models": [
+        "Invoice",
+        "InvoiceInformationRequest",
+        "InvoiceLine",
+        "InvoiceEvent"
+      ],
+      "relations": [
+        {
+          "from": "Invoice",
+          "to": "Invoice",
+          "fields": [
+            "replacesInvoiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "replacesInvoice"
+        },
+        {
+          "from": "InvoiceInformationRequest",
+          "to": "Invoice",
+          "fields": [
+            "invoiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": false,
+          "unique": true,
+          "delete": "Restrict",
+          "name": "invoice"
+        },
+        {
+          "from": "InvoiceLine",
+          "to": "Invoice",
+          "fields": [
+            "invoiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_invoiceId"
+        },
+        {
+          "from": "InvoiceEvent",
+          "to": "Invoice",
+          "fields": [
+            "invoiceId"
+          ],
+          "references": [
+            "id"
+          ],
+          "required": true,
+          "unique": false,
+          "delete": "Restrict",
+          "name": "ref_invoiceId"
+        }
+      ],
+      "relationCount": 4,
+      "omittedInternalFK": [],
+      "externalFK": 11
+    }
+  ]
+}

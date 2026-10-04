@@ -11,6 +11,8 @@ import {
   UseInterceptors,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -133,8 +135,10 @@ export class BranchesController {
 
   @Get(':id')
   @Public()
-  findOne(@Param('id') id: string) {
-    return this.branchesService.findPublic(id);
+  async findOne(@Param('id') id: string) {
+    const branch = await this.branchesService.findPublic(id);
+    if (!branch) throw new NotFoundException('Cơ sở không tồn tại hoặc chưa được công khai');
+    return branch;
   }
 
   /**
@@ -299,7 +303,32 @@ export class BranchesController {
     @Body() body: { action: BranchTransitionAction; reason: string },
     @CurrentUser() user: AuthUser,
   ) {
-    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), id);
+    const businessId = await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']), id);
+    if (typeof body.reason !== 'string' || !body.reason.trim()) throw new BadRequestException('Lý do chuyển trạng thái là bắt buộc');
+    const platform = canOnResource(user, 'branch:status:platform', { businessId, branchId: id });
+    if (['APPROVE', 'REQUEST_INFO', 'REJECT', 'SUSPEND'].includes(body.action) && !platform) {
+      throw new ForbiddenException('Chỉ quản trị nền tảng được xử lý xét duyệt hoặc đình chỉ chi nhánh');
+    }
+    if (['APPROVE', 'REQUEST_INFO', 'REJECT'].includes(body.action)) {
+      const branch = await this.branchesService.review(id, body.action as 'APPROVE' | 'REQUEST_INFO' | 'REJECT', body.reason, user.id);
+      return { transitioned: true, branch, canonical: this.branchStateService.canonicalState(branch) };
+    }
+    if (body.action === 'SUBMIT') {
+      const branch = await this.branchesService.submit(id, user.id);
+      return { transitioned: true, branch, canonical: this.branchStateService.canonicalState(branch) };
+    }
+    if (body.action === 'PUBLISH') {
+      const branch = await this.branchesService.publish(id, user.id);
+      return { transitioned: true, branch, canonical: this.branchStateService.canonicalState(branch) };
+    }
+    if (body.action === 'RESTORE') {
+      const branch = await this.prisma.branch.findUnique({ where: { id }, select: { operationalStatus: true, reviewStatus: true } });
+      if (branch?.operationalStatus === 'SUSPENDED' && !platform) throw new ForbiddenException('Chỉ quản trị nền tảng được khôi phục chi nhánh đã đình chỉ');
+      if (branch?.reviewStatus === 'APPROVED') {
+        const readiness = await this.branchesService.getReadiness(id);
+        if (!readiness.ready) throw new ConflictException({ message: 'Chi nhánh chưa đủ điều kiện nhận đặt lịch', reasons: readiness.reasons });
+      }
+    }
     return this.branchStateService.transition(id, body.action, user.id, body.reason);
   }
 

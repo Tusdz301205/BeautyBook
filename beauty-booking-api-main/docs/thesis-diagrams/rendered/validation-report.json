@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-04T11:14:47.821Z",
+  "sources": 86,
+  "html": 86,
+  "svg": 86,
+  "png": 86,
+  "models": 121,
+  "enums": 92,
+  "sourceFiles": 154,
+  "bucs": 12,
+  "sucs": 40,
+  "checks": [
+    {
+      "name": "Sources, rendered bytes, PNG dimensions, A4, UML nodes/edges, model/method coverage, local links",
+      "links": 2820,
+      "documents": 129,
+      "failures": 0
+    },
+    {
+      "name": "self_check",
+      "exitCode": 0
+    },
+    {
+      "name": "verify-geometry",
+      "exitCode": 0
+    }
+  ],
+  "failures": []
+}

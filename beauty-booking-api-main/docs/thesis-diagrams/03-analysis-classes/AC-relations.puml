@@ -1,0 +1,66 @@
+@startuml AC-relations
+' Lớp khái niệm BCE; operation là trách nhiệm phân tích, không tuyên bố tồn tại class cùng tên trong code.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+class "**Kênh tương tác**" as KenhTuongTac <<boundary>> {
+  phạm vi tương tác
+  --
+  tiếp nhận yêu cầu()
+}
+class "**Chăm sóc khách**" as ChamSocKhach <<control>> {
+  phạm vi tương tác
+  --
+  kiểm tra điều kiện()
+}
+class "**Đánh giá**" as DanhGia <<entity>> {
+  điểm
+  nội dung
+  trạng thái
+  --
+  ghi nhận phản hồi()
+}
+class "**Ưu đãi**" as UuDai <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+class "**Dịch vụ quan tâm**" as DichVuQuanTam <<entity>> {
+  mã
+  trạng thái
+  --
+  ghi nhận kết quả()
+}
+KenhTuongTac ..> ChamSocKhach
+ChamSocKhach ..> DanhGia
+ChamSocKhach ..> UuDai
+ChamSocKhach ..> DichVuQuanTam
+@enduml

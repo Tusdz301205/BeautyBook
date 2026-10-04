@@ -1,0 +1,87 @@
+@startuml ERD-overview
+' ERD tổng quan; cardinality là ràng buộc schema, không phải minimum của quy trình. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**CustomerProfile**\n(customer_profiles)" as CustomerProfile {
+  * id: String <<PK>>
+  * userId: String <<FK>> <<UQ>>
+  address: String? 
+  note: String? 
+  * createdAt: DateTime 
+  * updatedAt: DateTime 
+  deletedAt: DateTime? 
+}
+entity "**Booking**\n(bookings)" as Booking {
+  * id: String <<PK>>
+  * customerId: String <<FK>>
+  * branchId: String <<FK>>
+  recurringPlanId: String? <<FK>>
+  cancelledBy: String? <<FK>>
+  voucherId: String? <<FK>>
+  * bookingCode: String <<UQ>>
+  ... 18 cot: xem tu dien
+}
+entity "**BookingService**\n(booking_services)" as BookingService {
+  * id: String <<PK>>
+  * bookingId: String <<FK>>
+  * serviceId: String <<FK>>
+  * businessServiceId: String <<FK>>
+  canonicalServiceId: String? <<FK>>
+  comboId: String? <<FK>>
+  staffId: String? <<FK>>
+  ... 14 cot: xem tu dien
+}
+entity "**BranchServiceOffering**\n(services)" as BranchServiceOffering {
+  * id: String <<PK>>
+  * branchId: String <<FK>>
+  * businessServiceId: String <<FK>>
+  * categoryId: String <<FK>>
+  * name: String 
+  description: String? 
+  * price: Decimal 
+  ... 6 cot: xem tu dien
+}
+entity "**Payment**\n(payments)" as Payment {
+  * id: String <<PK>>
+  * bookingId: String <<FK>>
+  * amount: Decimal 
+  * method: PaymentMethod 
+  * status: PaymentStatus 
+  transactionRef: String? 
+  paidAt: DateTime? 
+  ... 2 cot: xem tu dien
+}
+CustomerProfile ||--o{ Booking
+Booking ||--o{ BookingService
+BranchServiceOffering ||--o{ BookingService
+Booking ||--o{ Payment
+
+@enduml

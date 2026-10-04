@@ -101,9 +101,6 @@ export class CreateBookingDto {
   voucherCode?: string;
 
   @IsOptional()
-  loyaltyPoints?: number;
-
-  @IsOptional()
   @IsBoolean()
   controlledOverbooking?: boolean;
 

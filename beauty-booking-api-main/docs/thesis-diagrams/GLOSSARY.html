@@ -1,0 +1,202 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GLOSSARY.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Thuật ngữ thống nhất</h1>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Thuật ngữ Việt</th>
+<th>Trong code/mô hình</th>
+<th>Nghĩa sử dụng</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nghiệp vụ</td>
+<td>BUC</td>
+<td>Mục tiêu/kết quả kinh doanh; không phải endpoint</td>
+</tr>
+<tr>
+<td>Tương tác hệ thống</td>
+<td>SUC</td>
+<td>Mục tiêu actor đạt qua phần mềm; có thể gồm nhiều API</td>
+</tr>
+<tr>
+<td>Tác nhân nghiệp vụ</td>
+<td>business actor</td>
+<td>Bên ngoài ranh giới phối hợp được chọn</td>
+</tr>
+<tr>
+<td>Nhân sự nghiệp vụ</td>
+<td>business worker</td>
+<td>Người thực hiện bên trong ranh giới nghiệp vụ, không là kế thừa role</td>
+</tr>
+<tr>
+<td>Khách chưa đăng nhập</td>
+<td>PUBLIC</td>
+<td>Không phải tài khoản role GUEST</td>
+</tr>
+<tr>
+<td>Khách hàng</td>
+<td>CUSTOMER, CustomerProfile</td>
+<td>Tài khoản tự đặt/khách có hồ sơ, tùy ngữ cảnh; phân biệt khách vãng lai</td>
+</tr>
+<tr>
+<td>Khách vãng lai</td>
+<td>hồ sơ do quầy tạo</td>
+<td>Không tự có phiên hoặc quyền CUSTOMER</td>
+</tr>
+<tr>
+<td>Doanh nghiệp</td>
+<td>Business</td>
+<td>Đơn vị có chủ sở hữu, nhiều chi nhánh</td>
+</tr>
+<tr>
+<td>Cơ sở/chi nhánh</td>
+<td>Branch</td>
+<td>Địa điểm phục vụ; tránh dùng “salon” thay cho cả Business và Branch trong quan hệ dữ liệu</td>
+</tr>
+<tr>
+<td>Chủ doanh nghiệp</td>
+<td>BUSINESS_OWNER, BusinessOwnerProfile</td>
+<td>Chủ theo doanh nghiệp được cấp scope</td>
+</tr>
+<tr>
+<td>Lễ tân</td>
+<td>RECEPTIONIST</td>
+<td>Nhân sự điều phối trong scope chi nhánh</td>
+</tr>
+<tr>
+<td>Chuyên viên</td>
+<td>STAFF, StaffProfile</td>
+<td>Hồ sơ chuyên môn có thể chưa gắn User</td>
+</tr>
+<tr>
+<td>Dịch vụ chuẩn</td>
+<td>CanonicalService</td>
+<td>Định nghĩa danh mục nền tảng</td>
+</tr>
+<tr>
+<td>Dịch vụ doanh nghiệp</td>
+<td>BusinessService</td>
+<td>Dịch vụ được doanh nghiệp kinh doanh</td>
+</tr>
+<tr>
+<td>Dịch vụ tại chi nhánh</td>
+<td>BranchServiceOffering / services</td>
+<td>Phạm vi cung cấp, giá và cấu hình tại chi nhánh</td>
+</tr>
+<tr>
+<td>Lịch hẹn</td>
+<td>Booking / LichHen</td>
+<td>Cam kết phục vụ và trạng thái tổng thể</td>
+</tr>
+<tr>
+<td>Phần dịch vụ</td>
+<td>BookingService / PhanDichVu</td>
+<td>Một dịch vụ trong lịch; không phải lớp BookingsService</td>
+</tr>
+<tr>
+<td>Điều phối lịch</td>
+<td>BookingsService / DieuPhoiDatLich</td>
+<td>Lớp ứng dụng / trách nhiệm phân tích tương ứng</td>
+</tr>
+<tr>
+<td>Năng lực phục vụ</td>
+<td>NangLucPhucVu</td>
+<td>Điều kiện giờ, kỹ năng, khả dụng; không là bảng mới</td>
+</tr>
+<tr>
+<td>Yêu cầu thay đổi</td>
+<td>AppointmentChangeRequest / YeuCauThayDoi</td>
+<td>Đề nghị hủy hoặc đổi cần xử lý</td>
+</tr>
+<tr>
+<td>Hủy sát giờ</td>
+<td>LATE_CANCELLATION</td>
+<td>Vi phạm ghi ở thời điểm gửi yêu cầu hợp lệ</td>
+</tr>
+<tr>
+<td>Vắng mặt</td>
+<td>NO_SHOW</td>
+<td>Xác nhận theo time guard và điều kiện nghiệp vụ</td>
+</tr>
+<tr>
+<td>Lịch sử vi phạm</td>
+<td>BookingViolationEvent / LichSuViPham</td>
+<td>Sự kiện có căn cứ và khả năng void có dấu vết</td>
+</tr>
+<tr>
+<td>Hạn chế tự đặt</td>
+<td>CustomerBookingPolicy</td>
+<td>Theo cặp khách–doanh nghiệp, khác chặn tài khoản toàn hệ thống</td>
+</tr>
+<tr>
+<td>Khoản thu</td>
+<td>Payment / KhoanThu</td>
+<td>Ghi nhận thanh toán; không là hóa đơn</td>
+</tr>
+<tr>
+<td>Yêu cầu hoàn</td>
+<td>RefundRequest / YeuCauHoan</td>
+<td>Quy trình kiểm soát hoàn trả; không chứng minh đã chuyển tiền bên ngoài</td>
+</tr>
+<tr>
+<td>Sổ cái</td>
+<td>FinancialLedgerEntry</td>
+<td>Dấu vết tài chính còn hoạt động</td>
+</tr>
+<tr>
+<td>Bảng kê nền tảng</td>
+<td>PlatformStatement</td>
+<td>Đối soát phí; khác Invoice đã gỡ tính năng</td>
+</tr>
+<tr>
+<td>Gói buổi</td>
+<td>TreatmentPackage, PackageSessionEntitlement</td>
+<td>Quyền sử dụng số buổi; khác combo nhiều dịch vụ trong lịch</td>
+</tr>
+<tr>
+<td>Ưu đãi</td>
+<td>Promotion, Voucher</td>
+<td>Khuyến mãi/mã quyền lợi đang hoạt động; không là điểm thưởng</td>
+</tr>
+<tr>
+<td>Hàng đợi phục vụ</td>
+<td>scheduler/tiến độ lịch</td>
+<td>Điều phối lịch đang có; khác WaitlistEntry di sản</td>
+</tr>
+<tr>
+<td>Ranh giới/Bộ điều khiển/Thực thể</td>
+<td>Boundary / Control / Entity</td>
+<td>Ba trách nhiệm phân tích BCE; không mặc định là class NestJS</td>
+</tr>
+<tr>
+<td>Phụ thuộc</td>
+<td>dependency, nét đứt mũi tên mở</td>
+<td>Sử dụng/DI; không khẳng định composition</td>
+</tr>
+<tr>
+<td>Hiện thực hóa</td>
+<td>realization, nét đứt tam giác rỗng</td>
+<td>Class implements interface có bằng chứng AST</td>
+</tr>
+<tr>
+<td>Kế thừa</td>
+<td>generalization, nét liền tam giác rỗng</td>
+<td>extends có bằng chứng; không suy từ cấp bậc nhân sự</td>
+</tr>
+<tr>
+<td>PK / FK / UQ</td>
+<td>primary / foreign / unique key</td>
+<td>Ràng buộc schema; UQ có điều kiện SQL ghi riêng</td>
+</tr>
+<tr>
+<td>0..1 / 0..* / 1</td>
+<td>optional một / nhiều / đúng một</td>
+<td>Bội số vật lý; collection không ép ít nhất một</td>
+</tr>
+<tr>
+<td>Dấu ... trong lớp</td>
+<td>chữ ký lược bớt</td>
+<td>Không phải kiểu thực; xem inventory/source đầy đủ</td>
+</tr>
+</tbody></table></div>
+<p>Tên lớp phân tích, thuộc tính và trách nhiệm hiển thị bằng tiếng Việt có dấu. Alias không dấu trong nguồn được giữ ổn định để truy vết, ví dụ <code>LichHen</code> hiển thị “Lịch hẹn”. Bảng ánh xạ nhãn nằm trong <code>scripts/analysis-labels.cjs</code>; class thiết kế vẫn giữ đúng tên code. Ánh xạ từng Boundary/Control/Entity sang lớp thiết kế có tại <a href="03-analysis-classes/analysis-class-notes.html">analysis-class-notes</a> và <a href="TRACEABILITY.html">TRACEABILITY</a>.</p>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

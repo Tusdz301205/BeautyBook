@@ -1,0 +1,62 @@
+@startuml ERD-variants
+' Miền dữ liệu hiện hành hoặc hỗ trợ. Quan hệ xuyên miền xem catalogue đầy đủ. PK/FK/UQ; dấu * = NOT NULL. Hình chọn tối đa 7 cột và 6 FK; từ điển/relationship-catalog chứa đầy đủ. Tên FK nằm trong bảng quan hệ dưới hình HTML.
+skinparam backgroundColor white
+skinparam defaultFontName Times New Roman
+skinparam defaultFontSize 17
+skinparam shadowing false
+skinparam roundcorner 2
+skinparam linetype ortho
+skinparam nodesep 44
+skinparam ranksep 58
+skinparam ArrowColor #444444
+skinparam ArrowFontColor #333333
+skinparam ArrowFontSize 14
+skinparam classAttributeIconSize 0
+skinparam stereotypeCBackgroundColor white
+skinparam stereotypeIBackgroundColor white
+skinparam classBackgroundColor white
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classFontStyle bold
+skinparam classAttributeFontStyle plain
+skinparam entityFontStyle bold
+skinparam usecaseBackgroundColor #fffde7
+skinparam usecaseBorderColor #773b4a
+skinparam usecaseFontColor black
+skinparam actorBorderColor #773b4a
+skinparam actorBackgroundColor white
+skinparam actorFontColor black
+skinparam actorStyle stickman
+hide circle
+hide empty members
+left to right direction
+entity "**ServiceVariant**\n(service_variants)" as ServiceVariant {
+  * id: String <<PK>>
+  * serviceId: String <<FK>>
+  * code: String 
+  * name: String 
+  description: String? 
+  * priceType: ServicePriceType 
+  price: Decimal? 
+  ... 12 cot: xem tu dien
+}
+entity "**ServicePriceRule**\n(service_price_rules)" as ServicePriceRule {
+  * id: String <<PK>>
+  * serviceId: String <<FK>>
+  variantId: String? <<FK>>
+  * name: String 
+  * priority: Int 
+  * adjustmentType: DiscountType 
+  * adjustmentValue: Decimal 
+  ... 7 cot: xem tu dien
+}
+entity "**ServiceDependency**\n(service_dependencies)" as ServiceDependency {
+  * id: String <<PK>>
+  * serviceId: String <<FK>>
+  * requiredServiceId: String <<FK>>
+  * dependencyType: ServiceDependencyType 
+  * createdAt: DateTime 
+}
+ServiceVariant |o--o{ ServicePriceRule
+
+@enduml

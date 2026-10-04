@@ -100,6 +100,32 @@ describe('IdempotencyInterceptor', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  test('healthy Redis in-flight conflict does not fall back to memory or run handler', async () => {
+    const interceptor = new IdempotencyInterceptor(config);
+    const fingerprint = requestFingerprint('POST', '/api/v1/payments/collect', { amount: 100 });
+    (interceptor as any).redis = {
+      status: 'ready',
+      set: jest.fn().mockResolvedValue(null),
+      get: jest.fn().mockResolvedValue(JSON.stringify({ fingerprint, owner: 'other', status: 'in_flight' })),
+    };
+    const handler = { handle: jest.fn(() => of({ ok: true })) } as CallHandler;
+    await expect(lastValueFrom(interceptor.intercept(context({ amount: 100 }).execution, handler)))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(handler.handle).not.toHaveBeenCalled();
+    expect((interceptor as any).memory.size).toBe(0);
+  });
+
+  test('completion and release compare the reservation owner inside Redis', async () => {
+    const interceptor = new IdempotencyInterceptor(config);
+    const evalMock = jest.fn().mockResolvedValue(0);
+    (interceptor as any).redis = { eval: evalMock };
+    await (interceptor as any).complete('key', 'fingerprint', 'stale-owner', 200, { ok: true });
+    await (interceptor as any).release('key', 'stale-owner');
+    expect(evalMock).toHaveBeenCalledTimes(2);
+    expect(evalMock.mock.calls[0][0]).toContain("r.owner~=ARGV[1]");
+    expect(evalMock.mock.calls[1][0]).toContain("r.owner~=ARGV[1]");
+  });
+
   test('the same key is isolated between concrete resource ids', async () => {
     const interceptor = new IdempotencyInterceptor(config);
     const handler = { handle: jest.fn(() => of({ ok: true })) } as CallHandler;

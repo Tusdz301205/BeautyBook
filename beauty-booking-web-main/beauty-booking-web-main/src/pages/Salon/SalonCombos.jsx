@@ -270,7 +270,7 @@ export default function SalonCombos() {
       <PageHeader
         eyebrow="Danh mục kinh doanh"
         title="Combo dịch vụ"
-        description="Xây một liệu trình trong cùng lịch hẹn, giữ đúng thứ tự, thời lượng và giá snapshot của từng dịch vụ."
+        description="Kết hợp nhiều dịch vụ trong một lịch hẹn, với thứ tự, thời lượng và giá rõ ràng."
         actions={<Button onClick={() => edit()} disabled={!branchId || selectedBranch?.status !== 'ACTIVE'}><Plus size={16} />Tạo combo</Button>}
       />
       <Card className="space-y-4 p-4">
@@ -495,7 +495,7 @@ export default function SalonCombos() {
         description={removeTarget?.name}
         footer={<><Button variant="secondary" onClick={() => setRemoveTarget(null)}>Giữ lại</Button><Button variant="danger" loading={busy === 'remove'} onClick={remove}>Lưu trữ</Button></>}
       >
-        <p className="text-sm text-[var(--bb-muted)]">Combo sẽ ngừng nhận booking mới; các BookingService đã snapshot vẫn giữ nguyên tên, giá, thời lượng, thứ tự và phiên bản.</p>
+        <p className="text-sm text-[var(--bb-muted)]">Combo sẽ ngừng nhận lịch mới. Các lịch đã đặt vẫn giữ tên, giá, thời lượng và thứ tự dịch vụ tại thời điểm đặt.</p>
       </Dialog>
     </Page>
   );

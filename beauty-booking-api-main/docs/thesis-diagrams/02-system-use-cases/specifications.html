@@ -1,0 +1,2026 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>02-system-use-cases/specifications.md — BeautyBook</title><style>*{box-sizing:border-box}body{margin:0;color:#20252a;background:#fff;font:16px/1.6 'Times New Roman',serif}main{max-width:1240px;margin:auto;padding:36px 24px}a{color:#234d70;text-underline-offset:3px}h1{font-size:34px;line-height:1.2}h2{font-size:24px;margin-top:40px}h3{font-size:19px}nav{display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:18px}.lead{max-width:900px;color:#505860}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}article{border:1px solid #ddd;border-radius:6px;padding:16px;min-width:0}article img{width:100%;height:240px;object-fit:contain;background:#fff}article h3{margin:10px 0}article p{font-size:14px;line-height:1.45}.links{display:flex;gap:14px;flex-wrap:wrap}.table-wrap{overflow:auto}table{border-collapse:collapse;font-size:14px;width:100%}td,th{padding:9px 12px;border:1px solid #ddd;text-align:left;vertical-align:top}th{background:#f6f7f8}pre{padding:16px;background:#f6f7f8;overflow:auto}code{font-size:.9em;overflow-wrap:anywhere}p,li,td{overflow-wrap:anywhere}.note{border-left:3px solid #555;padding-left:16px}footer{border-top:1px solid #ddd;margin-top:44px;padding-top:16px;color:#555}@media(max-width:500px){main{padding:22px 16px}h1{font-size:27px}}@media print{nav,.links{display:none}main{padding:0}article{break-inside:avoid}h1{font-size:22pt}h2{font-size:16pt}table{font-size:8pt}}</style></head><body><main><nav><a href="../index.html">BeautyBook · Bộ sơ đồ luận văn</a></nav><h1>Đặc tả Use Case hệ thống</h1>
+<p>Mức kiểm chứng: đọc code của working tree; không chạy nghiệp vụ hoặc truy vấn DB. Association trên hình chỉ là tham gia; các hành động trong cùng UC có thể có quyền khác nhau.</p>
+<h2>SUC-01 — Tra cứu dịch vụ và cơ sở</h2>
+<ul>
+<li>Mục tiêu: Tra cứu dịch vụ và cơ sở, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-01.</li>
+<li>Actor tham gia: Người chưa đăng nhập (PUBLIC); Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu tra cứu dịch vụ và cơ sở.</li>
+<li>Tiền điều kiện: Hành động Public không cần phiên; hành động protected trong UC vẫn cần phiên tương ứng. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor chọn phương án; thông tin dùng cho bước đặt lịch sau đăng nhập.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor nhập tiêu chí tìm kiếm; hệ thống lọc các mục đủ điều kiện công khai.</li>
+<li>Actor mở chi tiết; hệ thống trả dịch vụ, nhân sự và đánh giá công khai.</li>
+<li>Actor chọn phương án; thông tin dùng cho bước đặt lịch sau đăng nhập.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Không có kết quả: danh sách rỗng.</li>
+<li>2a. Cơ sở không công khai: không cung cấp như cơ sở đang mở.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Từ khóa, khu vực, danh mục, giá; ID cơ sở/dịch vụ.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PUBLIC chỉ nội dung công khai; CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10</p>
+</li>
+<li><p>ServicesController.search: <code>@Get(&#39;search&#39;)</code>; <code>@Public()</code></p>
+</li>
+<li><p>BranchesController.findAll: <code>@Get()</code>; <code>@Public()</code></p>
+</li>
+<li><p>StaffController.findPublicOne: <code>@Get(&#39;public/:id&#39;)</code>; <code>@Public()</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.search</a> (dòng 70)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.findAll</a> (dòng 59)</li>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController.findPublicOne</a> (dòng 174)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicHome.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicHome.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicDetails.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicDetails.jsx</a></li>
+<li>Schema: <code>Branch</code>, <code>BranchServiceOffering</code>, <code>StaffProfile</code>, <code>Review</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: HomeScreen, SearchScreen, VenueDetailScreen dùng API..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-02 — Thiết lập tài khoản và đăng nhập</h2>
+<ul>
+<li>Mục tiêu: Thiết lập tài khoản và đăng nhập, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-12.</li>
+<li>Actor tham gia: Người chưa đăng nhập (PUBLIC). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thiết lập tài khoản và đăng nhập.</li>
+<li>Tiền điều kiện: Hành động Public không cần phiên; hành động protected trong UC vẫn cần phiên tương ứng. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống cấp phiên phù hợp; web dùng refresh cookie, mobile có transport BODY.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Người dùng chọn loại tài khoản và cung cấp thông tin; hệ thống kiểm tra dữ liệu/định danh.</li>
+<li>Người dùng đăng nhập; hệ thống kiểm tra mật khẩu, trạng thái và workspace.</li>
+<li>Hệ thống cấp phiên phù hợp; web dùng refresh cookie, mobile có transport BODY.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Trùng định danh hoặc loại tài khoản không hợp lệ: từ chối.</li>
+<li>2a. Sai mật khẩu/trạng thái: không cấp phiên.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Thông tin đăng ký/đăng nhập trong auth.dto.ts; accountType, workspace khi có.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PUBLIC chỉ nội dung công khai.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>AuthController.register: <code>@Public()</code>; <code>@Post(&#39;register&#39;)</code></p>
+</li>
+<li><p>AuthController.login: <code>@Public()</code>; <code>@Post(&#39;login&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.register</a> (dòng 96)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.login</a> (dòng 71)</li>
+<li><a href="../../../src/auth/auth.service.ts">AuthService.register</a> (dòng 141)</li>
+<li><a href="../../../src/auth/auth.service.ts">AuthService.login</a> (dòng 44)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Login/RegisterScreen.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Login/RegisterScreen.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Login/LoginScreen.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Login/LoginScreen.jsx</a></li>
+<li>Schema: <code>User</code>, <code>CustomerProfile</code>, <code>BusinessOwnerProfile</code>, <code>UserSession</code>, <code>AccountToken</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: AuthContext và Login/RegisterScreen gọi API..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-03 — Khôi phục và bảo vệ truy cập</h2>
+<ul>
+<li>Mục tiêu: Khôi phục và bảo vệ truy cập, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-12.</li>
+<li>Actor tham gia: Người chưa đăng nhập (PUBLIC); Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST); Chuyên viên (STAFF); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu khôi phục và bảo vệ truy cập.</li>
+<li>Tiền điều kiện: Hành động Public không cần phiên; hành động protected trong UC vẫn cần phiên tương ứng. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống cập nhật xác thực, mật khẩu hoặc thu hồi phiên theo hành động.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor gửi thông tin khôi phục hoặc quản lý phiên; hệ thống kiểm tra điều kiện của hành động.</li>
+<li>Actor cung cấp token/mật khẩu hiện tại khi bắt buộc; hệ thống kiểm tra hiệu lực.</li>
+<li>Hệ thống cập nhật xác thực, mật khẩu hoặc thu hồi phiên theo hành động.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Token hết hạn/đã dùng hoặc sai mật khẩu: từ chối.</li>
+<li>1a. Hành động phiên yêu cầu đăng nhập, khôi phục/verify có route Public.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Email, token, mật khẩu theo DTO; sessionId chỉ phiên thuộc mình.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PUBLIC chỉ nội dung công khai; CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy; STAFF theo assignment/tài khoản của mình; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>AuthController.verifyEmail: <code>@Public()</code>; <code>@Post(&#39;verify-email&#39;)</code></p>
+</li>
+<li><p>AuthController.forgotPassword: <code>@Public()</code>; <code>@Post(&#39;forgot-password&#39;)</code></p>
+</li>
+<li><p>AuthController.resetPassword: <code>@Public()</code>; <code>@Post(&#39;reset-password&#39;)</code></p>
+</li>
+<li><p>AuthController.changePassword: <code>@Post(&#39;change-password&#39;)</code></p>
+</li>
+<li><p>AuthController.revokeSession: <code>@Delete(&#39;sessions/:sessionId&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.verifyEmail</a> (dòng 131)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.forgotPassword</a> (dòng 138)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.resetPassword</a> (dòng 146)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.changePassword</a> (dòng 168)</li>
+<li><a href="../../../src/auth/auth.controller.ts">AuthController.revokeSession</a> (dòng 187)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/SecuritySettings.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/SecuritySettings.jsx</a></li>
+<li>Schema: <code>AccountToken</code>, <code>UserSession</code>, <code>User</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-04 — Duy trì hồ sơ cá nhân</h2>
+<ul>
+<li>Mục tiêu: Duy trì hồ sơ cá nhân, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-12.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST); Chuyên viên (STAFF); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu duy trì hồ sơ cá nhân.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống lưu và trả hồ sơ cập nhật.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor xem hồ sơ của mình; hệ thống trả các trường được phép.</li>
+<li>Actor chỉnh thông tin hợp lệ/ảnh; hệ thống kiểm tra dữ liệu và quyền media.</li>
+<li>Hệ thống lưu và trả hồ sơ cập nhật.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Dữ liệu hoặc media không hợp lệ: không cập nhật thành công.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Thông tin hồ sơ; không dùng cập nhật hồ sơ để tự đổi role.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy; STAFF theo assignment/tài khoản của mình; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>UsersController.me: <code>@Get(&#39;me/profile&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;user:read:self&#39;)</code></p>
+</li>
+<li><p>UsersController.updateMe: <code>@Patch(&#39;me/profile&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;user:update:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/users/users.controller.ts">UsersController.me</a> (dòng 34)</li>
+<li><a href="../../../src/users/users.controller.ts">UsersController.updateMe</a> (dòng 41)</li>
+<li><a href="../../../src/users/users.service.ts">UsersService.updateSelf</a> (dòng 56)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/ProfileSettings.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/ProfileSettings.jsx</a></li>
+<li>Schema: <code>User</code>, <code>CustomerProfile</code>, <code>StaffProfile</code>, <code>MediaFile</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-05 — Tự đặt lịch dịch vụ</h2>
+<ul>
+<li>Mục tiêu: Tự đặt lịch dịch vụ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu tự đặt lịch dịch vụ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống tạo lịch cùng các phần dịch vụ và snapshot, trả trạng thái PENDING hoặc CONFIRMED.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn dịch vụ/chuyên viên/thời điểm; hệ thống kiểm tra phạm vi và chính sách.</li>
+<li>Khách xác nhận giá, thông tin và cảnh báo nếu cần; hệ thống kiểm tra slot/năng lực lần cuối.</li>
+<li>Hệ thống tạo lịch cùng các phần dịch vụ và snapshot, trả trạng thái PENDING hoặc CONFIRMED.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Điểm 3 chưa xác nhận cảnh báo: từ chối.</li>
+<li>2b. Hạn chế tự đặt hoặc slot vừa bị chiếm: từ chối, khách chọn lại.</li>
+<li>3a. Chính sách thủ công: trả PENDING, không mô tả đã được cơ sở xác nhận.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: branchId, serviceIds hoặc comboId, thời điểm, staffId tùy chế độ, voucherCode, violationAcknowledged.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01, BR-02, BR-03</p>
+</li>
+<li><p>BookingsController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;CUSTOMER&#39;)</code>; <code>@RequirePermission( &#39;booking:create:self&#39;, &#39;booking:create:tenant&#39;, &#39;booking:create:branch&#39;, )</code></p>
+</li>
+<li><p>BookingsController.createGuest: <code>@Post(&#39;guest&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;booking:create:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.create</a> (dòng 237)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.createGuest</a> (dòng 199)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.create</a> (dòng 817)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep1.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep1.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx</a></li>
+<li>Schema: <code>Booking</code>, <code>BookingService</code>, <code>BookingContact</code>, <code>BranchServiceOffering</code>, <code>StaffProfile</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: BookingScreen/BookingsContext tạo lịch ONLINE_APP..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-06 — Kiểm tra giờ còn khả dụng</h2>
+<ul>
+<li>Mục tiêu: Kiểm tra giờ còn khả dụng, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02.</li>
+<li>Actor tham gia: Người chưa đăng nhập (PUBLIC); Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu kiểm tra giờ còn khả dụng.</li>
+<li>Tiền điều kiện: Hành động Public không cần phiên; hành động protected trong UC vẫn cần phiên tương ứng. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor nhận giờ khả dụng; khi tạo lịch vẫn phải kiểm tra lại.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor chọn dịch vụ/ngày; hệ thống xác định thời lượng và cửa sổ mở cửa.</li>
+<li>Hệ thống xét nhân sự nhận lịch, kỹ năng và các khoảng đã chiếm.</li>
+<li>Actor nhận giờ khả dụng; khi tạo lịch vẫn phải kiểm tra lại.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Ngày đóng cửa/dịch vụ không cho đặt online: không có slot.</li>
+<li>2a. Không nhân sự phù hợp: kết quả không có giờ khả dụng.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: branchId, serviceIds, ngày, staffId khi chọn; theo truy vấn controller.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PUBLIC chỉ nội dung công khai; CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-02</p>
+</li>
+<li><p>BookingsController.getAvailableSlots: <code>@Get(&#39;available-slots&#39;)</code>; <code>@Public()</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.getAvailableSlots</a> (dòng 724)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.getAvailableSlots</a> (dòng 1917)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep3.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingStep3.jsx</a></li>
+<li>Schema: <code>BranchWorkingHour</code>, <code>BranchHoliday</code>, <code>SpecialWorkingDay</code>, <code>StaffService</code>, <code>BookingService</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: BookingScreen gọi available slots..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-07 — Xem giá và ưu đãi đặt lịch</h2>
+<ul>
+<li>Mục tiêu: Xem giá và ưu đãi đặt lịch, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02, BUC-06.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu xem giá và ưu đãi đặt lịch.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khách nhận báo giá để quyết định; giá được kiểm tra lại khi tạo lịch.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn dịch vụ/biến thể và mã ưu đãi; hệ thống kiểm tra dữ liệu.</li>
+<li>Hệ thống tính giá, điều kiện và phạm vi ưu đãi.</li>
+<li>Khách nhận báo giá để quyết định; giá được kiểm tra lại khi tạo lịch.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Mã hết hạn, sai khách/phạm vi hoặc vượt lượt: không áp dụng theo kiểm tra pricing.</li>
+<li>3a. Báo giá không khóa chỗ hay bảo đảm giá bất biến trước khi tạo.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Danh sách dịch vụ, biến thể, voucherCode, ngày.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-03, BR-09</p>
+</li>
+<li><p>BookingsController.previewPrice: <code>@Post(&#39;preview-price&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;booking:create:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.previewPrice</a> (dòng 308)</li>
+<li><a href="../../../src/bookings/vouchers.service.ts">VouchersService.preview</a> (dòng 15)</li>
+<li><a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService.quote</a> (dòng 28)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx</a></li>
+<li>Schema: <code>Voucher</code>, <code>Promotion</code>, <code>PriceAdjustment</code>, <code>BranchServiceOffering</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-08 — Theo dõi lịch và chính sách tự đặt</h2>
+<ul>
+<li>Mục tiêu: Theo dõi lịch và chính sách tự đặt, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02, BUC-03.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu theo dõi lịch và chính sách tự đặt.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khách xem chính sách tại doanh nghiệp; hệ thống tính điểm trong cửa sổ và đọc hạn chế hiện hành.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách mở lịch của mình; hệ thống giới hạn ownership.</li>
+<li>Khách mở chi tiết; hệ thống trả trạng thái, từng dịch vụ và điều kiện thao tác.</li>
+<li>Khách xem chính sách tại doanh nghiệp; hệ thống tính điểm trong cửa sổ và đọc hạn chế hiện hành.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Lịch người khác: từ chối.</li>
+<li>3a. Đọc chính sách không tự tạo hoặc gia hạn hạn chế.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId hoặc businessId; không nhận customerId người khác làm quyền truy cập.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-06</p>
+</li>
+<li><p>BookingsController.myAppointments: <code>@Get(&#39;my-appointments&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;booking:read:self&#39;)</code></p>
+</li>
+<li><p>BookingsController.findOne: <code>@Get(&#39;:id&#39;)</code>; <code>@Roles( &#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;, )</code>; <code>@RequirePermission(&#39;booking:read:self&#39;, &#39;booking:read:branch&#39;, &#39;booking:read:tenant&#39;, &#39;booking:read:platform&#39;)</code></p>
+</li>
+<li><p>BookingsController.selfBookingPolicy: <code>@Get(&#39;self-booking-policy&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;booking:create:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.myAppointments</a> (dòng 545)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.findOne</a> (dòng 858)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.selfBookingPolicy</a> (dòng 185)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointments.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx</a></li>
+<li>Schema: <code>Booking</code>, <code>BookingViolationEvent</code>, <code>CustomerBookingPolicy</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: LichHenScreen/AppointmentDetailScreen dùng API..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-09 — Tự hủy lịch đủ sớm</h2>
+<ul>
+<li>Mục tiêu: Tự hủy lịch đủ sớm, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-03.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu tự hủy lịch đủ sớm.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Lịch chuyển CANCELLED, giải phóng quyền lợi/slot theo xử lý hiện có.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn hủy lịch thuộc mình; hệ thống kiểm tra trạng thái và thời điểm.</li>
+<li>Khách xác nhận; hệ thống kiểm tra lại điều kiện trong giao dịch.</li>
+<li>Lịch chuyển CANCELLED, giải phóng quyền lợi/slot theo xử lý hiện có.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Còn dưới 4 giờ: phải gửi yêu cầu hủy sát giờ.</li>
+<li>1b. Lịch đã bắt đầu/trạng thái không cho phép: từ chối.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, trạng thái CANCELLED, lý do khi UI yêu cầu.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-04</p>
+</li>
+<li><p>BookingsController.updateStatus: <code>@Patch(&#39;:id/status&#39;)</code>; <code>@Roles( &#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;, )</code>; <code>@RequirePermission(&#39;booking:update:self&#39;, &#39;booking:update:branch&#39;, &#39;booking:update:tenant&#39;, &#39;booking:cancel:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.updateStatus</a> (dòng 421)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx</a></li>
+<li>Schema: <code>Booking</code>, <code>BookingService</code>, <code>BookingStatusHistory</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: AppointmentDetailScreen gọi API hủy..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-10 — Gửi yêu cầu đổi hoặc hủy lịch</h2>
+<ul>
+<li>Mục tiêu: Gửi yêu cầu đổi hoặc hủy lịch, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-03.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu gửi yêu cầu đổi hoặc hủy lịch.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống tạo yêu cầu PENDING có hạn 24 giờ; hủy sát giờ ghi vi phạm tại lúc gửi.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn đổi giờ/chuyên viên hoặc yêu cầu hủy; hệ thống kiểm tra sở hữu và trạng thái.</li>
+<li>Khách gửi phương án/lý do; hệ thống kiểm tra yêu cầu đang mở và chính sách.</li>
+<li>Hệ thống tạo yêu cầu PENDING có hạn 24 giờ; hủy sát giờ ghi vi phạm tại lúc gửi.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Đổi lịch bị tắt/đạt số lần tối đa: từ chối.</li>
+<li>2a. Có yêu cầu PENDING còn hiệu lực: xung đột.</li>
+<li>3a. Gửi yêu cầu chưa thay đổi lịch.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: requestType RESCHEDULE/STAFF_CHANGE/CANCEL; proposedStartTime/proposedEndTime/proposedStaffId.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-04, BR-05, BR-06</p>
+</li>
+<li><p>BookingsController.createChangeRequest: <code>@Post(&#39;:id/change-requests&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;change_request:create:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.createChangeRequest</a> (dòng 1186)</li>
+<li><a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService.create</a> (dòng 56)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx</a></li>
+<li>Schema: <code>AppointmentChangeRequest</code>, <code>Booking</code>, <code>BookingViolationEvent</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: RescheduleScreen và AppointmentDetailScreen có caller..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-11 — Sắp xếp chuỗi lịch định kỳ</h2>
+<ul>
+<li>Mục tiêu: Sắp xếp chuỗi lịch định kỳ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02, BUC-06.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu sắp xếp chuỗi lịch định kỳ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khách theo dõi/tạm dừng/tiếp tục/hủy theo trạng thái được hỗ trợ.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn quy tắc lặp; hệ thống preview từng kỳ.</li>
+<li>Khách quyết định bỏ qua xung đột nếu chấp nhận; hệ thống tạo các kỳ đủ điều kiện.</li>
+<li>Khách theo dõi/tạm dừng/tiếp tục/hủy theo trạng thái được hỗ trợ.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Có xung đột mà không bỏ qua: từ chối.</li>
+<li>2b. Tạo chuỗi lỗi: trạng thái FAILED và cơ chế bù các kỳ đã tạo; không gọi đây là một giao dịch nguyên tử.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Tần suất, startDate, occurrenceCount/endDate, staffMode, skipConflicts; xem recurring.dto.ts.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-02, BR-04, BR-06</p>
+</li>
+<li><p>RecurringController.preview: <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@Post(&#39;preview&#39;)</code>; <code>@RequirePermission(&#39;booking:create:self&#39;)</code></p>
+</li>
+<li><p>RecurringController.create: <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@Post()</code>; <code>@RequirePermission(&#39;booking:create:self&#39;)</code></p>
+</li>
+<li><p>RecurringController.status: <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@Patch(&#39;:id/status&#39;)</code>; <code>@RequirePermission(&#39;booking:update:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.preview</a> (dòng 16)</li>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.create</a> (dòng 22)</li>
+<li><a href="../../../src/recurring/recurring.controller.ts">RecurringController.status</a> (dòng 35)</li>
+<li><a href="../../../src/recurring/recurring.service.ts">RecurringService.create</a> (dòng 39)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/BookingConfirm.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointments.jsx</a></li>
+<li>Schema: <code>RecurringBookingPlan</code>, <code>Booking</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-12 — Lưu dịch vụ quan tâm</h2>
+<ul>
+<li>Mục tiêu: Lưu dịch vụ quan tâm, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-01, BUC-06.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu lưu dịch vụ quan tâm.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khách xem hoặc bỏ lưu; hệ thống chỉ thay đổi danh sách của mình.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách chọn lưu dịch vụ; hệ thống kiểm tra dịch vụ và danh tính.</li>
+<li>Hệ thống ghi liên kết duy nhất khách–dịch vụ.</li>
+<li>Khách xem hoặc bỏ lưu; hệ thống chỉ thay đổi danh sách của mình.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Dịch vụ không hợp lệ: từ chối.</li>
+<li>2a. Lưu lặp không tạo nhiều liên kết trùng.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: branchServiceOfferingId/serviceId.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>SavedServicesController.list: <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;service:read:public&#39;)</code>; <code>@Get()</code></p>
+</li>
+<li><p>SavedServicesController.save: <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;service:read:public&#39;)</code>; <code>@Post()</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/saved-services/saved-services.controller.ts">SavedServicesController.list</a> (dòng 14)</li>
+<li><a href="../../../src/saved-services/saved-services.controller.ts">SavedServicesController.save</a> (dòng 19)</li>
+<li><a href="../../../src/saved-services/saved-services.service.ts">SavedServicesService.save</a> (dòng 56)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicDetails.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Public/PublicDetails.jsx</a></li>
+<li>Schema: <code>CustomerSavedService</code>, <code>CustomerProfile</code>, <code>BranchServiceOffering</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: FavoritesContext đồng bộ saved-services API..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-13 — Tạo lịch hộ tại cơ sở</h2>
+<ul>
+<li>Mục tiêu: Tạo lịch hộ tại cơ sở, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu tạo lịch hộ tại cơ sở.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Nhân sự xác nhận; hệ thống tạo lịch với nguồn nghiệp vụ được phép.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Nhân sự chọn chi nhánh, khách/hồ sơ vãng lai và dịch vụ.</li>
+<li>Hệ thống kiểm tra quyền tại chi nhánh, thời điểm, kỹ năng và phương án nhận lịch.</li>
+<li>Nhân sự xác nhận; hệ thống tạo lịch với nguồn nghiệp vụ được phép.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Ngoài chi nhánh/doanh nghiệp: từ chối.</li>
+<li>2a. Vãng lai được tạo hồ sơ không đồng nghĩa có tài khoản CUSTOMER đăng nhập.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Thông tin khách, dịch vụ, giờ, nguồn WALK_IN/PHONE/STAFF_CREATED theo chính sách kênh.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01, BR-02</p>
+</li>
+<li><p>BookingsController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;CUSTOMER&#39;)</code>; <code>@RequirePermission( &#39;booking:create:self&#39;, &#39;booking:create:tenant&#39;, &#39;booking:create:branch&#39;, )</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.create</a> (dòng 237)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.create</a> (dòng 817)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx</a></li>
+<li>Schema: <code>CustomerProfile</code>, <code>BookingContact</code>, <code>Booking</code>, <code>BookingService</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-14 — Điều phối lịch và phân công</h2>
+<ul>
+<li>Mục tiêu: Điều phối lịch và phân công, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-02, BUC-04.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu điều phối lịch và phân công.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Nhân sự xác nhận; hệ thống cập nhật và phát sự kiện lịch.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Nhân sự xem lịch thuộc scope; chọn phương án dời/gán hoặc thêm dịch vụ.</li>
+<li>Hệ thống kiểm tra trạng thái, khả năng nhận dịch vụ và xung đột.</li>
+<li>Nhân sự xác nhận; hệ thống cập nhật và phát sự kiện lịch.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Xung đột hoặc nhân sự không đủ kỹ năng: từ chối.</li>
+<li>1a. Resize chỉ OWNER; không suy mọi thao tác scheduler có cùng quyền.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, staffId/thời điểm/serviceId tùy hành động; resize có endpoint riêng.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-02, BR-07</p>
+</li>
+<li><p>BookingsController.moveBooking: <code>@Patch(&#39;:id/move&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;)</code>; <code>@RequirePermission(&#39;booking:reschedule:branch&#39;, &#39;booking:update:tenant&#39;)</code></p>
+</li>
+<li><p>BookingsController.assignStaff: <code>@Patch(&#39;:id/assign&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;)</code>; <code>@RequirePermission(&#39;booking:assign:branch&#39;, &#39;booking:assign:tenant&#39;)</code></p>
+</li>
+<li><p>BookingsController.addBookingItem: <code>@Post(&#39;:id/items&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;)</code>; <code>@RequirePermission(&#39;booking:update:branch&#39;, &#39;booking:update:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.moveBooking</a> (dòng 1072)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.assignStaff</a> (dòng 1105)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.addBookingItem</a> (dòng 1118)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.assignStaff</a> (dòng 2488)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx</a></li>
+<li>Schema: <code>Booking</code>, <code>BookingService</code>, <code>StaffProfile</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-15 — Xử lý yêu cầu thay đổi lịch</h2>
+<ul>
+<li>Mục tiêu: Xử lý yêu cầu thay đổi lịch, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-03.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu xử lý yêu cầu thay đổi lịch.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống ghi kết quả và thông báo; chỉ cập nhật lịch khi duyệt hợp lệ.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Nhân sự mở yêu cầu chờ trong scope.</li>
+<li>Nhân sự duyệt hoặc từ chối; hệ thống kiểm tra hạn và trạng thái hiện tại, kiểm tra phương án mới nếu duyệt.</li>
+<li>Hệ thống ghi kết quả và thông báo; chỉ cập nhật lịch khi duyệt hợp lệ.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Yêu cầu hết 24 giờ: EXPIRED, không duyệt.</li>
+<li>2b. Slot phương án mới bị chiếm: xung đột.</li>
+<li>3a. Từ chối/hết hạn không xóa sự kiện hủy sát giờ đã ghi.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: reqId, quyết định, reviewNote.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-05, BR-06</p>
+</li>
+<li><p>BookingsController.approveChangeRequest: <code>@Patch(&#39;change-requests/:reqId/approve&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;)</code>; <code>@RequirePermission(&#39;change_request:approve:branch&#39;, &#39;change_request:approve:tenant&#39;)</code></p>
+</li>
+<li><p>BookingsController.rejectChangeRequest: <code>@Patch(&#39;change-requests/:reqId/reject&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;)</code>; <code>@RequirePermission(&#39;change_request:approve:branch&#39;, &#39;change_request:approve:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.approveChangeRequest</a> (dòng 1209)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.rejectChangeRequest</a> (dòng 1227)</li>
+<li><a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService.approve</a> (dòng 194)</li>
+<li><a href="../../../src/bookings/change-requests.service.ts">ChangeRequestsService.reject</a> (dòng 525)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx</a></li>
+<li>Schema: <code>AppointmentChangeRequest</code>, <code>Booking</code>, <code>BookingService</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-16 — Tiếp nhận khách và ghi no-show</h2>
+<ul>
+<li>Mục tiêu: Tiếp nhận khách và ghi no-show, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-04.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu tiếp nhận khách và ghi no-show.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống ghi CHECKED_IN hoặc NO_SHOW theo nhánh, ghi lịch sử và vi phạm khi đủ điều kiện.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Lễ tân/chủ cơ sở kiểm tra lịch CONFIRMED.</li>
+<li>Actor xác nhận khách đến hoặc xác nhận no-show; hệ thống kiểm tra thời gian và yêu cầu hủy đã báo.</li>
+<li>Hệ thống ghi CHECKED_IN hoặc NO_SHOW theo nhánh, ghi lịch sử và vi phạm khi đủ điều kiện.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. No-show trước start+15 phút hoặc thiếu xác nhận: từ chối.</li>
+<li>2b. Đã có yêu cầu hủy CUSTOMER: chặn no-show theo service.</li>
+<li>3a. Hồ sơ vãng lai không có role CUSTOMER: không tính vi phạm tự đặt.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, noShowConfirmed=true cho no-show; check-in mặc định sớm tối đa 30 phút (có env).</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-06, BR-07</p>
+</li>
+<li><p>BookingsController.checkin: <code>@Post(&#39;:id/checkin&#39;)</code>; <code>@Roles(&#39;RECEPTIONIST&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;booking:check_in:branch&#39;, &#39;booking:check_in:tenant&#39;)</code></p>
+</li>
+<li><p>BookingsController.updateStatus: <code>@Patch(&#39;:id/status&#39;)</code>; <code>@Roles( &#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;, )</code>; <code>@RequirePermission(&#39;booking:update:self&#39;, &#39;booking:update:branch&#39;, &#39;booking:update:tenant&#39;, &#39;booking:cancel:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.checkin</a> (dòng 1297)</li>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.updateStatus</a> (dòng 977)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.checkin</a> (dòng 2797)</li>
+<li><a href="../../../src/bookings/bookings.service.ts">BookingsService.updateStatus</a> (dòng 421)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx</a></li>
+<li>Schema: <code>Booking</code>, <code>BookingStatusHistory</code>, <code>BookingViolationEvent</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-17 — Thực hiện phần dịch vụ được giao</h2>
+<ul>
+<li>Mục tiêu: Thực hiện phần dịch vụ được giao, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-04.</li>
+<li>Actor tham gia: Chuyên viên (STAFF); Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thực hiện phần dịch vụ được giao.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống cập nhật tiến độ item và tổng hợp trạng thái lịch theo xử lý service.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chuyên viên mở phần việc được giao.</li>
+<li>Actor bắt đầu/hoàn tất phần dịch vụ; hệ thống kiểm tra assignment, trạng thái và thời gian.</li>
+<li>Hệ thống cập nhật tiến độ item và tổng hợp trạng thái lịch theo xử lý service.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. STAFF không được thao tác phần việc người khác.</li>
+<li>2a. Không thể hoàn tất sai thứ tự hoặc trạng thái không hợp lệ.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, itemId và trạng thái item; OWNER có quyền trong doanh nghiệp.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: STAFF theo assignment/tài khoản của mình; OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-07</p>
+</li>
+<li><p>BookingsController.updateBookingItem: <code>@Patch(&#39;:id/items/:itemId&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;)</code>; <code>@RequirePermission(&#39;booking:update:branch&#39;, &#39;booking:update:tenant&#39;, &#39;booking:complete:branch&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/bookings/bookings.controller.ts">BookingsController.updateBookingItem</a> (dòng 1147)</li>
+<li><a href="../../../src/bookings/booking-items.service.ts">BookingItemsService.update</a> (dòng 85)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonAppointments.jsx</a></li>
+<li>Schema: <code>BookingService</code>, <code>BookingServiceAdjustment</code>, <code>Booking</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-18 — Thu tiền và xác minh giao dịch</h2>
+<ul>
+<li>Mục tiêu: Thu tiền và xác minh giao dịch, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-05.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thu tiền và xác minh giao dịch.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Tiền mặt được ghi VERIFIED; chuyển khoản PENDING chỉ thành VERIFIED sau actor xác minh chứng từ.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Nhân sự xem checkout và số dư; nhập khoản thu/phương thức.</li>
+<li>Hệ thống kiểm tra scope, amount và idempotency; tạo intent/transaction/payment.</li>
+<li>Tiền mặt được ghi VERIFIED; chuyển khoản PENDING chỉ thành VERIFIED sau actor xác minh chứng từ.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Vượt số dư/khóa trùng hoặc provider không hỗ trợ: từ chối.</li>
+<li>3a. Chưa xác minh chuyển khoản: chưa ghi nhận như đã thanh toán.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, amount, method CASH/BANK_TRANSFER, idempotencyKey; settlementReference/evidence cho verify.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-08</p>
+</li>
+<li><p>PaymentsController.collect: <code>@Post(&#39;collect&#39;)</code>; <code>@Roles(&#39;RECEPTIONIST&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;payment:create:branch&#39;, &#39;payment:create:tenant&#39;)</code></p>
+</li>
+<li><p>PaymentsController.verifyTransaction: <code>@Post(&#39;transactions/:transactionId/verify&#39;)</code>; <code>@Roles(&#39;RECEPTIONIST&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;payment_transaction:verify:branch&#39;, &#39;payment_transaction:verify:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.collect</a> (dòng 36)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.verifyTransaction</a> (dòng 61)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.collect</a> (dòng 149)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.verifyTransaction</a> (dòng 735)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx</a></li>
+<li>Schema: <code>Payment</code>, <code>PaymentIntent</code>, <code>PaymentTransaction</code>, <code>FinancialLedgerEntry</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-19 — Đề nghị và xét duyệt hoàn tiền</h2>
+<ul>
+<li>Mục tiêu: Đề nghị và xét duyệt hoàn tiền, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-05.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu đề nghị và xét duyệt hoàn tiền.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Một người có quyền khác xét duyệt; hệ thống ghi APPROVED hoặc REJECTED.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor có quyền nhập số tiền, lý do và căn cứ.</li>
+<li>Hệ thống giữ số dư yêu cầu để chống vượt tiền đã trả.</li>
+<li>Một người có quyền khác xét duyệt; hệ thống ghi APPROVED hoặc REJECTED.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Payment chưa PAID/PARTIALLY_REFUNDED hoặc amount không hợp lệ: từ chối.</li>
+<li>3a. Người tạo tự duyệt: từ chối.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: paymentId, amount&gt;0, reason, evidence; refundId và quyết định.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-08</p>
+</li>
+<li><p>PaymentsController.requestRefund: <code>@Post(&#39;:paymentId/refund-requests&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;refund:create:tenant&#39;, &#39;refund:create:platform&#39;)</code></p>
+</li>
+<li><p>PaymentsController.review: <code>@Patch(&#39;refunds/:refundId/review&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;refund:approve:tenant&#39;, &#39;refund:approve:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.requestRefund</a> (dòng 227)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.review</a> (dòng 239)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.requestRefund</a> (dòng 363)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.reviewRefund</a> (dòng 396)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx</a></li>
+<li>Schema: <code>RefundRequest</code>, <code>Payment</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-20 — Ghi kết quả xử lý hoàn tiền</h2>
+<ul>
+<li>Mục tiêu: Ghi kết quả xử lý hoàn tiền, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-05.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu ghi kết quả xử lý hoàn tiền.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống cập nhật trạng thái, phân bổ/sổ cái và khoản thanh toán khi xác nhận thành công.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị chọn yêu cầu đủ điều kiện và START xử lý.</li>
+<li>Quản trị cung cấp kết quả thực tế: CONFIRM kèm mã đối soát hoặc FAIL kèm lý do.</li>
+<li>Hệ thống cập nhật trạng thái, phân bổ/sổ cái và khoản thanh toán khi xác nhận thành công.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Thiếu căn cứ/mã đối soát hoặc trạng thái không hợp lệ: từ chối.</li>
+<li>2b. FAIL không được hiểu là tiền đã về khách.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: action START/CONFIRM/FAIL; settlementReference/failureReason.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-08</p>
+</li>
+<li><p>PaymentsController.process: <code>@Post(&#39;refunds/:refundId/process&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;refund:process:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.process</a> (dòng 251)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.processRefund</a> (dòng 421)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentsWorkspace.jsx</a></li>
+<li>Schema: <code>RefundRequest</code>, <code>RefundAllocation</code>, <code>FinancialLedgerEntry</code>, <code>Payment</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-21 — Quản lý gói buổi dịch vụ</h2>
+<ul>
+<li>Mục tiêu: Quản lý gói buổi dịch vụ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-05, BUC-06.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản lý gói buổi dịch vụ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống quản lý quyền dùng buổi; nhân sự dự trữ buổi cho lịch khi đủ điều kiện.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ doanh nghiệp định nghĩa gói; hệ thống kiểm tra phạm vi.</li>
+<li>Khách/nhân sự có quyền tạo giao dịch mua và khoản trả theo API.</li>
+<li>Hệ thống quản lý quyền dùng buổi; nhân sự dự trữ buổi cho lịch khi đủ điều kiện.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Vai trò/phạm vi mỗi hành động khác nhau, CUSTOMER không tạo gói.</li>
+<li>3a. Chưa đủ điều kiện hoặc vượt buổi: từ chối.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: packageId, dữ liệu mua/trả góp/dự trữ theo payments.dto.ts.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-08</p>
+</li>
+<li><p>PaymentsController.createPackage: <code>@Post(&#39;packages&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;treatment_package:manage:tenant&#39;)</code></p>
+</li>
+<li><p>PaymentsController.purchasePackage: <code>@Post(&#39;packages/:packageId/purchases&#39;)</code>; <code>@Roles(&#39;RECEPTIONIST&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission( &#39;package_purchase:create:branch&#39;, &#39;package_purchase:create:tenant&#39;, )</code></p>
+</li>
+<li><p>PaymentsController.reservePackageSession: <code>@Post(&#39;package-purchases/:purchaseId/sessions/reserve&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;, &#39;RECEPTIONIST&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission( &#39;package_purchase:create:self&#39;, &#39;package_purchase:create:branch&#39;, &#39;package_purchase:create:tenant&#39;, )</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.createPackage</a> (dòng 163)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.purchasePackage</a> (dòng 174)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.reservePackageSession</a> (dòng 212)</li>
+<li><a href="../../../src/payments/payments.service.ts">PaymentsService.purchaseTreatmentPackage</a> (dòng 1339)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx</a></li>
+<li>Schema: <code>TreatmentPackage</code>, <code>PackagePurchase</code>, <code>PackageInstallment</code>, <code>PackageSessionEntitlement</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Triển khai một phần: backend có các hành động; web xác minh được tạo gói, chưa xác minh đầy đủ UI mua/dùng buổi..</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-22 — Chuẩn bị và nộp hồ sơ doanh nghiệp</h2>
+<ul>
+<li>Mục tiêu: Chuẩn bị và nộp hồ sơ doanh nghiệp, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-07.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu chuẩn bị và nộp hồ sơ doanh nghiệp.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor gửi hồ sơ; hệ thống chuyển chờ xét hoặc tự duyệt theo chính sách.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ doanh nghiệp lập hồ sơ nháp, dịch vụ/nhân sự và giấy tờ.</li>
+<li>Actor hoàn thiện checklist; hệ thống kiểm tra thông tin và quyền tài liệu.</li>
+<li>Actor gửi hồ sơ; hệ thống chuyển chờ xét hoặc tự duyệt theo chính sách.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Hồ sơ không DRAFT/NEED_MORE_INFO: không sửa như nháp.</li>
+<li>2a. Thiếu thông tin bắt buộc: chưa được nộp.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: name, slug, legalDocuments và cấu hình onboarding được validation trong service.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10</p>
+</li>
+<li><p>BusinessController.createDraft: <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;STAFF&#39;)</code>; <code>@Post(&#39;onboarding/draft&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;business:create:self&#39;)</code></p>
+</li>
+<li><p>BusinessController.submit: <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;STAFF&#39;)</code>; <code>@Post(&#39;:businessId/submit&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;business:update:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.createDraft</a> (dòng 28)</li>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.submit</a> (dòng 62)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.updateDraft</a> (dòng 527)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.submit</a> (dòng 599)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BusinessOnboarding.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BusinessOnboarding.jsx</a></li>
+<li>Schema: <code>Business</code>, <code>BusinessDocument</code>, <code>BusinessDocumentVersion</code>, <code>BusinessReviewEvent</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-23 — Thẩm định doanh nghiệp và chi nhánh</h2>
+<ul>
+<li>Mục tiêu: Thẩm định doanh nghiệp và chi nhánh, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-07, BUC-11.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thẩm định doanh nghiệp và chi nhánh.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống kiểm tra trạng thái và ghi quyết định/lịch sử; chi nhánh được duyệt chưa đồng nghĩa đã công bố.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị mở hồ sơ chờ và giấy tờ.</li>
+<li>Actor chọn phê duyệt, yêu cầu bổ sung hoặc từ chối kèm căn cứ.</li>
+<li>Hệ thống kiểm tra trạng thái và ghi quyết định/lịch sử; chi nhánh được duyệt chưa đồng nghĩa đã công bố.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Thiếu lý do khi bắt buộc: từ chối.</li>
+<li>3a. Hồ sơ không còn chờ: xung đột.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: ID hồ sơ, decision, note và quyết định giấy tờ nếu endpoint hỗ trợ.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10</p>
+</li>
+<li><p>BusinessController.review: <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;STAFF&#39;)</code>; <code>@Patch(&#39;:businessId/review&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;business:review:platform&#39;)</code></p>
+</li>
+<li><p>BranchesController.review: <code>@Post(&#39;:id/review&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;branch:status:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/business/business.controller.ts">BusinessController.review</a> (dòng 73)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.review</a> (dòng 261)</li>
+<li><a href="../../../src/business/business-onboarding.service.ts">BusinessOnboardingService.review</a> (dòng 666)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.review</a> (dòng 1238)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSalons.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSalons.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminEntityDetails.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminEntityDetails.jsx</a></li>
+<li>Schema: <code>BusinessReviewEvent</code>, <code>BranchReviewRequest</code>, <code>BranchReviewEvent</code>, <code>DocumentReviewEvent</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-24 — Thiết lập và công bố chi nhánh</h2>
+<ul>
+<li>Mục tiêu: Thiết lập và công bố chi nhánh, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-07, BUC-08.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thiết lập và công bố chi nhánh.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor gửi xét/công bố theo trạng thái; hệ thống chỉ đưa công khai khi đủ điều kiện.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở nhập địa điểm, giờ làm, dịch vụ và nhân sự.</li>
+<li>Hệ thống kiểm tra readiness và hồ sơ chi nhánh.</li>
+<li>Actor gửi xét/công bố theo trạng thái; hệ thống chỉ đưa công khai khi đủ điều kiện.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Thiếu readiness hoặc chưa duyệt: chặn công bố.</li>
+<li>3a. Dừng/đóng cơ sở có lịch tương lai chuyển qua nghiệp vụ tác động.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Dữ liệu onboarding, branchId, danh mục/nhân sự gắn chi nhánh.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10, BR-11</p>
+</li>
+<li><p>BranchesController.saveOnboarding: <code>@Patch(&#39;:id/onboarding&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;branch:update:tenant&#39;, &#39;branch:create:tenant&#39;)</code></p>
+</li>
+<li><p>BranchesController.publish: <code>@Post(&#39;:id/publish&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;branch:update:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.saveOnboarding</a> (dòng 186)</li>
+<li><a href="../../../src/branches/branches.controller.ts">BranchesController.publish</a> (dòng 285)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.getReadiness</a> (dòng 764)</li>
+<li><a href="../../../src/branches/branches.service.ts">BranchesService.publish</a> (dòng 1317)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BranchOnboardingWizard.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BranchOnboardingWizard.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonProfile.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonProfile.jsx</a></li>
+<li>Schema: <code>Branch</code>, <code>BranchOnboardingProgress</code>, <code>BranchWorkingHour</code>, <code>BranchDocument</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-25 — Quản lý dịch vụ và giá tại cơ sở</h2>
+<ul>
+<li>Mục tiêu: Quản lý dịch vụ và giá tại cơ sở, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-08.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản lý dịch vụ và giá tại cơ sở.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống lưu trạng thái cung cấp; khi archive kiểm tra lịch tương lai.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở chọn định nghĩa chuẩn và xây dựng dịch vụ doanh nghiệp.</li>
+<li>Actor thiết lập cung cấp ở chi nhánh, giá, biến thể/phụ thuộc; hệ thống kiểm tra scope và dữ liệu.</li>
+<li>Hệ thống lưu trạng thái cung cấp; khi archive kiểm tra lịch tương lai.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Không được sửa catalog chuẩn nếu chỉ là OWNER.</li>
+<li>3a. Dịch vụ còn lịch tương lai bị ràng buộc: từ chối archive.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: businessServiceId, branchId, pricing, variant/dependency theo DTO.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-11</p>
+</li>
+<li><p>ServicesController.createCatalog: <code>@Post(&#39;catalog&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;business_service:create:tenant&#39;)</code></p>
+</li>
+<li><p>ServicesController.updateOfferingPricing: <code>@Patch(&#39;offerings/:id/pricing&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;branch_service_offering:pricing:tenant&#39;)</code></p>
+</li>
+<li><p>ServicesController.archiveCatalog: <code>@Delete(&#39;catalog/:id&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;business_service:archive:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.createCatalog</a> (dòng 187)</li>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.updateOfferingPricing</a> (dòng 265)</li>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.archiveCatalog</a> (dòng 214)</li>
+<li><a href="../../../src/services/services.service.ts">ServicesService.setBranchAvailability</a> (dòng 785)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonServices.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonServices.jsx</a></li>
+<li>Schema: <code>CanonicalService</code>, <code>BusinessService</code>, <code>BranchServiceOffering</code>, <code>ServiceVariant</code>, <code>ServicePriceRule</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-26 — Quản lý chuyên viên và lời mời</h2>
+<ul>
+<li>Mục tiêu: Quản lý chuyên viên và lời mời, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-08.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Người chưa đăng nhập (PUBLIC). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản lý chuyên viên và lời mời.</li>
+<li>Tiền điều kiện: Hành động Public không cần phiên; hành động protected trong UC vẫn cần phiên tương ứng. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Chủ cơ sở bật nhận lịch/ngừng nhân sự; hệ thống kiểm tra tác động và giữ lịch sử.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở tạo hồ sơ, gán kỹ năng/chi nhánh hoặc mời nhân sự.</li>
+<li>Người nhận dùng token hợp lệ để nhận lời mời; hệ thống kiểm tra tài khoản và tách role.</li>
+<li>Chủ cơ sở bật nhận lịch/ngừng nhân sự; hệ thống kiểm tra tác động và giữ lịch sử.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Token hết hạn/không hợp lệ hoặc tài khoản CUSTOMER xung đột: từ chối.</li>
+<li>3a. Còn tác động lịch chưa xử lý: chưa hoàn tất ngừng nhân sự.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Hồ sơ chuyên viên, serviceIds, invitation token; userId có thể null.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; PUBLIC chỉ nội dung công khai.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01, BR-11</p>
+</li>
+<li><p>StaffController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;user:role_assign:tenant&#39;)</code></p>
+</li>
+<li><p>StaffController.invite: <code>@Post(&#39;invitations&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;user:role_assign:tenant&#39;)</code></p>
+</li>
+<li><p>StaffController.acceptInvitation: <code>@Post(&#39;invitations/accept&#39;)</code>; <code>@Public()</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController.create</a> (dòng 226)</li>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController.invite</a> (dòng 79)</li>
+<li><a href="../../../src/staff/staff.controller.ts">StaffController.acceptInvitation</a> (dòng 113)</li>
+<li><a href="../../../src/staff/staff.service.ts">StaffService.deactivate</a> (dòng 541)</li>
+<li><a href="../../../src/staff/staff-invitations.service.ts">StaffInvitationsService.accept</a> (dòng 230)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStaffManagement.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStaffManagement.jsx</a></li>
+<li>Schema: <code>StaffProfile</code>, <code>StaffInvitation</code>, <code>StaffBranchAssignment</code>, <code>StaffService</code>, <code>UserRole</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-27 — Quản lý combo dịch vụ</h2>
+<ul>
+<li>Mục tiêu: Quản lý combo dịch vụ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-08, BUC-06.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản lý combo dịch vụ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Combo đủ điều kiện được công khai và dùng để giải quyết danh sách dịch vụ khi đặt.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở chọn các dịch vụ thành phần và điều kiện combo.</li>
+<li>Hệ thống kiểm tra cùng phạm vi và tính hợp lệ của cấu hình.</li>
+<li>Combo đủ điều kiện được công khai và dùng để giải quyết danh sách dịch vụ khi đặt.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Dịch vụ/phạm vi không tương thích: từ chối.</li>
+<li>3a. Không suy mọi cấu hình combo đều hỗ trợ đặt online.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Danh sách serviceIds và cấu hình combo; xem combos.dto.ts.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-02, BR-09</p>
+</li>
+<li><p>CombosController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;combo:manage:tenant&#39;)</code></p>
+</li>
+<li><p>CombosController.update: <code>@Patch(&#39;:id&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;combo:manage:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/combos/combos.controller.ts">CombosController.create</a> (dòng 36)</li>
+<li><a href="../../../src/combos/combos.controller.ts">CombosController.update</a> (dòng 44)</li>
+<li><a href="../../../src/combos/combos.service.ts">CombosService.resolveForBooking</a> (dòng 136)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonCombos.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonCombos.jsx</a></li>
+<li>Schema: <code>Combo</code>, <code>ComboService</code>, <code>BranchServiceOffering</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-28 — Thiết lập khuyến mãi và voucher</h2>
+<ul>
+<li>Mục tiêu: Thiết lập khuyến mãi và voucher, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-06.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thiết lập khuyến mãi và voucher.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khi đặt lịch, pricing xác định ưu đãi và giữ/áp dụng lượt theo trạng thái lịch.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor có quyền định nghĩa ưu đãi và phạm vi.</li>
+<li>Actor cấp voucher khi cần; hệ thống kiểm tra khách, thời hạn và giới hạn.</li>
+<li>Khi đặt lịch, pricing xác định ưu đãi và giữ/áp dụng lượt theo trạng thái lịch.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. OWNER không cấp phạm vi ngoài doanh nghiệp.</li>
+<li>3a. Hết lượt/hết hạn/sai scope: không được áp dụng.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Giá trị, loại ưu đãi, ngày, limits và phạm vi doanh nghiệp/chi nhánh/dịch vụ/combo.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-09</p>
+</li>
+<li><p>PromotionsController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;promotion:manage:tenant&#39;, &#39;promotion:manage:platform&#39;)</code></p>
+</li>
+<li><p>VouchersController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;voucher:manage:tenant&#39;, &#39;voucher:manage:platform&#39;)</code></p>
+</li>
+<li><p>VouchersController.grant: <code>@Post(&#39;:id/grant&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;voucher:manage:tenant&#39;, &#39;voucher:manage:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/promotions/promotions.controller.ts">PromotionsController.create</a> (dòng 78)</li>
+<li><a href="../../../src/promotions/vouchers.controller.ts">VouchersController.create</a> (dòng 56)</li>
+<li><a href="../../../src/promotions/vouchers.controller.ts">VouchersController.grant</a> (dòng 98)</li>
+<li><a href="../../../src/promotions/pricing-engine.service.ts">PricingEngineService.reserve</a> (dòng 174)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonPromotions.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonPromotions.jsx</a></li>
+<li>Schema: <code>Promotion</code>, <code>Voucher</code>, <code>CustomerVoucher</code>, <code>PromotionRedemption</code>, <code>VoucherRedemption</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Triển khai web OWNER/API; thao tác PLATFORM có API, cần xác minh đường UI quản lý đầy đủ..</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-29 — Đánh giá dịch vụ đã dùng</h2>
+<ul>
+<li>Mục tiêu: Đánh giá dịch vụ đã dùng, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-06.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu đánh giá dịch vụ đã dùng.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống tạo một review cho booking với trạng thái APPROVED theo code.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách mở lịch COMPLETED thuộc mình.</li>
+<li>Khách nhập điểm tổng/thành phần và nhận xét; hệ thống kiểm tra 1–5 và liên kết booking service/staff.</li>
+<li>Hệ thống tạo một review cho booking với trạng thái APPROVED theo code.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Chưa COMPLETED/không sở hữu: từ chối.</li>
+<li>2a. Booking đã có review hoặc staff không khớp: từ chối.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: bookingId, overallRating, comment, isAnonymous, serviceRatings.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-09</p>
+</li>
+<li><p>ReviewsController.create: <code>@Post()</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;review:create:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.create</a> (dòng 106)</li>
+<li><a href="../../../src/reviews/reviews.service.ts">ReviewsService.create</a> (dòng 280)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerReviews.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerReviews.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerAppointmentDetail.jsx</a></li>
+<li>Schema: <code>Review</code>, <code>ReviewServiceRating</code>, <code>BookingService</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai web/API; mobile cần phân biệt caller thật với ReviewsContext cục bộ..</li>
+<li>Mobile: ReviewsContext chỉ lưu state; không lấy đó làm bằng chứng gửi review thành công..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-30 — Phản hồi và xem xét đánh giá</h2>
+<ul>
+<li>Mục tiêu: Phản hồi và xem xét đánh giá, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-06, BUC-11.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu phản hồi và xem xét đánh giá.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Quản trị xem xét và quyết định kiểm duyệt/giải quyết khiếu nại.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ cơ sở phản hồi; khách/chủ cơ sở báo cáo hoặc khiếu nại khi có căn cứ.</li>
+<li>Hệ thống kiểm tra quyền theo hành động và ghi sự kiện; báo cáo nghiêm trọng có thể tạm ẩn.</li>
+<li>Quản trị xem xét và quyết định kiểm duyệt/giải quyết khiếu nại.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Trùng report hoặc lý do trống: từ chối.</li>
+<li>2a. Chủ cơ sở không tự có quyền kiểm duyệt nền tảng.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: reviewId, content/reason, category/severity, status/decision theo hành động.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-09</p>
+</li>
+<li><p>ReviewsController.reply: <code>@Post(&#39;:id/reply&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;review:moderate:tenant&#39;)</code></p>
+</li>
+<li><p>ReviewsController.report: <code>@Post(&#39;:id/report&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;review:read:public&#39;, &#39;review:report:tenant&#39;)</code></p>
+</li>
+<li><p>ReviewsController.moderate: <code>@Patch(&#39;:id/moderate&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;review:moderate:platform&#39;)</code></p>
+</li>
+<li><p>ReviewsController.appeal: <code>@Post(&#39;:id/appeals&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;review:create:self&#39;, &#39;review:moderate:tenant&#39;)</code></p>
+</li>
+<li><p>ReviewsController.resolveAppeal: <code>@Patch(&#39;appeals/:appealId&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;review:moderate:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.reply</a> (dòng 163)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.report</a> (dòng 147)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.moderate</a> (dòng 189)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.appeal</a> (dòng 204)</li>
+<li><a href="../../../src/reviews/reviews.controller.ts">ReviewsController.resolveAppeal</a> (dòng 216)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonReviews.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonReviews.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReviewsModeration.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReviewsModeration.jsx</a></li>
+<li>Schema: <code>BusinessComment</code>, <code>ReviewReport</code>, <code>ReviewAppeal</code>, <code>ReviewModerationEvent</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-31 — Theo dõi thông báo cá nhân</h2>
+<ul>
+<li>Mục tiêu: Theo dõi thông báo cá nhân, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-06, BUC-12.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST); Chuyên viên (STAFF); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu theo dõi thông báo cá nhân.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống trả số chưa đọc; actionUrl chỉ là đường dẫn gợi ý, không cấp quyền.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor mở hộp thông báo; hệ thống chỉ truy vấn user hiện tại.</li>
+<li>Actor đọc hoặc đánh dấu đã đọc; hệ thống kiểm tra ownership.</li>
+<li>Hệ thống trả số chưa đọc; actionUrl chỉ là đường dẫn gợi ý, không cấp quyền.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Không có thông báo: danh sách rỗng.</li>
+<li>3a. Token thiết bị có lưu không chứng minh đã có dịch vụ push production.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Bộ lọc và notificationId.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy; STAFF theo assignment/tài khoản của mình; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>NotificationsController.findMy: <code>@Get()</code>; <code>@RequirePermission(&#39;notification:read:self&#39;)</code></p>
+</li>
+<li><p>NotificationsController.markAsRead: <code>@Patch(&#39;:id/read&#39;)</code>; <code>@RequirePermission(&#39;notification:read:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/notifications/notifications.controller.ts">NotificationsController.findMy</a> (dòng 28)</li>
+<li><a href="../../../src/notifications/notifications.controller.ts">NotificationsController.markAsRead</a> (dòng 65)</li>
+<li><a href="../../../src/notifications/notifications.service.ts">NotificationsService.findByUser</a> (dòng 12)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerNotifications.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerNotifications.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonNotifications.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonNotifications.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminNotifications.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminNotifications.jsx</a></li>
+<li>Schema: <code>Notification</code>, <code>NotificationOutbox</code>, <code>DeviceToken</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai in-app qua web/API; push ngoài chưa xác minh.</li>
+<li>Mobile: MessagesScreen dùng notificationsApi, không phải chat thời gian thực..</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-32 — Kiểm soát quyền dữ liệu</h2>
+<ul>
+<li>Mục tiêu: Kiểm soát quyền dữ liệu, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-12.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu kiểm soát quyền dữ liệu.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Khách tải gói bằng token theo thời hạn hoặc theo dõi yêu cầu.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Khách xem dữ liệu/quyền của mình và chọn yêu cầu hoặc ưu tiên tiếp thị.</li>
+<li>Hệ thống kiểm tra quyền/mật khẩu hiện tại khi xuất; tạo yêu cầu/gói xuất.</li>
+<li>Khách tải gói bằng token theo thời hạn hoặc theo dõi yêu cầu.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Sai mật khẩu/token hoặc gói hết hạn: từ chối.</li>
+<li>3a. Tạo yêu cầu xóa không chứng minh hệ thống đã hoàn tất xóa.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Loại yêu cầu, lý do; currentPassword khi export; marketing preferences.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>PrivacyController.createDataRequest: <code>@Post(&#39;data-requests&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;privacy_request:manage:self&#39;)</code></p>
+</li>
+<li><p>PrivacyController.export: <code>@Post(&#39;exports&#39;)</code>; <code>@Roles(&#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;privacy_request:manage:self&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/privacy/privacy.controller.ts">PrivacyController.createDataRequest</a> (dòng 33)</li>
+<li><a href="../../../src/privacy/privacy.controller.ts">PrivacyController.export</a> (dòng 67)</li>
+<li><a href="../../../src/privacy/privacy-center.service.ts">PrivacyCenterService.createExport</a> (dòng 204)</li>
+<li><a href="../../../src/privacy/privacy-center.service.ts">PrivacyCenterService.updateMarketingPreferences</a> (dòng 176)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/PrivacySettings.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/PrivacySettings.jsx</a></li>
+<li>Schema: <code>DataSubjectRequest</code>, <code>PrivacyExportPackage</code>, <code>MarketingPreference</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Triển khai một phần: tiếp nhận/yêu cầu và export có API/UI; chưa thấy quy trình xử lý mọi quyền dữ liệu end-to-end..</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-33 — Giải quyết tác động vận hành</h2>
+<ul>
+<li>Mục tiêu: Giải quyết tác động vận hành, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-09.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu giải quyết tác động vận hành.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống chỉ hoàn tất hồ sơ khi thỏa điều kiện; thay đổi trạng thái cơ sở kiểm tra tác động lần cuối.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor xem hồ sơ tác động trong scope.</li>
+<li>Actor chọn phương án cho từng mục; hệ thống kiểm tra quyền hành động và dữ liệu hiện tại.</li>
+<li>Hệ thống chỉ hoàn tất hồ sơ khi thỏa điều kiện; thay đổi trạng thái cơ sở kiểm tra tác động lần cuối.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Lễ tân không được quản lý hồ sơ tác động; controller chỉ cho OWNER/PLATFORM_ADMIN.</li>
+<li>3a. Có lịch mới hoặc mục chưa giải quyết: chặn hoàn tất/thay đổi.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: caseId, itemId, action và dữ liệu phương án được service cho phép.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-11</p>
+</li>
+<li><p>ImpactController.resolve: <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;booking:update:tenant&#39;, &#39;booking:read:platform&#39;)</code>; <code>@Patch(&#39;:id/items/:itemId&#39;)</code></p>
+</li>
+<li><p>ImpactController.complete: <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;booking:update:tenant&#39;, &#39;booking:read:platform&#39;)</code>; <code>@Post(&#39;:id/complete&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/operations/impact.controller.ts">ImpactController.resolve</a> (dòng 40)</li>
+<li><a href="../../../src/operations/impact.controller.ts">ImpactController.complete</a> (dòng 52)</li>
+<li><a href="../../../src/operations/impact.service.ts">ImpactService.resolveItem</a> (dòng 50)</li>
+<li><a href="../../../src/branches/branch-state.service.ts">BranchStateService.transition</a> (dòng 65)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx</a></li>
+<li>Schema: <code>OperationalImpactCase</code>, <code>OperationalImpactItem</code>, <code>BranchStateTransition</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-34 — Đề nghị và tiếp nhận chuyển chủ</h2>
+<ul>
+<li>Mục tiêu: Đề nghị và tiếp nhận chuyển chủ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-10.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST); Chuyên viên (STAFF); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu đề nghị và tiếp nhận chuyển chủ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Chủ mới hợp lệ xác nhận; hệ thống chuyển hồ sơ để xem xét.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Chủ hiện tại đề nghị chủ mới và thời điểm.</li>
+<li>Hệ thống kiểm tra tài khoản chủ mới, khác chủ cũ và không xung đột CUSTOMER.</li>
+<li>Chủ mới hợp lệ xác nhận; hệ thống chuyển hồ sơ để xem xét.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. CUSTOMER làm chủ mới bị chặn.</li>
+<li>3a. Web đặt nút nhận ở CustomerBenefits trong khi API accept yêu cầu phiên và đúng người nhận; không tuyên bố luồng này hoàn chỉnh.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: newOwnerEmail, effectiveAt tương lai, reason và transferId.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy; STAFF theo assignment/tài khoản của mình; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01; GAP-01</p>
+</li>
+<li><p>OwnershipController.create: <code>@Post()</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;business:update:tenant&#39;)</code></p>
+</li>
+<li><p>OwnershipController.accept: <code>@Patch(&#39;:id/accept&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.create</a> (dòng 14)</li>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.accept</a> (dòng 35)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.create</a> (dòng 13)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.accept</a> (dòng 55)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonOperations.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Customer/CustomerBenefits.jsx</a></li>
+<li>Schema: <code>OwnershipTransfer</code>, <code>Business</code>, <code>BusinessOwnerProfile</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Triển khai một phần: backend có xử lý, web lệch workspace khi nhận chuyển giao; create yêu cầu OWNER, accept không có Roles decorator và kiểm tra newOwnerUserId..</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-35 — Thẩm định và thực hiện chuyển chủ</h2>
+<ul>
+<li>Mục tiêu: Thẩm định và thực hiện chuyển chủ, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-10.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu thẩm định và thực hiện chuyển chủ.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor/hệ thống đến hạn thực hiện; service kiểm tra trạng thái/hiệu lực và cập nhật quyền, giữ lịch sử.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị kiểm tra hồ sơ chuyển giao và phiên bản pháp nhân/payout.</li>
+<li>Actor yêu cầu bổ sung hoặc phê duyệt theo điều kiện.</li>
+<li>Actor/hệ thống đến hạn thực hiện; service kiểm tra trạng thái/hiệu lực và cập nhật quyền, giữ lịch sử.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Chưa đủ căn cứ: NEED_MORE_INFO hoặc REJECTED.</li>
+<li>3a. Điều kiện thực hiện chưa đáp ứng: chưa chuyển chủ.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: transferId, quyết định, căn cứ xác minh; phiên bản payout chứa dữ liệu bảo vệ.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01; GAP-01</p>
+</li>
+<li><p>OwnershipController.review: <code>@Patch(&#39;:id/review&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;business:review:platform&#39;)</code></p>
+</li>
+<li><p>OwnershipController.execute: <code>@Post(&#39;:id/execute&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;business:review:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.review</a> (dòng 63)</li>
+<li><a href="../../../src/ownership/ownership.controller.ts">OwnershipController.execute</a> (dòng 84)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.execute</a> (dòng 148)</li>
+<li><a href="../../../src/ownership/ownership.service.ts">OwnershipService.verifyVersion</a> (dòng 335)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminOwnership.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminOwnership.jsx</a></li>
+<li>Schema: <code>OwnershipTransfer</code>, <code>OwnershipHistory</code>, <code>LegalEntityVersion</code>, <code>PayoutAccountVersion</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-36 — Xem hiệu quả và đối soát</h2>
+<ul>
+<li>Mục tiêu: Xem hiệu quả và đối soát, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-05, BUC-11.</li>
+<li>Actor tham gia: Chủ doanh nghiệp (BUSINESS_OWNER); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu xem hiệu quả và đối soát.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor xem kết quả, sổ cái/bảng kê khi có quyền; nền tảng quản lý trạng thái bảng kê.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor chọn khoảng thời gian/phạm vi báo cáo.</li>
+<li>Hệ thống kiểm tra scope và tổng hợp dữ liệu theo phương thức báo cáo.</li>
+<li>Actor xem kết quả, sổ cái/bảng kê khi có quyền; nền tảng quản lý trạng thái bảng kê.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>1a. Scope ngoài quyền: không trả dữ liệu.</li>
+<li>3a. Bảng kê phí nền tảng còn hoạt động, không phải hóa đơn khách hàng đã gỡ.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: from/to, businessId/branchId; thao tác bảng kê dành riêng quyền platform.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: OWNER theo doanh nghiệp và thao tác được cấp; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-08</p>
+</li>
+<li><p>ReportsController.getRevenue: <code>@Get(&#39;revenue&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission( &#39;report:revenue:platform&#39;, &#39;report:revenue:tenant&#39;, )</code></p>
+</li>
+<li><p>ReportsController.getDashboardOverview: <code>@Get(&#39;overview&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission( &#39;report:overview:platform&#39;, &#39;report:overview:tenant&#39;, )</code></p>
+</li>
+<li><p>PaymentsController.ledger: <code>@Get(&#39;ledger&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;financial_ledger:read:tenant&#39;, &#39;financial_ledger:read:platform&#39;)</code></p>
+</li>
+<li><p>PaymentsController.statements: <code>@Get(&#39;platform-statements&#39;)</code>; <code>@Roles(&#39;BUSINESS_OWNER&#39;, &#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;platform_statement:read:tenant&#39;, &#39;platform_statement:manage:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/reports/reports.controller.ts">ReportsController.getRevenue</a> (dòng 62)</li>
+<li><a href="../../../src/reports/reports.controller.ts">ReportsController.getDashboardOverview</a> (dòng 25)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.ledger</a> (dòng 111)</li>
+<li><a href="../../../src/payments/payments.controller.ts">PaymentsController.statements</a> (dòng 135)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStats.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/SalonStats.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReports.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminReports.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/PaymentCorePanels.jsx</a></li>
+<li>Schema: <code>FinancialLedgerEntry</code>, <code>PlatformStatement</code>, <code>PlatformStatementLine</code>, <code>Booking</code>, <code>Payment</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-37 — Quản trị truy cập người dùng</h2>
+<ul>
+<li>Mục tiêu: Quản trị truy cập người dùng, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-11.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản trị truy cập người dùng.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống lưu quyết định và xử lý phiên theo luồng triển khai.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị xem người dùng và các grant.</li>
+<li>Actor đình chỉ/khôi phục hoặc điều chỉnh quyền; hệ thống kiểm tra scope và tương thích role.</li>
+<li>Hệ thống lưu quyết định và xử lý phiên theo luồng triển khai.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Grant CUSTOMER kết hợp vận hành: từ chối.</li>
+<li>2b. Không suy PLATFORM_ADMIN kế thừa quyền vận hành của salon.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: userId, roleCode và scope, trạng thái/permission theo DTO.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01</p>
+</li>
+<li><p>UsersController.suspend: <code>@Post(&#39;:id/suspend&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;user:suspend:platform&#39;)</code></p>
+</li>
+<li><p>UsersController.assignRole: <code>@Post(&#39;:id/roles&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;user:role_assign:platform&#39;, &#39;user:role_assign:tenant&#39;)</code></p>
+</li>
+<li><p>UsersController.grantDirectPermission: <code>@Post(&#39;:id/permissions&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;user:role_assign:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/users/users.controller.ts">UsersController.suspend</a> (dòng 109)</li>
+<li><a href="../../../src/users/users.controller.ts">UsersController.assignRole</a> (dòng 160)</li>
+<li><a href="../../../src/users/users.controller.ts">UsersController.grantDirectPermission</a> (dòng 128)</li>
+<li><a href="../../../src/users/users.service.ts">UsersService.assignRole</a> (dòng 274)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminUsers.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminUsers.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminEntityDetails.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminEntityDetails.jsx</a></li>
+<li>Schema: <code>User</code>, <code>UserRole</code>, <code>UserPermission</code>, <code>Role</code>, <code>Permission</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-38 — Quản trị danh mục và chính sách</h2>
+<ul>
+<li>Mục tiêu: Quản trị danh mục và chính sách, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-08, BUC-11.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu quản trị danh mục và chính sách.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống lưu cấu hình; policy effective được các luồng nghiệp vụ đọc.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị xem định nghĩa dịch vụ chuẩn/chính sách.</li>
+<li>Actor thay đổi cấu hình; hệ thống kiểm tra kiểu, giới hạn và quyền.</li>
+<li>Hệ thống lưu cấu hình; policy effective được các luồng nghiệp vụ đọc.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Giá trị sai giới hạn: từ chối.</li>
+<li>1a. Trang taxonomy có source nhưng cần xác minh route/mount; không đồng nhất file page với route được truy cập.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: Mã dịch vụ chuẩn, settings hợp lệ; không đổi quy tắc cố định 4 giờ/15 phút qua settings.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10</p>
+</li>
+<li><p>ServicesController.createCanonical: <code>@Post(&#39;canonical&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;canonical_service:manage:platform&#39;)</code></p>
+</li>
+<li><p>AdminController.updateSettings: <code>@Patch(&#39;settings&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;platform_setting:manage:platform&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/services/services.controller.ts">ServicesController.createCanonical</a> (dòng 111)</li>
+<li><a href="../../../src/admin/admin.controller.ts">AdminController.updateSettings</a> (dòng 39)</li>
+<li><a href="../../../src/platform-settings/platform-settings.service.ts">PlatformSettingsService.validate</a> (dòng 78)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminServiceTaxonomy.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminServiceTaxonomy.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSettings.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSettings.jsx</a></li>
+<li>Schema: <code>CanonicalService</code>, <code>ServiceCategory</code>, <code>PlatformSetting</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: API có triển khai; web settings đã nối, taxonomy route cần xác minh (GAP-04)..</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-39 — Giám sát và xử lý độ tin cậy</h2>
+<ul>
+<li>Mục tiêu: Giám sát và xử lý độ tin cậy, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-11.</li>
+<li>Actor tham gia: Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu giám sát và xử lý độ tin cậy.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Hệ thống ghi hành động/quyết định để truy nguyên.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Quản trị xem chỉ số tin cậy và dấu vết có quyền.</li>
+<li>Actor chọn biện pháp có căn cứ; hệ thống kiểm tra dữ liệu và phạm vi.</li>
+<li>Hệ thống ghi hành động/quyết định để truy nguyên.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Điều kiện/ràng buộc chưa thỏa: từ chối.</li>
+<li>3a. Snapshot không tự chứng minh cơ sở có sai phạm.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: businessId, action, reason và dữ liệu theo service.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-10</p>
+</li>
+<li><p>AdminController.snapshots: <code>@Get(&#39;trust-snapshots&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;admin:trust_snapshot:read&#39;)</code></p>
+</li>
+<li><p>AdminController.trustAction: <code>@Post(&#39;trust-actions&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;)</code>; <code>@RequirePermission(&#39;admin:trust_snapshot:manage&#39;)</code></p>
+</li>
+<li><p>AdminController.auditLogs: <code>@Get(&#39;audit-logs&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;)</code>; <code>@RequirePermission(&#39;audit:read:platform&#39;, &#39;audit:read:tenant&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/admin/admin.controller.ts">AdminController.snapshots</a> (dòng 57)</li>
+<li><a href="../../../src/admin/admin.controller.ts">AdminController.trustAction</a> (dòng 78)</li>
+<li><a href="../../../src/admin/admin.controller.ts">AdminController.auditLogs</a> (dòng 91)</li>
+<li><a href="../../../src/admin/trust-snapshot.service.ts">TrustSnapshotService.performAction</a> (dòng 192)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSalons.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminSalons.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminAudit.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Admin/AdminAudit.jsx</a></li>
+<li>Schema: <code>SalonTrustSnapshot</code>, <code>TrustAction</code>, <code>AuditLog</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<h2>SUC-40 — Lưu và sử dụng tài liệu hình ảnh</h2>
+<ul>
+<li>Mục tiêu: Lưu và sử dụng tài liệu hình ảnh, đạt kết quả mô tả ở bước cuối.</li>
+<li>BUC: BUC-07, BUC-08, BUC-12.</li>
+<li>Actor tham gia: Khách hàng (CUSTOMER); Chủ doanh nghiệp (BUSINESS_OWNER); Lễ tân (RECEPTIONIST); Chuyên viên (STAFF); Quản trị nền tảng (PLATFORM_ADMIN). Actor chính là người khởi tạo hành động tương ứng; các vai trò còn lại hỗ trợ theo từng nhánh, không được hoán đổi quyền.</li>
+<li>Trigger: actor phát sinh nhu cầu lưu và sử dụng tài liệu hình ảnh.</li>
+<li>Tiền điều kiện: Có phiên hợp lệ đúng workspace, role/permission và scope cho hành động. Tài nguyên tham chiếu tồn tại và thỏa trạng thái/điều kiện trong luồng và ngoại lệ.</li>
+<li>Hậu điều kiện thành công: Actor gắn media vào hồ sơ; nội dung private phải qua kiểm tra quyền khi đọc.</li>
+<li>Bảo đảm khi thất bại: không diễn giải lỗi thành thành công; trạng thái cụ thể tuân theo ngoại lệ. Không khẳng định mọi tác động ngoại vi/email đã rollback; luồng chuỗi lịch có bù riêng.</li>
+</ul>
+<h3>Luồng chính</h3>
+<ol>
+<li>Actor chọn tài liệu/ảnh thuộc phạm vi được phép.</li>
+<li>Hệ thống kiểm tra upload và lưu media cùng quyền truy cập.</li>
+<li>Actor gắn media vào hồ sơ; nội dung private phải qua kiểm tra quyền khi đọc.</li>
+</ol>
+<h3>Thay thế và ngoại lệ</h3>
+<ul>
+<li>2a. Sai MIME/kích thước/phạm vi: từ chối.</li>
+<li>3a. Không coi ảnh minh họa AI là bằng chứng cơ sở thật.</li>
+</ul>
+<h3>Dữ liệu, quyền và trạng thái</h3>
+<ul>
+<li><p>Dữ liệu vào/validation: File, entity/purpose metadata; theo media DTO/service.</p>
+</li>
+<li><p>Đầu ra: tài nguyên/trạng thái hoặc danh sách được nêu trong luồng chính; không cam kết thông báo/email ngoài bằng chứng.</p>
+</li>
+<li><p>Scope: CUSTOMER theo chính chủ, tài khoản tách vận hành; OWNER theo doanh nghiệp và thao tác được cấp; RECEPTIONIST theo chi nhánh và hành động tại quầy; STAFF theo assignment/tài khoản của mình; PLATFORM_ADMIN chỉ hành động platform được cấp.</p>
+</li>
+<li><p>Trạng thái trước/sau: xem từng bước/nhánh và bảng state trong SYSTEM-AUDIT; không có một chuyển trạng thái chung cho toàn bộ nhóm hành động.</p>
+</li>
+<li><p>Quy tắc: BR-01, BR-10</p>
+</li>
+<li><p>MediaController.upload: <code>@Post(&#39;upload&#39;)</code>; <code>@Roles(&#39;PLATFORM_ADMIN&#39;, &#39;BUSINESS_OWNER&#39;, &#39;RECEPTIONIST&#39;, &#39;STAFF&#39;, &#39;CUSTOMER&#39;)</code>; <code>@RequirePermission(&#39;user:update:self&#39;)</code></p>
+</li>
+<li><p>MediaController.privateContent: <code>@Get(&#39;:id/content&#39;)</code></p>
+</li>
+</ul>
+<h3>Bằng chứng và mức triển khai</h3>
+<ul>
+<li><a href="../../../src/media/media.controller.ts">MediaController.upload</a> (dòng 29)</li>
+<li><a href="../../../src/media/media.controller.ts">MediaController.privateContent</a> (dòng 54)</li>
+<li><a href="../../../src/media/media.service.ts">MediaService.upload</a> (dòng 39)</li>
+<li><a href="../../../src/media/media.service.ts">MediaService.readForUser</a> (dòng 117)</li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BranchOnboardingWizard.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/Salon/BranchOnboardingWizard.jsx</a></li>
+<li>Web: <a href="../../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/ProfileSettings.jsx">../../../beauty-booking-web-main/beauty-booking-web-main/src/pages/ProfileSettings.jsx</a></li>
+<li>Schema: <code>MediaFile</code>, <code>BusinessImage</code>, <code>BranchImage</code>, <code>ServiceImage</code>, <code>StaffImage</code>; xem từ điển dữ liệu.</li>
+<li>Mức triển khai: Đã triển khai qua code web/API; chưa kiểm chứng runtime.</li>
+<li>Mobile: Chưa xác minh kênh mobile cho mục này.</li>
+<li>Chưa xác minh: dữ liệu triển khai thực, luồng runtime và kết quả gửi qua hệ thống ngoài; xem VALIDATION.</li>
+</ul>
+<footer>Đối chiếu working tree ngày 26/09/2026 · Khảo sát code, chưa xác minh nghiệp vụ runtime/DB.</footer></main></body></html>

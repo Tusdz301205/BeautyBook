@@ -23,6 +23,31 @@ export class StaffService {
     private readonly tokenBlacklist: TokenBlacklistService,
   ) {}
 
+  private validateProfileFields<T extends {
+    fullName?: string; position?: string; bio?: string;
+    publicVisible?: boolean; isBookable?: boolean;
+  }>(input: T, requireName = false): T {
+    const data = { ...input };
+    if (requireName || data.fullName !== undefined) {
+      if (typeof data.fullName !== 'string' || data.fullName.trim().length < 2 || data.fullName.trim().length > 200) {
+        throw new BadRequestException('Tên nhân viên phải có từ 2 đến 200 ký tự, không chỉ gồm khoảng trắng');
+      }
+      data.fullName = data.fullName.trim();
+    }
+    for (const [field, limit] of [['position', 200], ['bio', 3000]] as const) {
+      const value = data[field];
+      if (value !== undefined && value !== null && (typeof value !== 'string' || value.length > limit)) {
+        throw new BadRequestException(`${field} phải là văn bản tối đa ${limit} ký tự`);
+      }
+    }
+    for (const field of ['publicVisible', 'isBookable'] as const) {
+      if (data[field] !== undefined && typeof data[field] !== 'boolean') {
+        throw new BadRequestException(`${field} phải là giá trị true hoặc false`);
+      }
+    }
+    return data;
+  }
+
   private timeMinutes(value: string): number {
     const match = /^(\d{2}):(\d{2})$/.exec(value);
     if (!match) throw new BadRequestException(`Giờ không hợp lệ: ${value}`);
@@ -318,6 +343,13 @@ export class StaffService {
     publicVisible?: boolean;
     isBookable?: boolean;
   }) {
+    data = this.validateProfileFields(data, true);
+    if (data.hiredAt) {
+      const hiredAt = new Date(data.hiredAt);
+      if (Number.isNaN(hiredAt.getTime()) || (/^\d{4}-\d{2}-\d{2}$/.test(data.hiredAt) && hiredAt.toISOString().slice(0, 10) !== data.hiredAt)) {
+        throw new BadRequestException('Ngày bắt đầu làm việc không hợp lệ');
+      }
+    }
     // Validate branch exists
     const branch = await this.prisma.branch.findUnique({
       where: { id: data.branchId },
@@ -377,7 +409,13 @@ export class StaffService {
       isBookable?: boolean;
     },
   ) {
-    await this.assertExists(id);
+    data = this.validateProfileFields(data);
+    const current = await this.assertExists(id);
+    if (data.status && data.status !== current.status &&
+      (current.status === 'ACTIVE' || current.status === 'INACTIVE' ||
+        data.status === 'INACTIVE' || data.status === 'LOCKED')) {
+      throw new BadRequestException('Đổi trạng thái ngừng làm việc phải dùng quy trình xử lý lịch và thu hồi quyền');
+    }
     return this.prisma.staffProfile.update({
       where: { id },
       data: {
@@ -750,7 +788,7 @@ export class StaffService {
   private async assertExists(id: string) {
     const staff = await this.prisma.staffProfile.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!staff) throw new NotFoundException('Nhân viên không tồn tại');
     return staff;

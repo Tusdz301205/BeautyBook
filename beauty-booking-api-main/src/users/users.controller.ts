@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,6 +23,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { can } from '../common/utils/policy';
 import { AuditAction } from '@prisma/client';
+import { UpdateSelfDto } from './dto/update-self.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -41,18 +43,7 @@ export class UsersController {
   @RequirePermission('user:update:self')
   updateMe(
     @CurrentUser() user: AuthUser,
-    @Body() body: {
-      fullName?: string;
-      phone?: string;
-      gender?: 'MALE' | 'FEMALE' | 'OTHER';
-      dateOfBirth?: string;
-      avatarMediaId?: string;
-      address?: string;
-      staffBio?: string;
-      experienceYears?: number;
-      emergencyContactName?: string;
-      emergencyContactPhone?: string;
-    },
+    @Body() body: UpdateSelfDto,
   ) {
     return this.usersService.updateSelf(user.id, body);
   }
@@ -74,10 +65,16 @@ export class UsersController {
     if (!can(user, 'user:read:platform')) {
       throw new ForbiddenException('Permission required: user:read:platform');
     }
+    const pageNumber = page === undefined ? 1 : Number(page);
+    const limitNumber = limit === undefined ? 50 : Number(limit);
+    if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > 100_000 ||
+        !Number.isInteger(limitNumber) || limitNumber < 1 || limitNumber > 100) {
+      throw new BadRequestException('page hoặc limit không hợp lệ');
+    }
     return this.usersService.findAll({
       search,
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 50,
+      page: pageNumber,
+      limit: limitNumber,
       role,
       status,
     });

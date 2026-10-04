@@ -1,0 +1,6124 @@
+{
+  "routes": [
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "settings",
+      "prefix": "admin",
+      "path": "/admin/settings",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ],
+      "line": 31
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "updateSettings",
+      "prefix": "admin",
+      "path": "/admin/settings",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ],
+      "line": 38
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "resetSettings",
+      "prefix": "admin",
+      "path": "/admin/settings/reset",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ],
+      "line": 46
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "snapshots",
+      "prefix": "admin",
+      "path": "/admin/trust-snapshots",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:read"
+      ],
+      "line": 56
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "rebuildSnapshots",
+      "prefix": "admin",
+      "path": "/admin/trust-snapshots/rebuild",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:manage"
+      ],
+      "line": 63
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "trustActions",
+      "prefix": "admin",
+      "path": "/admin/trust-actions",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:read"
+      ],
+      "line": 70
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "trustAction",
+      "prefix": "admin",
+      "path": "/admin/trust-actions",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:manage"
+      ],
+      "line": 77
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "auditLogs",
+      "prefix": "admin",
+      "path": "/admin/audit-logs",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "audit:read:platform",
+        "audit:read:tenant"
+      ],
+      "line": 90
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "businessDirectory",
+      "prefix": "admin",
+      "path": "/admin/business-directory",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ],
+      "line": 105
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "branchDirectory",
+      "prefix": "admin",
+      "path": "/admin/branch-directory",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ],
+      "line": 178
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "complianceQueue",
+      "prefix": "admin",
+      "path": "/admin/compliance-queue",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ],
+      "line": 263
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "financeOverview",
+      "prefix": "admin",
+      "path": "/admin/finance-overview",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:platform"
+      ],
+      "line": 305
+    },
+    {
+      "file": "src/admin/admin.controller.ts",
+      "controller": "AdminController",
+      "method": "marketingOverview",
+      "prefix": "admin",
+      "path": "/admin/marketing-overview",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:read:platform"
+      ],
+      "line": 330
+    },
+    {
+      "file": "src/app.controller.ts",
+      "controller": "AppController",
+      "method": "getHello",
+      "prefix": "",
+      "path": "/",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 9
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "login",
+      "prefix": "auth",
+      "path": "/auth/login",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 71
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "register",
+      "prefix": "auth",
+      "path": "/auth/register",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 96
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "refresh",
+      "prefix": "auth",
+      "path": "/auth/refresh",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 112
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "verifyEmail",
+      "prefix": "auth",
+      "path": "/auth/verify-email",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 131
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "forgotPassword",
+      "prefix": "auth",
+      "path": "/auth/forgot-password",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 138
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "resetPassword",
+      "prefix": "auth",
+      "path": "/auth/reset-password",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 146
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "logout",
+      "prefix": "auth",
+      "path": "/auth/logout",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 154
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "changePassword",
+      "prefix": "auth",
+      "path": "/auth/change-password",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 168
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "sessions",
+      "prefix": "auth",
+      "path": "/auth/sessions",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 182
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "revokeSession",
+      "prefix": "auth",
+      "path": "/auth/sessions/{sessionId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 187
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "revokeOtherSessions",
+      "prefix": "auth",
+      "path": "/auth/sessions",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 196
+    },
+    {
+      "file": "src/auth/auth.controller.ts",
+      "controller": "AuthController",
+      "method": "securityHistory",
+      "prefix": "auth",
+      "path": "/auth/security-history",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 201
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "selfBookingPolicy",
+      "prefix": "bookings",
+      "path": "/bookings/self-booking-policy",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ],
+      "line": 185
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "createGuest",
+      "prefix": "bookings",
+      "path": "/bookings/guest",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ],
+      "line": 199
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "create",
+      "prefix": "bookings",
+      "path": "/bookings",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self",
+        "booking:create:tenant",
+        "booking:create:branch"
+      ],
+      "line": 237
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "previewPrice",
+      "prefix": "bookings",
+      "path": "/bookings/preview-price",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ],
+      "line": 308
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "findAll",
+      "prefix": "bookings",
+      "path": "/bookings",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 418
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "myAppointments",
+      "prefix": "bookings",
+      "path": "/bookings/my-appointments",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self"
+      ],
+      "line": 545
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "salonQueue",
+      "prefix": "bookings",
+      "path": "/bookings/salon-queue",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant"
+      ],
+      "line": 636
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "salonViolations",
+      "prefix": "bookings",
+      "path": "/bookings/salon-violations",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "audit:read:tenant",
+        "audit:read:platform"
+      ],
+      "line": 676
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getAvailableSlots",
+      "prefix": "bookings",
+      "path": "/bookings/available-slots",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 724
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getSchedulerData",
+      "prefix": "bookings",
+      "path": "/bookings/scheduler",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 750
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getStats",
+      "prefix": "bookings",
+      "path": "/bookings/stats",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:tenant",
+        "report:overview:platform",
+        "report:revenue:platform"
+      ],
+      "line": 778
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getByCategory",
+      "prefix": "bookings",
+      "path": "/bookings/by-category",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 800
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getByBranch",
+      "prefix": "bookings",
+      "path": "/bookings/by-branch/{branchId}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 813
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "getByCustomer",
+      "prefix": "bookings",
+      "path": "/bookings/by-customer/{userId}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 824
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "findOne",
+      "prefix": "bookings",
+      "path": "/bookings/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 858
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "actionRouter",
+      "prefix": "bookings",
+      "path": "/bookings/{id}",
+      "verb": "put",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ],
+      "line": 902
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "updateStatus",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/status",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:update:self",
+        "booking:update:branch",
+        "booking:update:tenant",
+        "booking:cancel:platform"
+      ],
+      "line": 977
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "forceCancelPreview",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/force-cancel-preview",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:cancel:platform"
+      ],
+      "line": 1028
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "moveBooking",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/move",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:reschedule:branch",
+        "booking:update:tenant"
+      ],
+      "line": 1072
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "resizeBooking",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/resize",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ],
+      "line": 1091
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "assignStaff",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/assign",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:assign:branch",
+        "booking:assign:tenant"
+      ],
+      "line": 1105
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "addBookingItem",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/items",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ],
+      "line": 1118
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "updateBookingItem",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/items/{itemId}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant",
+        "booking:complete:branch"
+      ],
+      "line": 1147
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "createChangeRequest",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/change-requests",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "change_request:create:self"
+      ],
+      "line": 1186
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "approveChangeRequest",
+      "prefix": "bookings",
+      "path": "/bookings/change-requests/{reqId}/approve",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ],
+      "line": 1209
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "rejectChangeRequest",
+      "prefix": "bookings",
+      "path": "/bookings/change-requests/{reqId}/reject",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ],
+      "line": 1227
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "pendingChangeRequests",
+      "prefix": "bookings",
+      "path": "/bookings/change-requests/pending",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ],
+      "line": 1245
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "refundBooking",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/refund",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:create:platform"
+      ],
+      "line": 1269
+    },
+    {
+      "file": "src/bookings/bookings.controller.ts",
+      "controller": "BookingsController",
+      "method": "checkin",
+      "prefix": "bookings",
+      "path": "/bookings/{id}/checkin",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:check_in:branch",
+        "booking:check_in:tenant"
+      ],
+      "line": 1297
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findAll",
+      "prefix": "branches",
+      "path": "/branches",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 57
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findAllForManagement",
+      "prefix": "branches",
+      "path": "/branches/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ],
+      "line": 75
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "listDistricts",
+      "prefix": "branches",
+      "path": "/branches/locations/districts",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 88
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findAccessible",
+      "prefix": "branches",
+      "path": "/branches/accessible",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch",
+        "branch:read:platform"
+      ],
+      "line": 94
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findAccessibleOne",
+      "prefix": "branches",
+      "path": "/branches/accessible/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch",
+        "branch:read:platform"
+      ],
+      "line": 101
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "preview",
+      "prefix": "branches",
+      "path": "/branches/{id}/preview",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:read:tenant"
+      ],
+      "line": 109
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findPublicServices",
+      "prefix": "branches",
+      "path": "/branches/{id}/services",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 116
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findPublicReviews",
+      "prefix": "branches",
+      "path": "/branches/{id}/reviews",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 125
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "findOne",
+      "prefix": "branches",
+      "path": "/branches/{id}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 134
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "updateStatus",
+      "prefix": "branches",
+      "path": "/branches/{id}/status",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:status:platform"
+      ],
+      "line": 144
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "create",
+      "prefix": "branches",
+      "path": "/branches",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:create:tenant"
+      ],
+      "line": 170
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "saveOnboarding",
+      "prefix": "branches",
+      "path": "/branches/{id}/onboarding",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant",
+        "branch:create:tenant"
+      ],
+      "line": 182
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "copyServices",
+      "prefix": "branches",
+      "path": "/branches/{id}/copy-services",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ],
+      "line": 195
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "attachDocument",
+      "prefix": "branches",
+      "path": "/branches/{id}/documents",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "line": 210
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "archiveDocument",
+      "prefix": "branches",
+      "path": "/branches/{id}/documents/{documentId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "line": 232
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "submit",
+      "prefix": "branches",
+      "path": "/branches/{id}/submit",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:create:tenant",
+        "branch:update:tenant"
+      ],
+      "line": 245
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "review",
+      "prefix": "branches",
+      "path": "/branches/{id}/review",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:status:platform"
+      ],
+      "line": 257
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "publish",
+      "prefix": "branches",
+      "path": "/branches/{id}/publish",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "line": 281
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "transition",
+      "prefix": "branches",
+      "path": "/branches/{id}/transition",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:status:platform",
+        "branch:update:tenant"
+      ],
+      "line": 293
+    },
+    {
+      "file": "src/branches/branches.controller.ts",
+      "controller": "BranchesController",
+      "method": "update",
+      "prefix": "branches",
+      "path": "/branches/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "scope": {
+        "roles": [
+          "BUSINESS_OWNER"
+        ],
+        "scopeLevel": "branch",
+        "permissions": [
+          "branch:update:tenant"
+        ]
+      },
+      "line": 309
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "createDraft",
+      "prefix": "business",
+      "path": "/business/onboarding/draft",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:create:self"
+      ],
+      "line": 28
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "findMine",
+      "prefix": "business",
+      "path": "/business/onboarding/mine",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:create:self",
+        "business:update:tenant"
+      ],
+      "line": 36
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "updateDraft",
+      "prefix": "business",
+      "path": "/business/{businessId}/onboarding",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 43
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "submit",
+      "prefix": "business",
+      "path": "/business/{businessId}/submit",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 55
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "review",
+      "prefix": "business",
+      "path": "/business/{businessId}/review",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 66
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "getPlatformDetail",
+      "prefix": "business",
+      "path": "/business/{businessId}/detail",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ],
+      "line": 78
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "listMembers",
+      "prefix": "business",
+      "path": "/business/{businessId}/members",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant"
+      ],
+      "line": 175
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "getPolicy",
+      "prefix": "business",
+      "path": "/business/{businessId}/cancellation-policy",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF"
+      ],
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch"
+      ],
+      "line": 190
+    },
+    {
+      "file": "src/business/business.controller.ts",
+      "controller": "BusinessController",
+      "method": "updatePolicy",
+      "prefix": "business",
+      "path": "/business/{businessId}/cancellation-policy",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 203
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "publicList",
+      "prefix": "combos",
+      "path": "/combos/public",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 16
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "list",
+      "prefix": "combos",
+      "path": "/combos",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant",
+        "combo:read:platform"
+      ],
+      "line": 22
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "detail",
+      "prefix": "combos",
+      "path": "/combos/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "combo:read:public",
+        "combo:manage:tenant",
+        "combo:read:platform"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "create",
+      "prefix": "combos",
+      "path": "/combos",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ],
+      "line": 36
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "update",
+      "prefix": "combos",
+      "path": "/combos/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ],
+      "line": 44
+    },
+    {
+      "file": "src/combos/combos.controller.ts",
+      "controller": "CombosController",
+      "method": "remove",
+      "prefix": "combos",
+      "path": "/combos/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ],
+      "line": 52
+    },
+    {
+      "file": "src/health.controller.ts",
+      "controller": "HealthController",
+      "method": "check",
+      "prefix": "health",
+      "path": "/health",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 9
+    },
+    {
+      "file": "src/health.controller.ts",
+      "controller": "HealthController",
+      "method": "live",
+      "prefix": "health",
+      "path": "/health/live",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 21
+    },
+    {
+      "file": "src/health.controller.ts",
+      "controller": "HealthController",
+      "method": "ready",
+      "prefix": "health",
+      "path": "/health/ready",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 31
+    },
+    {
+      "file": "src/media/media.controller.ts",
+      "controller": "MediaController",
+      "method": "upload",
+      "prefix": "media",
+      "path": "/media/upload",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:update:self"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/media/media.controller.ts",
+      "controller": "MediaController",
+      "method": "publicContent",
+      "prefix": "media",
+      "path": "/media/public/{id}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 44
+    },
+    {
+      "file": "src/media/media.controller.ts",
+      "controller": "MediaController",
+      "method": "privateContent",
+      "prefix": "media",
+      "path": "/media/{id}/content",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 54
+    },
+    {
+      "file": "src/media/media.controller.ts",
+      "controller": "MediaController",
+      "method": "remove",
+      "prefix": "media",
+      "path": "/media/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 63
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "findMy",
+      "prefix": "notifications",
+      "path": "/notifications",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [
+        "notification:read:self"
+      ],
+      "line": 28
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "getUnreadCount",
+      "prefix": "notifications",
+      "path": "/notifications/unread-count",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [
+        "notification:read:self"
+      ],
+      "line": 55
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "markAsRead",
+      "prefix": "notifications",
+      "path": "/notifications/{id}/read",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [
+        "notification:read:self"
+      ],
+      "line": 65
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "markAllAsRead",
+      "prefix": "notifications",
+      "path": "/notifications/read-all",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [
+        "notification:read:self"
+      ],
+      "line": 78
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "registerDeviceToken",
+      "prefix": "notifications",
+      "path": "/notifications/device-token",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 88
+    },
+    {
+      "file": "src/notifications/notifications.controller.ts",
+      "controller": "NotificationsController",
+      "method": "removeDeviceToken",
+      "prefix": "notifications",
+      "path": "/notifications/device-token/remove",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 107
+    },
+    {
+      "file": "src/operations/impact.controller.ts",
+      "controller": "ImpactController",
+      "method": "list",
+      "prefix": "operational-impacts",
+      "path": "/operational-impacts",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ],
+      "line": 28
+    },
+    {
+      "file": "src/operations/impact.controller.ts",
+      "controller": "ImpactController",
+      "method": "detail",
+      "prefix": "operational-impacts",
+      "path": "/operational-impacts/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ],
+      "line": 34
+    },
+    {
+      "file": "src/operations/impact.controller.ts",
+      "controller": "ImpactController",
+      "method": "resolve",
+      "prefix": "operational-impacts",
+      "path": "/operational-impacts/{id}/items/{itemId}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ],
+      "line": 40
+    },
+    {
+      "file": "src/operations/impact.controller.ts",
+      "controller": "ImpactController",
+      "method": "resolveBatch",
+      "prefix": "operational-impacts",
+      "path": "/operational-impacts/{id}/items",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ],
+      "line": 46
+    },
+    {
+      "file": "src/operations/impact.controller.ts",
+      "controller": "ImpactController",
+      "method": "complete",
+      "prefix": "operational-impacts",
+      "path": "/operational-impacts/{id}/complete",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ],
+      "line": 52
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "create",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 14
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "pendingForMe",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/pending-for-me",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 23
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "platformPending",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/platform/pending",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 28
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "accept",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/{id}/accept",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 35
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "submitMoreInfo",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/{id}/submit-more-info",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 40
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "list",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:update:tenant",
+        "business:review:platform"
+      ],
+      "line": 47
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "cancel",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/{id}/cancel",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 56
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "review",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/{id}/review",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 63
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "verifyLegal",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/platform/legal-entity/{id}/verify",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 70
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "verifyPayout",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/platform/payout-account/{id}/verify",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 77
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "execute",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/{id}/execute",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ],
+      "line": 84
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "versions",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/business/{businessId}/versions",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:update:tenant",
+        "business:review:platform"
+      ],
+      "line": 91
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "legal",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/business/{businessId}/legal-entity",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 99
+    },
+    {
+      "file": "src/ownership/ownership.controller.ts",
+      "controller": "OwnershipController",
+      "method": "payout",
+      "prefix": "ownership-transfers",
+      "path": "/ownership-transfers/business/{businessId}/payout-account",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ],
+      "line": 107
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "list",
+      "prefix": "payments",
+      "path": "/payments",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:self",
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "collect",
+      "prefix": "payments",
+      "path": "/payments/collect",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment:create:branch",
+        "payment:create:tenant"
+      ],
+      "line": 36
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "providerCapabilities",
+      "prefix": "payments",
+      "path": "/payments/providers",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ],
+      "line": 47
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "checkout",
+      "prefix": "payments",
+      "path": "/payments/checkout/{bookingId}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ],
+      "line": 54
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "verifyTransaction",
+      "prefix": "payments",
+      "path": "/payments/transactions/{transactionId}/verify",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_transaction:verify:branch",
+        "payment_transaction:verify:tenant"
+      ],
+      "line": 61
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "reverseTransaction",
+      "prefix": "payments",
+      "path": "/payments/transactions/{transactionId}/reverse",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment_transaction:verify:branch",
+        "payment_transaction:verify:tenant",
+        "refund:process:platform"
+      ],
+      "line": 77
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "policies",
+      "prefix": "payments",
+      "path": "/payments/policies",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_policy:manage:tenant"
+      ],
+      "line": 97
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "createPolicy",
+      "prefix": "payments",
+      "path": "/payments/policies",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_policy:manage:tenant"
+      ],
+      "line": 104
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "ledger",
+      "prefix": "payments",
+      "path": "/payments/ledger",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "financial_ledger:read:tenant",
+        "financial_ledger:read:platform"
+      ],
+      "line": 111
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "generateStatement",
+      "prefix": "payments",
+      "path": "/payments/platform-statements/generate",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:manage:platform"
+      ],
+      "line": 125
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "statements",
+      "prefix": "payments",
+      "path": "/payments/platform-statements",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:read:tenant",
+        "platform_statement:manage:platform"
+      ],
+      "line": 135
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "transitionStatement",
+      "prefix": "payments",
+      "path": "/payments/platform-statements/{id}/status",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:manage:platform"
+      ],
+      "line": 142
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "packages",
+      "prefix": "payments",
+      "path": "/payments/packages",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "treatment_package:read:public"
+      ],
+      "line": 153
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "createPackage",
+      "prefix": "payments",
+      "path": "/payments/packages",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "treatment_package:manage:tenant"
+      ],
+      "line": 163
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "purchasePackage",
+      "prefix": "payments",
+      "path": "/payments/packages/{packageId}/purchases",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ],
+      "line": 174
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "packagePurchases",
+      "prefix": "payments",
+      "path": "/payments/package-purchases",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:read:self",
+        "package_purchase:read:tenant"
+      ],
+      "line": 188
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "payPackageInstallment",
+      "prefix": "payments",
+      "path": "/payments/package-installments/{installmentId}/pay",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ],
+      "line": 198
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "reservePackageSession",
+      "prefix": "payments",
+      "path": "/payments/package-purchases/{purchaseId}/sessions/reserve",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:self",
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ],
+      "line": 212
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "requestRefund",
+      "prefix": "payments",
+      "path": "/payments/{paymentId}/refund-requests",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:create:tenant",
+        "refund:create:platform"
+      ],
+      "line": 227
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "review",
+      "prefix": "payments",
+      "path": "/payments/refunds/{refundId}/review",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:approve:tenant",
+        "refund:approve:platform"
+      ],
+      "line": 239
+    },
+    {
+      "file": "src/payments/payments.controller.ts",
+      "controller": "PaymentsController",
+      "method": "process",
+      "prefix": "payments",
+      "path": "/payments/refunds/{refundId}/process",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:process:platform"
+      ],
+      "line": 251
+    },
+    {
+      "file": "src/platform-settings/platform-settings.controller.ts",
+      "controller": "PlatformSettingsController",
+      "method": "publicPolicy",
+      "prefix": "platform-settings",
+      "path": "/platform-settings/public",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 9
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "center",
+      "prefix": "privacy",
+      "path": "/privacy/center",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ],
+      "line": 25
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "createDataRequest",
+      "prefix": "privacy",
+      "path": "/privacy/data-requests",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ],
+      "line": 33
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "dataRequests",
+      "prefix": "privacy",
+      "path": "/privacy/data-requests",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ],
+      "line": 43
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "marketingPreferences",
+      "prefix": "privacy",
+      "path": "/privacy/marketing-preferences",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "marketing_preference:manage:self"
+      ],
+      "line": 50
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "updateMarketingPreferences",
+      "prefix": "privacy",
+      "path": "/privacy/marketing-preferences",
+      "verb": "put",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "marketing_preference:manage:self"
+      ],
+      "line": 57
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "export",
+      "prefix": "privacy",
+      "path": "/privacy/exports",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ],
+      "line": 67
+    },
+    {
+      "file": "src/privacy/privacy.controller.ts",
+      "controller": "PrivacyController",
+      "method": "download",
+      "prefix": "privacy",
+      "path": "/privacy/exports/{id}/download",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ],
+      "line": 77
+    },
+    {
+      "file": "src/promotions/promotions.controller.ts",
+      "controller": "PromotionsController",
+      "method": "findAll",
+      "prefix": "promotions",
+      "path": "/promotions",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ],
+      "line": 44
+    },
+    {
+      "file": "src/promotions/promotions.controller.ts",
+      "controller": "PromotionsController",
+      "method": "getActiveForService",
+      "prefix": "promotions",
+      "path": "/promotions/service/{serviceId}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 66
+    },
+    {
+      "file": "src/promotions/promotions.controller.ts",
+      "controller": "PromotionsController",
+      "method": "create",
+      "prefix": "promotions",
+      "path": "/promotions",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ],
+      "line": 78
+    },
+    {
+      "file": "src/promotions/promotions.controller.ts",
+      "controller": "PromotionsController",
+      "method": "update",
+      "prefix": "promotions",
+      "path": "/promotions/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ],
+      "line": 132
+    },
+    {
+      "file": "src/promotions/promotions.controller.ts",
+      "controller": "PromotionsController",
+      "method": "remove",
+      "prefix": "promotions",
+      "path": "/promotions/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ],
+      "line": 148
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "findMine",
+      "prefix": "vouchers",
+      "path": "/vouchers/mine",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "voucher:read:self"
+      ],
+      "line": 34
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "findAll",
+      "prefix": "vouchers",
+      "path": "/vouchers",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform",
+        "voucher:read:platform"
+      ],
+      "line": 45
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "create",
+      "prefix": "vouchers",
+      "path": "/vouchers",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ],
+      "line": 56
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "update",
+      "prefix": "vouchers",
+      "path": "/vouchers/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ],
+      "line": 82
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "grant",
+      "prefix": "vouchers",
+      "path": "/vouchers/{id}/grant",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ],
+      "line": 98
+    },
+    {
+      "file": "src/promotions/vouchers.controller.ts",
+      "controller": "VouchersController",
+      "method": "remove",
+      "prefix": "vouchers",
+      "path": "/vouchers/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ],
+      "line": 117
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "preview",
+      "prefix": "recurring",
+      "path": "/recurring/preview",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ],
+      "line": 16
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "create",
+      "prefix": "recurring",
+      "path": "/recurring",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ],
+      "line": 22
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "mine",
+      "prefix": "recurring",
+      "path": "/recurring/mine",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "status",
+      "prefix": "recurring",
+      "path": "/recurring/{id}/status",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:update:self"
+      ],
+      "line": 35
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "cancelOccurrence",
+      "prefix": "recurring",
+      "path": "/recurring/{id}/occurrences/{bookingId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:cancel:self"
+      ],
+      "line": 42
+    },
+    {
+      "file": "src/recurring/recurring.controller.ts",
+      "controller": "RecurringController",
+      "method": "cancel",
+      "prefix": "recurring",
+      "path": "/recurring/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:cancel:self"
+      ],
+      "line": 49
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getDashboardOverview",
+      "prefix": "reports",
+      "path": "/reports/overview",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ],
+      "line": 25
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getOwnerDashboard",
+      "prefix": "reports",
+      "path": "/reports/owner-dashboard",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:tenant",
+        "report:overview:platform"
+      ],
+      "line": 35
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getRevenue",
+      "prefix": "reports",
+      "path": "/reports/revenue",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:revenue:platform",
+        "report:revenue:tenant"
+      ],
+      "line": 62
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getFinancialSummary",
+      "prefix": "reports",
+      "path": "/reports/financial-summary",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:revenue:platform",
+        "report:revenue:tenant",
+        "report:revenue:branch"
+      ],
+      "line": 75
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getCategoryStats",
+      "prefix": "reports",
+      "path": "/reports/categories",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ],
+      "line": 94
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getServiceStats",
+      "prefix": "reports",
+      "path": "/reports/services",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ],
+      "line": 101
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getTopBranches",
+      "prefix": "reports",
+      "path": "/reports/top-salons",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "report:overview:platform"
+      ],
+      "line": 108
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getUserGrowth",
+      "prefix": "reports",
+      "path": "/reports/user-growth",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "report:user_growth:platform"
+      ],
+      "line": 117
+    },
+    {
+      "file": "src/reports/reports.controller.ts",
+      "controller": "ReportsController",
+      "method": "getStaffPerformance",
+      "prefix": "reports",
+      "path": "/reports/staff-performance",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ],
+      "line": 124
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "findByBusiness",
+      "prefix": "reviews",
+      "path": "/reviews/business/{businessId}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 41
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "findForManagement",
+      "prefix": "reviews",
+      "path": "/reviews/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:tenant",
+        "review:moderate:platform"
+      ],
+      "line": 59
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "findByStaff",
+      "prefix": "reviews",
+      "path": "/reviews/staff/{staffId}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 74
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "findPublicByStaff",
+      "prefix": "reviews",
+      "path": "/reviews/public/staff/{staffId}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 90
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "findByService",
+      "prefix": "reviews",
+      "path": "/reviews/service/{serviceId}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 96
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "create",
+      "prefix": "reviews",
+      "path": "/reviews",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "review:create:self"
+      ],
+      "line": 106
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "report",
+      "prefix": "reviews",
+      "path": "/reviews/{id}/report",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:read:public",
+        "review:report:tenant"
+      ],
+      "line": 147
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "reply",
+      "prefix": "reviews",
+      "path": "/reviews/{id}/reply",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:moderate:tenant"
+      ],
+      "line": 163
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "moderate",
+      "prefix": "reviews",
+      "path": "/reviews/{id}/moderate",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:platform"
+      ],
+      "line": 189
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "appeal",
+      "prefix": "reviews",
+      "path": "/reviews/{id}/appeals",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:create:self",
+        "review:moderate:tenant"
+      ],
+      "line": 204
+    },
+    {
+      "file": "src/reviews/reviews.controller.ts",
+      "controller": "ReviewsController",
+      "method": "resolveAppeal",
+      "prefix": "reviews",
+      "path": "/reviews/appeals/{appealId}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:platform"
+      ],
+      "line": 216
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "list",
+      "prefix": "saved-services",
+      "path": "/saved-services",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 14
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "list",
+      "prefix": "customer/saved-services",
+      "path": "/customer/saved-services",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 14
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "save",
+      "prefix": "saved-services",
+      "path": "/saved-services",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 19
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "save",
+      "prefix": "customer/saved-services",
+      "path": "/customer/saved-services",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 19
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "saveByPath",
+      "prefix": "saved-services",
+      "path": "/saved-services/{serviceId}",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 24
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "saveByPath",
+      "prefix": "customer/saved-services",
+      "path": "/customer/saved-services/{serviceId}",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 24
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "remove",
+      "prefix": "saved-services",
+      "path": "/saved-services/{serviceId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/saved-services/saved-services.controller.ts",
+      "controller": "SavedServicesController",
+      "method": "remove",
+      "prefix": "customer/saved-services",
+      "path": "/customer/saved-services/{serviceId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ],
+      "line": 29
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "search",
+      "prefix": "services",
+      "path": "/services/search",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 70
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "canonicalCatalog",
+      "prefix": "services",
+      "path": "/services/canonical",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 98
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "canonicalManagement",
+      "prefix": "services",
+      "path": "/services/canonical/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ],
+      "line": 104
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "createCanonical",
+      "prefix": "services",
+      "path": "/services/canonical",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ],
+      "line": 111
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "updateCanonical",
+      "prefix": "services",
+      "path": "/services/canonical/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ],
+      "line": 119
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "getPublicCategories",
+      "prefix": "services",
+      "path": "/services/categories",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 128
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "getBusinessCategories",
+      "prefix": "services",
+      "path": "/services/categories/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "service_category:manage:tenant"
+      ],
+      "line": 134
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "createCategory",
+      "prefix": "services",
+      "path": "/services/categories",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "service_category:manage:tenant"
+      ],
+      "line": 143
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "findAll",
+      "prefix": "services",
+      "path": "/services",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 152
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "findAllForManagement",
+      "prefix": "services",
+      "path": "/services/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ],
+      "line": 162
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "workspace",
+      "prefix": "services",
+      "path": "/services/workspace/manage",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ],
+      "line": 176
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "createCatalog",
+      "prefix": "services",
+      "path": "/services/catalog",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ],
+      "line": 187
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "updateCatalog",
+      "prefix": "services",
+      "path": "/services/catalog/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ],
+      "line": 197
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "archiveCatalog",
+      "prefix": "services",
+      "path": "/services/catalog/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:archive:tenant"
+      ],
+      "line": 214
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "setBranchAvailability",
+      "prefix": "services",
+      "path": "/services/catalog/{id}/branches/{branchId}/{action}",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:status:tenant"
+      ],
+      "line": 227
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "updateOfferingStatus",
+      "prefix": "services",
+      "path": "/services/offerings/{id}/status",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:status:tenant"
+      ],
+      "line": 248
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "updateOfferingPricing",
+      "prefix": "services",
+      "path": "/services/offerings/{id}/pricing",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ],
+      "line": 265
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "listAllForPlatform",
+      "prefix": "services",
+      "path": "/services/admin-curated/all",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "service:read:platform"
+      ],
+      "line": 282
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "listVariants",
+      "prefix": "services",
+      "path": "/services/{id}/variants",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 289
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "createVariant",
+      "prefix": "services",
+      "path": "/services/{id}/variants",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ],
+      "line": 295
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "updateVariant",
+      "prefix": "services",
+      "path": "/services/variants/{variantId}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ],
+      "line": 309
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "addDependency",
+      "prefix": "services",
+      "path": "/services/{id}/dependencies",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ],
+      "line": 327
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "createPriceRule",
+      "prefix": "services",
+      "path": "/services/{id}/price-rules",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ],
+      "line": 341
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "findOne",
+      "prefix": "services",
+      "path": "/services/{id}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 355
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "create",
+      "prefix": "services",
+      "path": "/services",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ],
+      "line": 362
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "update",
+      "prefix": "services",
+      "path": "/services/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ],
+      "line": 372
+    },
+    {
+      "file": "src/services/services.controller.ts",
+      "controller": "ServicesController",
+      "method": "remove",
+      "prefix": "services",
+      "path": "/services/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:archive:tenant"
+      ],
+      "line": 395
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "invite",
+      "prefix": "staff",
+      "path": "/staff/invitations",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 79
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "listInvitations",
+      "prefix": "staff",
+      "path": "/staff/invitations",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch"
+      ],
+      "line": 92
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "invitationContext",
+      "prefix": "staff",
+      "path": "/staff/invitations/context",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 106
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "acceptInvitation",
+      "prefix": "staff",
+      "path": "/staff/invitations/accept",
+      "verb": "post",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 113
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "acceptExistingInvitation",
+      "prefix": "staff",
+      "path": "/staff/invitations/accept-existing",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [],
+      "permissions": [],
+      "line": 121
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "resendInvitation",
+      "prefix": "staff",
+      "path": "/staff/invitations/{invitationId}/resend",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 129
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "changeInvitationEmail",
+      "prefix": "staff",
+      "path": "/staff/invitations/{invitationId}/email",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 140
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "revokeInvitation",
+      "prefix": "staff",
+      "path": "/staff/invitations/{invitationId}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 152
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "findPublic",
+      "prefix": "staff",
+      "path": "/staff/public",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 167
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "findPublicOne",
+      "prefix": "staff",
+      "path": "/staff/public/{id}",
+      "verb": "get",
+      "isPublic": true,
+      "roles": [],
+      "permissions": [],
+      "line": 174
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "findMine",
+      "prefix": "staff",
+      "path": "/staff/me",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "STAFF",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:self"
+      ],
+      "line": 180
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "findAll",
+      "prefix": "staff",
+      "path": "/staff",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:platform"
+      ],
+      "line": 192
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "findOne",
+      "prefix": "staff",
+      "path": "/staff/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:self",
+        "user:read:platform"
+      ],
+      "line": 211
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "create",
+      "prefix": "staff",
+      "path": "/staff",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 226
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "update",
+      "prefix": "staff",
+      "path": "/staff/{id}",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 254
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "assignBranch",
+      "prefix": "staff",
+      "path": "/staff/{id}/branch-assignments",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 275
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "deactivate",
+      "prefix": "staff",
+      "path": "/staff/{id}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ],
+      "line": 301
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "offboardingImpact",
+      "prefix": "staff",
+      "path": "/staff/{id}/offboarding-impact",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch"
+      ],
+      "line": 315
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "upsertHoliday",
+      "prefix": "staff",
+      "path": "/staff/branches/{branchId}/holidays",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "line": 327
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "createSpecialDay",
+      "prefix": "staff",
+      "path": "/staff/branches/{branchId}/special-days",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "line": 340
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "getAssignedServices",
+      "prefix": "staff",
+      "path": "/staff/{id}/services",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:self",
+        "user:read:platform"
+      ],
+      "line": 361
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "assignServices",
+      "prefix": "staff",
+      "path": "/staff/{id}/services",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "staff_service:assign:tenant"
+      ],
+      "line": 376
+    },
+    {
+      "file": "src/staff/staff.controller.ts",
+      "controller": "StaffController",
+      "method": "getCommission",
+      "prefix": "staff",
+      "path": "/staff/{id}/commission",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ],
+      "line": 402
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "me",
+      "prefix": "users",
+      "path": "/users/me/profile",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:read:self"
+      ],
+      "line": 32
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "updateMe",
+      "prefix": "users",
+      "path": "/users/me/profile",
+      "verb": "patch",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:update:self"
+      ],
+      "line": 39
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "findAll",
+      "prefix": "users",
+      "path": "/users",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:platform"
+      ],
+      "line": 63
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "findOne",
+      "prefix": "users",
+      "path": "/users/{id}",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:read:self",
+        "user:read:platform"
+      ],
+      "line": 92
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "suspend",
+      "prefix": "users",
+      "path": "/users/{id}/suspend",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:suspend:platform"
+      ],
+      "line": 112
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "listDirectPermissions",
+      "prefix": "users",
+      "path": "/users/{id}/permissions",
+      "verb": "get",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ],
+      "line": 124
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "grantDirectPermission",
+      "prefix": "users",
+      "path": "/users/{id}/permissions",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ],
+      "line": 131
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "revokeDirectPermission",
+      "prefix": "users",
+      "path": "/users/{id}/permissions/{permissionCode}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ],
+      "line": 147
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "assignRole",
+      "prefix": "users",
+      "path": "/users/{id}/roles",
+      "verb": "post",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:platform",
+        "user:role_assign:tenant"
+      ],
+      "line": 163
+    },
+    {
+      "file": "src/users/users.controller.ts",
+      "controller": "UsersController",
+      "method": "revokeRole",
+      "prefix": "users",
+      "path": "/users/{id}/roles/{roleCode}",
+      "verb": "delete",
+      "isPublic": false,
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:platform",
+        "user:role_assign:tenant"
+      ],
+      "line": 180
+    }
+  ],
+  "declarations": [
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_setting:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:read"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:manage"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:read"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "admin:trust_snapshot:manage"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "audit:read:platform",
+        "audit:read:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:read:platform"
+      ]
+    },
+    {},
+    {
+      "isPublic": true
+    },
+    {},
+    {},
+    {},
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self",
+        "booking:create:tenant",
+        "booking:create:branch"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "audit:read:tenant",
+        "audit:read:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:tenant",
+        "report:overview:platform",
+        "report:revenue:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:read:self",
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "booking:update:self",
+        "booking:update:branch",
+        "booking:update:tenant",
+        "booking:cancel:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:cancel:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:reschedule:branch",
+        "booking:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:assign:branch",
+        "booking:assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF"
+      ],
+      "permissions": [
+        "booking:update:branch",
+        "booking:update:tenant",
+        "booking:complete:branch"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "change_request:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST"
+      ],
+      "permissions": [
+        "change_request:approve:branch",
+        "change_request:approve:tenant"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:create:platform"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "booking:check_in:branch",
+        "booking:check_in:tenant"
+      ]
+    },
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch",
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch",
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:read:tenant"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:status:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant",
+        "branch:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:create:tenant",
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:status:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:status:platform",
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ],
+      "scope": {
+        "roles": [
+          "BUSINESS_OWNER"
+        ],
+        "scopeLevel": "branch",
+        "permissions": [
+          "branch:update:tenant"
+        ]
+      }
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:create:self",
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "branch:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant"
+      ]
+    },
+    {
+      "permissions": [
+        "branch:read:tenant",
+        "branch:read:branch"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant",
+        "combo:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "combo:read:public",
+        "combo:manage:tenant",
+        "combo:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "combo:manage:tenant"
+      ]
+    },
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:update:self"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {},
+    {},
+    {},
+    {
+      "permissions": [
+        "notification:read:self"
+      ]
+    },
+    {
+      "permissions": [
+        "notification:read:self"
+      ]
+    },
+    {
+      "permissions": [
+        "notification:read:self"
+      ]
+    },
+    {
+      "permissions": [
+        "notification:read:self"
+      ]
+    },
+    {},
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:update:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:update:tenant",
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "business:update:tenant",
+        "business:review:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business:update:tenant"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:self",
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment:create:branch",
+        "payment:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment:read:branch",
+        "payment:read:tenant",
+        "payment:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_transaction:verify:branch",
+        "payment_transaction:verify:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "payment_transaction:verify:branch",
+        "payment_transaction:verify:tenant",
+        "refund:process:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_policy:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "payment_policy:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "financial_ledger:read:tenant",
+        "financial_ledger:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:read:tenant",
+        "platform_statement:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "platform_statement:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "treatment_package:read:public"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "treatment_package:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:read:self",
+        "package_purchase:read:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "package_purchase:create:self",
+        "package_purchase:create:branch",
+        "package_purchase:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:create:tenant",
+        "refund:create:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:approve:tenant",
+        "refund:approve:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "refund:process:platform"
+      ]
+    },
+    {},
+    {
+      "isPublic": true
+    },
+    {},
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "marketing_preference:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "marketing_preference:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "privacy_request:manage:self"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "promotion:manage:tenant",
+        "promotion:manage:platform"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "voucher:read:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform",
+        "voucher:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "voucher:manage:tenant",
+        "voucher:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:create:self"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:create:self"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:read:self"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:update:self"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:cancel:self"
+      ]
+    },
+    {
+      "permissions": [
+        "booking:cancel:self"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:tenant",
+        "report:overview:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:revenue:platform",
+        "report:revenue:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:revenue:platform",
+        "report:revenue:tenant",
+        "report:revenue:branch"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "report:overview:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "report:user_growth:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "report:overview:platform",
+        "report:overview:tenant"
+      ]
+    },
+    {},
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:tenant",
+        "review:moderate:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "review:create:self"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:read:public",
+        "review:report:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:moderate:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:platform"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "review:create:self",
+        "review:moderate:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "review:moderate:platform"
+      ]
+    },
+    {
+      "roles": [
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "service:read:public"
+      ]
+    },
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "canonical_service:manage:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "service_category:manage:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "service_category:manage:tenant"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:archive:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:status:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:status:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "service:read:platform"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:create:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch_service_offering:pricing:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "business_service:archive:tenant"
+      ]
+    },
+    {},
+    {},
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {},
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "isPublic": true
+    },
+    {
+      "roles": [
+        "STAFF",
+        "RECEPTIONIST",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:self"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:self",
+        "user:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "branch:update:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:tenant",
+        "user:read:branch",
+        "user:read:self",
+        "user:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "staff_service:assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "BUSINESS_OWNER",
+        "STAFF",
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "booking:read:branch",
+        "booking:read:tenant",
+        "booking:read:platform"
+      ]
+    },
+    {},
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:read:self"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:update:self"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER",
+        "RECEPTIONIST",
+        "STAFF",
+        "CUSTOMER"
+      ],
+      "permissions": [
+        "user:read:self",
+        "user:read:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:suspend:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN"
+      ],
+      "permissions": [
+        "user:role_assign:platform"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:platform",
+        "user:role_assign:tenant"
+      ]
+    },
+    {
+      "roles": [
+        "PLATFORM_ADMIN",
+        "BUSINESS_OWNER"
+      ],
+      "permissions": [
+        "user:role_assign:platform",
+        "user:role_assign:tenant"
+      ]
+    }
+  ]
+}

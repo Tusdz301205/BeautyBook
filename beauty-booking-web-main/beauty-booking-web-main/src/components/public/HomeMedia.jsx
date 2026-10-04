@@ -3,7 +3,9 @@ import { Image as ImageIcon } from 'lucide-react';
 
 export function HomeMedia({
   src,
+  fallbackSrc,
   alt,
+  fallbackAlt,
   ratio = '4 / 3',
   label = 'Hình ảnh BeautyBook',
   eager = false,
@@ -11,13 +13,34 @@ export function HomeMedia({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [fallbackActive, setFallbackActive] = useState(false);
+  const primaryMedia = typeof src === 'string' ? { src } : (src || {});
+  const backupMedia = typeof fallbackSrc === 'string' ? { src: fallbackSrc } : (fallbackSrc || {});
+  const usingFallback = fallbackActive || (!primaryMedia.src && Boolean(backupMedia.src));
+  const media = usingFallback ? backupMedia : primaryMedia;
+  const resolvedSrc = media.src || '';
+  const resolvedAlt = usingFallback
+    ? (fallbackAlt ?? media.alt ?? alt ?? '')
+    : (alt ?? media.alt ?? '');
+  const isIllustration = Boolean(media.illustration);
 
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
-  }, [src]);
+    setFallbackActive(false);
+  }, [primaryMedia.src, backupMedia.src]);
 
-  const showImage = Boolean(src) && !failed;
+  const handleError = () => {
+    if (!usingFallback && backupMedia.src) {
+      setLoaded(false);
+      setFailed(false);
+      setFallbackActive(true);
+      return;
+    }
+    setFailed(true);
+  };
+
+  const showImage = Boolean(resolvedSrc) && !failed;
 
   return (
     <figure
@@ -26,16 +49,20 @@ export function HomeMedia({
     >
       {showImage ? (
         <img
-          src={src}
-          alt={alt}
+          src={resolvedSrc}
+          srcSet={media.srcSet}
+          sizes={media.sizes}
+          width={media.width}
+          height={media.height}
+          alt={resolvedAlt}
           loading={eager ? 'eager' : 'lazy'}
-          fetchPriority={eager ? 'high' : 'auto'}
+          fetchpriority={eager ? 'high' : 'auto'}
           decoding="async"
           onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
+          onError={handleError}
         />
       ) : (
-        <div className="bb-home-media__placeholder" role="img" aria-label={`${alt}. Hình ảnh sẽ được cập nhật.`}>
+        <div className="bb-home-media__placeholder" role="img" aria-label={`${resolvedAlt || label}. Hình ảnh sẽ được cập nhật.`}>
           <span className="bb-home-media__mark" aria-hidden="true"><ImageIcon size={18} strokeWidth={1.7} /></span>
           <span className="bb-home-media__copy">
             <strong>{label}</strong>
@@ -43,6 +70,7 @@ export function HomeMedia({
           </span>
         </div>
       )}
+      {showImage && loaded && isIllustration ? <span className="bb-home-media__illustration">Ảnh minh họa</span> : null}
       {showImage && !loaded ? <span className="bb-home-media__loading" aria-hidden="true" /> : null}
     </figure>
   );

@@ -1,0 +1,71 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+
+const url = process.env.MOBILE_WEB_URL || 'http://localhost:8086';
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
+const email = `qa.profile.${Date.now()}@example.invalid`;
+const password = `BeautyQA${Date.now()}x`;
+const name = 'Khách Mẫu QA';
+const address = '12 Nguyễn Trãi, Quận 1, Thành phố Hồ Chí Minh';
+const results = { registerStatus: null, updateStatus: null, addressStatus: null, secondSession: false, errors: [] };
+await mkdir('report-output/live-web', { recursive: true });
+try {
+  const first = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await first.newPage();
+  page.on('pageerror', (error) => results.errors.push(error.message));
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('tab', { name: 'Tài khoản' }).click();
+  await page.getByText('Tạo tài khoản', { exact: true }).click();
+  await page.getByPlaceholder('Nguyễn Văn A').fill('Khách thử hồ sơ');
+  await page.getByPlaceholder('email@example.com').fill(email);
+  await page.getByPlaceholder('Tối thiểu 8 ký tự').fill(password);
+  await page.getByPlaceholder('Nhập lại mật khẩu').fill(password);
+  const registered = page.waitForResponse((response) => response.url().endsWith('/auth/register') && response.request().method() === 'POST');
+  await page.getByText('TẠO TÀI KHOẢN', { exact: true }).click();
+  results.registerStatus = (await registered).status();
+  if (results.registerStatus !== 201) throw new Error(`Registration HTTP ${results.registerStatus}`);
+  await page.getByText('Hồ sơ', { exact: true }).last().click();
+  await expect(page.getByText('Hồ sơ của tôi')).toBeVisible();
+  await page.getByText('Chỉnh sửa').click();
+  await page.getByPlaceholder('-').first().fill('Mẫu QA');
+  const updated = page.waitForResponse((response) => response.url().endsWith('/users/me/profile') && response.request().method() === 'PATCH');
+  await page.getByText('Lưu', { exact: true }).click();
+  const updateResponse = await updated;
+  results.updateStatus = updateResponse.status();
+  results.updatedName = (await updateResponse.json()).fullName;
+  if (results.updateStatus >= 400) throw new Error(`Profile PATCH HTTP ${results.updateStatus}`);
+  await expect(page.getByText(name, { exact: true }).last()).toBeVisible();
+  await page.screenshot({ path: 'report-output/live-web/profile-saved-390.png' });
+  await page.getByText('Thêm địa chỉ').click();
+  await page.getByPlaceholder('Ví dụ: 12 Nguyễn Trãi, Quận 1, TP Hồ Chí Minh').fill(address);
+  const addressUpdated = page.waitForResponse((response) => response.url().endsWith('/users/me/profile') && response.request().method() === 'PATCH');
+  await page.getByText('LƯU ĐỊA CHỈ', { exact: true }).click();
+  results.addressStatus = (await addressUpdated).status();
+  if (results.addressStatus !== 200) throw new Error(`Address PATCH HTTP ${results.addressStatus}`);
+  await expect(page.getByText(address, { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'report-output/live-web/address-saved-390.png' });
+
+  const second = await browser.newContext({ viewport: { width: 320, height: 844 } });
+  const other = await second.newPage();
+  other.on('pageerror', (error) => results.errors.push(error.message));
+  await other.goto(url, { waitUntil: 'domcontentloaded' });
+  await other.getByRole('tab', { name: 'Tài khoản' }).click();
+  await other.getByText('Đăng nhập', { exact: true }).click();
+  await other.getByPlaceholder('email@example.com').fill(email);
+  await other.getByPlaceholder('Nhập mật khẩu').fill(password);
+  await other.getByText('ĐĂNG NHẬP', { exact: true }).click();
+  await expect(other.locator('body')).toContainText(name, { timeout: 20000 });
+  await other.getByText('Hồ sơ', { exact: true }).last().click();
+  await expect(other.getByText(name, { exact: true }).last()).toBeVisible({ timeout: 20000 });
+  await expect(other.getByText(address, { exact: true })).toBeVisible({ timeout: 20000 });
+  const overflow = await other.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  if (overflow) throw new Error('Profile page overflows horizontally at 320px');
+  results.secondSession = true;
+  await other.screenshot({ path: 'report-output/live-web/profile-second-session-320.png' });
+} catch (error) {
+  results.errors.push(error instanceof Error ? error.message : String(error));
+} finally {
+  await browser.close();
+}
+console.log(JSON.stringify(results, null, 2));
+if (results.errors.length || !results.secondSession) process.exitCode = 1;

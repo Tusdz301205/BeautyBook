@@ -14,6 +14,29 @@ const settings = {
 };
 const branchState = {} as any;
 
+describe('Branch review while awaiting supplemental information', () => {
+  function setup() {
+    const branch = { id: 'branch', reviewStatus: 'NEED_MORE_INFO', business: { status: 'APPROVED' }, reviewRequests: [{ id: 'request' }] };
+    const tx = { branchReviewRequest: { update: jest.fn() }, branchReviewEvent: { create: jest.fn() }, branchDocument: { updateMany: jest.fn() } };
+    const prisma = { branch: { findFirst: jest.fn().mockResolvedValue(branch) }, $transaction: jest.fn(fn => fn(tx)) };
+    const state = { transition: jest.fn().mockResolvedValue({ transitioned: true, branch: { ...branch, reviewStatus: 'REJECTED' } }) };
+    return { service: new BranchesService(prisma as any, settings as any, state as any), prisma, state, tx };
+  }
+  test('platform rejection resolves supplemental request and preserves document/event history', async () => {
+    const { service, tx, state } = setup();
+    expect((await service.review('branch', 'REJECT', 'Documents insufficient', 'admin')).reviewStatus).toBe('REJECTED');
+    expect(state.transition).toHaveBeenCalledWith('branch', 'REJECT', 'admin', 'Documents insufficient');
+    expect(tx.branchReviewRequest.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'request' }, data: expect.objectContaining({ status: 'REJECTED', resolvedAt: expect.any(Date) }) }));
+    expect(tx.branchReviewEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ fromStatus: 'NEED_MORE_INFO', toStatus: 'REJECTED', action: 'REJECT' }) }));
+    expect(tx.branchDocument.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'REJECTED' } }));
+  });
+  test('approval still requires owner resubmission', async () => {
+    const { service, state, prisma } = setup();
+    await expect(service.review('branch', 'APPROVE', undefined, 'admin')).rejects.toBeInstanceOf(ConflictException);
+    expect(state.transition).not.toHaveBeenCalled(); expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
 describe('BranchesService marketplace listing', () => {
   test.each([0, 4, 1441])('rejects invalid pendingHoldMinutes value %s', async (value) => {
     const dto = new UpdateBranchDto();
