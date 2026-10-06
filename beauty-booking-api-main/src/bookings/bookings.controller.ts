@@ -7,6 +7,7 @@ import {
   Put,
   Body,
   Query,
+  Headers,
   BadRequestException,
   ForbiddenException,
   HttpCode,
@@ -48,14 +49,22 @@ import { ChangeRequestsService } from './change-requests.service';
 import { VouchersService } from './vouchers.service';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { AuditAction } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { PaymentsService } from '../payments/payments.service';
 import { randomUUID } from 'crypto';
 import { BookingItemsService } from './booking-items.service';
+import { BOOKING_TIMING_AUDIT_INCLUDE, bookingItemActualTiming, withBookingTiming } from './booking-actual-timing';
 import { applyServicePriceRules } from '../services/service-price-rules';
 import { assertBookingChannelAllowed, resolveBookingSource } from './booking-channel-policy';
 import { canOnResource, ensureCanOnResource } from '../common/utils/policy';
 import { assertCustomerPrincipal, isCustomerPrincipal } from '../auth/account-separation';
 import { readCustomerBookingPolicy } from './customer-booking-policy';
+import { StaffWorkItemsService } from './staff-work-items.service';
+import { staffBookingView } from './staff-booking-view';
+
+type CustomerBookingServiceView = Prisma.BookingServiceGetPayload<{
+  include: { service: { include: { category: true } }; staff: { include: { user: true } } };
+}> & Partial<ReturnType<typeof bookingItemActualTiming>>;
 
 /**
  * RBAC decisions go through @RequireScope + @RequirePermission +
@@ -73,6 +82,7 @@ export class BookingsController {
     private readonly vouchersService: VouchersService,
     private readonly paymentsService: PaymentsService,
     private readonly bookingItemsService: BookingItemsService,
+    private readonly staffWorkItems: StaffWorkItemsService = new StaffWorkItemsService(prisma),
   ) {}
 
   private async counterBranchIds(user: AuthUser, branchIds: string[]) {
@@ -87,6 +97,15 @@ export class BookingsController {
 
   private administrativePrincipal(user: AuthUser): AuthUser {
     return restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']);
+  }
+
+  private async staffBranchIds(user: AuthUser, branchIds: string[]) {
+    if (!branchIds.length) return [];
+    const branches = await this.prisma.branch.findMany({ where: { id: { in: branchIds }, deletedAt: null },
+      select: { id: true, businessId: true } });
+    return branches.filter((branch) => (!user.businessId || branch.businessId === user.businessId) &&
+      (!user.branchId || branch.id === user.branchId) && this.bookingsAccess.rolesAtResource(user,
+        { businessId: branch.businessId, branchId: branch.id }).includes('STAFF')).map((branch) => branch.id);
   }
 
   private customerBookingView(booking: any) {
@@ -106,12 +125,14 @@ export class BookingsController {
       cancelReason: booking.cancelReason,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
+      serverNow: (booking as { serverNow?: Date }).serverNow ?? new Date(),
       branch: booking.branch
         ? {
             id: booking.branch.id,
             name: booking.branch.name,
             addressLine: booking.branch.addressLine,
             phone: booking.branch.phone,
+            timezone: (booking as { branch: { timezone?: string } }).branch.timezone,
             latitude: booking.branch.latitude,
             longitude: booking.branch.longitude,
             business: booking.branch.business
@@ -124,13 +145,17 @@ export class BookingsController {
               : undefined,
           }
         : undefined,
-      bookingServices: (booking.bookingServices ?? []).map((item: any) => ({
+      bookingServices: (booking.bookingServices ?? []).map((item: CustomerBookingServiceView) => ({
         id: item.id,
         serviceId: item.serviceId,
         status: item.status,
         serviceNameSnapshot: item.serviceNameSnapshot,
         itemStartAt: item.itemStartAt,
         itemEndAt: item.itemEndAt,
+        actualStartedAt: item.actualStartedAt ?? null,
+        actualCompletedAt: item.actualCompletedAt ?? null,
+        actualStoppedAt: item.actualStoppedAt ?? null,
+        actualTimingSource: item.actualTimingSource ?? 'UNAVAILABLE',
         priceAtBooking: item.priceAtBooking,
         durationMinutes: item.durationMinutes,
         service: item.service
@@ -507,17 +532,17 @@ export class BookingsController {
     )).flatMap((ids) => ids ?? []))];
     const counterBranches = await this.counterBranchIds(user, branchId ? allowed.filter((id) => id === branchId) : allowed);
     const staffOnly = counterBranches.length === 0;
-    if (!staffOnly) allowed = counterBranches;
+    allowed = staffOnly ? await this.staffBranchIds(user, allowed) : counterBranches;
     const requestedBranchAllowed = !branchId || allowed.includes(branchId);
     const scopedRequestedBranchIds = requestedBranchIds?.filter((id) => allowed.includes(id));
     const ownStaff = staffOnly
       ? await this.prisma.staffProfile.findFirst({
-          where: { userId: user.id, branchId: { in: allowed }, status: 'ACTIVE' },
+          where: { userId: user.id, branchId: { in: allowed }, status: 'ACTIVE', deletedAt: null },
           select: { id: true },
         })
       : null;
 
-    return this.bookingsService.findAll({
+    const result = await this.bookingsService.findAll({
       search,
       status,
       branchId: branchId && requestedBranchAllowed ? branchId : undefined,
@@ -528,7 +553,7 @@ export class BookingsController {
       categoryId,
       serviceId,
       businessId,
-      customerQuery,
+      customerQuery: staffOnly ? undefined : customerQuery,
       source,
       dateFrom,
       dateTo,
@@ -536,6 +561,24 @@ export class BookingsController {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
     });
+    return staffOnly ? { ...result, data: result.data.map((booking) => staffBookingView(booking, ownStaff?.id ?? '')) } : result;
+  }
+
+  @Get('my-work-items')
+  @Roles('STAFF', 'BUSINESS_OWNER')
+  @RequirePermission('booking:read:branch', 'booking:read:tenant')
+  myWorkItems(@CurrentUser() user: AuthUser,
+    @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string,
+    @Query('branchId') branchId?: string, @Query('bookingId') bookingId?: string,
+    @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.staffWorkItems.list(user, { dateFrom, dateTo, branchId, bookingId, page, limit });
+  }
+
+  @Get('my-work-items/:itemId')
+  @Roles('STAFF', 'BUSINESS_OWNER')
+  @RequirePermission('booking:read:branch', 'booking:read:tenant')
+  myWorkItem(@CurrentUser() user: AuthUser, @Param('itemId') itemId: string) {
+    return this.staffWorkItems.detail(user, itemId);
   }
 
   /**
@@ -557,7 +600,7 @@ export class BookingsController {
     }
 
     const statusMap = {
-      upcoming: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'],
+      upcoming: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'],
       completed: ['COMPLETED'],
       cancelled: ['CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'],
     };
@@ -575,6 +618,7 @@ export class BookingsController {
             name: true,
             addressLine: true,
             phone: true,
+            timezone: true,
             latitude: true,
             longitude: true,
             business: {
@@ -584,6 +628,7 @@ export class BookingsController {
         },
         bookingServices: {
           include: {
+            ...BOOKING_TIMING_AUDIT_INCLUDE,
             service: true,
             staff: {
               select: {
@@ -626,7 +671,8 @@ export class BookingsController {
         { appointmentStartTime: tab === 'upcoming' ? 'asc' : 'desc' },
       ],
     });
-    return { data: bookings };
+    const serverNow = new Date();
+    return { data: bookings.map((booking) => withBookingTiming(booking, serverNow)) };
   }
 
   /**
@@ -647,10 +693,10 @@ export class BookingsController {
     ).flat();
     const counterBranches = await this.counterBranchIds(user, allowedBranchIds);
     const staffOnly = counterBranches.length === 0;
-    if (!staffOnly) allowedBranchIds = counterBranches;
+    allowedBranchIds = staffOnly ? await this.staffBranchIds(user, allowedBranchIds) : counterBranches;
     const ownStaff = staffOnly
       ? await this.prisma.staffProfile.findFirst({
-          where: { userId: user.id, branchId: { in: allowedBranchIds } },
+          where: { userId: user.id, branchId: { in: allowedBranchIds }, status: 'ACTIVE', deletedAt: null },
           select: { id: true },
         })
       : null;
@@ -661,12 +707,13 @@ export class BookingsController {
         limit: 100,
       });
     }
-    return this.bookingsService.findAll({
+    const result = await this.bookingsService.findAll({
       status: 'PENDING',
       allowedBranchIds,
       staffId: ownStaff?.id,
       limit: 100,
     });
+    return staffOnly ? { ...result, data: result.data.map((booking) => staffBookingView(booking, ownStaff!.id)) } : result;
   }
 
   /**
@@ -764,8 +811,11 @@ export class BookingsController {
     if (!staffOnly) {
       return this.bookingsService.getSchedulerData(branchId, startDate, endDate);
     }
+    if (!this.bookingsAccess.rolesAtResource(user, { businessId, branchId }).includes('STAFF')) {
+      throw new ForbiddenException('Không có phạm vi nhân viên còn hiệu lực tại chi nhánh này');
+    }
     const ownStaff = await this.prisma.staffProfile.findFirst({
-      where: { userId: user.id, branchId, status: 'ACTIVE' },
+      where: { userId: user.id, branchId, status: 'ACTIVE', deletedAt: null },
       select: { id: true },
     });
     if (!ownStaff) return { staff: [], bookings: [] };
@@ -864,7 +914,7 @@ export class BookingsController {
     'CUSTOMER',
   )
   @RequirePermission('booking:read:self', 'booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
-  async findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: AuthUser): Promise<any> {
     const booking = await this.bookingsService.findOne(id);
     const roleCodes = new Set([
       ...(user.roles || []),
@@ -877,9 +927,10 @@ export class BookingsController {
     // Service-level access check via BookingsAccessService
     const isPlatform = isPlatformRole(user);
     if (!isPlatform) {
+      const resource = { businessId: booking.branch?.business?.id, branchId: booking.branchId };
       const readPermission = customerOnly
         ? 'booking:read:self'
-        : roleCodes.has('BUSINESS_OWNER')
+        : this.bookingsAccess.rolesAtResource(user, resource).includes('BUSINESS_OWNER')
           ? 'booking:read:tenant'
           : 'booking:read:branch';
       const info = await this.bookingsAccess.loadAndAssert(
@@ -889,6 +940,9 @@ export class BookingsController {
       );
       if (!customerOnly && !this.bookingsAccess.canReadBranch(user, info) && info.staffUserId !== user.id) {
         throw new BadRequestException('Nhân viên chỉ được xem lịch được phân công cho mình');
+      }
+      if (!customerOnly && !this.bookingsAccess.canReadBranch(user, info)) {
+        return staffBookingView(booking, await this.staffWorkItems.profileId(user));
       }
     }
     return customerOnly ? this.customerBookingView(booking) : booking;
@@ -910,6 +964,7 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() body: BookingActionDto,
     @CurrentUser() user: AuthUser,
+    @Headers('x-mobile-owner-v1') mobileOwnerV1?: string,
   ) {
     const access = await this.bookingsAccess.assertWrite(user, id,
       body.action === BookingAction.RESCHEDULE ? 'reschedule' : 'update');
@@ -949,6 +1004,8 @@ export class BookingsController {
           body.reason ?? 'Salon từ chối lịch hẹn',
           changedByType,
           actorRoles,
+          false,
+          mobileOwnerV1 === 'true',
         );
 
       case BookingAction.RESCHEDULE: {
@@ -988,6 +1045,7 @@ export class BookingsController {
     @Param('id') id: string,
     @Body() body: UpdateStatusDto,
     @CurrentUser() user: AuthUser,
+    @Headers('x-mobile-owner-v1') mobileOwnerV1?: string,
   ) {
     // Service asserts write access via BookingsAccessService.
     const cancellation = ['CANCELLED', 'Đã huỷ'].includes(body.status);
@@ -1022,6 +1080,7 @@ export class BookingsController {
       changedByType,
       actorRoles,
       body.noShowConfirmed,
+      mobileOwnerV1 === 'true',
     );
   }
 
@@ -1177,8 +1236,10 @@ export class BookingsController {
     if (serviceLifecycle && !owner && !actorRoles.includes('STAFF')) {
       throw new ForbiddenException('Chỉ nhân viên được giao hoặc chủ doanh nghiệp được thực hiện dịch vụ');
     }
-    return this.bookingItemsService.update(id, itemId, user.id, body,
+    const result = await this.bookingItemsService.update(id, itemId, user.id, body,
       serviceLifecycle && !owner ? { assignedStaffUserId: user.id } : undefined);
+    return serviceLifecycle && !owner
+      ? staffBookingView(result, await this.staffWorkItems.profileId(user)) : result;
   }
 
   // ============= CHANGE REQUESTS =============
@@ -1214,6 +1275,7 @@ export class BookingsController {
     @Param('reqId') reqId: string,
     @Body() body: { reviewNote?: string },
     @CurrentUser() user: AuthUser,
+    @Headers('x-mobile-owner-v1') mobileOwnerV1?: string,
   ) {
     const request = await this.prisma.appointmentChangeRequest.findUniqueOrThrow({
       where: { id: reqId },
@@ -1221,7 +1283,7 @@ export class BookingsController {
     });
     const businessId = await assertBranchAccess(this.prisma, user, request.booking.branchId);
     this.assertChangeRequestPermission(user, businessId, request.booking.branchId);
-    return this.changeRequestsService.approve(reqId, user.id, body.reviewNote);
+    return this.changeRequestsService.approve(reqId, user.id, body.reviewNote, mobileOwnerV1 === 'true');
   }
 
   @Patch('change-requests/:reqId/reject')
@@ -1246,7 +1308,8 @@ export class BookingsController {
   @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
   @RequirePermission('change_request:approve:branch', 'change_request:approve:tenant')
   async pendingChangeRequests(@CurrentUser() user: AuthUser) {
-    const allowedBusinessIds = await resolveBusinessIdsForUser(this.prisma, user);
+    const resolvedBusinessIds = await resolveBusinessIdsForUser(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST']));
+    const allowedBusinessIds = user.businessId ? resolvedBusinessIds.filter((id) => id === user.businessId) : resolvedBusinessIds;
     const allowedBranchIds = (
       await Promise.all(
         allowedBusinessIds.map(async (businessId) =>

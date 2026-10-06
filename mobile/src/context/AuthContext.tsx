@@ -1,7 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { authApi } from '../api/auth';
 import {
   ApiError,
+  apiRequest,
+  getApiAccessToken,
   setApiAccessToken,
   setApiRefreshToken,
   setApiSessionRefreshHandler,
@@ -18,7 +20,7 @@ interface AuthContextValue {
   userName: string;
   error: string | null;
   clearError: () => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, context?: { workspace?: 'CUSTOMER' | 'SALON' | 'PLATFORM'; businessId?: string; branchId?: string }) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateName: (name: string) => void;
@@ -31,24 +33,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isRestoring, setRestoring] = useState(true);
   const [isSubmitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const operationRef = useRef(0);
+  const storageRef = useRef(Promise.resolve());
+  // Keep persistent writes ordered so a slow save cannot resurrect logout.
+  const persist = useCallback((write: () => Promise<void>) => {
+    storageRef.current = storageRef.current.catch(() => {}).then(write);
+    return storageRef.current;
+  }, []);
 
   useEffect(() => {
     let active = true;
     const clearLocalSession = () => {
+      operationRef.current += 1;
       setApiAccessToken(null);
       setApiRefreshToken(null);
       setUser(null);
-      void clearAuthSession();
+      void persist(clearAuthSession).catch(() => {});
     };
     setApiUnauthorizedHandler(clearLocalSession);
     setApiSessionRefreshHandler((session) => {
       if (!active) return;
       setUser(session.user);
-      void saveAuthSession(session);
+      void persist(() => saveAuthSession(session)).catch(() => {});
     });
 
     void (async () => {
+      const operation = operationRef.current;
       const cached = await loadAuthSession();
+      if (!active || operation !== operationRef.current) return;
       if (cached && active) {
         setApiAccessToken(cached.accessToken);
         setApiRefreshToken(cached.refreshToken ?? null);
@@ -60,13 +72,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         const response = await authApi.restore(cached.refreshToken);
-        if (!active) return;
+        if (!active || operation !== operationRef.current) return;
         setApiAccessToken(response.accessToken);
         setApiRefreshToken(response.refreshToken ?? null);
         setUser(response.user);
-        await saveAuthSession(response);
+        await persist(() => saveAuthSession(response));
       } catch (reason) {
-        if (!active) return;
+        if (!active || operation !== operationRef.current) return;
         if (!cached || (reason instanceof ApiError && reason.status === 401)) {
           clearLocalSession();
         }
@@ -79,24 +91,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setApiUnauthorizedHandler(null);
       setApiSessionRefreshHandler(null);
     };
-  }, []);
+  }, [persist]);
 
   const authenticate = useCallback(async (request: () => ReturnType<typeof authApi.login>) => {
+    const operation = ++operationRef.current;
     setSubmitting(true);
     setError(null);
     try {
       const response = await request();
+      if (operation !== operationRef.current) return;
       setApiAccessToken(response.accessToken);
       setApiRefreshToken(response.refreshToken ?? null);
       setUser(response.user);
-      await saveAuthSession(response);
+      await persist(() => saveAuthSession(response));
     } catch (reason) {
+      if (operation !== operationRef.current) return;
       setError(reason instanceof Error ? reason.message : 'Không thể xác thực tài khoản');
       throw reason;
     } finally {
-      setSubmitting(false);
+      if (operation === operationRef.current) setSubmitting(false);
     }
-  }, []);
+  }, [persist]);
 
   const clearError = useCallback(() => setError(null), []);
   const updateName = useCallback((fullName: string) => {
@@ -104,18 +119,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    const token = getApiAccessToken();
+    operationRef.current += 1;
+    // Clear locally before waiting for storage or a potentially offline server.
+    setApiRefreshToken(null);
+    setApiAccessToken(null);
+    setUser(null);
+    setError(null);
+    setSubmitting(false);
+    setRestoring(false);
+    const cleared = persist(clearAuthSession);
     try {
-      if (user) await authApi.logout();
+      // apiRequest starts synchronously and captures the old Authorization header.
+      if (token) await apiRequest('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } }, false);
     } catch {
       // Local logout must still succeed when the API is temporarily unavailable.
     } finally {
-      setApiAccessToken(null);
-      setApiRefreshToken(null);
-      setUser(null);
-      setError(null);
-      await clearAuthSession();
+      await cleared;
     }
-  }, [user]);
+  }, [persist]);
 
   const value = useMemo<AuthContextValue>(() => ({
     isLoggedIn: Boolean(user),
@@ -125,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userName: user?.fullName ?? '',
     error,
     clearError,
-    login: (email, password) => authenticate(() => authApi.login(email.trim(), password)),
+    login: (email, password, context) => authenticate(() => authApi.login(email.trim(), password, context)),
     register: (fullName, email, password) => authenticate(() => authApi.register(fullName.trim(), email.trim(), password)),
     logout,
     updateName,

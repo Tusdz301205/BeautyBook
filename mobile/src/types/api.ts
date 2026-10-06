@@ -171,6 +171,10 @@ export interface ApiAuthUser {
   roles: string[];
   permissions?: string[];
   workspace?: string;
+  sessionType?: 'customer' | 'salon' | 'admin';
+  businessId?: string | null;
+  branchId?: string | null;
+  scopes?: Array<{ code: string; businessId: string | null; branchId: string | null; expiresAt?: string | null }>;
 }
 
 export interface ApiAuthResponse {
@@ -185,6 +189,13 @@ export interface ApiBookingService {
   variantId?: string | null;
   priceAtBooking: number | string;
   durationMinutes: number;
+  status?: string;
+  itemStartAt?: string | null;
+  itemEndAt?: string | null;
+  actualStartedAt?: string | null;
+  actualCompletedAt?: string | null;
+  actualStoppedAt?: string | null;
+  actualTimingSource?: 'SERVICE_ADJUSTMENT' | 'UNAVAILABLE';
   service?: { id: string; name: string; description?: string | null };
   staff?: ApiStaff;
 }
@@ -192,6 +203,7 @@ export interface ApiBookingService {
 export interface ApiBooking {
   id: string;
   bookingCode?: string;
+  serverNow?: string;
   status: string;
   appointmentDate: string;
   appointmentStartTime: string;
@@ -204,6 +216,7 @@ export interface ApiBooking {
     name: string;
     addressLine?: string | null;
     phone?: string | null;
+    timezone?: string;
     business?: { id: string; name: string };
   };
   bookingServices?: ApiBookingService[];

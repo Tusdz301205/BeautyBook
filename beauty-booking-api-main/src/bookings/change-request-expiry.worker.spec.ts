@@ -11,7 +11,10 @@ describe('ChangeRequestExpiryWorker', () => {
     jest.setSystemTime(now);
     const updateMany = jest.fn().mockResolvedValue({ count: 2 });
     const requests = new ChangeRequestsService(
-      { appointmentChangeRequest: { updateMany } } as never, {} as never, {} as never,
+      { $transaction: jest.fn(async (operation) => operation({ appointmentChangeRequest: {
+        findMany: jest.fn().mockResolvedValue([{ bookingId: 'booking-1' }, { bookingId: 'booking-2' }]), updateMany,
+      } })), booking: { findUnique: jest.fn().mockResolvedValue(null) } } as never,
+      {} as never, {} as never, { notifyBookingUpdated: jest.fn() } as never,
     );
     const worker = new ChangeRequestExpiryWorker(requests);
     await worker.tick();

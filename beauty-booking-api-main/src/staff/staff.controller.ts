@@ -29,6 +29,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
 import { Public } from '../common/decorators/public.decorator';
+import { canOnResource } from '../common/utils/policy';
 import { StaffInvitationsService } from './staff-invitations.service';
 import {
   AcceptExistingStaffInvitationDto,
@@ -181,7 +182,7 @@ export class StaffController {
   @Roles('STAFF', 'RECEPTIONIST', 'BUSINESS_OWNER')
   @RequirePermission('user:read:self')
   findMine(@CurrentUser() user: AuthUser) {
-    return this.staffService.findMine(user.id);
+    return this.staffService.findMine(user.id, user);
   }
 
   /**
@@ -215,7 +216,13 @@ export class StaffController {
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
   ) {
-    await this.assertStaffResourceAccess(user, id);
+    const branchId = await this.assertStaffResourceAccess(user, id);
+    const branch = await this.prisma.branch.findUniqueOrThrow({ where: { id: branchId }, select: { businessId: true } });
+    const management = restrictToRoles(user, ['BUSINESS_OWNER', 'RECEPTIONIST', 'PLATFORM_ADMIN']);
+    if (!['user:read:tenant', 'user:read:branch', 'user:read:platform'].some((permission) =>
+      canOnResource(management, permission, { businessId: branch.businessId, branchId }))) {
+      return this.staffService.findMine(user.id, user);
+    }
     return this.staffService.findOne(id);
   }
 

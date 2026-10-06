@@ -67,6 +67,11 @@ docs/*.docx
 mobile-preview/artifacts/
 /mobile-preview/
 /docs/full-system-qa/
+/docs/mobile-staff-owner/evidence/
+/docs/mobile-staff-owner/qa/
+/docs/mobile-staff-owner/validation.json
+/beauty-booking-api-main/scripts/qa-*.mjs
+/beauty-booking-web-main/beauty-booking-web-main/scripts/qa-*.mjs
 /docs/generated-images/beautybook/originals/
 /docs/generated-images/beautybook/qa-*
 /docs/generated-images/beautybook/live-entity-image-reconciliation.json

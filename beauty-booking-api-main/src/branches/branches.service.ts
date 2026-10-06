@@ -224,15 +224,12 @@ export class BranchesService {
 
     let where: any = { deletedAt: null };
     if (!businessIds.includes(ALL_TENANTS)) {
-      const branchScoped = user.roles.some((role) => ['RECEPTIONIST', 'STAFF'].includes(role));
-      if (branchScoped) {
-        const branchIds = (await Promise.all(
-          businessIds.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
-        )).flatMap((ids) => ids ?? []);
-        where = { ...where, id: { in: branchIds } };
-      } else {
-        where = { ...where, businessId: { in: businessIds } };
-      }
+      // Resolve each role at its own tenant/branch, including mixed Owner/Staff.
+      const currentBusinesses = user.businessId ? businessIds.filter((id) => id === user.businessId) : businessIds;
+      const branchIds = (await Promise.all(
+        currentBusinesses.map((businessId) => resolveBranchIdsForUser(this.prisma, user, businessId)),
+      )).flatMap((ids) => ids ?? []);
+      where = { ...where, id: { in: branchIds }, businessId: { in: currentBusinesses } };
     }
 
     return this.prisma.branch.findMany({
@@ -242,6 +239,7 @@ export class BranchesService {
         businessId: true,
         name: true,
         publicName: true,
+        timezone: true,
         status: true,
         reviewStatus: true,
         operationalStatus: true,

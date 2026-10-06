@@ -6,6 +6,18 @@ type QueryValue = string | number | boolean | null | undefined;
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
 let refreshPromise: Promise<string | null> | null = null;
+let sessionGeneration = 0;
+const tokenListeners = new Set<(token: string | null) => void>();
+
+export const getApiAccessToken = () => accessToken;
+export const getApiSessionGeneration = () => sessionGeneration;
+export function subscribeApiAccessToken(listener: (token: string | null) => void) {
+  tokenListeners.add(listener);
+  return () => { tokenListeners.delete(listener); };
+}
+function publishToken() {
+  for (const listener of tokenListeners) listener(accessToken);
+}
 let unauthorizedHandler: (() => void) | null = null;
 let sessionRefreshHandler: ((session: ApiAuthResponse) => void) | null = null;
 
@@ -21,7 +33,11 @@ export class ApiError extends Error {
 }
 
 export function setApiAccessToken(token: string | null) {
+  // External session replacement/logout fences any in-flight refresh.
+  sessionGeneration += 1;
+  refreshPromise = null;
   accessToken = token;
+  publishToken();
 }
 
 export function setApiRefreshToken(token: string | null) {
@@ -52,7 +68,9 @@ function errorMessage(payload: unknown, fallback: string): string {
 }
 
 async function parseResponse(response: Response): Promise<unknown> {
-  const text = await response.text();
+  let text: string;
+  try { text = await response.text(); }
+  catch (error) { throw new ApiError('Kết nối bị gián đoạn khi nhận phản hồi.', 0, error); }
   if (!text) return undefined;
   try {
     return JSON.parse(text);
@@ -61,9 +79,16 @@ async function parseResponse(response: Response): Promise<unknown> {
   }
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
-  refreshPromise = (async () => {
+  if (!refreshToken) {
+    setApiAccessToken(null);
+    unauthorizedHandler?.();
+    return null;
+  }
+  const generation = sessionGeneration;
+  const capturedRefreshToken = refreshToken;
+  const pending = (async () => {
     let response: Response;
     try {
       response = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -71,29 +96,38 @@ async function refreshAccessToken(): Promise<string | null> {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          refreshToken: refreshToken ?? undefined,
+          refreshToken: capturedRefreshToken,
           refreshTokenTransport: 'BODY',
         }),
       });
-    } catch {
-      return null;
-    }
-    if (!response.ok) {
-      setApiAccessToken(null);
-      setApiRefreshToken(null);
-      unauthorizedHandler?.();
-      return null;
+    } catch (error) {
+      throw new ApiError('Không kết nối được để làm mới phiên. Vui lòng thử lại.', 0, error);
     }
     const payload = await parseResponse(response) as ApiAuthResponse | undefined;
-    const token = payload?.accessToken ?? null;
-    setApiAccessToken(token);
-    setApiRefreshToken(payload?.refreshToken ?? null);
-    if (payload?.user && token) sessionRefreshHandler?.(payload);
-    return token;
-  })().finally(() => {
-    refreshPromise = null;
+    if (generation !== sessionGeneration) return null;
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        setApiRefreshToken(null);
+        setApiAccessToken(null);
+        unauthorizedHandler?.();
+        return null;
+      }
+      throw new ApiError('Chưa làm mới được phiên. Vui lòng thử lại.', response.status, payload);
+    }
+    if (!payload?.accessToken || !payload.user) {
+      throw new ApiError('Phản hồi làm mới phiên không hợp lệ.', 502, payload);
+    }
+    // Rotation keeps the session generation; callers in this session may retry.
+    accessToken = payload.accessToken;
+    refreshToken = payload.refreshToken ?? capturedRefreshToken;
+    sessionRefreshHandler?.(payload);
+    publishToken();
+    return accessToken;
   });
-  return refreshPromise;
+  refreshPromise = pending();
+  const flight = refreshPromise;
+  try { return await flight; }
+  finally { if (refreshPromise === flight) refreshPromise = null; }
 }
 
 export async function apiRequest<T>(
@@ -102,6 +136,8 @@ export async function apiRequest<T>(
   retryOnUnauthorized = true,
 ): Promise<T> {
   if (!API_BASE_URL) throw new ApiError('Chưa cấu hình máy chủ cho bản thử nghiệm này.', 0);
+  const generation = sessionGeneration;
+  const sentToken = accessToken;
   const headers = new Headers(init.headers);
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   if ((init.method ?? 'GET').toUpperCase() === 'POST' && !headers.has('Idempotency-Key')) {
@@ -124,13 +160,16 @@ export async function apiRequest<T>(
     );
   }
 
+  if (generation !== sessionGeneration) throw new ApiError('Phiên đăng nhập đã thay đổi.', 401);
   if (response.status === 401 && retryOnUnauthorized && !path.startsWith('/auth/')) {
-    const token = await refreshAccessToken();
-    if (token) return apiRequest<T>(path, init, false);
-    unauthorizedHandler?.();
+    const token = sentToken !== accessToken && accessToken ? accessToken : await refreshAccessToken();
+    if (generation !== sessionGeneration) throw new ApiError('Phiên đăng nhập đã thay đổi.', 401);
+    // Reuse the original generated idempotency key as well as explicit keys/body.
+    if (token) return apiRequest<T>(path, { ...init, headers }, false);
   }
 
   const payload = await parseResponse(response);
+  if (generation !== sessionGeneration) throw new ApiError('Phiên đăng nhập đã thay đổi.', 401);
   if (!response.ok) {
     throw new ApiError(errorMessage(payload, `Yêu cầu chưa được xử lý (mã ${response.status}). Vui lòng thử lại.`), response.status, payload);
   }

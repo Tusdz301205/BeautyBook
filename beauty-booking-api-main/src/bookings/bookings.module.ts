@@ -10,6 +10,7 @@ import { PendingBookingsCron } from './pending-bookings.cron';
 import { PromotionsModule } from '../promotions/promotions.module';
 import { BookingItemsService } from './booking-items.service';
 import { ChangeRequestExpiryWorker } from './change-request-expiry.worker';
+import { StaffWorkItemsService } from './staff-work-items.service';
 
 @Module({
   imports: [SchedulerModule, PaymentsModule, PromotionsModule],
@@ -22,6 +23,7 @@ import { ChangeRequestExpiryWorker } from './change-request-expiry.worker';
     PendingBookingsCron,
     ChangeRequestExpiryWorker,
     BookingItemsService,
+    StaffWorkItemsService,
   ],
   exports: [
     BookingsService,

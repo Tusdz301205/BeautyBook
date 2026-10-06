@@ -216,10 +216,11 @@ export const bookingsApi = {
     });
   },
 
-  create: (data, idempotencyKey) =>
+  create: (data, idempotencyKey, options = {}) =>
     request('/bookings', {
       method: 'POST',
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      signal: options.signal,
       body: JSON.stringify(data),
     }),
 
@@ -610,7 +611,10 @@ export const combosApi = {
 // ======================== RECURRING BOOKINGS ========================
 export const recurringApi = {
   preview: (data) => request('/recurring/preview', { method: 'POST', body: JSON.stringify(data) }),
-  create: (data) => request('/recurring', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data, idempotencyKey, options = {}) => request('/recurring', {
+    method: 'POST', body: JSON.stringify(data), signal: options.signal,
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  }),
   mine: () => request('/recurring/mine'),
   changeStatus: (id, status) => request(`/recurring/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   cancelOccurrence: (id, bookingId) => request(`/recurring/${id}/occurrences/${bookingId}`, { method: 'DELETE' }),

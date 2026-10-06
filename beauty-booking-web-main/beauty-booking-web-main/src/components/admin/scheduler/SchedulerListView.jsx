@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
 import { CalendarDays, Clock3, MapPin, Search, UserRound } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { bookingsApi, servicesApi } from '../../../api/apiClient';
+import { bookingsApi, refreshSession, servicesApi } from '../../../api/apiClient';
+import { bindSchedulerSocketEvents } from '../../../utils/schedulerSocketEvents';
+import { formatBookingWallDate as asDate, formatBookingWallTime as asTime } from '../../../utils/bookingWallTime';
 import { BOOKING_STATUSES, BOOKING_STATUS_LIST, labelToEnum } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { Badge, Button, Card, Dialog, EmptyState, ErrorState, Field, Input, Select, Skeleton } from '../../ui';
 
 const toneByStatus = { PENDING: 'warning', CONFIRMED: 'info', CHECKED_IN: 'info', IN_PROGRESS: 'brand', COMPLETED: 'success', CANCELLED: 'danger', NO_SHOW: 'neutral' };
-const asDate = (value) => value ? new Date(value).toLocaleDateString('vi-VN') : '—';
-const asTime = (value) => value ? new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '—';
 const statusInfo = (value) => { const code = BOOKING_STATUSES[value] ? value : labelToEnum(value); return { code, label: BOOKING_STATUSES[code]?.label || value || '—', tone: toneByStatus[code] || 'neutral' }; };
 
 function BookingDialog({ booking, canUpdate, onClose, onUpdated }) {
@@ -22,11 +23,61 @@ function BookingDialog({ booking, canUpdate, onClose, onUpdated }) {
 
 export default function SchedulerListView({ branchId, branchIds = [], zone = 'salon' }) {
   const can = useAuthStore((state) => state.can);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const requestSequence = useRef(0);
+  const authorizationEpoch = useRef(0);
+  const branchKey = branchId || [...branchIds].sort().join(',');
   const emptyFilters = { search: '', customerQuery: '', status: '', categoryId: '', serviceId: '', source: '', dateFrom: '', dateTo: '' };
   const [bookings, setBookings] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 }); const [draft, setDraft] = useState(emptyFilters); const [filters, setFilters] = useState(emptyFilters); const [selected, setSelected] = useState(null); const [categories, setCategories] = useState([]); const [services, setServices] = useState([]);
   const canUpdate = can('booking:update:branch') || can('booking:update:tenant') || can('booking:update:platform');
-  const load = useCallback(async () => { if (!branchId && branchIds.length === 0) return; setLoading(true); setError(''); try { const response = await bookingsApi.getAll({ ...filters, branchId, branchIds: branchId ? undefined : branchIds.join(','), page: pagination.page, limit: 20 }); setBookings(response.data || []); setPagination((current) => ({ ...current, page: response.meta?.page || current.page, totalPages: response.meta?.totalPages || 1, total: response.meta?.total || 0 })); } catch (loadError) { setError(loadError.message || 'Không thể tải danh sách lịch hẹn.'); } finally { setLoading(false); } }, [branchId, branchIds, filters, pagination.page]);
+  const load = useCallback(async () => {
+    const requestId = ++requestSequence.current;
+    if (!accessToken || !branchKey) { setBookings([]); setSelected(null); setLoading(false); return; }
+    setLoading(true); setError('');
+    try {
+      const response = await bookingsApi.getAll({ ...filters, branchId, branchIds: branchId ? undefined : branchKey, page: pagination.page, limit: 20 });
+      if (requestId !== requestSequence.current) return;
+      const rows = response.data || [];
+      setBookings(rows);
+      setSelected((current) => current ? rows.find((row) => (row.bookingId || row.id) === (current.bookingId || current.id)) || null : null);
+      setPagination((current) => ({ ...current, page: response.meta?.page || current.page, totalPages: response.meta?.totalPages || 1, total: response.meta?.total || 0 }));
+    } catch (loadError) {
+      if (requestId === requestSequence.current) setError(loadError.message || 'Không thể tải danh sách lịch hẹn.');
+    } finally { if (requestId === requestSequence.current) setLoading(false); }
+  }, [branchId, branchKey, accessToken, filters, pagination.page]);
+  useEffect(() => {
+    authorizationEpoch.current += 1;
+    requestSequence.current += 1;
+    setBookings([]); setSelected(null);
+    return () => { authorizationEpoch.current += 1; requestSequence.current += 1; };
+  }, [branchKey, accessToken]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!accessToken || !branchKey) return;
+    const socket = io(import.meta.env.VITE_WS_URL || window.location.origin, {
+      transports: ['websocket', 'polling'],
+      auth: (callback) => callback({ token: useAuthStore.getState().accessToken }),
+    });
+    const clearScopedData = () => {
+      authorizationEpoch.current += 1; requestSequence.current += 1;
+      setBookings([]); setSelected(null); setLoading(false);
+    };
+    const authFailed = () => { clearScopedData(); setError('Phiên hoặc quyền truy cập lịch đã thay đổi. Vui lòng tải lại hoặc đăng nhập lại.'); };
+    const authorizationChanged = async () => {
+      clearScopedData();
+      const epoch = authorizationEpoch.current;
+      try {
+        const result = await refreshSession();
+        if (epoch !== authorizationEpoch.current) return;
+        if (!useAuthStore.getState().setSession(result)) authFailed();
+      } catch {
+        if (epoch !== authorizationEpoch.current) return;
+        authFailed(); useAuthStore.getState().clearSession();
+      }
+    };
+    const unbind = bindSchedulerSocketEvents(socket, { refresh: load, clearScopedData, authFailed, authorizationChanged });
+    return () => { unbind(); socket.disconnect(); };
+  }, [accessToken, branchKey, load]);
   useEffect(() => { if (zone !== 'admin') return; Promise.all([servicesApi.getCategories(), servicesApi.getAll(branchId)]).then(([categoryRows, serviceRows]) => { setCategories(Array.isArray(categoryRows) ? categoryRows : []); setServices(Array.isArray(serviceRows) ? serviceRows : serviceRows?.data || []); }).catch(() => { setCategories([]); setServices([]); }); }, [branchId, zone]);
   const apply = (event) => { event.preventDefault(); setPagination((value) => ({ ...value, page: 1 })); setFilters(draft); };
   return <div className="h-full overflow-y-auto bg-[var(--bb-canvas)] p-4 sm:p-5">

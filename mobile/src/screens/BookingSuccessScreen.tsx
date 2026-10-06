@@ -39,6 +39,10 @@ export default function BookingSuccessScreen({ route, navigation }: Props) {
         <Text style={styles.subtitle}>{pending ? 'Cơ sở cần xác nhận lịch này. Bạn có thể theo dõi trạng thái trong Lịch hẹn.' : confirmed ? 'Lịch hẹn đã được xác nhận. Hẹn gặp bạn tại cơ sở.' : 'Hãy kiểm tra trạng thái mới nhất trong Lịch hẹn.'}</Text>
 
         <View style={styles.card}>
+          {!!booking.bookingCode && <View style={styles.row}>
+            <Ionicons name="barcode-outline" size={18} color={colors.textGray} />
+            <Text selectable style={styles.rowText}>Mã lịch: {booking.bookingCode}</Text>
+          </View>}
           <View style={styles.row}>
             <Ionicons name="storefront-outline" size={18} color={colors.textGray} />
             <Text style={styles.rowText}>{booking.shopName}</Text>

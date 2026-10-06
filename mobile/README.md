@@ -1,6 +1,8 @@
 # Beauty Book mobile
 
-Ứng dụng khách hàng chính, package Android `com.beautybook.mobile`, deep link `beautybook://`. Trang chủ, tìm kiếm, cơ sở, đặt lịch, lịch hẹn, mục đã lưu và hồ sơ dùng API thật; lỗi API được hiển thị, không chuyển sang dữ liệu mẫu. Thanh toán chưa thuộc phạm vi mobile.
+Ứng dụng mobile chính, package Android `com.beautybook.mobile`, deep link `beautybook://`. Customer giữ khám phá/tìm kiếm/đặt lịch/lịch hẹn/tài khoản. Staff có Hôm nay/Lịch/Thông báo/Tài khoản; Owner có Tổng quan/Vận hành/Thông báo/Tài khoản. Role và scope lấy từ máy chủ sau login SALON; receptionist/platform-only sử dụng web. Các giao diện dùng API thật, không có dữ liệu mẫu khi lỗi. Thanh toán, hoàn tiền và quản trị sâu không thuộc mobile V1.
+
+Chọn “Nhân viên / Chủ doanh nghiệp” khi đăng nhập bằng tài khoản vận hành. Với nhiều doanh nghiệp, chọn doanh nghiệp do máy chủ trả sau xác thực. Đổi doanh nghiệp cần đăng nhập lại. Owner chỉ chuyển sang Công việc của tôi khi có hồ sơ nhân viên ACTIVE thuộc ngữ cảnh được phép. `EXPO_PUBLIC_WEB_URL` là origin web tin cậy tùy chọn cho thao tác desktop-only; ứng dụng không gắn token vào link. Kết quả native/permission và giới hạn hiện tại: [docs/mobile-staff-owner](../docs/mobile-staff-owner/TESTS.md).
 
 ## Cấu hình
 

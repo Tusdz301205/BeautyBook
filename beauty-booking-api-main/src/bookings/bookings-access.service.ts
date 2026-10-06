@@ -92,7 +92,7 @@ export class BookingsAccessService {
     let staffUserId: string | null = null;
     if (staffAssignments.length > 0) {
       const staff = await this.prisma.staffProfile.findFirst({
-        where: { id: { in: staffAssignments }, userId: user.id },
+        where: { id: { in: staffAssignments }, userId: user.id, status: 'ACTIVE', deletedAt: null },
         select: { userId: true },
       });
       staffUserId = staff?.userId ?? null;
@@ -104,6 +104,14 @@ export class BookingsAccessService {
       ownerUserId: customerUserId,
       staffUserId,
     });
+
+    if (permissionCode === 'booking:read:branch' && !this.canReadBranch(user,
+      { businessId: booking.branch.businessId, branchId: booking.branchId })) {
+      if (staffUserId !== user.id || !this.rolesAtResource(user,
+        { businessId: booking.branch.businessId, branchId: booking.branchId }).includes('STAFF')) {
+        throw new ForbiddenException('Nhân viên chỉ được đọc lịch được giao trong phạm vi còn hiệu lực');
+      }
+    }
 
     return {
       bookingId,

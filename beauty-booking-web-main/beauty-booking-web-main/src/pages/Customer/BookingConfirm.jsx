@@ -10,6 +10,7 @@ import { Button, Card, InlineNotice, Skeleton } from '../../components/ui';
 import { BookingActions, BookingLayout } from '../../components/customer/BookingLayout';
 import { useAsyncResource } from '../../hooks/useAsyncResource';
 import { BookingPolicyNotice } from '../../components/customer/BookingPolicyNotice';
+import { beginBookingSubmission, canReplayBookingSubmission, readBookingSubmission, submitBookingSubmission } from '../../utils/bookingSubmission';
 
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
 
@@ -19,7 +20,9 @@ export default function BookingConfirm() {
   const user = useAuthStore((store) => store.user);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const [attempt, setAttempt] = useState(() => readBookingSubmission(user?.id));
+  const [submissionError, setSubmissionError] = useState('');
+  useEffect(() => { setAttempt(readBookingSubmission(user?.id)); }, [user?.id]);
   const [acknowledged, setAcknowledged] = useState(false);
   const policyResource = useAsyncResource(user && state.branchId ? JSON.stringify([user.id, state.branchId]) : null,
     () => bookingsApi.selfBookingPolicy(state.branchId));
@@ -27,8 +30,8 @@ export default function BookingConfirm() {
   useEffect(() => { setAcknowledged(false); }, [user?.id, state.branchId, policy]);
 
   useEffect(() => {
-    if (!state.branchId || !state.serviceIds.length || !state.slot) { navigate('/book', { replace: true }); return; }
-  }, [state.branchId, state.serviceIds, state.slot, navigate]);
+    if (!attempt && (!state.branchId || !state.serviceIds.length || !state.slot)) { navigate('/book', { replace: true }); return; }
+  }, [attempt, state.branchId, state.serviceIds, state.slot, navigate]);
 
   const serviceKey = state.branchId && state.serviceIds.length ? JSON.stringify([state.branchId, state.serviceIds]) : null;
   const serviceResource = useAsyncResource(serviceKey, async () => {
@@ -76,18 +79,15 @@ export default function BookingConfirm() {
     && policy && !policyResource.loading && !policyResource.error && policy.selfBookingAllowed
     && (!policy.acknowledgmentRequired || acknowledged));
 
-  const confirm = async () => {
-    if (submittingRef.current || !canConfirm) return;
+  const confirm = async (replay = false) => {
+    if (submittingRef.current || !user || useAuthStore.getState().user?.id !== user.id
+      || (replay ? attempt?.userId !== user.id || !canReplayBookingSubmission(attempt) : !canConfirm || attempt)) return;
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      let booking; let plan;
-      if (state.recurring.enabled) {
-        if (Object.keys(state.variantSelections).length) throw new Error('Lịch lặp với biến thể dịch vụ chưa được hỗ trợ. Hãy tắt lịch lặp.');
-        plan = await recurringApi.create({ ...recurringPayload, skipConflicts: state.recurring.skipConflicts, note: state.customerInfo.note, violationAcknowledged: acknowledged });
-        booking = plan.bookings?.[0];
-      } else {
-        booking = await bookingsApi.create({
+      const current = replay ? attempt : beginBookingSubmission(user.id, state.recurring.enabled ? 'recurring' : 'single', state.recurring.enabled
+        ? { ...recurringPayload, skipConflicts: state.recurring.skipConflicts, note: state.customerInfo.note, violationAcknowledged: acknowledged }
+        : {
           branchId: state.branchId,
           serviceIds: state.serviceIds,
           variantSelections: state.variantSelections,
@@ -98,27 +98,38 @@ export default function BookingConfirm() {
           voucherCode: state.voucherCode || undefined,
           source: 'ONLINE_WEB',
           violationAcknowledged: acknowledged,
-        }, idempotencyKey.current);
-      }
+        });
+      setAttempt(current); setSubmissionError('');
+      const result = await submitBookingSubmission(current, (payload, key) => current.kind === 'recurring'
+        ? recurringApi.create(payload, key, { signal: AbortSignal.timeout(20_000) })
+        : bookingsApi.create(payload, key, { signal: AbortSignal.timeout(20_000) }));
+      if (useAuthStore.getState().user?.id !== current.userId) return;
+      if (result.kind === 'busy') return;
+      if (result.kind === 'unknown') { setAttempt(result.attempt); return; }
+      setAttempt(null);
+      if (result.kind === 'rejected') throw result.error;
+      const { booking, plan } = result;
       toast.success(plan ? `Đã tạo chuỗi ${plan.bookings?.length || 0} lịch hẹn` : booking.status === 'PENDING' ? 'Đã gửi yêu cầu đặt lịch' : 'Đặt lịch thành công');
       navigate('/book/success', { state: { booking, plan } });
     } catch (error) {
       if (['SELF_BOOKING_RESTRICTED', 'BOOKING_WARNING_ACK_REQUIRED'].includes(error.details?.code)) {
         setAcknowledged(false);
-        idempotencyKey.current = crypto.randomUUID();
         policyResource.reload();
         toast.error(error.message);
       } else if (/nhân viên (này không còn khả dụng|phù hợp trong khung giờ)|không còn nhân viên phù hợp trong khung giờ/i.test(error.message || '')) {
         toast.error('Một hoặc nhiều khung giờ vừa có người đặt. Vui lòng kiểm tra lại.');
         navigate('/book/time');
-      } else toast.error(error.message || 'Đặt lịch thất bại');
+      } else if (error.status) toast.error(error.message || 'Yêu cầu đặt lịch bị từ chối');
+      else setSubmissionError('Không thể lưu trạng thái yêu cầu trên thiết bị. Vui lòng kiểm tra trình duyệt trước khi gửi.');
     } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
   const total = preview?.finalAmount ?? subtotal;
-  const summary = <Card className="sticky top-24 p-5"><h2 className="text-sm font-bold">Tóm tắt giá dịch vụ</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--bb-muted)]">{state.recurring.enabled ? 'Tạm tính mỗi kỳ' : 'Tạm tính'}</span><span>{money(preview?.subtotal ?? subtotal)}</span></div>{preview?.promotionDiscount > 0 && <div className="flex justify-between text-[var(--bb-success)]"><span>Khuyến mãi tự động</span><span>-{money(preview.promotionDiscount)}</span></div>}{preview?.voucherApplied && <div className="flex justify-between text-[var(--bb-success)]"><span>Voucher {preview.code}</span><span>-{money(preview.voucherDiscount)}</span></div>}<div className="flex justify-between border-t border-[var(--bb-border)] pt-3 text-base font-bold"><span>{state.recurring.enabled ? 'Kỳ đầu tiên' : 'Tổng cộng'}</span><span className="text-[var(--bb-brand-strong)]">{priceResource.loading ? 'Đang tính giá…' : preview ? money(total) : 'Chưa có giá xác nhận'}</span></div></div>{state.recurring.enabled && <p className="mt-3 text-xs text-[var(--bb-muted)]">Giá từng kỳ được xác định khi tạo chuỗi lịch. Voucher không áp dụng cho chuỗi lịch.</p>}{(serviceResource.error || priceResource.error || recurringResource.error) && <div className="mt-4"><InlineNotice tone="danger">{(serviceResource.error || priceResource.error || recurringResource.error).message}</InlineNotice><Button variant="secondary" className="mt-2 w-full" onClick={() => { serviceResource.reload(); priceResource.reload(); recurringResource.reload(); }}>Thử lại</Button></div>}<BookingActions loading={submitting || priceResource.loading || previewingRecurring} disabled={!canConfirm} onNext={confirm} nextLabel={state.recurring.enabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận đặt lịch'} summary={preview ? money(total) : 'Đang tính giá…'} /></Card>;
+  const summary = <Card className="sticky top-24 p-5"><h2 className="text-sm font-bold">Tóm tắt giá dịch vụ</h2><div className="mt-4 space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--bb-muted)]">{state.recurring.enabled ? 'Tạm tính mỗi kỳ' : 'Tạm tính'}</span><span>{money(preview?.subtotal ?? subtotal)}</span></div>{preview?.promotionDiscount > 0 && <div className="flex justify-between text-[var(--bb-success)]"><span>Khuyến mãi tự động</span><span>-{money(preview.promotionDiscount)}</span></div>}{preview?.voucherApplied && <div className="flex justify-between text-[var(--bb-success)]"><span>Voucher {preview.code}</span><span>-{money(preview.voucherDiscount)}</span></div>}<div className="flex justify-between border-t border-[var(--bb-border)] pt-3 text-base font-bold"><span>{state.recurring.enabled ? 'Kỳ đầu tiên' : 'Tổng cộng'}</span><span className="text-[var(--bb-brand-strong)]">{priceResource.loading ? 'Đang tính giá…' : preview ? money(total) : 'Chưa có giá xác nhận'}</span></div></div>{state.recurring.enabled && <p className="mt-3 text-xs text-[var(--bb-muted)]">Giá từng kỳ được xác định khi tạo chuỗi lịch. Voucher không áp dụng cho chuỗi lịch.</p>}{(serviceResource.error || priceResource.error || recurringResource.error) && <div className="mt-4"><InlineNotice tone="danger">{(serviceResource.error || priceResource.error || recurringResource.error).message}</InlineNotice><Button variant="secondary" className="mt-2 w-full" onClick={() => { serviceResource.reload(); priceResource.reload(); recurringResource.reload(); }}>Thử lại</Button></div>}<BookingActions loading={submitting || priceResource.loading || previewingRecurring} disabled={!canConfirm || !!attempt} onNext={() => confirm()} nextLabel={state.recurring.enabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận đặt lịch'} summary={preview ? money(total) : 'Đang tính giá…'} /></Card>;
 
   return <BookingLayout step={5} title="Kiểm tra và xác nhận" aside={summary}>
+    {attempt && <div className="mb-5" role="status" aria-live="polite"><InlineNotice tone="warning">{submitting ? 'Đang gửi yêu cầu đặt lịch. Vui lòng chờ kết quả.' : 'Chưa xác định được kết quả đặt lịch. Yêu cầu có thể đã được lưu. Không gửi lịch mới trước khi kiểm tra.'}</InlineNotice>{!submitting && <div className="mt-3 flex flex-wrap gap-3">{canReplayBookingSubmission(attempt) && <Button variant="secondary" onClick={() => confirm(true)}>Kiểm tra lại yêu cầu đã gửi</Button>}<Button variant="secondary" onClick={() => navigate('/customer/appointments')}>Xem lịch hẹn</Button></div>}</div>}
+    {submissionError && <InlineNotice tone="danger">{submissionError}</InlineNotice>}
     {policyResource.loading && <p role="status">Đang kiểm tra chính sách đặt lịch…</p>}
     {policyResource.error && <InlineNotice tone="danger">Không thể kiểm tra chính sách đặt lịch. <Button variant="secondary" onClick={policyResource.reload}>Thử lại</Button></InlineNotice>}
     <BookingPolicyNotice policy={policy} acknowledged={acknowledged} onAcknowledge={setAcknowledged} />
@@ -132,7 +143,7 @@ export default function BookingConfirm() {
       {state.recurring.enabled && Object.keys(state.variantSelections).length > 0 && <InlineNotice tone="warning">Lựa chọn dịch vụ này chỉ hỗ trợ đặt một lần. Hãy tắt lịch lặp để tiếp tục.</InlineNotice>}
       {state.recurring.enabled && Object.keys(state.variantSelections).length === 0 && <InlineNotice tone={recurringPreview?.conflictCount ? 'warning' : 'success'}>{previewingRecurring ? 'Đang kiểm tra toàn bộ chuỗi lịch…' : recurringPreview ? `${recurringPreview.availableCount} kỳ còn chỗ${recurringPreview.conflictCount ? `, ${recurringPreview.conflictCount} kỳ xung đột sẽ ${state.recurring.skipConflicts ? 'được bỏ qua' : 'cần xử lý'}.` : '.'}` : 'Chưa có kết quả kiểm tra chuỗi lịch.'}</InlineNotice>}
       {state.voucherCode && !state.recurring.enabled && <InlineNotice tone={preview?.voucherApplied ? 'success' : 'warning'}><span className="flex items-center gap-2"><TicketPercent size={16} />{preview?.voucherApplied ? `Mã ${state.voucherCode} đã áp dụng.` : preview?.explanations?.join(' · ') || `Mã ${state.voucherCode} không đủ điều kiện.`}</span></InlineNotice>}
-      <div className="border-t border-[var(--bb-border)] pt-5"><Button variant="secondary" disabled={submitting} onClick={() => navigate('/book/info')}>Quay lại chỉnh sửa</Button></div>
+      <div className="border-t border-[var(--bb-border)] pt-5"><Button variant="secondary" disabled={submitting || !!attempt} onClick={() => navigate('/book/info')}>Quay lại chỉnh sửa</Button></div>
     </div>}
   </BookingLayout>;
 }

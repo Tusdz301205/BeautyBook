@@ -44,6 +44,10 @@ import { applyServicePriceRules } from '../services/service-price-rules';
 import { assertCustomerDirectCancellation } from './customer-cancellation-policy';
 import { bookingViolationSummary, recordBookingViolation } from './booking-violation-policy';
 import { assertCustomerSelfBookingAllowed } from './customer-booking-policy';
+import { BOOKING_TIMING_AUDIT_INCLUDE, bookingItemActualTiming, withBookingTiming } from './booking-actual-timing';
+import { staffBookingView } from './staff-booking-view';
+import { assertMobileOwnerWithoutFinance } from './mobile-owner-finance-guard';
+import { emitCommittedBookingUpdate, emitCommittedBookingUpdates } from './booking-realtime';
 
 type BookingTimelineItem = {
   id: string;
@@ -254,6 +258,7 @@ export class BookingsService {
           },
           bookingServices: {
             include: {
+              ...BOOKING_TIMING_AUDIT_INCLUDE,
               service: {
                 include: {
                   category: { select: { id: true, name: true } },
@@ -286,7 +291,9 @@ export class BookingsService {
       NO_SHOW: 'No-show',
     };
 
+    const serverNow = new Date();
     const data = bookings.map((b) => ({
+      serverNow,
       id: b.bookingCode,
       bookingId: b.id,
       customer_id: b.customer?.user?.id,
@@ -298,7 +305,9 @@ export class BookingsService {
       branch_name: b.branch?.name,
       service_category:
         b.bookingServices?.[0]?.service?.category?.name || 'N/A',
-      services: b.bookingServices?.map((bs) => ({
+      services: b.bookingServices?.filter((bs) => !staffId || bs.staffId === staffId).map((bs) => ({
+        ...bookingItemActualTiming(bs),
+        bookingServiceId: bs.id,
         name: bs.service?.name,
         price: bs.priceAtBooking,
         duration: bs.durationMinutes,
@@ -348,6 +357,7 @@ export class BookingsService {
         },
         bookingServices: {
           include: {
+            ...BOOKING_TIMING_AUDIT_INCLUDE,
             service: {
               include: { category: true },
             },
@@ -394,7 +404,7 @@ export class BookingsService {
     const candidate = candidateByStatus[booking.status];
     const violationSummary = await bookingViolationSummary(this.prisma, booking.customerId, booking.branch.businessId);
     return {
-      ...booking,
+      ...withBookingTiming(booking),
       violationSummary,
       transitionAvailability: candidate
         ? {
@@ -426,6 +436,7 @@ export class BookingsService {
     changedByType: 'CUSTOMER' | 'SALON' | 'ADMIN' | 'SYSTEM' = 'SALON',
     actorRoles: string[] = [],
     noShowConfirmed = false,
+    mobileOwnerV1 = false,
   ) {
     const statusMap: Record<string, string> = {
       'Mới': 'PENDING',
@@ -560,6 +571,10 @@ export class BookingsService {
     const updatedBooking = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
+        if (mobileOwnerV1 && ['CANCELLED', 'REJECTED'].includes(mappedStatus)) {
+          await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
+          await assertMobileOwnerWithoutFinance(tx, id);
+        }
         if (mappedStatus === 'NO_SHOW') {
           // Serialize with cancellation requests, check-in and rescheduling.
           await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
@@ -728,27 +743,31 @@ export class BookingsService {
         updatedBooking.bookingServices?.[0]?.service?.name || 'Dịch vụ',
     };
 
-    if (customerEmail) {
-      if (mappedStatus === 'CONFIRMED') {
-        await this.mailService.sendBookingConfirmation(
-          customerEmail,
-          updatedBooking.bookingCode,
-          details,
-        );
-      } else if (mappedStatus === 'CANCELLED') {
-        await this.mailService.sendBookingCancellation(
-          customerEmail,
-          updatedBooking.bookingCode,
-          details,
-          note || 'Hệ thống huỷ',
-        );
-      } else if (mappedStatus === 'COMPLETED') {
-        await this.mailService.sendBookingConfirmation(
-          customerEmail,
-          updatedBooking.bookingCode,
-          details,
-        );
+    try {
+      if (customerEmail) {
+        if (mappedStatus === 'CONFIRMED') {
+          await this.mailService.sendBookingConfirmation(
+            customerEmail,
+            updatedBooking.bookingCode,
+            details,
+          );
+        } else if (mappedStatus === 'CANCELLED') {
+          await this.mailService.sendBookingCancellation(
+            customerEmail,
+            updatedBooking.bookingCode,
+            details,
+            note || 'Hệ thống huỷ',
+          );
+        } else if (mappedStatus === 'COMPLETED') {
+          await this.mailService.sendBookingConfirmation(
+            customerEmail,
+            updatedBooking.bookingCode,
+            details,
+          );
+        }
       }
+    } catch {
+      this.remediationLogger.warn(`Email delivery delayed for committed booking ${id}`);
     }
 
     // In-app notification — gửi đến customer của booking
@@ -771,13 +790,17 @@ export class BookingsService {
       EXPIRED: 'BOOKING_CANCELLED',
     };
     if (notifTitleByStatus[mappedStatus]) {
-      await notifyBookingBothParties(
-        this.prisma,
-        id,
-        notifTypeByStatus[mappedStatus],
-        notifTitleByStatus[mappedStatus],
-        note ? `${details.serviceName} — ${note}` : details.serviceName,
-      );
+      try {
+        await notifyBookingBothParties(
+          this.prisma,
+          id,
+          notifTypeByStatus[mappedStatus],
+          notifTitleByStatus[mappedStatus],
+          note ? `${details.serviceName} — ${note}` : details.serviceName,
+        );
+      } catch {
+        this.remediationLogger.warn(`Notification delivery delayed for committed booking ${id}`);
+      }
     }
 
     // Audit: chỉ ghi khi admin ép (FORCE_CANCEL); còn lại status_history đã đủ.
@@ -793,10 +816,10 @@ export class BookingsService {
       });
     }
 
+    await emitCommittedBookingUpdate(this.schedulerGateway, updatedBooking);
     if (mappedStatus === 'COMPLETED' && this.payments) {
       await this.prisma.$transaction((tx) => this.payments!.ensurePlatformFee(tx, id));
     }
-    this.schedulerGateway.notifyBookingUpdated(updatedBooking);
     return updatedBooking;
   }
 
@@ -1601,15 +1624,15 @@ export class BookingsService {
       take: 500,
     });
     if (expired.length === 0) return 0;
-    const expiredCount = await withSerializableTransaction(this.prisma, async (tx) => {
-      let count = 0;
+    const expiredIds = await withSerializableTransaction(this.prisma, async (tx) => {
+      const ids: string[] = [];
       for (const item of expired) {
         const claimed = await tx.booking.updateMany({
           where: { id: item.id, status: 'PENDING', pendingExpiresAt: { lte: now } },
           data: { status: 'EXPIRED', pendingExpiresAt: null },
         });
         if (claimed.count !== 1) continue;
-        count += 1;
+        ids.push(item.id);
         await cancelUnfinishedBookingItems(tx, item.id);
         await tx.bookingStatusHistory.create({
           data: { bookingId: item.id, status: 'EXPIRED', note: 'Hết thời gian giữ chỗ' },
@@ -1621,9 +1644,10 @@ export class BookingsService {
           item.bookingServices[0]?.comboId ?? null,
         );
       }
-      return count;
+      return ids;
     }, { conflictMessage: 'Danh sách giữ chỗ vừa thay đổi, vui lòng thử lại' });
-    return expiredCount;
+    await emitCommittedBookingUpdates(this.prisma, this.schedulerGateway, expiredIds);
+    return expiredIds.length;
   }
 
   async releaseBookingBenefits(
@@ -1671,7 +1695,7 @@ export class BookingsService {
     reason: string,
   ): Promise<number> {
     if (bookingIds.length === 0) return 0;
-    return withSerializableTransaction(
+    const compensatedIds = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
         const rows = await tx.booking.findMany({
@@ -1691,7 +1715,7 @@ export class BookingsService {
             },
           },
         });
-        let compensated = 0;
+        const ids: string[] = [];
         for (const row of rows) {
           const claimed = await tx.booking.updateMany({
             where: { id: row.id, status: row.status },
@@ -1704,7 +1728,7 @@ export class BookingsService {
             },
           });
           if (claimed.count !== 1) continue;
-          compensated += 1;
+          ids.push(row.id);
           await cancelUnfinishedBookingItems(tx, row.id);
           await tx.bookingStatusHistory.create({
             data: {
@@ -1720,13 +1744,15 @@ export class BookingsService {
             row.bookingServices[0]?.comboId ?? null,
           );
         }
-        return compensated;
+        return ids;
       },
       {
         conflictMessage:
           'Không thể hoàn tác đầy đủ chuỗi lịch vừa tạo; cần kiểm tra thủ công',
       },
     );
+    await emitCommittedBookingUpdates(this.prisma, this.schedulerGateway, compensatedIds);
+    return compensatedIds.length;
   }
 
   async cancelRecurringPlanOccurrences(
@@ -1825,7 +1851,7 @@ export class BookingsService {
       },
     );
 
-    await Promise.all(
+    await Promise.allSettled(
       cancelledIds.map((bookingId) =>
         notifyBookingBothParties(
           this.prisma,
@@ -1836,6 +1862,7 @@ export class BookingsService {
         ),
       ),
     );
+    await emitCommittedBookingUpdates(this.prisma, this.schedulerGateway, cancelledIds);
     return cancelledIds.length;
   }
 
@@ -1879,27 +1906,21 @@ export class BookingsService {
       },
       include: {
         customer: { include: { user: { select: { id: true, fullName: true, email: true, phone: true, avatarMediaId: true } } } },
-        branch: { select: { id: true, name: true, business: { select: { id: true, name: true } } } },
-        bookingServices: { include: { service: true, staff: { include: { user: { select: { id: true, fullName: true } } } } } },
+        branch: { select: { id: true, name: true, timezone: true, business: { select: { id: true, name: true } } } },
+        bookingServices: { include: { ...BOOKING_TIMING_AUDIT_INCLUDE, service: true, staff: { include: { user: { select: { id: true, fullName: true } } } } } },
         overbookingOverride: true,
       },
       orderBy: [{ appointmentDate: 'asc' }, { appointmentStartTime: 'asc' }],
     });
 
-    if (!options.redactCustomerContact) return { staff, bookings };
+    const serverNow = new Date();
+    const timedBookings = bookings.map((booking) => withBookingTiming(booking, serverNow));
+    if (!options.redactCustomerContact) return { staff, bookings: timedBookings };
     return {
-      staff,
-      bookings: bookings.map((booking) => ({
-        ...booking,
-        customer: booking.customer
-          ? {
-              ...booking.customer,
-              user: booking.customer.user
-                ? { ...booking.customer.user, email: null, phone: null }
-                : booking.customer.user,
-            }
-          : booking.customer,
-      })),
+      staff: staff.map((person) => ({ id: person.id, fullName: person.fullName,
+        position: person.position, branchId: person.branchId, status: person.status,
+        user: person.user ? { id: person.user.id, fullName: person.user.fullName, avatarMedia: person.user.avatarMedia } : null })),
+      bookings: timedBookings.map((booking) => staffBookingView(booking, options.staffId ?? '')),
     };
   }
 
@@ -2320,14 +2341,18 @@ export class BookingsService {
         'Khung giờ vừa được thay đổi bởi yêu cầu khác, vui lòng tải lại',
     });
 
-    await notifyBookingBothParties(
-      this.prisma,
-      id,
-      'BOOKING_RESCHEDULE_APPROVED',
-      'Lịch hẹn đã được dời',
-      `Thời gian mới: ${startTime.toLocaleString('vi-VN')}`,
-    );
-    this.schedulerGateway.notifyBookingUpdated(booking);
+    try {
+      await notifyBookingBothParties(
+        this.prisma,
+        id,
+        'BOOKING_RESCHEDULE_APPROVED',
+        'Lịch hẹn đã được dời',
+        `Thời gian mới: ${startTime.toLocaleString('vi-VN')}`,
+      );
+    } catch {
+      this.remediationLogger.warn(`Notification delivery delayed for moved booking ${id}`);
+    }
+    await emitCommittedBookingUpdate(this.schedulerGateway, booking);
     return booking;
   }
 

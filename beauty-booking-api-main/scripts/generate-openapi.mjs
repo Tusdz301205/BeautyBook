@@ -11,6 +11,7 @@ function isIdempotentMutation(verb, path) {
   if (verb !== 'post') return false;
   return [
     /^\/bookings(?:\/guest)?$/,
+    /^\/recurring$/,
     /^\/bookings\/[^/]+\/(?:change-requests|refund|items)$/,
     /^\/payments\/collect$/,
     /^\/payments\/[^/]+\/refund-requests$/,
@@ -36,6 +37,16 @@ for (const route of scanControllers(root).routes) {
   const parameters = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({
     name: match[1], in: 'path', required: true, schema: { type: 'string' },
   }));
+  const mobileOwnerGuard = (verb === 'patch' && /^\/bookings\/change-requests\/\{[^}]+\}\/approve$/.test(path)) ||
+    ((verb === 'put' || verb === 'patch') && /^\/bookings\/\{[^}]+\}(?:\/status)?$/.test(path));
+  if (mobileOwnerGuard) parameters.push({ name: 'X-Mobile-Owner-V1', in: 'header', required: false,
+    description: 'Send true for mobile V1. Cancellation/rejection with linked finance or benefits is rejected with MOBILE_FINANCE_REVIEW_REQUIRED; omission retains desktop behavior. This header does not grant authorization.',
+    schema: { type: 'string', enum: ['true'] } });
+  if (verb === 'get' && path === '/bookings/my-work-items') parameters.push(
+    ...['dateFrom', 'dateTo'].map(name => ({ name, in: 'query', schema: { type: 'string', format: 'date' } })),
+    ...['branchId', 'bookingId'].map(name => ({ name, in: 'query', schema: { type: 'string', format: 'uuid' } })),
+    { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+    { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 } });
   if (isIdempotentMutation(verb, path)) {
     parameters.push({
       name: 'Idempotency-Key', in: 'header', required: true,
@@ -72,7 +83,7 @@ for (const route of scanControllers(root).routes) {
       200: { description: 'Success (consult the controller for the exact success status and response schema)' },
       400: errorResponse('Validation error'),
       ...(!isPublic ? { 401: errorResponse('Unauthorized'), 403: errorResponse('Forbidden') } : {}),
-      ...(isIdempotentMutation(verb, path) ? { 409: errorResponse('Duplicate or conflicting request') } : {}),
+      ...(isIdempotentMutation(verb, path) || mobileOwnerGuard ? { 409: errorResponse('Conflicting request, changed conditions, or mobile finance review required') } : {}),
     },
     'x-source': route.file,
     'x-source-line': route.line,

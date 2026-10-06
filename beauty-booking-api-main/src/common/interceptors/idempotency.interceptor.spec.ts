@@ -69,6 +69,7 @@ describe('IdempotencyInterceptor', () => {
   test('requires idempotency for financial package and settlement writes', () => {
     expect(requiresIdempotency('POST', '/api/v1/bookings')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/bookings/guest')).toBe(true);
+    expect(requiresIdempotency('POST', '/api/v1/recurring')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/packages/pkg-1/purchases')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/package-installments/i-1/pay')).toBe(true);
     expect(requiresIdempotency('POST', '/api/v1/payments/package-purchases/p-1/sessions/reserve')).toBe(true);
@@ -98,6 +99,20 @@ describe('IdempotencyInterceptor', () => {
     await expect(
       lastValueFrom(interceptor.intercept(context({ amount: 200 }).execution, handler)),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  test('a recurring create retry replays the whole saved result without creating another series', async () => {
+    const interceptor = new IdempotencyInterceptor(config);
+    const body = { branchId: 'branch', count: 2, appointmentDate: '2026-12-01T03:00:00Z' };
+    const handler = { handle: jest.fn(() => of({ id: 'series', bookings: [{ id: 'first' }, { id: 'second' }] })) } as CallHandler;
+    const url = '/api/v1/recurring';
+    const first = await lastValueFrom(interceptor.intercept(context(body, 'series-key', url).execution, handler));
+    const replay = await lastValueFrom(interceptor.intercept(context(body, 'series-key', url).execution, handler));
+    expect(replay).toEqual(first);
+    expect(handler.handle).toHaveBeenCalledTimes(1);
+    await expect(lastValueFrom(interceptor.intercept(context({ ...body, count: 3 }, 'series-key', url).execution, handler)))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(handler.handle).toHaveBeenCalledTimes(1);
   });
 
   test('healthy Redis in-flight conflict does not fall back to memory or run handler', async () => {

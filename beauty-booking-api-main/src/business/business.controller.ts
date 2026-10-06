@@ -13,6 +13,7 @@ import type { BusinessDraftInput } from './business-onboarding.service';
 import { Audited } from '../common/decorators/audit.decorator';
 import { AuditAction, Prisma } from '@prisma/client';
 import { ensureCanOnResource } from '../common/utils/policy';
+import { readMobileBusinessContext } from './business-mobile-context';
 
 @Controller('business')
 @UseGuards(RolesGuard)
@@ -38,6 +39,13 @@ export class BusinessController {
   @RequirePermission('business:create:self')
   getOnboardingConfig(@CurrentUser() user: AuthUser) {
     return this.onboarding.getOnboardingConfig(user.id);
+  }
+
+  @Get('mobile-context')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business:create:self', 'business:update:tenant')
+  mobileContext(@CurrentUser() user: AuthUser) {
+    return readMobileBusinessContext(this.prisma, user);
   }
 
   @Get('onboarding/mine')

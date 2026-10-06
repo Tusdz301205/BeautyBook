@@ -1464,7 +1464,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -1475,7 +1475,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 237
+        "x-source-line": 262
       },
       "get": {
         "tags": [
@@ -1537,7 +1537,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 418
+        "x-source-line": 443
       }
     },
     "/bookings/{id}": {
@@ -1611,7 +1611,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 858
+        "x-source-line": 908
       },
       "put": {
         "tags": [
@@ -1639,6 +1639,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Mobile-Owner-V1",
+            "in": "header",
+            "required": false,
+            "description": "Send true for mobile V1. Cancellation/rejection with linked finance or benefits is rejected with MOBILE_FINANCE_REVIEW_REQUIRED; omission retains desktop behavior. This header does not grant authorization.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
             }
           }
         ],
@@ -1686,10 +1698,20 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 902
+        "x-source-line": 956
       }
     },
     "/bookings/{id}/assign": {
@@ -1769,7 +1791,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1105
+        "x-source-line": 1164
       }
     },
     "/bookings/{id}/change-requests": {
@@ -1856,7 +1878,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -1867,7 +1889,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1186
+        "x-source-line": 1247
       }
     },
     "/bookings/{id}/checkin": {
@@ -1947,7 +1969,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1297
+        "x-source-line": 1360
       }
     },
     "/bookings/{id}/force-cancel-preview": {
@@ -2014,7 +2036,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1028
+        "x-source-line": 1087
       }
     },
     "/bookings/{id}/items": {
@@ -2103,7 +2125,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -2114,7 +2136,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1118
+        "x-source-line": 1177
       }
     },
     "/bookings/{id}/items/{itemId}": {
@@ -2204,7 +2226,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1147
+        "x-source-line": 1206
       }
     },
     "/bookings/{id}/move": {
@@ -2284,7 +2306,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1072
+        "x-source-line": 1131
       }
     },
     "/bookings/{id}/refund": {
@@ -2371,7 +2393,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -2382,7 +2404,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1269
+        "x-source-line": 1332
       }
     },
     "/bookings/{id}/resize": {
@@ -2461,7 +2483,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1091
+        "x-source-line": 1150
       }
     },
     "/bookings/{id}/status": {
@@ -2496,6 +2518,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Mobile-Owner-V1",
+            "in": "header",
+            "required": false,
+            "description": "Send true for mobile V1. Cancellation/rejection with linked finance or benefits is rejected with MOBILE_FINANCE_REVIEW_REQUIRED; omission retains desktop behavior. This header does not grant authorization.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
             }
           }
         ],
@@ -2543,10 +2577,20 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 977
+        "x-source-line": 1034
       }
     },
     "/bookings/available-slots": {
@@ -2572,7 +2616,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 724
+        "x-source-line": 771
       }
     },
     "/bookings/by-branch/{branchId}": {
@@ -2643,7 +2687,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 813
+        "x-source-line": 863
       }
     },
     "/bookings/by-category": {
@@ -2703,7 +2747,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 800
+        "x-source-line": 850
       }
     },
     "/bookings/by-customer/{userId}": {
@@ -2776,7 +2820,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 824
+        "x-source-line": 874
       }
     },
     "/bookings/change-requests/{reqId}/approve": {
@@ -2806,6 +2850,18 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "X-Mobile-Owner-V1",
+            "in": "header",
+            "required": false,
+            "description": "Send true for mobile V1. Cancellation/rejection with linked finance or benefits is rejected with MOBILE_FINANCE_REVIEW_REQUIRED; omission retains desktop behavior. This header does not grant authorization.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
             }
           }
         ],
@@ -2853,10 +2909,20 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1209
+        "x-source-line": 1270
       }
     },
     "/bookings/change-requests/{reqId}/reject": {
@@ -2936,7 +3002,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1227
+        "x-source-line": 1289
       }
     },
     "/bookings/change-requests/pending": {
@@ -2995,7 +3061,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1245
+        "x-source-line": 1307
       }
     },
     "/bookings/guest": {
@@ -3074,7 +3140,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -3085,7 +3151,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 199
+        "x-source-line": 224
       }
     },
     "/bookings/my-appointments": {
@@ -3142,7 +3208,188 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 545
+        "x-source-line": 588
+      }
+    },
+    "/bookings/my-work-items": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_myWorkItems_get",
+        "summary": "my Work Items",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "STAFF",
+          "BUSINESS_OWNER"
+        ],
+        "x-permissions": [
+          "booking:read:branch",
+          "booking:read:tenant"
+        ],
+        "parameters": [
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "bookingId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 567
+      }
+    },
+    "/bookings/my-work-items/{itemId}": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_myWorkItem_get",
+        "summary": "my Work Item",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "STAFF",
+          "BUSINESS_OWNER"
+        ],
+        "x-permissions": [
+          "booking:read:branch",
+          "booking:read:tenant"
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 577
       }
     },
     "/bookings/preview-price": {
@@ -3210,7 +3457,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 308
+        "x-source-line": 333
       }
     },
     "/bookings/salon-queue": {
@@ -3270,7 +3517,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 636
+        "x-source-line": 682
       }
     },
     "/bookings/salon-violations": {
@@ -3329,7 +3576,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 676
+        "x-source-line": 723
       }
     },
     "/bookings/scheduler": {
@@ -3391,7 +3638,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 750
+        "x-source-line": 797
       }
     },
     "/bookings/self-booking-policy": {
@@ -3448,7 +3695,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 185
+        "x-source-line": 210
       }
     },
     "/bookings/stats": {
@@ -3508,7 +3755,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 778
+        "x-source-line": 828
       }
     },
     "/branches": {
@@ -3554,7 +3801,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 57
+        "x-source-line": 59
       },
       "post": {
         "tags": [
@@ -3620,7 +3867,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 170
+        "x-source-line": 174
       }
     },
     "/branches/{id}": {
@@ -3656,7 +3903,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 134
+        "x-source-line": 136
       },
       "patch": {
         "tags": [
@@ -3741,7 +3988,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 309
+        "x-source-line": 338
       }
     },
     "/branches/{id}/copy-services": {
@@ -3819,7 +4066,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 195
+        "x-source-line": 199
       }
     },
     "/branches/{id}/documents": {
@@ -3897,7 +4144,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 210
+        "x-source-line": 214
       }
     },
     "/branches/{id}/documents/{documentId}": {
@@ -3972,7 +4219,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 232
+        "x-source-line": 236
       }
     },
     "/branches/{id}/onboarding": {
@@ -4051,7 +4298,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 182
+        "x-source-line": 186
       }
     },
     "/branches/{id}/preview": {
@@ -4118,7 +4365,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 109
+        "x-source-line": 111
       }
     },
     "/branches/{id}/publish": {
@@ -4196,7 +4443,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 281
+        "x-source-line": 285
       }
     },
     "/branches/{id}/review": {
@@ -4274,7 +4521,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 257
+        "x-source-line": 261
       }
     },
     "/branches/{id}/reviews": {
@@ -4310,7 +4557,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 125
+        "x-source-line": 127
       }
     },
     "/branches/{id}/services": {
@@ -4346,7 +4593,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 116
+        "x-source-line": 118
       }
     },
     "/branches/{id}/status": {
@@ -4424,7 +4671,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 144
+        "x-source-line": 148
       }
     },
     "/branches/{id}/submit": {
@@ -4503,7 +4750,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 245
+        "x-source-line": 249
       }
     },
     "/branches/{id}/transition": {
@@ -4583,7 +4830,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 293
+        "x-source-line": 297
       }
     },
     "/branches/accessible": {
@@ -4645,7 +4892,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 94
+        "x-source-line": 96
       }
     },
     "/branches/accessible/{id}": {
@@ -4717,7 +4964,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 101
+        "x-source-line": 103
       }
     },
     "/branches/locations/districts": {
@@ -4743,7 +4990,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 88
+        "x-source-line": 90
       }
     },
     "/branches/manage": {
@@ -4800,7 +5047,7 @@
           }
         },
         "x-source": "src/branches/branches.controller.ts",
-        "x-source-line": 75
+        "x-source-line": 77
       }
     },
     "/business/{businessId}/cancellation-policy": {
@@ -4869,7 +5116,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 198
+        "x-source-line": 206
       },
       "patch": {
         "tags": [
@@ -4945,7 +5192,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 211
+        "x-source-line": 219
       }
     },
     "/business/{businessId}/detail": {
@@ -5012,7 +5259,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 85
+        "x-source-line": 93
       }
     },
     "/business/{businessId}/members": {
@@ -5079,7 +5326,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 183
+        "x-source-line": 191
       }
     },
     "/business/{businessId}/onboarding": {
@@ -5157,7 +5404,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 50
+        "x-source-line": 58
       }
     },
     "/business/{businessId}/review": {
@@ -5235,7 +5482,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 73
+        "x-source-line": 81
       }
     },
     "/business/{businessId}/submit": {
@@ -5313,7 +5560,65 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 62
+        "x-source-line": 70
+      }
+    },
+    "/business/mobile-context": {
+      "get": {
+        "tags": [
+          "business"
+        ],
+        "operationId": "BusinessController_mobileContext_get",
+        "summary": "mobile Context",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "BUSINESS_OWNER"
+        ],
+        "x-permissions": [
+          "business:create:self",
+          "business:update:tenant"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/business/business.controller.ts",
+        "x-source-line": 44
       }
     },
     "/business/onboarding/config": {
@@ -5370,7 +5675,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 36
+        "x-source-line": 37
       }
     },
     "/business/onboarding/draft": {
@@ -5438,7 +5743,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 28
+        "x-source-line": 29
       }
     },
     "/business/onboarding/mine": {
@@ -5496,7 +5801,7 @@
           }
         },
         "x-source": "src/business/business.controller.ts",
-        "x-source-line": 43
+        "x-source-line": 51
       }
     },
     "/combos": {
@@ -8337,7 +8642,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -8500,7 +8805,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -8659,7 +8964,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -8820,7 +9125,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -9045,7 +9350,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -9272,7 +9577,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -9554,7 +9859,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -9736,7 +10041,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -9836,7 +10141,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -10642,6 +10947,18 @@
         "x-permissions": [
           "booking:create:self"
         ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10679,6 +10996,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {
@@ -14257,7 +14584,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 192
+        "x-source-line": 193
       },
       "post": {
         "tags": [
@@ -14323,7 +14650,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 226
+        "x-source-line": 233
       }
     },
     "/staff/{id}": {
@@ -14396,7 +14723,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 211
+        "x-source-line": 212
       },
       "patch": {
         "tags": [
@@ -14472,7 +14799,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 254
+        "x-source-line": 261
       },
       "delete": {
         "tags": [
@@ -14537,7 +14864,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 301
+        "x-source-line": 308
       }
     },
     "/staff/{id}/branch-assignments": {
@@ -14615,7 +14942,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 275
+        "x-source-line": 282
       }
     },
     "/staff/{id}/commission": {
@@ -14686,7 +15013,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 402
+        "x-source-line": 409
       }
     },
     "/staff/{id}/offboarding-impact": {
@@ -14754,7 +15081,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 315
+        "x-source-line": 322
       }
     },
     "/staff/{id}/services": {
@@ -14827,7 +15154,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 361
+        "x-source-line": 368
       },
       "patch": {
         "tags": [
@@ -14903,7 +15230,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 376
+        "x-source-line": 383
       }
     },
     "/staff/branches/{branchId}/holidays": {
@@ -14981,7 +15308,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 327
+        "x-source-line": 334
       }
     },
     "/staff/branches/{branchId}/special-days": {
@@ -15059,7 +15386,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 340
+        "x-source-line": 347
       }
     },
     "/staff/invitations": {
@@ -15127,7 +15454,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 79
+        "x-source-line": 80
       },
       "get": {
         "tags": [
@@ -15183,7 +15510,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 92
+        "x-source-line": 93
       }
     },
     "/staff/invitations/{invitationId}": {
@@ -15250,7 +15577,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 152
+        "x-source-line": 153
       }
     },
     "/staff/invitations/{invitationId}/email": {
@@ -15328,7 +15655,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 140
+        "x-source-line": 141
       }
     },
     "/staff/invitations/{invitationId}/resend": {
@@ -15406,7 +15733,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 129
+        "x-source-line": 130
       }
     },
     "/staff/invitations/accept": {
@@ -15443,7 +15770,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 113
+        "x-source-line": 114
       }
     },
     "/staff/invitations/accept-existing": {
@@ -15506,7 +15833,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 121
+        "x-source-line": 122
       }
     },
     "/staff/invitations/context": {
@@ -15532,7 +15859,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 106
+        "x-source-line": 107
       }
     },
     "/staff/me": {
@@ -15591,7 +15918,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 180
+        "x-source-line": 181
       }
     },
     "/staff/public": {
@@ -15617,7 +15944,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 167
+        "x-source-line": 168
       }
     },
     "/staff/public/{id}": {
@@ -15653,7 +15980,7 @@
           }
         },
         "x-source": "src/staff/staff.controller.ts",
-        "x-source-line": 174
+        "x-source-line": 175
       }
     },
     "/users": {
@@ -16730,7 +17057,7 @@
             }
           },
           "409": {
-            "description": "Duplicate or conflicting request",
+            "description": "Conflicting request, changed conditions, or mobile finance review required",
             "content": {
               "application/json": {
                 "schema": {

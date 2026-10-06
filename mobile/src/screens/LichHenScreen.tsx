@@ -44,7 +44,8 @@ const SUB_TAB_EMPTY: Record<SubTab, { emoji: string; title: string; subtitle: st
 
 export default function LichHenScreen({ navigation }: Props) {
   const appointments = useAppointments();
-  const { isLoading, error, reload } = useBookings();
+  const { isLoading, isRefreshing, error, reload } = useBookings();
+  const [isPullRefreshing, setPullRefreshing] = useState(false);
   const [subTab, setSubTab] = useState<SubTab>('upcoming');
 
   useFocusEffect(useCallback(() => {
@@ -137,7 +138,10 @@ export default function LichHenScreen({ navigation }: Props) {
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.content}
-              refreshControl={<RefreshControl refreshing={isLoading} onRefresh={() => void reload()} colors={[colors.primary]} />}
+              refreshControl={<RefreshControl refreshing={isPullRefreshing && isRefreshing} onRefresh={() => {
+                setPullRefreshing(true);
+                void reload().finally(() => setPullRefreshing(false));
+              }} colors={[colors.primary]} />}
             >
               {heroItem && (
                 <HeroCard

@@ -44,6 +44,8 @@ export function mapBooking(booking: ApiBooking): ConfirmedBooking {
     date: day ? `${day[3]}/${day[2]}/${day[1]}` : booking.appointmentDate,
     time: clock ? `${clock[1]}:${clock[2]}` : '',
     appointmentStartAt: start?.toISOString() ?? '',
+    serverNow: booking.serverNow,
+    branchTimezone: booking.branch?.timezone,
     totalPrice: Number(booking.finalAmount ?? booking.totalAmount ?? 0),
     status: mapBookingStatus(booking.status),
     rawStatus: booking.status,
@@ -56,6 +58,14 @@ export function mapBooking(booking: ApiBooking): ConfirmedBooking {
       staffId: item.staffId || item.staff?.id || undefined,
       serviceName: item.service?.name || 'Dịch vụ',
       staffName: item.staff?.fullName,
+      durationMinutes: item.durationMinutes,
+      status: item.status,
+      itemStartAt: item.itemStartAt,
+      itemEndAt: item.itemEndAt,
+      actualStartedAt: item.actualStartedAt,
+      actualCompletedAt: item.actualCompletedAt,
+      actualStoppedAt: item.actualStoppedAt,
+      actualTimingSource: item.actualTimingSource,
     })),
   };
 }

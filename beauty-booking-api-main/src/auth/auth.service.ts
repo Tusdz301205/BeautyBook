@@ -83,11 +83,23 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const resolved = resolveWorkspaceAssignments(
-      user.userRoles,
-      workspaceRequest as WorkspaceRequest,
-      Boolean(user.customerProfile),
-    );
+    let resolved: ReturnType<typeof resolveWorkspaceAssignments>;
+    try {
+      resolved = resolveWorkspaceAssignments(user.userRoles, workspaceRequest as WorkspaceRequest, Boolean(user.customerProfile));
+    } catch (error) {
+      // Credential verification above is mandatory before disclosing tenant labels.
+      if (error instanceof BadRequestException) {
+        const challenge = error.getResponse();
+        if (typeof challenge === 'object' && 'code' in challenge && challenge.code === 'BUSINESS_REQUIRED' &&
+          'businessIds' in challenge && Array.isArray(challenge.businessIds)) {
+          const businesses = await this.prisma.business.findMany({
+            where: { id: { in: challenge.businessIds }, deletedAt: null }, select: { id: true, name: true },
+          });
+          throw new BadRequestException({ ...challenge, businesses });
+        }
+      }
+      throw error;
+    }
     const roles = resolved.assignments.map((ur) => ur.role.code);
     const scopes = resolved.assignments
       .map((ur) => ({

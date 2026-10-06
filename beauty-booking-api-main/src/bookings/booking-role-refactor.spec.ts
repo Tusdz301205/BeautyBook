@@ -146,9 +146,10 @@ describe('Booking responsibilities without Manager', () => {
     const mixed = principal('STAFF');
     mixed.roles.push('BUSINESS_OWNER');
     mixed.scopes.push({ code: 'BUSINESS_OWNER', businessId: 'other-business', branchId: null });
-    const items = { update: jest.fn() };
+    const items = { update: jest.fn().mockResolvedValue({ id: 'booking', bookingServices: [{ id: 'item', staffId: 'provider' }] }) };
     const controller = new BookingsController({} as never, accessFixture(true), {} as never,
-      {} as never, {} as never, {} as never, items as never);
+      {} as never, {} as never, {} as never, items as never,
+      { profileId: jest.fn().mockResolvedValue('provider') } as never);
     const body = { action, expectedRevision: 1, reason: 'Service lifecycle' };
     await controller.updateBookingItem('booking', 'item', body, mixed);
     expect(items.update).toHaveBeenCalledWith('booking', 'item', 'actor', body, { assignedStaffUserId: 'actor' });

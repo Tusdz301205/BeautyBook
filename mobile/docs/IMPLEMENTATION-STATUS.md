@@ -23,3 +23,7 @@ Ngày kiểm tra: 30/09/2026. `mobile/` là ứng dụng khách hàng chính; `m
 Các lượt QA native đặt/hủy lịch, hồ sơ, lưu dịch vụ và mất mạng trước đây thực hiện trên package **Preview**, không được suy diễn thành QA native của package chính. Chưa thử yêu cầu đổi lịch, thanh toán, hoàn tiền hay thiết bị vật lý trên bản chính. Backend local được dùng cho demo; cần API HTTPS và kiểm tra phát hành riêng trước khi đưa lên store.
 
 Đối chiếu các file Preview được giữ lại trước khi dọn thêm: [PREVIEW-CLEANUP-AUDIT.md](PREVIEW-CLEANUP-AUDIT.md).
+
+## Staff / Owner V1 — 05/10/2026
+
+Đã thêm shell Staff và Owner dùng API vận hành; tách provider khách hàng, scope/session theo ngữ cảnh, work item cá nhân và Owner review/impact. Các kết quả ngày 30/09 ở trên là lịch sử, không phải bằng chứng cho V1. Theo dõi kết quả thực tế và giới hạn tại docs/mobile-staff-owner/TESTS.md trong root; chưa đánh dấu hoàn tất nghiệm thu native chỉ từ typecheck/export.

@@ -8,6 +8,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking } from '../../../utils/bookingCalendar.adapter';
 import { bookingCapabilities, bookingItemActions } from '../../../utils/authScope';
 import { counterServicePayload, noShowAvailability } from '../../../utils/bookingAffordances';
+import { formatActualServiceTime } from '../../../utils/bookingActualTime';
 import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
 import { BookingPolicyNotice } from '../../customer/BookingPolicyNotice';
 
@@ -247,7 +248,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
         {detailLoading && <p role="status" className="text-xs font-medium text-zinc-500">Đang tải dữ liệu chi tiết và lịch sử...</p>}
         <section className="grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-2">
           <Detail icon={CalendarDays} label="Ngày" value={format(activeBooking.startAt, 'dd/MM/yyyy')} />
-          <Detail icon={Clock3} label="Thời gian" value={`${format(activeBooking.startAt, 'HH:mm')} – ${format(activeBooking.endAt, 'HH:mm')} · ${duration} phút`} />
+          <Detail icon={Clock3} label="Giờ hẹn dự kiến" value={`${format(activeBooking.startAt, 'HH:mm')} – ${format(activeBooking.endAt, 'HH:mm')} · ${duration} phút`} />
           <Detail icon={UserRound} label="Khách hàng" value={activeBooking.customerName} />
           {canSeePhone && <Detail icon={Phone} label="Số điện thoại" value={activeBooking.customerPhone || '—'} />}
           <Detail icon={MapPin} label="Chi nhánh" value={activeBooking.branchName || '—'} />
@@ -256,7 +257,22 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
         <section>
           <h3 className="text-sm font-bold text-zinc-950">Dịch vụ</h3>
           <div className="mt-2 divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-            {activeBooking.services.map((service, index) => <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm"><div className="flex items-start justify-between gap-4"><span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span><span className="shrink-0 text-right text-zinc-500">{service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span></div>{!platform && service.bookingServiceId && <ItemOperation allowedActions={bookingItemActions(user, activeBooking, service)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}</div>)}
+            {activeBooking.services.map((service, index) => {
+              const timezone = activeBooking.raw?.branch?.timezone || 'Asia/Ho_Chi_Minh';
+              const started = formatActualServiceTime(service.actualStartedAt, timezone);
+              const stopped = formatActualServiceTime(service.actualStoppedAt, timezone);
+              return <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span>
+                  <span className="text-right text-zinc-500">Dự kiến: {service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span>
+                </div>
+                <dl className="mt-2 space-y-1 text-xs text-zinc-600">
+                  <div><dt className="inline">Bắt đầu thực tế: </dt><dd className="inline">{started || 'Chưa có ghi nhận'}</dd></div>
+                  <div><dt className="inline">{service.status === 'SKIPPED' ? 'Dừng thực tế: ' : 'Kết thúc thực tế: '}</dt><dd className="inline">{stopped || 'Chưa có ghi nhận'}</dd></div>
+                </dl>
+                {!platform && service.bookingServiceId && <ItemOperation allowedActions={bookingItemActions(user, activeBooking, service)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}
+              </div>;
+            })}
           </div>
           {canUpdate && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>

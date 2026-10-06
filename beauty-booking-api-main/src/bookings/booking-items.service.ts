@@ -1,16 +1,19 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertNoOverlap, validateStaffForService } from './bookings.validation';
 import { toBookingInterval } from '../common/utils/booking-datetime';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { assertItemDuration, assertItemPrice, MAX_BOOKING_ITEM_PRICE } from './booking-item-values';
+import { BOOKING_TIMING_AUDIT_INCLUDE, withBookingTiming } from './booking-actual-timing';
+import { SchedulerGateway } from '../scheduler/scheduler.gateway';
+import { emitCommittedBookingUpdates } from './booking-realtime';
 
 type ItemAction = 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';
 
 @Injectable()
 export class BookingItemsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, @Optional() private readonly schedulerGateway?: SchedulerGateway) {}
 
   async add(bookingId: string, actorId: string, input: {
     serviceId: string;
@@ -23,7 +26,7 @@ export class BookingItemsService {
     if (typeof input.reason !== 'string' || !input.reason.trim()) throw new BadRequestException('Lý do thay đổi là bắt buộc');
     if (input.price !== undefined) assertItemPrice(input.price);
     if (input.durationMinutes !== undefined) assertItemDuration(input.durationMinutes);
-    return withSerializableTransaction(this.prisma, async (tx) => {
+    const booking = await withSerializableTransaction(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
       const booking = await tx.booking.findFirst({
         where: { id: bookingId, deletedAt: null },
@@ -80,6 +83,8 @@ export class BookingItemsService {
       });
       return this.detail(tx, bookingId);
     }, { conflictMessage: 'Lịch vừa được chỉnh sửa; vui lòng tải lại và thử lại' });
+    await emitCommittedBookingUpdates(this.prisma, this.schedulerGateway, [bookingId]);
+    return booking;
   }
 
   async update(bookingId: string, itemId: string, actorId: string, input: {
@@ -96,7 +101,7 @@ export class BookingItemsService {
     if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 1 || input.expectedRevision >= 2_147_483_647) {
       throw new BadRequestException('expectedRevision không hợp lệ');
     }
-    return withSerializableTransaction(this.prisma, async (tx) => {
+    const booking = await withSerializableTransaction(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM booking_services WHERE id = ${itemId} FOR UPDATE`;
       const item = await tx.bookingService.findFirst({
         where: { id: itemId, bookingId },
@@ -144,6 +149,7 @@ export class BookingItemsService {
         data = { ...data, status: 'SKIPPED', skippedReason: input.reason.trim() };
         amountDelta = item.status === 'SCHEDULED' ? -Number(item.priceAtBooking) : 0;
       } else if (input.action === 'REASSIGN') {
+        if (!['SCHEDULED', 'IN_PROGRESS'].includes(item.status)) throw new ConflictException('Không thể đổi nhân viên cho dịch vụ đã kết thúc');
         if (!input.staffId) throw new BadRequestException('staffId là bắt buộc');
         const startAt = item.itemStartAt ?? toBookingInterval(item.booking.appointmentDate, item.booking.appointmentStartTime, item.booking.appointmentEndTime).start;
         const endAt = item.itemEndAt ?? new Date(startAt.getTime() + item.durationMinutes * 60_000);
@@ -219,6 +225,8 @@ export class BookingItemsService {
       if (amountDelta !== 0) await this.applyAmountDelta(tx, item.booking, itemId, actorId, amountDelta, input.reason);
       return this.detail(tx, bookingId);
     }, { conflictMessage: 'Dịch vụ vừa được chỉnh sửa; vui lòng tải lại và thử lại' });
+    await emitCommittedBookingUpdates(this.prisma, this.schedulerGateway, [bookingId]);
+    return booking;
   }
 
   private snapshot(item: any) {
@@ -298,10 +306,10 @@ export class BookingItemsService {
     const booking = await tx.booking.findUniqueOrThrow({
       where: { id: bookingId },
       include: {
-        bookingServices: { include: { service: true, staff: true }, orderBy: { sortOrder: 'asc' } },
+        bookingServices: { include: { service: true, staff: true, ...BOOKING_TIMING_AUDIT_INCLUDE }, orderBy: { sortOrder: 'asc' } },
       },
     });
     const terminal = booking.bookingServices.every((item: any) => ['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(item.status));
-    return { ...booking, readyToComplete: terminal };
+    return { ...withBookingTiming(booking), readyToComplete: terminal };
   }
 }

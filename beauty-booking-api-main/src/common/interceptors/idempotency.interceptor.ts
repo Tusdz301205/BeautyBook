@@ -56,6 +56,7 @@ export function requiresIdempotency(method: string, route: string): boolean {
   const normalized = `/${route}`.replace(/\/+/g, '/').replace(/\/$/, '');
   return [
     /^\/(?:api\/v1\/)?bookings(?:\/guest)?$/,
+    /^\/(?:api\/v1\/)?recurring$/,
     /^\/(?:api\/v1\/)?bookings\/[^/]+\/(?:change-requests|refund)$/,
     /^\/(?:api\/v1\/)?payments\/collect$/,
     /^\/(?:api\/v1\/)?payments\/intents$/,

@@ -190,7 +190,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
           </div>
         )}
 
-        <section className="mt-5" aria-label={`Thống kê lịch hẹn ${statsPeriod}`}>
+        {activeTab === 'calendar' && <section className="mt-5" aria-label={`Thống kê lịch hẹn ${statsPeriod}`}>
           <div className="mb-2 flex items-center justify-between gap-3">
             <h2 className="text-xs font-bold uppercase tracking-wide text-zinc-500">Phạm vi đang xem</h2>
             <span className="text-xs font-medium text-zinc-500">{statsPeriod}</span>
@@ -198,7 +198,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
             {statCards.map((card) => <StatCard key={card.key} label={card.label} value={stats[card.key]} tone={card.tone} onClick={() => !multiBranchSelection && !staffOnly && setActiveTab('list')} />)}
           </div>
-        </section>
+        </section>}
 
         <nav className="mt-5 flex flex-wrap gap-1 sm:flex-nowrap sm:overflow-x-auto" aria-label="Các phần lịch hẹn">
           {tabs.map(({ id, label, icon: Icon }) => (

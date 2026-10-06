@@ -7,6 +7,9 @@ export interface ApiNotification {
   isRead: boolean;
   createdAt: string;
   relatedBooking?: { id: string } | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  actionUrl?: string | null;
 }
 
 export interface ApiNotificationsPage {
@@ -19,4 +22,5 @@ export const notificationsApi = {
   list: (page = 1) => apiRequest<ApiNotificationsPage>(withQuery('/notifications', { page, limit: 20 })),
   markRead: (id: string) => apiRequest<unknown>(`/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
   markAllRead: () => apiRequest<unknown>('/notifications/read-all', { method: 'PATCH' }),
+  unreadCount: () => apiRequest<{ count: number }>('/notifications/unread-count'),
 };

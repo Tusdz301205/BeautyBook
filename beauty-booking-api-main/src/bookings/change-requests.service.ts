@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   assertFutureAppointment,
@@ -24,24 +24,69 @@ import { withSerializableTransaction } from '../common/utils/serializable-transa
 import { cancelUnfinishedBookingItems } from './booking-item-lifecycle';
 import { customerCancellationMode } from './customer-cancellation-policy';
 import { recordBookingViolation } from './booking-violation-policy';
+import { SchedulerGateway } from '../scheduler/scheduler.gateway';
+import { assertMobileOwnerWithoutFinance } from './mobile-owner-finance-guard';
 
 @Injectable()
 export class ChangeRequestsService {
+  private readonly logger = new Logger(ChangeRequestsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly platformSettings: PlatformSettingsService,
     private readonly bookings: BookingsService,
+    private readonly scheduler: SchedulerGateway,
   ) {}
 
+  private async invalidateBooking(bookingId: string): Promise<void> {
+    try {
+      const booking = await this.prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: {
+          id: true, status: true, branchId: true, updatedAt: true,
+          branch: { select: { businessId: true } },
+          customer: { select: { userId: true } },
+        },
+      });
+      if (booking) {
+        await this.scheduler.notifyBookingUpdated({
+          id: booking.id, status: booking.status, branchId: booking.branchId,
+          updatedAt: booking.updatedAt, businessId: booking.branch.businessId,
+          customerUserId: booking.customer.userId,
+        });
+      }
+    } catch {
+      // Error text can contain database/provider details or customer data.
+      this.logger.warn('Committed change request: booking invalidation failed');
+    }
+  }
+
+  private async notifyCommittedRequest(operation: () => Promise<void>): Promise<void> {
+    try {
+      await operation();
+    } catch {
+      this.logger.warn('Committed change request: notification delivery failed');
+    }
+  }
+
   async expirePending(bookingId?: string): Promise<number> {
-    const result = await this.prisma.appointmentChangeRequest.updateMany({
-      where: {
+    const result = await withSerializableTransaction(this.prisma, async (tx) => {
+      const where = {
         ...(bookingId ? { bookingId } : {}),
-        status: 'PENDING',
+        status: 'PENDING' as const,
         expiresAt: { lte: new Date() },
-      },
-      data: { status: 'EXPIRED' },
+      };
+      // Read and expire the same snapshot, so invalidation targets only committed
+      // expirations, including those performed by the background worker.
+      const pending = await tx.appointmentChangeRequest.findMany({
+        where, select: { bookingId: true },
+      });
+      const expired = await tx.appointmentChangeRequest.updateMany({
+        where, data: { status: 'EXPIRED' },
+      });
+      return { count: expired.count, bookingIds: expired.count ? [...new Set(pending.map((request) => request.bookingId))] : [] };
     });
+    for (const id of result.bookingIds) await this.invalidateBooking(id);
     return result.count;
   }
 
@@ -65,7 +110,7 @@ export class ChangeRequestsService {
       reason?: string;
     },
   ) {
-    return withSerializableTransaction(this.prisma, async (tx) => {
+    const created = await withSerializableTransaction(this.prisma, async (tx) => {
     // Serialize request creation with cancellation, no-show and rescheduling.
     await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
     const booking = await tx.booking.findUnique({
@@ -153,6 +198,8 @@ export class ChangeRequestsService {
     );
     return request;
     }, { conflictMessage: 'Lịch hẹn hoặc yêu cầu vừa thay đổi, vui lòng tải lại.' });
+    await this.invalidateBooking(bookingId);
+    return created;
   }
 
   /**
@@ -191,7 +238,7 @@ export class ChangeRequestsService {
   /**
    * Salon duyệt yêu cầu → áp dụng thay đổi vào booking.
    */
-  async approve(reqId: string, reviewerId: string, reviewNote?: string) {
+  async approve(reqId: string, reviewerId: string, reviewNote?: string, mobileOwnerV1 = false) {
     const req = await this.prisma.appointmentChangeRequest.findUnique({
       where: { id: reqId },
       include: {
@@ -212,10 +259,11 @@ export class ChangeRequestsService {
       throw new BadRequestException('Yêu cầu đã xử lý');
     }
     if (req.expiresAt <= new Date()) {
-      await this.prisma.appointmentChangeRequest.updateMany({
+      const expired = await this.prisma.appointmentChangeRequest.updateMany({
         where: { id: reqId, status: 'PENDING' },
         data: { status: 'EXPIRED' },
       });
+      if (expired.count) await this.invalidateBooking(req.bookingId);
       throw new ConflictException('Yêu cầu đã hết hạn');
     }
 
@@ -402,6 +450,7 @@ export class ChangeRequestsService {
       }
 
       if (req.requestType === 'CANCEL') {
+        if (mobileOwnerV1) await assertMobileOwnerWithoutFinance(tx, req.bookingId);
         assertStatusTransition(lockedBooking.status, 'CANCELLED');
         const platformPolicy = await this.platformSettings.getEffective();
         const requestEvent = await tx.bookingViolationEvent.findUnique({ where: { sourceRequestId: req.id } });
@@ -511,13 +560,14 @@ export class ChangeRequestsService {
         'Yêu cầu hoặc lịch hẹn vừa thay đổi, vui lòng tải lại',
     });
 
-    await notifyBookingBothParties(
+    await this.invalidateBooking(req.bookingId);
+    await this.notifyCommittedRequest(() => notifyBookingBothParties(
       this.prisma,
       req.bookingId,
       'BOOKING_RESCHEDULE_APPROVED' as any,
       req.requestType === 'CANCEL' ? 'Đã huỷ theo yêu cầu' : 'Yêu cầu đã được duyệt',
       reviewNote ?? 'Salon đã chấp nhận yêu cầu của bạn',
-    );
+    ));
 
     return updated;
   }
@@ -562,13 +612,14 @@ export class ChangeRequestsService {
       });
     });
 
-    await notifyBookingBothParties(
+    await this.invalidateBooking(req.bookingId);
+    await this.notifyCommittedRequest(() => notifyBookingBothParties(
       this.prisma,
       req.bookingId,
       'BOOKING_RESCHEDULE_REJECTED' as any,
       'Yêu cầu bị từ chối',
       reviewNote ?? 'Salon không chấp nhận yêu cầu của bạn',
-    );
+    ));
 
     return { ok: true };
   }

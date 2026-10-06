@@ -30,8 +30,9 @@ function fixture(options: { start?: Date; status?: string; customerUserId?: stri
     },
   };
   let committed = false;
-  const prisma: any = { $transaction: jest.fn(async (callback) => { const result = await callback(tx); committed = true; return result; }) };
-  return { service: new ChangeRequestsService(prisma, {} as never, {} as never), tx, prisma, committed: () => committed };
+  const prisma: any = { booking: { findUnique: jest.fn().mockResolvedValue(booking) },
+    $transaction: jest.fn(async (callback) => { const result = await callback(tx); committed = true; return result; }) };
+  return { service: new ChangeRequestsService(prisma, {} as never, {} as never, { notifyBookingUpdated: jest.fn() } as never), tx, prisma, committed: () => committed };
 }
 
 describe('Customer cancellation request under booking lock', () => {

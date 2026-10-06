@@ -15,6 +15,7 @@ import { useBookings } from '../context/BookingsContext';
 import WriteReviewSheet from '../components/WriteReviewSheet';
 import { reviewsApi } from '../api/reviews';
 import { platformSettingsApi } from '../api/platformSettings';
+import { serviceTimingLines } from '../utils/bookingTiming';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<HoatDongStackParamList, 'AppointmentDetail'>,
@@ -31,7 +32,7 @@ const FALLBACK_CANCELLATION_HOURS = 4;
 export default function AppointmentDetailScreen({ route, navigation }: Props) {
   const { id, isReal, shopName, address, title, staffName, imageUri, date, time, price, status, comboId } =
     route.params;
-  const { cancelBooking, requestCancellation, getBooking, reload } = useBookings();
+  const { cancelBooking, requestCancellation, getBooking, reload, isLoading, error } = useBookings();
   const booking = getBooking(id);
   const currentStatus = booking?.status ?? status;
   const currentShopName = booking?.shopName ?? shopName;
@@ -156,6 +157,17 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  // Route summaries belong to the account that opened them. Never resurrect a
+  // real booking from route params after logout, deletion or access revocation.
+  if (!booking) return (
+    <SafeAreaView style={styles.screen}>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Ionicons name="chevron-back" size={24} color={colors.primary} />
+      </TouchableOpacity>
+      <Text style={styles.rowText}>{isLoading ? 'Đang tải lịch hẹn...' : error || 'Lịch hẹn không còn khả dụng cho tài khoản này.'}</Text>
+    </SafeAreaView>
+  );
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
@@ -214,6 +226,15 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
             <Text style={styles.priceValue}>{formatCurrency(currentPrice)}</Text>
           </View>
         </View>
+
+        {booking.bookingServices.map(item => (
+          <View key={item.id} style={styles.card}>
+            <Text style={styles.rowText}>{item.serviceName}</Text>
+            {serviceTimingLines(item, booking.branchTimezone).map(line => (
+              <Text key={line} style={styles.rowText}>{line}</Text>
+            ))}
+          </View>
+        ))}
 
         <TouchableOpacity
           style={styles.outlineButton}

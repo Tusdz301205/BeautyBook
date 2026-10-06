@@ -15,6 +15,8 @@ import {
 } from '../common/utils/multi-tenancy';
 import { bookableStaffWhere, professionalTitle, staffRating } from './bookable-staff';
 import { TokenBlacklistService } from '../auth/token-blacklist.service';
+import { canOnResource } from '../common/utils/policy';
+import { restrictToRoles } from '../common/utils/multi-tenancy';
 
 @Injectable()
 export class StaffService {
@@ -312,19 +314,33 @@ export class StaffService {
     return { ...staff, futureBookings, auditTrail };
   }
 
-  async findMine(userId: string) {
+  async findMine(userId: string, user?: AuthUser) {
     const staff = await this.prisma.staffProfile.findFirst({
-      where: { userId, deletedAt: null },
+      where: { userId, status: 'ACTIVE', deletedAt: null, branch: { deletedAt: null } },
       select: {
         id: true,
+        branchId: true,
         fullName: true,
         position: true,
         status: true,
         isBookable: true,
-        branch: { select: { id: true, name: true, businessId: true } },
+        branch: { select: { id: true, name: true, businessId: true, timezone: true } },
       },
     });
-    if (!staff) throw new NotFoundException('Tài khoản chưa được liên kết hồ sơ nhân viên');
+    if (!staff) throw new NotFoundException({ code: 'STAFF_PROFILE_REQUIRED', message: 'Tài khoản chưa được liên kết hồ sơ nhân viên đang hoạt động' });
+    if (user) {
+      const principal = restrictToRoles(user, ['STAFF', 'BUSINESS_OWNER', 'RECEPTIONIST']);
+      if (user.id !== userId || user.sessionType !== 'salon' ||
+        (user.businessId && user.businessId !== staff.branch.businessId) ||
+        (user.branchId && user.branchId !== staff.branch.id) ||
+        !principal.scopes.some((scope) => scope.businessId === staff.branch.businessId &&
+          (!scope.expiresAt || new Date(scope.expiresAt).getTime() > Date.now()) &&
+          (scope.code === 'BUSINESS_OWNER' ? !scope.branchId : scope.branchId === staff.branch.id)) ||
+        !['branch:read:branch', 'branch:read:tenant'].some((permission) => canOnResource(principal, permission,
+          { businessId: staff.branch.businessId, branchId: staff.branch.id }))) {
+        throw new ForbiddenException('Hồ sơ nhân viên không thuộc phạm vi hiện tại');
+      }
+    }
     return staff;
   }
 

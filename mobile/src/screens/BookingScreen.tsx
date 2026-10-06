@@ -3,13 +3,14 @@ import { ActivityIndicator, Alert, BackHandler, ScrollView, StyleSheet, Text, Te
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { usePreventRemove } from '@react-navigation/native';
 
 import { BookingServiceLine, HomeStackParamList } from '../navigation/HomeStack';
 import { colors } from '../constants/colors';
 import { formatCurrency } from '../data/catalogModels';
 import SelectListSheet from '../components/SelectListSheet';
 import { useBookings } from '../context/BookingsContext';
-import { bookingsApi, type SelfBookingPolicy } from '../api/bookings';
+import { bookingsApi, type CreateBookingInput, type SelfBookingPolicy } from '../api/bookings';
 import { ApiError, createIdempotencyKey } from '../api/client';
 import { servicesApi } from '../api/services';
 import { staffApi } from '../api/staff';
@@ -80,7 +81,9 @@ function Stepper({
 export default function BookingScreen({ route, navigation }: Props) {
   const { branchId, shopName, addresses, service, serviceIds, comboId, staffOptions: routeStaff = [] } = route.params;
   const { addBooking } = useBookings();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
+  const currentUserIdRef = useRef(user?.id);
+  currentUserIdRef.current = user?.id;
   const [addedServices, setAddedServices] = useState<BookingServiceLine[]>([]);
   const [publicStaff, setPublicStaff] = useState<ApiStaff[]>(
     routeStaff.map((staff) => ({ id: staff.id, fullName: staff.name })),
@@ -131,7 +134,8 @@ export default function BookingScreen({ route, navigation }: Props) {
   const [isSubmitting, setSubmitting] = useState(false);
   const submitLockRef = useRef(false);
   const [isReviewVisible, setReviewVisible] = useState(false);
-  const checkoutAttemptRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const checkoutAttemptRef = useRef<{ input: CreateBookingInput; key: string; userId: string } | null>(null);
+  const [isOutcomeUnknown, setOutcomeUnknown] = useState(false);
   const [selectedApiServices, setSelectedApiServices] = useState<ApiService[]>([]);
   const [isLoadingServiceInfo, setLoadingServiceInfo] = useState(true);
   const [variantSelections, setVariantSelections] = useState<Record<string, string>>({});
@@ -300,9 +304,14 @@ export default function BookingScreen({ route, navigation }: Props) {
     && variantsComplete
     && !isLoadingServiceInfo
     && !isSubmitting
+    && !isOutcomeUnknown
     && (!isLoggedIn || (pricePreview && !isLoadingPrice && policy?.selfBookingAllowed
       && (!policy.acknowledgmentRequired || acknowledged))),
   );
+
+  usePreventRemove(isSubmitting || isOutcomeUnknown, () => {
+    Alert.alert('Đang kiểm tra đặt lịch', 'Hãy kiểm tra Lịch hẹn hoặc thử lại yêu cầu đã gửi trước khi rời màn hình này.');
+  });
 
   useEffect(() => {
     if (!isReviewVisible) return;
@@ -315,73 +324,97 @@ export default function BookingScreen({ route, navigation }: Props) {
   }, [isReviewVisible, isSubmitting]);
 
   const submitBooking = async () => {
-    if (!selectedTime || !pricePreview || submitLockRef.current) return;
+    if (submitLockRef.current || !user) return;
+    const previousAttempt = checkoutAttemptRef.current;
+    if (previousAttempt && previousAttempt.userId !== user.id) {
+      Alert.alert('Tài khoản đã thay đổi', 'Vui lòng đăng nhập lại tài khoản đã gửi yêu cầu và kiểm tra Lịch hẹn.');
+      return;
+    }
+    if (!previousAttempt && (!selectedTime || !pricePreview)) return;
     submitLockRef.current = true;
     setSubmitting(true);
+    let submitted = false;
+    let bookingId: string | undefined;
     try {
-      const freshPrice = await bookingsApi.previewPrice({
-        branchId,
-        serviceIds: selectedServiceIds,
-        comboId,
-        appointmentDate: selectedTime,
-        variantSelections,
-        voucherCode: voucherCode.trim() || undefined,
-      });
-      if (Number(freshPrice.finalAmount) !== Number(pricePreview.finalAmount)) {
-        setPricePreview(freshPrice);
-        setReviewVisible(false);
-        Alert.alert('Giá đã thay đổi', 'Giá mới đã được cập nhật. Vui lòng xem lại trước khi xác nhận.');
-        return;
+      if (!previousAttempt) {
+        if (!selectedTime || !pricePreview) return;
+        const freshPrice = await bookingsApi.previewPrice({
+          branchId,
+          serviceIds: selectedServiceIds,
+          comboId,
+          appointmentDate: selectedTime,
+          variantSelections,
+          voucherCode: voucherCode.trim() || undefined,
+        });
+        if (Number(freshPrice.finalAmount) !== Number(pricePreview.finalAmount)) {
+          setPricePreview(freshPrice);
+          setReviewVisible(false);
+          Alert.alert('Giá đã thay đổi', 'Giá mới đã được cập nhật. Vui lòng xem lại trước khi xác nhận.');
+          return;
+        }
+        const checkoutInput = {
+          branchId,
+          serviceIds: comboId ? undefined : selectedServiceIds,
+          comboId,
+          variantSelections,
+          appointmentDate: selectedTime,
+          staffId: selectedStaffId || undefined,
+          note: note.trim() || undefined,
+          voucherCode: voucherCode.trim() || undefined,
+          violationAcknowledged: acknowledged,
+        };
+        // Snapshot the body as well as the key: an uncertain retry must replay the same request.
+        checkoutAttemptRef.current = {
+          input: JSON.parse(JSON.stringify(checkoutInput)) as CreateBookingInput,
+          key: createIdempotencyKey('mobile-booking'),
+          userId: user.id,
+        };
       }
-      const checkoutInput = {
-        branchId,
-        serviceIds: comboId ? undefined : selectedServiceIds,
-        comboId,
-        variantSelections,
-        appointmentDate: selectedTime,
-        staffId: selectedStaffId || undefined,
-        note: note.trim() || undefined,
-        voucherCode: voucherCode.trim() || undefined,
-        violationAcknowledged: acknowledged,
-      };
-      const fingerprint = JSON.stringify(checkoutInput);
-      if (checkoutAttemptRef.current?.fingerprint !== fingerprint) {
-        checkoutAttemptRef.current = { fingerprint, key: createIdempotencyKey('mobile-booking') };
+      const attempt = checkoutAttemptRef.current!;
+      if (attempt.userId !== currentUserIdRef.current) {
+        throw new ApiError('Tài khoản đã thay đổi. Vui lòng kiểm tra Lịch hẹn.', 401);
       }
-      const booking = await addBooking(checkoutInput, checkoutAttemptRef.current.key);
+      submitted = true;
+      const booking = await addBooking(attempt.input, attempt.key);
+      bookingId = booking.id;
       checkoutAttemptRef.current = null;
+      setOutcomeUnknown(false);
       setReviewVisible(false);
-      navigation.navigate('BookingSuccess', { bookingId: booking.id });
     } catch (reason) {
-      if (isSlotConflict(reason)) {
+      if (previousAttempt || (submitted && (!(reason instanceof ApiError) || reason.status === 0 || reason.status >= 500 || reason.status === 408
+        || (reason.status === 409 && /idempotency|request trùng đang được xử lý/i.test(reason.message))))) {
+        setOutcomeUnknown(true);
+        setReviewVisible(false);
+      } else if (isSlotConflict(reason)) {
         checkoutAttemptRef.current = null;
+        setOutcomeUnknown(false);
         setReviewVisible(false);
         setSelectedTime(null);
         setSlotsRefreshKey((current) => current + 1);
         Alert.alert('Khung giờ không còn trống', 'Khung giờ vừa có người đặt. Danh sách giờ trống đã được cập nhật, vui lòng chọn lại.');
-      } else if (reason instanceof ApiError && reason.status === 0 && checkoutAttemptRef.current) {
-        setReviewVisible(false);
-        Alert.alert('Chưa rõ kết quả đặt lịch', 'Kết nối bị gián đoạn sau khi gửi. Hãy kiểm tra mục Lịch hẹn trước khi thử lại.');
       } else {
+        checkoutAttemptRef.current = null;
+        setOutcomeUnknown(false);
         Alert.alert('Không thể đặt lịch', reason instanceof Error ? reason.message : 'Vui lòng thử lại.');
       }
     } finally {
       submitLockRef.current = false;
       setSubmitting(false);
     }
+    if (bookingId) navigation.navigate('BookingSuccess', { bookingId });
   };
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={10}>
+        <TouchableOpacity style={styles.backButton} disabled={isSubmitting || isOutcomeUnknown} onPress={() => navigation.goBack()} hitSlop={10}>
           <Ionicons name="chevron-back" size={24} color={colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Đặt lịch</Text>
         <View style={styles.backButton} />
       </SafeAreaView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView pointerEvents={isSubmitting || isOutcomeUnknown ? 'none' : 'auto'} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Chọn chi nhánh</Text>
         <TouchableOpacity
           style={styles.branchPill}
@@ -611,6 +644,7 @@ export default function BookingScreen({ route, navigation }: Props) {
           style={styles.voucherInput}
           value={voucherCode}
           onChangeText={setVoucherCode}
+          editable={!isSubmitting && !isOutcomeUnknown}
           autoCapitalize="characters"
           placeholder="Nhập mã voucher (không bắt buộc)"
           placeholderTextColor={colors.textMuted}
@@ -639,12 +673,23 @@ export default function BookingScreen({ route, navigation }: Props) {
           placeholder="Ví dụ: Da nhạy cảm, xin shop nhẹ tay"
           placeholderTextColor={colors.textMuted}
           multiline
+          editable={!isSubmitting && !isOutcomeUnknown}
           value={note}
           onChangeText={setNote}
         />
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
+        {isOutcomeUnknown && <View accessibilityLiveRegion="polite">
+          <Text style={styles.errorText}>Chưa rõ kết quả đặt lịch</Text>
+          <Text style={styles.helperText}>Yêu cầu có thể đã được tạo. Hãy kiểm tra Lịch hẹn. Thử lại sẽ kiểm tra cùng yêu cầu đã gửi, không tạo yêu cầu mới.</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.outlineButton} onPress={() => navigation.getParent()?.navigate('LichHen')}>
+            <Text style={styles.outlineButtonText}>Xem lịch hẹn của tôi</Text>
+          </TouchableOpacity>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Thử lại yêu cầu đặt lịch đã gửi" style={[styles.nextButton, isSubmitting && styles.nextButtonDisabled]} disabled={isSubmitting} onPress={() => void submitBooking()}>
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>THỬ LẠI YÊU CẦU ĐÃ GỬI</Text>}
+          </TouchableOpacity>
+        </View>}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Tổng tiền</Text>
           <View style={styles.totalValueWrap}>
@@ -652,7 +697,7 @@ export default function BookingScreen({ route, navigation }: Props) {
             {totalSavings > 0 && <Text style={styles.savingsText}>tiết kiệm: {formatCurrency(totalSavings)}</Text>}
           </View>
         </View>
-        <TouchableOpacity
+        {!isOutcomeUnknown && <TouchableOpacity
           style={[styles.nextButton, !canContinue && styles.nextButtonDisabled]}
           activeOpacity={0.85}
           disabled={!canContinue}
@@ -668,7 +713,7 @@ export default function BookingScreen({ route, navigation }: Props) {
           }}
         >
           <Text style={styles.nextButtonText}>XEM LẠI ĐẶT LỊCH</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </SafeAreaView>
 
       {isReviewVisible && <View style={styles.reviewBackdrop} accessibilityViewIsModal>

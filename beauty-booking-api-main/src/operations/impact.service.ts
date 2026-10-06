@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingItemsService } from '../bookings/booking-items.service';
 import { BookingsService } from '../bookings/bookings.service';
@@ -9,14 +9,19 @@ import { ALL_TENANTS } from '../common/utils/multi-tenancy';
 import type { Prisma } from '@prisma/client';
 import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
 import { toBookingInterval } from '../common/utils/booking-datetime';
+import { SchedulerGateway } from '../scheduler/scheduler.gateway';
+
+type TransferBooking = Pick<Prisma.BookingGetPayload<{ include: { bookingServices: true } }>, 'id' | 'branchId' | 'bookingServices'>;
 
 @Injectable()
 export class ImpactService {
+  private readonly logger = new Logger(ImpactService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly bookingItems: BookingItemsService,
     private readonly bookings: BookingsService,
     private readonly payments: PaymentsService,
+    private readonly scheduler: SchedulerGateway,
   ) {}
 
   list(businessIds: string[], branchIds?: string[]) {
@@ -235,16 +240,16 @@ export class ImpactService {
     }, { conflictMessage: 'Impact case vừa thay đổi' });
   }
 
-  private async transferBranch(booking: any, branchId: string, staffId: string | undefined, actorId: string, reason: string) {
+  private async transferBranch(booking: TransferBooking, branchId: string, staffId: string | undefined, actorId: string, reason: string) {
     if (!staffId) throw new BadRequestException('Chọn chuyên viên tại chi nhánh đích');
-    return withSerializableTransaction(this.prisma, async (tx) => {
+    const transferred = await withSerializableTransaction(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${booking.id} FOR UPDATE`;
       const current = await tx.booking.findUnique({ where: { id: booking.id }, include: { bookingServices: true } });
       if (!current || current.branchId !== booking.branchId || !['PENDING', 'CONFIRMED'].includes(current.status) || current.deletedAt) {
         throw new ConflictException('Lịch hẹn đã thay đổi hoặc không còn được chuyển chi nhánh');
       }
       if (current.bookingServices.length !== booking.bookingServices.length ||
-        current.bookingServices.some((row) => !booking.bookingServices.some((old: any) => old.id === row.id && old.revision === row.revision && old.status === row.status)) ||
+        current.bookingServices.some((row) => !booking.bookingServices.some((old) => old.id === row.id && old.revision === row.revision && old.status === row.status)) ||
         current.bookingServices.some((row) => row.status !== 'SCHEDULED')) {
         throw new ConflictException('Dịch vụ trong lịch hẹn đã thay đổi');
       }
@@ -273,6 +278,27 @@ export class ImpactService {
       });
       if (moved.count !== 1) throw new ConflictException('Lịch hẹn vừa thay đổi');
       await tx.auditLog.create({ data: { userId: actorId, action: 'UPDATE', entityType: 'Booking', entityId: booking.id, oldData: { branchId: booking.branchId }, newData: { branchId }, reason } });
+      return tx.booking.findUniqueOrThrow({
+        where: { id: booking.id },
+        include: { customer: { select: { userId: true } }, branch: { select: { businessId: true } }, bookingServices: { include: { staff: { select: { userId: true } } } } },
+      });
     }, { conflictMessage: 'Booking vừa được chuyển bởi thao tác khác' });
+    // Both branch audiences must refetch after the transfer commits. Payloads
+    // remain sparse invalidations; recipients read current data through the API.
+    for (const audienceBranchId of new Set([booking.branchId, transferred.branchId])) {
+      try {
+        this.scheduler.notifyBookingUpdated({
+          id: transferred.id,
+          status: transferred.status,
+          branchId: audienceBranchId,
+          customerUserId: transferred.customer.userId,
+          businessId: transferred.branch.businessId,
+          updatedAt: transferred.updatedAt,
+        });
+      } catch {
+        this.logger.warn('Committed branch transfer realtime invalidation failed');
+      }
+    }
+    return transferred;
   }
 }

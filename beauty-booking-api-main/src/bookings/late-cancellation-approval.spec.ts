@@ -7,7 +7,7 @@ const startAt = new Date('2026-09-20T03:00:00Z');
 
 function fixture() {
   const event = { kind: 'LATE_CANCELLATION', occurredAt: requestedAt, appointmentStartAt: startAt, voidedAt: null };
-  const booking = { id: 'booking', status: 'CONFIRMED', customerId: 'customer', branchId: 'branch',
+  const booking = { id: 'booking', status: 'CONFIRMED', customerId: 'customer', customer: { userId: 'customer-user' }, branchId: 'branch',
     branch: { id: 'branch', businessId: 'business' }, bookingServices: [], voucherId: null, totalAmount: 100,
     ...normalizeAppointmentForStorage(startAt, new Date(startAt.getTime() + 3_600_000)) };
   const req = { id: 'request', bookingId: 'booking', requestType: 'CANCEL', requestedByType: 'CUSTOMER',
@@ -18,10 +18,11 @@ function fixture() {
     bookingViolationEvent: { findUnique: jest.fn().mockResolvedValue(event), create: jest.fn(), updateMany: jest.fn() },
     bookingService: { updateMany: jest.fn() }, bookingStatusHistory: { create: jest.fn() },
   };
-  const prisma: any = { appointmentChangeRequest: { findUnique: jest.fn().mockResolvedValue(req), updateMany: jest.fn() },
+  const prisma: any = { booking: { findUnique: jest.fn().mockResolvedValue(booking) },
+    appointmentChangeRequest: { findUnique: jest.fn().mockResolvedValue(req), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     $transaction: jest.fn(async callback => callback(tx)) };
   const service = new ChangeRequestsService(prisma, { getEffective: jest.fn().mockResolvedValue({ freeCancellationHours: 4 }) } as never,
-    { releaseBookingBenefits: jest.fn() } as never);
+    { releaseBookingBenefits: jest.fn() } as never, { notifyBookingUpdated: jest.fn() } as never);
   return { service, tx, req, event, booking };
 }
 
