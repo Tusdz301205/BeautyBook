@@ -4,8 +4,9 @@ import { customerCancellationMode } from './customer-cancellation-policy';
 import {
   appointmentDateFromInstant,
   appointmentTimeFromInstant,
-  getZonedDateTimeParts,
   timeValueMinutes,
+  sameAppointmentDate,
+  combineAppointmentDateTime,
 } from '../common/utils/booking-datetime';
 
 /**
@@ -202,11 +203,9 @@ export async function validateStaffForService(
   const closeMinutes = timeValueMinutes(
     new Date(specialDay?.endTime ?? branchWorkingHour!.closeTime),
   );
-  const startParts = getZonedDateTimeParts(startTime);
-  const endParts = getZonedDateTimeParts(endTime);
-  const startMinutes = startParts.hour * 60 + startParts.minute;
-  const endMinutes = endParts.hour * 60 + endParts.minute;
-  if (startMinutes < openMinutes || endMinutes > closeMinutes) {
+  const openAt = combineAppointmentDateTime(date, new Date(specialDay?.startTime ?? branchWorkingHour!.openTime));
+  const closeAt = combineAppointmentDateTime(date, new Date(specialDay?.endTime ?? branchWorkingHour!.closeTime));
+  if (!sameAppointmentDate(startTime, endTime) || startTime < openAt || endTime > closeAt || endTime < startTime || closeMinutes <= openMinutes) {
     throw new BadRequestException('Giờ đặt nằm ngoài giờ mở cửa của chi nhánh');
   }
 }
@@ -305,6 +304,13 @@ export async function assertNoOverlap(
         status: { in: [...BLOCKING_BOOKING_STATUSES] },
       },
       OR: [
+        // A running service has no proven release time. Its planned end must
+        // not advertise free capacity, including after midnight. Completion
+        // (or an authorized stop) releases it; this does not extend a schedule.
+        { status: 'IN_PROGRESS', AND: [
+          { OR: [{ itemEndAt: { lt: new Date() } }, { itemEndAt: null }] },
+          { OR: [{ itemStartAt: { lt: endTime } }, { itemStartAt: null }] },
+        ] },
         {
           itemStartAt: { lt: endTime },
           itemEndAt: { gt: startTime },

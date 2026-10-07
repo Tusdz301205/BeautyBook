@@ -1,3 +1,5 @@
+import { serverTimeAnchor } from './operationalTiming.js';
+
 const pad = (value) => String(value).padStart(2, '0');
 
 function datePart(value) {
@@ -48,7 +50,9 @@ export function normalizeBooking(raw) {
     const service = item?.service ?? item;
     const staff = item?.staff ?? item?.staffProfile ?? null;
     return {
-      bookingServiceId: item?.id ?? null,
+      bookingServiceId: item?.bookingServiceId ?? item?.id ?? null,
+      itemStartAt: item?.itemStartAt ?? null,
+      itemEndAt: item?.itemEndAt ?? null,
       id: service?.id ?? item?.serviceId ?? null,
       name: service?.name ?? item?.name ?? 'Dịch vụ',
       durationMinutes: asNumber(item?.durationMinutes ?? item?.duration ?? service?.durationMinutes ?? service?.duration),
@@ -56,6 +60,8 @@ export function normalizeBooking(raw) {
       actualCompletedAt: item?.actualCompletedAt ?? null,
       actualStoppedAt: item?.actualStoppedAt ?? null,
       actualTimingSource: item?.actualTimingSource ?? 'UNAVAILABLE',
+      actualTimingStatus: item?.actualTimingStatus ?? null,
+      canCorrectActualTime: item?.canCorrectActualTime === true,
       staffId: item?.staffId ?? staff?.id ?? null,
       staffUserId: staff?.userId ?? staff?.user?.id ?? item?.staffUserId ?? null,
       staffName: staff?.fullName ?? staff?.user?.fullName ?? item?.staffName ?? null,
@@ -78,9 +84,10 @@ export function normalizeBooking(raw) {
   const primaryStaffName = services.find((item) => item.staffId)?.staffName ?? raw?.staffName ?? null;
 
   return {
-    id: raw?.id ?? raw?.bookingId ?? raw?.bookingCode,
+    id: raw?.bookingId ?? raw?.id ?? raw?.bookingCode,
     bookingCode: raw?.bookingCode ?? raw?.booking_code ?? raw?.id ?? '—',
-    status: raw?.status ?? 'PENDING',
+    status: raw?.statusEnum ?? raw?.status ?? 'PENDING',
+    timingAnchor: raw?.timingAnchor ?? serverTimeAnchor(raw?.serverNow),
     customerId: raw?.customerId ?? raw?.customer?.id ?? null,
     customerName: raw?.customer?.user?.fullName ?? raw?.customer_name ?? raw?.customerName ?? 'Khách hàng',
     customerPhone: raw?.customer?.user?.phone ?? raw?.customer_phone ?? raw?.customerPhone ?? null,

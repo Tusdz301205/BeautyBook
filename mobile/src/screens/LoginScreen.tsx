@@ -14,11 +14,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen({ navigation, route }: Props) {
-  const { login, isSubmitting, error, clearError } = useAuth();
+  const { login, user, isSubmitting, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [workspace, setWorkspace] = useState<'CUSTOMER' | 'SALON' | 'PLATFORM'>('CUSTOMER');
+  const [workspace, setWorkspace] = useState<'CUSTOMER' | 'SALON' | 'PLATFORM'>();
   const [businesses, setBusinesses] = useState<Array<{ id: string; name: string }>>([]);
   const [businessId, setBusinessId] = useState<string>();
   const [availableWorkspaces, setAvailableWorkspaces] = useState<Array<'CUSTOMER' | 'SALON' | 'PLATFORM'>>([]);
@@ -26,6 +26,11 @@ export default function LoginScreen({ navigation, route }: Props) {
   useEffect(() => {
     clearError();
   }, [clearError]);
+
+  useEffect(() => {
+    if (user?.workspace === 'CUSTOMER') finish();
+    // Operational sessions remount RootStack with the server-authorized shell.
+  }, [user]);
 
   const emailError = submitted && !EMAIL_PATTERN.test(email.trim()) ? 'Vui lòng nhập email hợp lệ.' : undefined;
   const passwordError = submitted && password.length < 6 ? 'Mật khẩu phải có ít nhất 6 ký tự.' : undefined;
@@ -46,7 +51,6 @@ export default function LoginScreen({ navigation, route }: Props) {
       await login(email, password, { workspace, businessId });
       setPassword('');
       setEmail('');
-      if (workspace === 'CUSTOMER') finish();
     } catch (reason) {
       if (reason instanceof ApiError && reason.payload && typeof reason.payload === 'object') {
         const payload = reason.payload as { code?: string; businesses?: Array<{ id: string; name: string }>; availableWorkspaces?: Array<'CUSTOMER' | 'SALON' | 'PLATFORM'> };
@@ -63,16 +67,14 @@ export default function LoginScreen({ navigation, route }: Props) {
       subtitle="Đăng nhập để quản lý lịch hẹn và tiếp tục trải nghiệm BeautyBook."
       onBack={() => navigation.goBack()}
     >
-      <View style={styles.workspaceRow}>{([{ value: 'CUSTOMER', label: 'Khách hàng' }, { value: 'SALON', label: 'Nhân viên / Chủ doanh nghiệp' }] as const).map(option => <TouchableOpacity key={option.value} accessibilityRole="radio" accessibilityState={{ checked: workspace === option.value, disabled: isSubmitting }} disabled={isSubmitting} onPress={() => { setWorkspace(option.value); setBusinessId(undefined); setBusinesses([]); clearError(); }} style={[styles.workspaceChoice, workspace === option.value && styles.workspaceSelected]}><Text style={styles.workspaceText}>{option.label}</Text></TouchableOpacity>)}</View>
       {availableWorkspaces.map(value => <TouchableOpacity key={value} accessibilityRole="button" disabled={isSubmitting} style={styles.workspaceChoice} onPress={() => { setWorkspace(value); setAvailableWorkspaces([]); clearError(); }}><Text style={styles.workspaceText}>{value === 'SALON' ? 'Không gian vận hành' : value === 'CUSTOMER' ? 'Không gian khách hàng' : 'Không gian quản trị (web)'}</Text></TouchableOpacity>)}
-      {workspace !== 'CUSTOMER' && <TouchableOpacity accessibilityRole="button" disabled={isSubmitting} style={styles.workspaceChoice} onPress={() => { setWorkspace(workspace === 'PLATFORM' ? 'SALON' : 'PLATFORM'); setBusinessId(undefined); setBusinesses([]); clearError(); }}><Text style={styles.workspaceText}>{workspace === 'PLATFORM' ? 'Đang chọn quản trị nền tảng · Chuyển về nhân viên / chủ' : 'Tài khoản quản trị nền tảng (sử dụng web)'}</Text></TouchableOpacity>}
       {businesses.length > 0 && <View style={styles.workspaceRow}><Text style={styles.switchLabel}>Chọn doanh nghiệp để tiếp tục:</Text>{businesses.map(business => <TouchableOpacity key={business.id} accessibilityRole="radio" accessibilityState={{ checked: businessId === business.id }} disabled={isSubmitting} style={[styles.workspaceChoice, businessId === business.id && styles.workspaceSelected]} onPress={() => { setBusinessId(business.id); clearError(); }}><Text style={styles.workspaceText}>{business.name}</Text></TouchableOpacity>)}</View>}
       <AuthField
         label="Email"
         icon="mail-outline"
         value={email}
         onChangeText={(value) => {
-          setEmail(value); setBusinesses([]); setBusinessId(undefined);
+          setEmail(value); setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]);
           if (error) clearError();
         }}
         placeholder="email@example.com"
@@ -89,7 +91,7 @@ export default function LoginScreen({ navigation, route }: Props) {
         password
         value={password}
         onChangeText={(value) => {
-          setPassword(value); setBusinesses([]); setBusinessId(undefined);
+          setPassword(value); setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]);
           if (error) clearError();
         }}
         placeholder="Nhập mật khẩu"
@@ -123,7 +125,7 @@ export default function LoginScreen({ navigation, route }: Props) {
           : <Text style={styles.submitText}>ĐĂNG NHẬP</Text>}
       </TouchableOpacity>
 
-      {workspace === 'CUSTOMER' ? <View style={styles.switchRow}>
+      {!workspace || workspace === 'CUSTOMER' ? <View style={styles.switchRow}>
         <Text style={styles.switchLabel}>Chưa có tài khoản?</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Register', route.params)}>
           <Text style={styles.switchAction}>Đăng ký ngay</Text>

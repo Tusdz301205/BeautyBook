@@ -6,10 +6,11 @@ const vm = require('node:vm');
 const ts = require('typescript');
 function load(name, modules = {}) {
   const module = { exports: {} };
-  const source = fs.readFileSync(path.join(__dirname, '../src/operations/staff', name + '.ts'), 'utf8');
-  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const file = path.join(__dirname, '../src/operations/staff', name);
+  const source = fs.readFileSync(fs.existsSync(file + '.tsx') ? file + '.tsx' : file + '.ts', 'utf8');
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   vm.runInNewContext(js, { module, exports: module.exports, require: name => { assert.ok(name in modules, `Unexpected import ${name}`); return modules[name]; },
-    Date, Intl, Map, Error, Number, setTimeout, clearTimeout, AbortController });
+    Date, Intl, Map, Error, Number, performance, setTimeout, clearTimeout, setInterval, clearInterval, AbortController });
   return module.exports;
 }
 const model = load('workModel');
@@ -35,6 +36,67 @@ test('all parallel in-progress items remain visible and completed siblings do no
     item({ id: 'active-2', status: 'IN_PROGRESS' }), item({ id: 'active-1', status: 'IN_PROGRESS' })];
   assert.deepEqual(Array.from(model.orderWork(data), row => row.id), ['active-1', 'active-2', 'next', 'finished']);
   assert.equal(data[0].id, 'finished');
+});
+test('Today hierarchy preserves every item and deterministically chooses an eligible next service', () => {
+  const data = [item({ id: 'done', status: 'COMPLETED', canStart: false }),
+    item({ id: 'waiting', bookingStatus: 'CONFIRMED', canStart: false, itemStartAt: '2026-10-05T01:00:00Z' }),
+    item({ id: 'ready-b' }), item({ id: 'ready-a' }),
+    item({ id: 'active-b', status: 'IN_PROGRESS' }), item({ id: 'active-a', status: 'IN_PROGRESS' }),
+    item({ id: 'cancelled', status: 'SCHEDULED', bookingStatus: 'CANCELLED', canStart: false })];
+  const rows = model.todayRows(data, 'staff-a');
+  assert.deepEqual(Array.from(rows, r => `${r.kind}:${r.item.id}`), ['current:active-a', 'current:active-b', 'next:ready-a', 'later:ready-b', 'later:waiting', 'finished:cancelled', 'finished:done']);
+  assert.equal(rows.filter(r => r.primary).length, 1);
+  assert.equal(rows.length, data.length);
+  assert.equal(model.todayRows([...data].reverse(), 'staff-a').find(r => r.kind === 'next').item.id, 'ready-a');
+  assert.equal(model.todayRows([data[0], data[6]], 'staff-a').some(r => r.kind === 'next'), false);
+  assert.equal(model.todayRows([data[1]], 'staff-a')[0].kind, 'next');
+  assert.equal(model.actionFor(data[1], 'staff-a'), null);
+});
+test('completed-day feedback never treats stale, empty, skipped or still-scheduled work as success', () => {
+  const completed = item({ status: 'COMPLETED', canStart: false });
+  assert.equal(model.allWorkCompleted([completed], true), true);
+  for (const [items, fresh] of [[[], true], [[completed], false], [[completed, item()], true], [[item({ status: 'SKIPPED' })], true]]) {
+    assert.equal(model.allWorkCompleted(items, fresh), false);
+  }
+});
+
+function cardHarness() {
+  const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+    useState: value => [value, () => {}], useEffect() {}, useRef: value => ({ current: value }) };
+  const timeModel = load('../../utils/bookingOperationalTime');
+  const timeHook = load('../../hooks/useOperationalTime', { react: React, 'react-native': {}, '../utils/bookingOperationalTime': timeModel });
+  const card = load('WorkCard', { react: React, 'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', StyleSheet: { create: x => x } },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '../OperationPrimitives': { OperationButton: 'OperationButton' }, './workModel': model,
+    '../../hooks/useOperationalTime': timeHook, '../../utils/bookingOperationalTime': timeModel });
+  const nodes = tree => tree == null || typeof tree === 'boolean' ? [] : Array.isArray(tree) ? tree.flatMap(nodes)
+    : typeof tree !== 'object' ? [tree] : typeof tree.type === 'function' ? nodes(tree.type({ ...tree.props, children: tree.children })) : [tree, ...tree.children.flatMap(nodes)];
+  const render = extra => nodes(card.default({ item: item({ customer: { fullName: 'Nguyễn Thị Ngọc Ánh với tên đầy đủ rất dài' }, serviceNameSnapshot: 'Chăm sóc tóc chuyên sâu với mô tả dài', branch: { name: 'Chi nhánh', timezone: 'Asia/Bangkok' }, durationMinutes: 30 }), staffId: 'staff-a', serverNow: Date.now(), receivedAt: Date.now(), ...extra }));
+  return { card, nodes, render };
+}
+test('actual card Nhận khách and Hoàn tất labels keep START/COMPLETE payload and pre-arrival safety', () => {
+  const h = cardHarness(), calls = [];
+  const next = h.render({ onAction: (item, action) => calls.push(action) });
+  const button = next.find(n => n?.type === 'OperationButton');
+  assert.equal(button.props.label, 'Nhận khách'); button.props.onPress();
+  const current = h.render({ item: item({ status: 'IN_PROGRESS', canComplete: true, customer: { fullName: 'Khách' }, branch: { name: 'A' } }), variant: 'current', onAction: (item, action) => calls.push(action) });
+  const complete = current.find(n => n?.type === 'OperationButton');
+  assert.equal(complete.props.label, 'Hoàn tất'); complete.props.onPress();
+  assert.deepEqual(calls, ['START', 'COMPLETE']);
+  const waiting = h.render({ item: item({ bookingStatus: 'CONFIRMED', canStart: true, customer: { fullName: 'Khách' }, branch: { name: 'A' } }), onAction() {} });
+  assert.ok(!waiting.some(n => n?.type === 'OperationButton'));
+  assert.ok(waiting.includes('Chưa ghi nhận khách đến'));
+  assert.equal(h.render({ disabled: true, onAction() {} }).find(n => n?.type === 'OperationButton').props.disabled, true);
+});
+test('compact agenda/later row opens detail without starting work or truncating operational names', () => {
+  const h = cardHarness(); let opened = 0, writes = 0;
+  const row = h.render({ variant: 'compact', onOpen: () => opened++, onAction: () => writes++ });
+  row.find(n => n?.type === 'Pressable').props.onPress();
+  assert.match(row.find(n => n?.type === 'Pressable').props.accessibilityLabel, /Dự kiến 10:00/);
+  assert.equal(opened, 1); assert.equal(writes, 0);
+  assert.ok(!row.some(n => n?.type === 'OperationButton'));
+  assert.ok(row.includes('Nguyễn Thị Ngọc Ánh với tên đầy đủ rất dài'));
+  assert.ok(row.includes('Chăm sóc tóc chuyên sâu với mô tả dài'));
+  assert.ok(!row.some(n => n?.type === 'Text' && n.props.numberOfLines));
 });
 test('branch-local day and date navigation ignore device timezone and handle month boundaries', () => {
   const now = Date.parse('2026-10-04T18:30:00Z');

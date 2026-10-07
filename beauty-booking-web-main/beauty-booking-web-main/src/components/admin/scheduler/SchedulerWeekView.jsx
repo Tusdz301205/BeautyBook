@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import BookingEventCard from './BookingEventCard';
+import { useOperationalElapsed } from './OperationalTiming';
+import { calendarServerNow } from '../../../utils/operationalTiming';
 import {
   CALENDAR_START_HOUR,
   CALENDAR_TOP_PADDING,
@@ -19,25 +21,20 @@ const DAY_WIDTH = 240;
 export default function SchedulerWeekView({ currentDate, bookings, onBookingClick }) {
   const gridRef = useRef(null);
   const lastScrollKey = useRef('');
-  const [now, setNow] = React.useState(() => new Date());
+  const now = calendarServerNow(bookings, useOperationalElapsed());
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
   const grouped = useMemo(() => groupBookingsByDay(bookings), [bookings]);
   const hours = useMemo(makeHours, []);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const showNow = now.getHours() >= CALENDAR_START_HOUR && now.getHours() <= 23;
+  const showNow = now && now.getHours() >= CALENDAR_START_HOUR && now.getHours() <= 23;
 
   useEffect(() => {
     const key = `${format(weekStart, 'yyyy-MM-dd')}:${bookings.map((item) => item.id).join(',')}`;
     if (!gridRef.current || lastScrollKey.current === key) return;
     lastScrollKey.current = key;
     const sorted = [...bookings].sort((a, b) => a.startAt - b.startAt);
-    const now = new Date();
-    const todayInWeek = days.some((day) => isSameDay(day, now));
+    const todayInWeek = now && days.some((day) => isSameDay(day, now));
     const target = todayInWeek
       ? sorted.find((booking) => isSameDay(booking.startAt, now) && booking.endAt > now)?.startAt || now
       : sorted[0]?.startAt;
@@ -53,9 +50,9 @@ export default function SchedulerWeekView({ currentDate, bookings, onBookingClic
         <div className="sticky top-0 z-30 grid border-b border-zinc-200 bg-white/95 backdrop-blur" style={{ gridTemplateColumns: `72px repeat(7, ${DAY_WIDTH}px)` }}>
           <div className="sticky left-0 z-40 border-r border-zinc-200 bg-white" />
           {days.map((day) => (
-            <div key={day.toISOString()} className={`h-16 border-r border-zinc-200 px-3 py-2 text-center ${isSameDay(day, new Date()) ? 'bg-pink-50' : ''}`}>
+            <div key={day.toISOString()} className={`h-16 border-r border-zinc-200 px-3 py-2 text-center ${(now && isSameDay(day, now)) ? 'bg-pink-50' : ''}`}>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{format(day, 'EEE', { locale: vi })}</p>
-              <p className={`mt-1 text-lg font-bold ${isSameDay(day, new Date()) ? 'text-pink-700' : 'text-zinc-950'}`}>{format(day, 'dd')}</p>
+              <p className={`mt-1 text-lg font-bold ${(now && isSameDay(day, now)) ? 'text-pink-700' : 'text-zinc-950'}`}>{format(day, 'dd')}</p>
             </div>
           ))}
         </div>
@@ -73,7 +70,7 @@ export default function SchedulerWeekView({ currentDate, bookings, onBookingClic
             const key = format(day, 'yyyy-MM-dd');
             const dayBookings = layoutOverlaps(grouped[key] || []);
             return (
-              <div key={key} className={`relative border-r border-zinc-200 ${isSameDay(day, new Date()) ? 'bg-pink-50/20' : ''}`} style={{ height: calendarBodyHeight() }}>
+              <div key={key} className={`relative border-r border-zinc-200 ${(now && isSameDay(day, now)) ? 'bg-pink-50/20' : ''}`} style={{ height: calendarBodyHeight() }}>
                 {hours.map((hour) => (
                   <React.Fragment key={hour}>
                     <span className="pointer-events-none absolute inset-x-0 border-t border-zinc-200" style={{ top: CALENDAR_TOP_PADDING + (hour - CALENDAR_START_HOUR) * HOUR_HEIGHT }} />

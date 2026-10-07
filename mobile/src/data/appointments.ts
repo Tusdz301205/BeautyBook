@@ -29,6 +29,12 @@ export function bookingStatusMeta(status: AppointmentStatus, rawStatus?: string)
   switch (rawStatus) {
     case 'PENDING':
       return { label: 'Chờ cơ sở xác nhận', color: colors.reviewTag, background: '#E3F3FC' };
+    case 'CONFIRMED':
+      return { label: 'Đã xác nhận', color: colors.reviewTag, background: '#E3F3FC' };
+    case 'CHECKED_IN':
+      return { label: 'Đã đến cơ sở', color: colors.ratingGreen, background: '#E7F7E9' };
+    case 'IN_PROGRESS':
+      return { label: 'Đang thực hiện', color: colors.primary, background: colors.primaryLight };
     case 'EXPIRED':
       return { label: 'Hết hạn xác nhận', color: colors.textGray, background: colors.background };
     case 'REJECTED':
@@ -83,6 +89,7 @@ export function apptTimestamp(item: Appointment): number {
 }
 
 export function isPastUpcoming(item: Appointment, now = Date.now()): boolean {
+  if (item.rawStatus === 'CHECKED_IN' || item.rawStatus === 'IN_PROGRESS') return false;
   return item.status === 'upcoming' && apptTimestamp(item) < now;
 }
 

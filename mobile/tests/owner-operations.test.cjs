@@ -8,7 +8,7 @@ const ts = require('typescript');
 function load(file, modules = {}) {
   const module = { exports: {} };
   const source = fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
-  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, jsx: ts.JsxEmit.React } }).outputText;
   vm.runInNewContext(js, { module, exports: module.exports, require(name) { assert.ok(name in modules, `Unexpected import ${name}`); return modules[name]; }, console, setTimeout, clearTimeout, AbortController }, { filename: file });
   return module.exports;
 }
@@ -27,6 +27,40 @@ function apiHarness(handler) {
 }
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 const settle = () => new Promise(resolve => setImmediate(resolve));
+
+test('Owner overview prioritizes real attention counts and never treats loading or failed reads as all clear', () => {
+  const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }) };
+  const operations = { businessId: business, branchId: branch, date: '2026-10-06', branches: [{ id: branch, name: 'A', status: 'ACTIVE' }], refresh() {}, setBranchId() {} };
+  const requests = { data: [{ id: requestId, booking: { branchId: branch } }], loading: false, reload() {} };
+  const impacts = { data: [{ status: 'OPEN' }, { status: 'COMPLETED' }], loading: false, reload() {} };
+  const dashboard = { data: { date: operations.date, branches: [{ id: branch, name: 'Chi nhánh tên dài', bookings: 3, completedBookings: 1, activeProfiles: 2 }], bookings: 3, completedBookings: 1, statuses: [] }, loading: false, reload() {} };
+  const navigation = { navigate() {} };
+  const mod = load('operations/owner/OwnerOverview.tsx', {
+    react: React, 'react-native': { FlatList: 'FlatList', RefreshControl: 'RefreshControl', View: 'View', Text: 'Text', StyleSheet: { create: x => x } },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '@react-navigation/native': { useNavigation: () => navigation },
+    '../../api/ownerOperations': { ownerOperationsApi: { dashboard() {}, requests() {}, impacts() {} } }, '../OperationsContext': { useOperations: () => operations },
+    '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' },
+    './hooks': { useOwnerData: (_, key) => key.startsWith('dashboard') ? dashboard : key === 'overview-requests' ? requests : impacts },
+    './OwnerUI': { Body: 'Body', Card: 'Card', DesktopLink: 'Desktop', Heading: 'Heading', Meta: 'Meta', OwnerFilters: 'Filters', statusLabel: s => s, styles: {} }, './OwnerSetupState': 'Setup',
+  });
+  const nodes = t => t == null || typeof t === 'boolean' ? [] : Array.isArray(t) ? t.flatMap(nodes) : typeof t !== 'object' ? [t] : [t, ...t.children.flatMap(nodes), ...nodes(t.props.ListHeaderComponent)];
+  let tree = nodes(mod.default());
+  assert.ok(tree.includes('Cần bạn xử lý'));
+  assert.ok(tree.indexOf('Cần bạn xử lý') < tree.indexOf('Ngày 2026-10-06'));
+  const initialList = tree.find(n => n?.type === 'FlatList');
+  const pendingBranch = nodes(initialList.props.renderItem({ item: dashboard.data.branches[0] }));
+  assert.ok(pendingBranch.some(n => n?.type === 'Text' && n.children[0] === 1 && n.children[1] === ' mục cần xử lý'));
+  requests.data = []; impacts.data = [];
+  assert.ok(nodes(mod.default()).includes('Không có việc chờ xử lý'));
+  requests.loading = true;
+  assert.ok(!nodes(mod.default()).includes('Không có việc chờ xử lý'));
+  requests.loading = false; requests.error = 'offline';
+  assert.ok(!nodes(mod.default()).includes('Không có việc chờ xử lý'));
+  const list = nodes(mod.default()).find(n => n?.type === 'FlatList');
+  const branchCard = nodes(list.props.renderItem({ item: dashboard.data.branches[0] }));
+  assert.ok(branchCard.some(n => n?.type === 'Meta' && n.children.includes(' hồ sơ nhân viên hoạt động · Không phải số người đang trong ca')));
+  assert.ok(!branchCard.some(n => n?.type === 'Desktop'));
+});
 
 test('branch or mode change during preflight stops every Owner write without replacing the session', async () => {
   for (const action of ['review', 'booking', 'resolve', 'complete']) {
@@ -203,4 +237,15 @@ test('verified Owner success is distinguishable from uncertain delivery for safe
   assert.equal(await success.render().run(async () => {}), true); success.unmount();
   const unknown = hookHost(hooks => hooks.useOwnerMutation(() => {}, true), modules);
   assert.equal(await unknown.render().run(async () => { throw new ApiError('timeout', 0); }), false); unknown.unmount();
+});
+
+test('legacy unfinished rows keep booking code separate from UUID and prioritize appointment order', async () => {
+  const raw = { id: 'BB-QA-LEGACY', bookingId, branchId: branch, statusEnum: 'CONFIRMED', customer_name: 'Khách kiểm thử', customer_phone: 'private-phone',
+    appointment_time: '2026-10-06T00:00:00Z', appointment_start: '1970-01-01T22:00:00Z', appointment_end: '1970-01-01T22:30:00Z',
+    services: [{ bookingServiceId: itemId, id: 'service', name: 'Dịch vụ', status: 'SCHEDULED', revision: 3, staffId: 'staff', staff: 'Chuyên viên', itemStartAt: '2026-10-06T15:00:00Z', itemEndAt: '2026-10-06T15:30:00Z' }] };
+  const h = apiHarness(() => ({ data: [raw], meta: { total: 1 } }));
+  const result = await h.ownerOperationsApi.unfinished({ ...scope(), branchId: branch });
+  assert.equal(result.data[0].id, bookingId); assert.equal(result.data[0].code, 'BB-QA-LEGACY');assert.equal(result.data[0].items[0].id, itemId);
+  assert.match(h.calls[0].path, /sortOrder=appointment/);assert.match(h.calls[0].path, /status=unfinished/);
+  assert.ok(!JSON.stringify(result).includes('private-phone'));
 });

@@ -42,13 +42,17 @@ export function useWorkActions({ identity, fresh, staffId, reload, refresh }: {
       } catch (error) {
         if (valid()) setMessage({ identity: captured.identity, text: gate.blocked
           ? 'Chưa rõ kết quả thao tác. Hãy tải lại để xác minh trước khi thử tiếp.'
-          : (error as { status?: number })?.status === 409 ? workError(error).message
+          : [400, 409].includes((error as { status?: number })?.status ?? 0) ? workError(error).message
             : 'Đã đọc lại công việc. Hãy kiểm tra trạng thái dịch vụ trước khi thao tác tiếp.' });
       } finally { if (valid()) setBusy(null); }
     };
     if (requested === 'COMPLETE') Alert.alert('Hoàn tất dịch vụ?', `${item.serviceNameSnapshot} · ${item.customer.fullName}`, [
       { text: 'Quay lại', style: 'cancel' }, { text: 'Hoàn tất dịch vụ', onPress: () => { void send(); } },
     ]);
+    else if (Date.parse(item.serverNow) > Date.parse(item.itemStartAt ?? '')) Alert.alert('Bắt đầu muộn?',
+      `${item.serviceNameSnapshot} · ${item.customer.fullName}. Giờ bắt đầu thực tế được ghi từ máy chủ; giờ dự kiến giữ nguyên. Kiểm tra các dịch vụ kế tiếp với quầy/quản lý. Máy chủ sẽ từ chối nếu đụng lịch của khách khác hoặc ngoài giờ mở cửa.`, [
+        { text: 'Quay lại', style: 'cancel' }, { text: 'Bắt đầu dịch vụ', onPress: () => { void send(); } },
+      ]);
     else void send();
   };
   return { action, reconcile, blocked: gateRef.current.gate.blocked,

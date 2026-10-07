@@ -3,9 +3,13 @@ import { format, isSameMonth, isToday } from 'date-fns';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { groupBookingsByDay, monthGridDays, statusSummary } from '../../../utils/bookingCalendar.utils';
 
+import { useOperationalElapsed } from './OperationalTiming';
+import { bookingOperationalLabels } from '../../../utils/operationalTiming';
+
 const STATUS_ORDER = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
 export default function SchedulerMonthView({ currentDate, bookings, onDateClick }) {
+  const elapsed = useOperationalElapsed();
   const days = useMemo(() => monthGridDays(currentDate), [currentDate]);
   const grouped = useMemo(() => groupBookingsByDay(bookings), [bookings]);
 
@@ -34,6 +38,7 @@ export default function SchedulerMonthView({ currentDate, bookings, onDateClick 
                 {dayBookings.length > 0 ? (
                   <span className="mt-2 block">
                     <span className="block text-sm font-bold text-zinc-950">{dayBookings.length} lịch</span>
+                    {dayBookings.some((booking) => bookingOperationalLabels(booking, elapsed).length) && <span className="block whitespace-normal text-xs font-semibold text-amber-800">{dayBookings.filter((booking) => bookingOperationalLabels(booking, elapsed).length).length} lịch cần kiểm tra thời gian</span>}
                     <span className="mt-1.5 grid gap-1">
                       {STATUS_ORDER.filter((statusKey) => summary[statusKey]).slice(0, 3).map((statusKey) => {
                         const count = summary[statusKey];

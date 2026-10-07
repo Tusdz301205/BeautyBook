@@ -71,7 +71,15 @@ mobile-preview/artifacts/
 /docs/mobile-staff-owner/qa/
 /docs/mobile-staff-owner/validation.json
 /beauty-booking-api-main/scripts/qa-*.mjs
+/beauty-booking-api-main/scripts/actual-time-*.mjs
+/beauty-booking-api-main/scripts/apply-actual-time-*.mjs
 /beauty-booking-web-main/beauty-booking-web-main/scripts/qa-*.mjs
+/beauty-booking-web-main/beauty-booking-web-main/tests/e2e/*-live-browser.mjs
+/beauty-booking-web-main/beauty-booking-web-main/tests/e2e/*-readback-browser.mjs
+/beauty-booking-web-main/beauty-booking-web-main/tests/e2e/*-overdue-browser.mjs
+/beauty-booking-web-main/beauty-booking-web-main/tests/e2e/requirement-*.mjs
+/mobile/tests/*-browser.mjs
+/mobile/tests/requirement-*.mjs
 /docs/generated-images/beautybook/originals/
 /docs/generated-images/beautybook/qa-*
 /docs/generated-images/beautybook/live-entity-image-reconciliation.json

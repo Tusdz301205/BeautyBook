@@ -35,7 +35,7 @@ describe('BookingsController authenticated customer checkout', () => {
     };
     const controller = new BookingsController(
       bookingsService as never,
-      { assertCustomerCreate: jest.fn().mockResolvedValue('business-1') } as never,
+      { assertCustomerCreate: jest.fn().mockResolvedValue('business-1'), rolesAtResource: jest.fn().mockReturnValue(['RECEPTIONIST']) } as never,
       prisma as never,
       {} as never,
       {} as never,
@@ -72,7 +72,7 @@ describe('BookingsController authenticated customer checkout', () => {
     await controller.create({ ...counterRequest, source: 'STAFF_CREATED', customerId: 'someone-else' }, {
       id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
     } as any);
-    expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_WEB' }));
+    expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_WEB' }), { authorizedCounter: false });
   });
 
   it('preserves the mobile online booking source', async () => {
@@ -80,7 +80,7 @@ describe('BookingsController authenticated customer checkout', () => {
     await controller.create({ ...counterRequest, source: 'ONLINE_APP' }, {
       id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer',
     } as any);
-    expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_APP' }));
+    expect(bookingsService.create).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'customer-1', source: 'ONLINE_APP' }), { authorizedCounter: false });
   });
 
   it('keeps cancelled item status and historical service snapshot in the customer response', async () => {

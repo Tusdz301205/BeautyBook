@@ -28,6 +28,7 @@ import {
 } from '../common/utils/notify';
 import {
   appointmentDateFromInstant,
+  appointmentTimeFromInstant,
   combineAppointmentDateTime,
   normalizeAppointmentForStorage,
   sameAppointmentDate,
@@ -36,6 +37,9 @@ import {
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { reserveRecurringOccurrence } from '../recurring/recurring-creation-fence';
 import { assertBookingChannelAllowed } from './booking-channel-policy';
+import { assertBookingAdvance, bookingLeadMilliseconds, type BookingLeadContext } from './booking-lead-policy';
+import { assertUnstartedBookingItems } from './booking-schedule-integrity';
+import { auditProviderReassignment } from './booking-provider-audit';
 import { CANCELLED_BOOKING_OUTCOMES, cancelUnfinishedBookingItems } from './booking-item-lifecycle';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -58,6 +62,8 @@ type BookingTimelineItem = {
   durationMinutes: number;
   transitionMinutes: number;
   sortOrder: number;
+  status: string;
+  revision: number;
 };
 
 function shiftBookingTimeline(
@@ -119,7 +125,7 @@ export class BookingsService {
     source?: string;
     dateFrom?: string;
     dateTo?: string;
-    sortOrder?: 'newest' | 'oldest';
+    sortOrder?: 'newest' | 'oldest' | 'appointment';
     page?: number;
     limit?: number;
     customerId?: string;
@@ -168,6 +174,7 @@ export class BookingsService {
       };
       const bookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'];
       if (bookingStatuses.includes(status)) where.status = status;
+      else if (status === 'unfinished') where.status = { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] };
       else if (statusMap[status]) where.status = statusMap[status];
     }
 
@@ -273,7 +280,9 @@ export class BookingsService {
           },
           payments: true,
         },
-        orderBy: { createdAt: sortOrder === 'newest' ? 'desc' : 'asc' },
+        orderBy: sortOrder === 'appointment'
+          ? [{ appointmentDate: 'asc' }, { appointmentStartTime: 'asc' }, { id: 'asc' }]
+          : { createdAt: sortOrder === 'newest' ? 'desc' : 'asc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -308,6 +317,12 @@ export class BookingsService {
       services: b.bookingServices?.filter((bs) => !staffId || bs.staffId === staffId).map((bs) => ({
         ...bookingItemActualTiming(bs),
         bookingServiceId: bs.id,
+        id: bs.serviceId,
+        status: bs.status,
+        revision: bs.revision,
+        itemStartAt: bs.itemStartAt,
+        itemEndAt: bs.itemEndAt,
+        staffId: bs.staffId,
         name: bs.service?.name,
         price: bs.priceAtBooking,
         duration: bs.durationMinutes,
@@ -854,7 +869,7 @@ export class BookingsService {
     source?: 'ONLINE_WEB' | 'ONLINE_APP' | 'WALK_IN' | 'PHONE' | 'STAFF_CREATED' | 'ADMIN_CREATED';
     controlledOverbooking?: boolean;
     overbookingReason?: string;
-  }) {
+  }, leadContext?: BookingLeadContext) {
     await this.expirePendingHolds(data.branchId);
     const statusChangedBy = data.createdBy ?? (await this.prisma.customerProfile.findUnique({
       where: { id: data.customerId },
@@ -998,13 +1013,7 @@ export class BookingsService {
     assertFutureAppointment(appointmentStartTime);
     const bookingPolicy = await this.platformSettings.getEffective();
     const configuredBookingPolicy = await this.platformSettings.getConfigured();
-    const advanceMs = appointmentStartTime.getTime() - Date.now();
-    if (advanceMs < bookingPolicy.minBookingLeadTimeHours * 60 * 60 * 1000) {
-      throw new BadRequestException(`Cần đặt trước ít nhất ${bookingPolicy.minBookingLeadTimeHours} giờ.`);
-    }
-    if (advanceMs > bookingPolicy.maxAdvanceBookingDays * 24 * 60 * 60 * 1000) {
-      throw new BadRequestException(`Chỉ được đặt trước tối đa ${bookingPolicy.maxAdvanceBookingDays} ngày.`);
-    }
+    assertBookingAdvance(appointmentStartTime, bookingPolicy, data.source, leadContext);
     const appointmentEndTime = new Date(
       appointmentStartTime.getTime() + totalDuration * 60000,
     );
@@ -1253,6 +1262,8 @@ export class BookingsService {
         }
         // Pick a concrete eligible staff and reserve that staff in the same
         // serializable transaction. PENDING is a blocking status.
+        // Use a fresh clock after quote/catalog work and on every transaction retry.
+        assertBookingAdvance(appointmentStartTime, bookingPolicy, source, leadContext);
         const assignedStaffIds: Array<string | null> = [];
         const reserveCandidate = async (
           candidates: string[],
@@ -1263,18 +1274,21 @@ export class BookingsService {
             const overlapping = await tx.bookingService.findFirst({
               where: {
                 staffId: candidateId,
+                status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
                 booking: {
                   deletedAt: null,
                   status: { in: [...BLOCKING_BOOKING_STATUSES] },
-                  appointmentDate: storedAppointment.appointmentDate,
                 },
                 OR: [
+                  { status: 'IN_PROGRESS', OR: [{ itemStartAt: { lt: endAt } }, { itemStartAt: null }],
+                    AND: [{ OR: [{ itemEndAt: { lt: new Date() } }, { itemEndAt: null }] }] },
                   { itemStartAt: { lt: endAt }, itemEndAt: { gt: startAt } },
                   {
                     itemStartAt: null,
                     booking: {
-                      appointmentStartTime: { lt: endAt },
-                      appointmentEndTime: { gt: startAt },
+                      appointmentDate: storedAppointment.appointmentDate,
+                      appointmentStartTime: { lt: appointmentTimeFromInstant(endAt) },
+                      appointmentEndTime: { gt: appointmentTimeFromInstant(startAt) },
                     },
                   },
                 ],
@@ -1312,8 +1326,8 @@ export class BookingsService {
         } else {
           const assigned = await reserveCandidate(
             eligibleStaffIds,
-            storedAppointment.appointmentStartTime,
-            storedAppointment.appointmentEndTime,
+            appointmentStartTime,
+            appointmentEndTime,
           );
           if (assigned) timeline.forEach((item) => { assignedStaffIds[item.sortOrder] = assigned; });
         }
@@ -1611,6 +1625,9 @@ export class BookingsService {
       where: {
         branchId: branchId || undefined,
         status: 'PENDING', pendingExpiresAt: { lte: now }, deletedAt: null,
+        // A verified correction can close an item while the parent awaits
+        // operational/financial completion. Never expire proven execution.
+        bookingServices: { none: { status: { in: ['IN_PROGRESS', 'COMPLETED'] } } },
       },
       select: {
         id: true,
@@ -1628,7 +1645,8 @@ export class BookingsService {
       const ids: string[] = [];
       for (const item of expired) {
         const claimed = await tx.booking.updateMany({
-          where: { id: item.id, status: 'PENDING', pendingExpiresAt: { lte: now } },
+          where: { id: item.id, status: 'PENDING', pendingExpiresAt: { lte: now },
+            bookingServices: { none: { status: { in: ['IN_PROGRESS', 'COMPLETED'] } } } },
           data: { status: 'EXPIRED', pendingExpiresAt: null },
         });
         if (claimed.count !== 1) continue;
@@ -1941,7 +1959,7 @@ export class BookingsService {
     serviceIds: string[];
     date: string; // ISO date YYYY-MM-DD
     variantSelections?: Record<string, string>;
-  }) {
+  }, leadContext?: BookingLeadContext) {
     await this.expirePendingHolds(params.branchId);
     const SLOT_STEP_MIN = 30;
     const branchReady = await this.prisma.branch.findFirst({
@@ -1949,9 +1967,12 @@ export class BookingsService {
         id: params.branchId, status: 'ACTIVE', deletedAt: null,
         business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
       },
-      select: { id: true },
+      select: { id: true, bookingPolicy: { select: { allowWalkIn: true, allowCounterBooking: true } } },
     });
     if (!branchReady) throw new BadRequestException('Chi nhánh chưa sẵn sàng nhận lịch.');
+    if (leadContext?.authorizedCounter) {
+      assertBookingChannelAllowed(leadContext.source ?? 'STAFF_CREATED', branchReady.bookingPolicy);
+    }
 
     const services = await this.prisma.branchServiceOffering.findMany({
       where: {
@@ -1978,7 +1999,7 @@ export class BookingsService {
     const variantsByService = new Map(variants.map((variant) => [variant.serviceId, variant]));
     const totalDuration = services.reduce((sum, service) => {
       const variant = variantsByService.get(service.id);
-      if (variant && variant.priceType === 'QUOTE') {
+      if (variant && variant.priceType === 'QUOTE' && !leadContext?.authorizedCounter) {
         throw new BadRequestException('Lựa chọn này cần báo giá trước khi đặt trực tuyến');
       }
       return sum + Number(variant?.bufferBeforeMinutes ?? 0) +
@@ -2013,7 +2034,7 @@ export class BookingsService {
     ]);
     if ((holiday?.isClosed && !specialDay) ||
         (!specialDay && (!branchWorkingHour || branchWorkingHour.isClosed))) {
-      return { slots: [], message: 'Chi nhánh đóng cửa trong ngày đã chọn' };
+      return { slots: [], serverNow: new Date(), message: 'Chi nhánh đóng cửa trong ngày đã chọn' };
     }
     const windowStart = combineAppointmentDateTime(
       day,
@@ -2069,12 +2090,14 @@ export class BookingsService {
     });
 
     if (staffList.length === 0) {
-      return { slots: [], message: 'Không có nhân viên khả dụng cho dịch vụ này' };
+      return { slots: [], serverNow: new Date(), message: 'Không có nhân viên khả dụng cho dịch vụ này' };
     }
 
     const bookingPolicy = await this.platformSettings.getEffective();
     const now = new Date();
-    const earliestStart = now.getTime() + bookingPolicy.minBookingLeadTimeHours * 60 * 60 * 1000;
+    const earliestStart = now.getTime() + bookingLeadMilliseconds(
+      bookingPolicy.minBookingLeadTimeHours, leadContext?.source ?? 'STAFF_CREATED', leadContext,
+    );
     const latestStart = now.getTime() + bookingPolicy.maxAdvanceBookingDays * 24 * 60 * 60 * 1000;
     const allSlots: { start: string; end: string; staffId: string; staffName: string }[] = [];
 
@@ -2083,11 +2106,12 @@ export class BookingsService {
       const existingBookings = await this.prisma.bookingService.findMany({
         where: {
           staffId: staff.id,
+          status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
           booking: {
             deletedAt: null,
             status: { in: [...BLOCKING_BOOKING_STATUSES] },
-            appointmentDate: day,
           },
+          OR: [{ booking: { appointmentDate: day } }, { status: 'IN_PROGRESS' }],
         },
         include: {
           booking: {
@@ -2100,10 +2124,18 @@ export class BookingsService {
         },
       });
 
-      let cursor = new Date(windowStart);
-      while (cursor.getTime() + totalDuration * 60000 <= windowEnd.getTime()) {
+      const starts = new Set<number>();
+      for (let cursor = windowStart.getTime(); cursor + totalDuration * 60000 <= windowEnd.getTime(); cursor += SLOT_STEP_MIN * 60000) starts.add(cursor);
+      if (leadContext?.authorizedCounter) {
+        // Counter creation already accepts any future minute. Offer that
+        // earliest minute as well as the normal grid, without inventing a lead
+        // tolerance or permitting the past/current instant.
+        const nearest = Math.max(windowStart.getTime(), Math.ceil((now.getTime() + 1) / 60000) * 60000);
+        if (nearest + totalDuration * 60000 <= windowEnd.getTime()) starts.add(nearest);
+      }
+      for (const cursor of [...starts].sort((left, right) => left - right)) {
         const slotStart = new Date(cursor);
-        const slotEnd = new Date(cursor.getTime() + totalDuration * 60000);
+        const slotEnd = new Date(cursor + totalDuration * 60000);
 
         // Offer only starts accepted by create(), including both policy boundaries.
         if (slotStart > now && slotStart.getTime() >= earliestStart && slotStart.getTime() <= latestStart) {
@@ -2127,10 +2159,10 @@ export class BookingsService {
             }
           }
           if (!validByDomainRules) {
-            cursor = new Date(cursor.getTime() + SLOT_STEP_MIN * 60000);
             continue;
           }
           const hasOverlap = existingBookings.some((item) => {
+            if (item.status === 'IN_PROGRESS' && (!item.itemEndAt || item.itemEndAt < now) && (!item.itemStartAt || item.itemStartAt < slotEnd)) return true;
             const interval = item.itemStartAt && item.itemEndAt
               ? { start: item.itemStartAt, end: item.itemEndAt }
               : toBookingInterval(
@@ -2150,13 +2182,15 @@ export class BookingsService {
           }
         }
 
-        cursor = new Date(cursor.getTime() + SLOT_STEP_MIN * 60000);
       }
     }
 
     // Sort by time, then return unique time slots (dedupe across staff)
     allSlots.sort((a, b) => a.start.localeCompare(b.start));
-    const uniqueSlots = allSlots.filter((slot, idx, arr) => 
+    const responseNow = new Date();
+    const finalEarliest = responseNow.getTime() + bookingLeadMilliseconds(bookingPolicy.minBookingLeadTimeHours, leadContext?.source ?? 'STAFF_CREATED', leadContext);
+    const freshSlots = allSlots.filter(slot => Date.parse(slot.start) > responseNow.getTime() && Date.parse(slot.start) >= finalEarliest);
+    const uniqueSlots = freshSlots.filter((slot, idx, arr) =>
       idx === 0 || slot.start !== arr[idx - 1].start
     ).map(({ start, end }) => ({ start, end }));
 
@@ -2166,6 +2200,7 @@ export class BookingsService {
       totalDuration,
       staffCount: staffList.length,
       slots: uniqueSlots,
+      serverNow: responseNow,
     };
   }
 
@@ -2177,7 +2212,7 @@ export class BookingsService {
    *  - KHÔNG update thẳng appointment_start_time → giữ dấu vết yêu cầu gốc.
    *  - Hàm này chỉ dùng khi salon đã duyệt hoặc admin can thiệp.
    */
-  async moveBooking(id: string, newStartTime: string, newEndTime: string, newStaffId: string) {
+  async moveBooking(id: string, newStartTime: string, newEndTime: string, newStaffId: string, actorId?: string) {
     const startTime = new Date(newStartTime);
     const endTime = new Date(newEndTime);
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
@@ -2199,6 +2234,7 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+    assertUnstartedBookingItems(existing.bookingServices);
     const existingInterval = toBookingInterval(
       existing.appointmentDate,
       existing.appointmentStartTime,
@@ -2254,6 +2290,8 @@ export class BookingsService {
       if (!locked) throw new NotFoundException('Không tìm thấy lịch hẹn');
       this.assertMutableScheduleStatus(locked.status);
 
+      assertUnstartedBookingItems(locked.bookingServices);
+
       const lockedStart = combineAppointmentDateTime(
         locked.appointmentDate,
         locked.appointmentStartTime,
@@ -2303,12 +2341,14 @@ export class BookingsService {
       );
 
       for (const item of shiftedItems) {
+        await auditProviderReassignment(tx, { ...item, bookingId: id }, newStaffId, actorId, 'Đổi phân công khi dời lịch chưa bắt đầu');
         await tx.bookingService.update({
           where: { id: item.id },
           data: {
             staffId: newStaffId,
             itemStartAt: item.nextStart,
             itemEndAt: item.nextEnd,
+            revision: { increment: 1 },
           },
         });
       }
@@ -2510,13 +2550,17 @@ export class BookingsService {
   /**
    * Phân công thợ — có validate staff + overlap.
    */
-  async assignStaff(id: string, staffId: string) {
+  async assignStaff(id: string, staffId: string, actorId?: string) {
     const bookingExisting = await this.prisma.booking.findUnique({
       where: { id },
       include: { bookingServices: true },
     });
     if (!bookingExisting) throw new NotFoundException('Booking not found');
     this.assertMutableScheduleStatus(bookingExisting.status);
+    if (bookingExisting.bookingServices.some(item => item.status !== 'SCHEDULED')) {
+      throw new ConflictException('Chỉ phân công hàng loạt khi mọi dịch vụ chưa bắt đầu. Dùng thao tác từng dịch vụ để giữ lịch sử thực hiện.');
+    }
+    if (!actorId) throw new BadRequestException('Thiếu người thực hiện phân công');
     const bookingInterval = toBookingInterval(
       bookingExisting.appointmentDate,
       bookingExisting.appointmentStartTime,
@@ -2548,6 +2592,9 @@ export class BookingsService {
         });
         if (!locked) throw new NotFoundException('Booking not found');
         this.assertMutableScheduleStatus(locked.status);
+        if (locked.bookingServices.some(item => item.status !== 'SCHEDULED')) {
+          throw new ConflictException('Dịch vụ đã bắt đầu hoặc kết thúc; không được ghi đè phân công hàng loạt.');
+        }
         const lockedInterval = toBookingInterval(
           locked.appointmentDate,
           locked.appointmentStartTime,
@@ -2579,8 +2626,8 @@ export class BookingsService {
           data: {
             bookingServices: {
               updateMany: {
-                where: { bookingId: id },
-                data: { staffId },
+                where: { bookingId: id, status: 'SCHEDULED' },
+                data: { staffId, revision: { increment: 1 } },
               },
             },
           },
@@ -2589,9 +2636,22 @@ export class BookingsService {
             bookingServices: { include: { service: true, staff: true } },
           },
         });
+        const providerIds = [...new Set([staffId, ...locked.bookingServices.map(item => item.staffId).filter((value): value is string => Boolean(value))])];
+        const providerUsers = new Map((await tx.staffProfile.findMany({ where: { id: { in: providerIds } }, select: { id: true, userId: true } }))
+          .map(profile => [profile.id, profile.userId]));
+        for (const item of locked.bookingServices) {
+          await tx.bookingServiceAdjustment.create({ data: {
+            bookingServiceId: item.id, bookingId: id, actorId, action: 'REASSIGN',
+            reason: 'Phân công chuyên viên cho các dịch vụ chưa bắt đầu', amountDelta: 0,
+            version: await tx.bookingServiceAdjustment.count({ where: { bookingServiceId: item.id } }) + 1,
+            beforeSnapshot: { status: item.status, staffId: item.staffId, staffUserId: item.staffId ? providerUsers.get(item.staffId) ?? null : null, revision: item.revision },
+            afterSnapshot: { status: item.status, staffId, staffUserId: providerUsers.get(staffId) ?? null, revision: item.revision + 1 },
+          } });
+        }
         await tx.bookingStatusHistory.create({
           data: {
             bookingId: id,
+            changedBy: actorId,
             status: updated.status,
             note: `Phân công staff ${staffId}`,
           },

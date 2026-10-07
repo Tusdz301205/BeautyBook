@@ -38,6 +38,8 @@ export interface PermissionEntry {
  * `prisma/seed-permissions.ts` and the runtime `policy.can()` use.
  */
 export const PERMISSIONS: readonly PermissionEntry[] = Object.freeze([
+  { code: 'booking.actual_time.correct', resource: 'booking', action: 'actual_time.correct', defaultScope: 'TENANT',
+    description: 'Đính chính thời gian thực tế bằng lịch sử bổ sung; quyền trực tiếp phải có phạm vi' },
   // -----------------------------------------------------------
   // BOOKINGS — extends plan §3.1
   // -----------------------------------------------------------
@@ -348,6 +350,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> =
 
     // Tenant layer
     BUSINESS_OWNER: [
+      'booking.actual_time.correct',
       'user:read:self', 'user:update:self', 'notification:read:self',
       'business:create:self', 'business:update:tenant',
       'booking:create:tenant', 'booking:read:tenant', 'booking:update:tenant',

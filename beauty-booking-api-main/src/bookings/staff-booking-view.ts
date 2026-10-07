@@ -18,12 +18,14 @@ export function staffBookingView(booking: any, staffId: string) {
       durationMinutes: item.durationMinutes, itemStartAt: item.itemStartAt, itemEndAt: item.itemEndAt,
       actualStartedAt: item.actualStartedAt ?? null, actualCompletedAt: item.actualCompletedAt ?? null,
       actualStoppedAt: item.actualStoppedAt ?? null, actualTimingSource: item.actualTimingSource ?? 'UNAVAILABLE',
+      actualTimingStatus: item.actualTimingStatus ?? 'UNKNOWN', canCorrectActualTime: false,
       service: { id: item.serviceId, name: item.serviceNameSnapshot ?? item.service?.name },
       staff: item.staff ? { id: item.staff.id, fullName: item.staff.fullName } : undefined,
     })),
     services: (booking.services ?? []).map((item: any) => ({ bookingServiceId: item.bookingServiceId,
       name: item.name, duration: item.duration, staff: item.staff,
       actualStartedAt: item.actualStartedAt ?? null, actualCompletedAt: item.actualCompletedAt ?? null,
-      actualStoppedAt: item.actualStoppedAt ?? null, actualTimingSource: item.actualTimingSource ?? 'UNAVAILABLE' })),
+      actualStoppedAt: item.actualStoppedAt ?? null, actualTimingSource: item.actualTimingSource ?? 'UNAVAILABLE',
+      actualTimingStatus: item.actualTimingStatus ?? 'UNKNOWN', canCorrectActualTime: false })),
   };
 }

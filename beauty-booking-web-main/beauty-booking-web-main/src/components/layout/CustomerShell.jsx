@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import {
   Bell,
   CalendarCheck,
@@ -17,7 +18,6 @@ import {
   X,
 } from 'lucide-react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { notificationsApi } from '../../api/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { PublicFooter } from '../public/PublicChrome';
 import { cx, IconButton } from '../ui';
@@ -81,7 +81,7 @@ function AccountNavigation({ onNavigate }) {
 
 export function CustomerShell({ children }) {
   const [accountOpen, setAccountOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  const unread = useUnreadNotifications();
   const accountPanelRef = useRef(null);
   const accountTriggerRef = useRef(null);
   const location = useLocation();
@@ -93,15 +93,6 @@ export function CustomerShell({ children }) {
     setAccountOpen(false);
   }, [location.pathname, location.search]);
 
-  useEffect(() => {
-    let active = true;
-    const loadUnread = () => notificationsApi.getUnreadCount()
-      .then((result) => { if (active) setUnread(Number(result?.count ?? result ?? 0)); })
-      .catch(() => { if (active) setUnread(0); });
-    loadUnread();
-    const timer = window.setInterval(loadUnread, 60_000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [location.pathname]);
 
   useEffect(() => {
     if (!accountOpen) return undefined;

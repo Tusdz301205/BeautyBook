@@ -13,7 +13,7 @@ import { TAB_BAR_CLEARANCE } from '../navigation/CustomTabBar';
 import { colors } from '../constants/colors';
 import { formatCurrency } from '../data/catalogModels';
 import { useAppointments } from '../hooks/useAppointments';
-import { Appointment, apptTimestamp, formatGroupHeader, getCountdownLabel, groupByDate, isPastUpcoming } from '../data/appointments';
+import { Appointment, apptTimestamp, bookingStatusMeta, formatGroupHeader, getCountdownLabel, groupByDate, isPastUpcoming } from '../data/appointments';
 import AppointmentCard from '../components/AppointmentCard';
 import { useBookings } from '../context/BookingsContext';
 
@@ -158,15 +158,14 @@ export default function LichHenScreen({ navigation }: Props) {
                 <View key={group.key} style={styles.dateGroup}>
                   <Text style={styles.dateGroupHeader}>{formatGroupHeader(group.date)}</Text>
                   {group.items.map((item) => {
-                    const comboId = item.comboId;
                     return (
                       <AppointmentCard
                         key={item.id}
                         item={item}
                         onPress={() => navigateToDetail(item)}
                         onRebook={
-                          item.status === 'completed' && comboId
-                            ? () => navigation.navigate('DiaDiem', { screen: 'ComboDetail', params: { comboId } })
+                          item.status !== 'upcoming'
+                            ? () => navigateToDetail(item)
                             : undefined
                         }
                       />
@@ -197,7 +196,7 @@ function HeroCard({
       <View style={styles.heroHeaderRow}>
         <Text style={styles.heroLabel}>{item.rawStatus === 'PENDING' ? 'YÊU CẦU CHỜ XÁC NHẬN' : 'LỊCH HẸN TIẾP THEO'}</Text>
         <View style={styles.heroCountdownBadge}>
-          <Text style={styles.heroCountdownText}>{item.rawStatus === 'PENDING' ? 'Chờ cơ sở' : countdown}</Text>
+          <Text style={styles.heroCountdownText}>{item.rawStatus === 'PENDING' ? 'Chờ cơ sở' : ['CHECKED_IN', 'IN_PROGRESS'].includes(item.rawStatus || '') ? bookingStatusMeta(item.status, item.rawStatus).label : countdown}</Text>
         </View>
       </View>
 
@@ -209,6 +208,7 @@ function HeroCard({
           <Text style={styles.heroComboTitle}>
             {item.comboTitle}
           </Text>
+          <Text style={[styles.metaText, { color: bookingStatusMeta(item.status, item.rawStatus).color, fontWeight: '700' }]}>{bookingStatusMeta(item.status, item.rawStatus).label}</Text>
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={13} color={colors.textGray} />
             <Text style={styles.metaText}>

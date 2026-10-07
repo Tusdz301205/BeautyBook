@@ -24,6 +24,8 @@ import SchedulerDayView from './SchedulerDayView';
 import SchedulerMonthView from './SchedulerMonthView';
 import SchedulerWeekView from './SchedulerWeekView';
 import { Select } from '../../ui';
+import { OperationalClock } from './OperationalTiming';
+import { useOperationalRefresh } from '../../../hooks/useOperationalRefresh';
 
 const VIEW_OPTIONS = [
   { id: 'day', label: 'Ngày', icon: Rows3 },
@@ -31,7 +33,7 @@ const VIEW_OPTIONS = [
   { id: 'month', label: 'Tháng', icon: CalendarDays },
 ];
 
-const initialFilters = { query: '', staffId: '', serviceId: '', status: '' };
+const initialFilters = { query: '', staffId: '', serviceId: '', status: '', unfinished: false };
 
 export default function SchedulerView({
   branchId,
@@ -114,6 +116,8 @@ export default function SchedulerView({
       });
       setStaffList([...staffById.values()]);
       setBookings([...bookingById.values()]);
+      setSelectedBooking((current) => current ? bookingById.get(current.id) || current : null);
+      setSelectedDay((current) => current ? { ...current, bookings: current.bookings.map((item) => bookingById.get(item.id)).filter(Boolean) } : null);
     } catch (requestError) {
       if (requestId !== requestSequence.current) return;
       setError(toUserFacingRequestError(requestError, 'Không thể tải dữ liệu lịch hẹn'));
@@ -194,6 +198,9 @@ export default function SchedulerView({
     };
   }, [fetchData, accessToken]);
 
+  const refreshVisible = useCallback(() => fetchData({ silent: true }), [fetchData]);
+  useOperationalRefresh(refreshVisible);
+
   const serviceOptions = useMemo(() => {
     const services = new Map();
     bookings.forEach((booking) => booking.services.forEach((service) => {
@@ -205,7 +212,7 @@ export default function SchedulerView({
   const filteredBookings = useMemo(() => {
     const ownIds = new Set(staffList.filter((staff) => staff.userId === user?.id).map((staff) => staff.id));
     const visible = staffOnly ? bookings.filter((booking) => booking.services.some((item) => item.staffUserId === user?.id || ownIds.has(item.staffId))) : bookings;
-    return filterBookings(visible, filters);
+    return filterBookings(visible, filters).filter((booking) => !filters.unfinished || (!['COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(booking.status) && booking.services.some((item) => ['SCHEDULED', 'IN_PROGRESS'].includes(item.status))));
   }, [bookings, filters, staffList, staffOnly, user]);
   const stats = useMemo(() => computeBookingStats(filteredBookings), [filteredBookings]);
   const platformWorkspace = user?.workspace === 'PLATFORM' || roleCodes.has('PLATFORM_ADMIN');
@@ -266,7 +273,7 @@ export default function SchedulerView({
   const openDay = (date, dayBookings = []) => setSelectedDay({ date, bookings: dayBookings });
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <OperationalClock><div className="flex h-full min-h-0 flex-col bg-white">
       <div className="shrink-0 border-b border-zinc-200 bg-white px-3 py-3 sm:px-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +305,9 @@ export default function SchedulerView({
           <FilterSelect label={staffOnly ? 'Lịch cá nhân' : 'Tất cả nhân viên'} value={filters.staffId} disabled={staffOnly} onChange={(staffId) => setFilters((current) => ({ ...current, staffId }))} options={staffList.map((staff) => ({ id: staff.id, name: staff.name }))} />
           <FilterSelect label="Tất cả dịch vụ" value={filters.serviceId} onChange={(serviceId) => setFilters((current) => ({ ...current, serviceId }))} options={serviceOptions} />
           <FilterSelect label="Tất cả trạng thái" value={filters.status} onChange={(status) => setFilters((current) => ({ ...current, status }))} options={Object.entries(BOOKING_STATUSES).map(([id, status]) => ({ id, name: status.label }))} />
-          {(filters.query || filters.serviceId || filters.status || (!staffOnly && filters.staffId)) && <button type="button" onClick={() => setFilters((current) => ({ ...initialFilters, staffId: staffOnly ? current.staffId : '' }))} className="min-h-10 px-2 text-sm font-semibold text-pink-700 hover:underline">Xóa lọc</button>}
+          <label className="flex min-h-10 items-center gap-2 text-sm text-zinc-700"><input type="checkbox" checked={filters.unfinished} onChange={(event) => setFilters((current) => ({ ...current, unfinished: event.target.checked }))} />Chỉ lịch chưa kết thúc</label>
+          <label className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">Ngày cần kiểm tra (kể cả ngày trước)<input aria-label="Ngày cần kiểm tra" type="date" value={`${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`} onChange={(event) => { if (event.target.value) { changeDate(new Date(`${event.target.value}T12:00:00`)); setViewMode?.('day'); } }} className="min-h-10 rounded-lg border border-zinc-200 px-2" /></label>
+          {(filters.unfinished || filters.query || filters.serviceId || filters.status || (!staffOnly && filters.staffId)) && <button type="button" onClick={() => setFilters((current) => ({ ...initialFilters, staffId: staffOnly ? current.staffId : '' }))} className="min-h-10 px-2 text-sm font-semibold text-pink-700 hover:underline">Xóa lọc</button>}
           <span className="ml-auto text-xs font-medium text-zinc-500">{filteredBookings.length} lịch trong phạm vi đang xem</span>
         </div>
       </div>
@@ -322,7 +331,7 @@ export default function SchedulerView({
         onOpenDay={() => { changeDate(selectedDay.date); setSelectedDay(null); setViewMode?.('day'); }}
       />
       <BookingDetailDrawer booking={selectedBooking} onClose={() => setSelectedBooking(null)} onUpdated={() => { setSelectedBooking(null); fetchData({ silent: true }); }} />
-    </div>
+    </div></OperationalClock>
   );
 }
 

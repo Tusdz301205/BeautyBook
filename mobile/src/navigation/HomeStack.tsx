@@ -18,7 +18,7 @@ export interface BookingServiceLine {
 export type HomeStackParamList = {
   HomeMain: undefined;
   ComboDetail: { comboId: string };
-  VenueDetail: { venueId: string; serviceId?: string };
+  VenueDetail: { venueId: string; serviceId?: string; serviceIds?: string[]; rebooking?: boolean };
   Booking: {
     branchId: string;
     shopName: string;

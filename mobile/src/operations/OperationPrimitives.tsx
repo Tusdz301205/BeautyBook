@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/colors';
 import { useOperations } from './OperationsContext';
 
-export function OperationPage({ title, children }: { title: string; children: React.ReactNode }) {
-  return <SafeAreaView edges={['top', 'left', 'right']} style={styles.page}><Text accessibilityRole="header" style={styles.title}>{title}</Text>{children}</SafeAreaView>;
+export function OperationPage({ title, children, inStack = false }: { title: string; children: React.ReactNode; inStack?: boolean }) {
+  return <SafeAreaView edges={inStack ? ['left', 'right'] : ['top', 'left', 'right']} style={styles.page}>{!inStack && <Text accessibilityRole="header" style={styles.title}>{title}</Text>}{children}</SafeAreaView>;
 }
 export function OperationButton({ label, onPress, disabled, busy, secondary }: { label: string; onPress: () => void; disabled?: boolean; busy?: boolean; secondary?: boolean }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: Boolean(disabled || busy), busy: Boolean(busy) }} disabled={disabled || busy} onPress={onPress} style={({ pressed }) => [styles.button, secondary && styles.secondary, (disabled || busy || pressed) && { opacity: 0.65 }]}>{busy ? <ActivityIndicator color={secondary ? colors.primary : colors.white} /> : <Text style={[styles.buttonText, secondary && { color: colors.primary }]}>{label}</Text>}</Pressable>;

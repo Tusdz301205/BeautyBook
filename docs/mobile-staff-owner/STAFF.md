@@ -6,7 +6,7 @@ Assigned ownership: `mobile/src/operations/staff/**`, `mobile/tests/staff-work.t
 
 `StaffTabs.tsx` exports the default four-tab shell: **Hôm nay / Lịch / Thông báo / Tài khoản**. Work and notification tabs own native navigation stacks so detail back behavior stays local.
 
-Today prioritizes every in-progress service, the next scheduled assigned service, and remaining work. Each card is a BookingService, including customer name, service, planned time, duration, textual lifecycle and arrival state. Completed siblings remain separate. START is direct; COMPLETE asks for confirmation naming the customer and service. No check-in, reassignment, booking completion, finance, contact information, or customer-profile menus are exposed.
+Today groups **Đang thực hiện → Tiếp theo → Còn lại hôm nay → Đã kết thúc**. Every in-progress BookingService stays visible and actionable; the first gets stronger emphasis. Next prefers an eligible assigned service, then the earliest scheduled service with a nonterminal booking; ties resolve by item ID. Completed/cancelled/skipped siblings stay below as compact rows. The CTA **Nhận khách** still sends START; **Hoàn tất** still sends COMPLETE with the existing confirmation naming the customer and service. No check-in, reassignment, booking completion, finance, contact information, or customer-profile menus are exposed.
 
 Agenda uses the branch date and a seven-day strip with previous/next week and Today controls. ISO service timestamps are formatted in the branch timezone. Appointment date/time remains explicitly labelled appointment context, never invented item timing. Missing timezone blocks automatic Today calculation. Lists use FlatList; detail uses ScrollView. Font scaling remains enabled; work targets are at least 48dp; native headings and accessible labels are present.
 
@@ -25,7 +25,9 @@ Pagination reads pages of 50 sequentially, bounded at 100 pages. It verifies pag
 
 `useStaffWork` fences reads by contextKey, selected branch/date/target, context revision, staff identity, latest request sequence and API session generation. Old context data is immediately hidden. Root owns the only socket and bumps revision for invalidation/reconnect/foreground. Failed network refresh retains same-context cached data with explicit stale feedback and disables actions; authorization loss removes data. No queued offline writes or optimistic lifecycle success.
 
-Timers use actualStartedAt and SERVICE_ADJUSTMENT only, together with serverNow anchored at response receipt. The display interval adds elapsed time to the server anchor. Completed/stopped services use persisted end timestamps; missing/UNAVAILABLE timing stays unknown. Neither reopening nor background time restarts the timer. Timers never mutate lifecycle or scheduling.
+Timers use actualStartedAt and SERVICE_ADJUSTMENT only, together with serverNow anchored at response receipt. Only active card counters tick each second; the list clock updates each minute for branch-date rollover. Stale counters stop at the last server response and say “Lúc cập nhật”; actions remain disabled. Completed/stopped services use persisted end timestamps; missing/UNAVAILABLE timing stays unknown. Neither reopening nor background time restarts the timer. Timers never mutate lifecycle or scheduling.
+
+Agenda is a chronological compact list with date/week controls; lifecycle actions remain in item detail. Detail order is customer/service/state, planned timing, actual audit timing, booking context, then the eligible action. Long operational names wrap naturally. Operational tabs use wrapping labels and a height adjusted for font scale and safe-area inset. Empty-day and all-completed copy are intentional; all-completed feedback requires a fresh nonempty list containing only COMPLETED items.
 
 ## Contract and authorization evidence
 
@@ -34,9 +36,9 @@ Backend owner implemented the minimal personal endpoint; frontend does not use b
 - `beauty-booking-api-main/src/bookings/staff-work-items.service.ts`: `scope` restricts salon workspace and live resource scopes; `profileId` requires active linked profile; `list`/`detail` restrict own assigned items; explicit `WORK_ITEM_SELECT`/`view` omit contact, finance and profile notes. `bookingId` filtering supports safe notification routing.
 - `beauty-booking-api-main/src/bookings/bookings.controller.ts`: static `my-work-items` routes delegate to the personal service.
 - `beauty-booking-api-main/src/bookings/booking-items.service.ts`: item action checks own assignment after row lock, revision and START check-in/COMPLETE lifecycle guards. The backend remains the final authority.
-- Root `OperationsContext.tsx` requires active linked profile and valid STAFF scope for work mode. Owner permission alone does not enable the staff shell.
+- Root `OperationsContext.tsx` requires an active own profile within the current accessible business. Work mode accepts a valid STAFF branch scope or the current-business Owner grant with that own profile; Owner without a profile cannot enter personal work.
 
-Allowed UI actions are limited to START of eligible own SCHEDULED item after arrival and COMPLETE of eligible own IN_PROGRESS item. Staff cannot check-in, assign, reschedule, approve requests, adjust duration/price or access finance from this subtree. Personal endpoint also supports linked owner authority in backend, but the root mobile mode guard deliberately requires the specified STAFF scope.
+Allowed UI actions are limited to START of eligible own SCHEDULED item after arrival and COMPLETE of eligible own IN_PROGRESS item. Staff cannot check-in, assign, reschedule, approve requests, adjust duration/price or access finance from this subtree. A linked Owner in personal-work mode still reads and acts only on items assigned to the account's own profile.
 
 The projection contains no authorized booking notes or colleague handoff information, so this UI does not invent those sections. Unsupported notification impact targets show the shared safe notification content; Staff never routes to Owner screens. Push is outside this implementation.
 

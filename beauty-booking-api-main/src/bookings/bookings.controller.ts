@@ -14,6 +14,7 @@ import {
   HttpStatus,
   UseGuards,
   UseInterceptors,
+  Optional,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { BookingsService } from './bookings.service';
@@ -23,7 +24,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { RequireScope } from '../common/decorators/scope.decorator';
-import { RequirePermission } from '../common/decorators/permission.decorator';
+import { RequirePermission, ActualTimeDelegation } from '../common/decorators/permission.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
 import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
@@ -60,6 +61,8 @@ import { canOnResource, ensureCanOnResource } from '../common/utils/policy';
 import { assertCustomerPrincipal, isCustomerPrincipal } from '../auth/account-separation';
 import { readCustomerBookingPolicy } from './customer-booking-policy';
 import { StaffWorkItemsService } from './staff-work-items.service';
+import { ActualTimeCorrectionsService } from './actual-time-corrections.service';
+import { ActualTimeCorrectionDto, ActualTimeGrantDto, RevokeActualTimeGrantDto } from './dto/actual-time-correction.dto';
 import { staffBookingView } from './staff-booking-view';
 
 type CustomerBookingServiceView = Prisma.BookingServiceGetPayload<{
@@ -83,6 +86,7 @@ export class BookingsController {
     private readonly paymentsService: PaymentsService,
     private readonly bookingItemsService: BookingItemsService,
     private readonly staffWorkItems: StaffWorkItemsService = new StaffWorkItemsService(prisma),
+    @Optional() private readonly actualTimeCorrections?: ActualTimeCorrectionsService,
   ) {}
 
   private async counterBranchIds(user: AuthUser, branchIds: string[]) {
@@ -97,6 +101,13 @@ export class BookingsController {
 
   private administrativePrincipal(user: AuthUser): AuthUser {
     return restrictToRoles(user, ['BUSINESS_OWNER', 'PLATFORM_ADMIN']);
+  }
+
+  private assertCounterLeadScope(user: AuthUser, businessId: string, branchId: string) {
+    if (!this.bookingsAccess.rolesAtResource(user, { businessId, branchId })
+      .some((role) => ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(role))) {
+      throw new ForbiddenException('Không có quyền đặt tại quầy trong phạm vi chi nhánh này');
+    }
   }
 
   private async staffBranchIds(user: AuthUser, branchIds: string[]) {
@@ -156,6 +167,7 @@ export class BookingsController {
         actualCompletedAt: item.actualCompletedAt ?? null,
         actualStoppedAt: item.actualStoppedAt ?? null,
         actualTimingSource: item.actualTimingSource ?? 'UNAVAILABLE',
+        actualTimingStatus: item.actualTimingStatus ?? 'UNKNOWN',
         priceAtBooking: item.priceAtBooking,
         durationMinutes: item.durationMinutes,
         service: item.service
@@ -204,6 +216,35 @@ export class BookingsController {
       review: booking.review,
       transitionAvailability: booking.transitionAvailability,
     };
+  }
+
+  @Post('actual-time-grants')
+  @RequirePermission('booking.actual_time.correct')
+  @ActualTimeDelegation()
+  async grantActualTimeCorrection(@Body() body: ActualTimeGrantDto, @CurrentUser() user: AuthUser) {
+    return this.actualTimeCorrections!.grant(user, body);
+  }
+
+  @Post('actual-time-grants/:grantId/revoke')
+  @RequirePermission('booking.actual_time.correct')
+  @ActualTimeDelegation()
+  async revokeActualTimeCorrectionGrant(@Param('grantId') grantId: string,
+    @Body() body: RevokeActualTimeGrantDto, @CurrentUser() user: AuthUser) {
+    return this.actualTimeCorrections!.revokeGrant(user, grantId, body);
+  }
+
+  @Patch(':id/items/:itemId/actual-time')
+  @RequirePermission('booking.actual_time.correct')
+  async correctActualTime(@Param('id') bookingId: string, @Param('itemId') itemId: string,
+    @Body() body: ActualTimeCorrectionDto, @CurrentUser() user: AuthUser) {
+    return this.actualTimeCorrections!.correct(bookingId, itemId, user, body);
+  }
+
+  @Get(':id/items/:itemId/actual-time')
+  @RequirePermission('booking.actual_time.correct')
+  async actualTimeCorrectionHistory(@Param('id') bookingId: string, @Param('itemId') itemId: string,
+    @CurrentUser() user: AuthUser) {
+    return this.actualTimeCorrections!.history(bookingId, itemId, user);
   }
 
   /** Compatibility endpoint kept for existing clients; online booking requires an authenticated customer. */
@@ -270,6 +311,7 @@ export class BookingsController {
   async create(@Body() body: CreateBookingDto, @CurrentUser() user: AuthUser) {
     const businessId = await this.bookingsAccess.assertCustomerCreate(user, body.branchId);
     const customerOnly = isCustomerPrincipal(user);
+    if (!customerOnly) this.assertCounterLeadScope(user, businessId, body.branchId);
     if (!customerOnly && !body.customerId && !body.guestName?.trim()) {
       throw new ForbiddenException('Dùng tài khoản CUSTOMER riêng để tự đặt lịch; đặt tại quầy phải chọn khách hàng hoặc khách vãng lai.');
     }
@@ -326,7 +368,7 @@ export class BookingsController {
       overbookingReason: body.controlledOverbooking === true && mayOverbook
         ? body.overbookingReason?.trim()
         : undefined,
-    });
+    }, { authorizedCounter: !customerOnly });
     return customerOnly ? this.customerBookingView(booking) : booking;
   }
 
@@ -463,7 +505,7 @@ export class BookingsController {
     @Query('source') source?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Query('sortOrder') sortOrder?: 'newest' | 'oldest',
+    @Query('sortOrder') sortOrder?: 'newest' | 'oldest' | 'appointment',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -570,8 +612,9 @@ export class BookingsController {
   myWorkItems(@CurrentUser() user: AuthUser,
     @Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string,
     @Query('branchId') branchId?: string, @Query('bookingId') bookingId?: string,
-    @Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.staffWorkItems.list(user, { dateFrom, dateTo, branchId, bookingId, page, limit });
+    @Query('page') page?: string, @Query('limit') limit?: string,
+    @Query('includeUnresolved') includeUnresolved?: string) {
+    return this.staffWorkItems.list(user, { dateFrom, dateTo, branchId, bookingId, page, limit, includeUnresolved });
   }
 
   @Get('my-work-items/:itemId')
@@ -794,6 +837,37 @@ export class BookingsController {
     });
   }
 
+  /** Counter availability uses the same scoped create authorization as POST /bookings. */
+  @Get('counter-slots')
+  @Roles('BUSINESS_OWNER', 'RECEPTIONIST')
+  @RequirePermission('booking:create:tenant', 'booking:create:branch')
+  async getCounterSlots(
+    @Query('branchId') branchId: string,
+    @Query('staffId') staffId: string,
+    @Query('serviceIds') serviceIds: string,
+    @Query('date') date: string,
+    @CurrentUser() user: AuthUser,
+    @Query('variantSelections') rawVariantSelections?: string,
+    @Query('source') requestedSource?: CreateBookingDto['source'],
+  ) {
+    if (!branchId || !serviceIds || !date) {
+      throw new BadRequestException('branchId, serviceIds, date are required');
+    }
+    if (isCustomerPrincipal(user)) throw new ForbiddenException('Chỉ tài khoản vận hành được lấy lịch tại quầy');
+    const businessId = await this.bookingsAccess.assertCustomerCreate(user, branchId);
+    this.assertCounterLeadScope(user, businessId, branchId);
+    const source = resolveBookingSource(false, requestedSource, false);
+    let variantSelections: Record<string, string> = {};
+    if (rawVariantSelections) {
+      try { variantSelections = JSON.parse(rawVariantSelections); }
+      catch { throw new BadRequestException('variantSelections không hợp lệ'); }
+    }
+    return this.bookingsService.getAvailableSlots({
+      branchId, staffId: staffId || null, serviceIds: serviceIds.split(',').filter(Boolean),
+      date, variantSelections,
+    }, { authorizedCounter: true, source });
+  }
+
   @Get('scheduler')
   @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')
   @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
@@ -945,7 +1019,10 @@ export class BookingsController {
         return staffBookingView(booking, await this.staffWorkItems.profileId(user));
       }
     }
-    return customerOnly ? this.customerBookingView(booking) : booking;
+    if (customerOnly) return this.customerBookingView(booking);
+    return this.actualTimeCorrections ? this.actualTimeCorrections.withCapabilities(booking, user) : {
+      ...booking, bookingServices: (booking.bookingServices ?? []).map((item: any) => ({ ...item, canCorrectActualTime: false })),
+    };
   }
 
   /**
@@ -1022,6 +1099,7 @@ export class BookingsController {
           body.newStartTime,
           body.newEndTime,
           body.newStaffId ?? '',
+          user.id,
         );
       }
     }
@@ -1144,6 +1222,7 @@ export class BookingsController {
       body.newStartTime,
       body.newEndTime,
       body.newStaffId,
+      user.id,
     );
   }
 
@@ -1171,7 +1250,7 @@ export class BookingsController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.bookingsAccess.assertWrite(user, id, 'assign');
-    return this.bookingsService.assignStaff(id, body.staffId);
+    return this.bookingsService.assignStaff(id, body.staffId, user.id);
   }
 
   @Post(':id/items')

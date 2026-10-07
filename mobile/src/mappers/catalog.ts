@@ -83,14 +83,12 @@ export function mapBranchSummary(branch: ApiBranchSummary): RemoteVenue {
 }
 
 export function mapBranchDetail(branch: ApiBranchDetail): RemoteVenue {
-  const name = branch.business?.name || branch.name;
-  const todayHours = branch.workingHours?.find((item) => item.dayOfWeek === new Date().getDay());
+  const name = branch.name || branch.business?.name || 'Cơ sở làm đẹp';
+  const todayHours = branch.workingHours?.find((item) => item?.dayOfWeek === new Date().getDay());
   const formatTime = (value?: string) => {
     if (!value) return '';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? value.slice(0, 5)
-      : date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    // PostgreSQL TIME is a wall clock, including when serialized as an ISO value.
+    return value.match(/(?:T|^)(\d{2}:\d{2})/)?.[1] || 'Chưa cập nhật';
   };
   return {
     id: branch.id,
@@ -101,7 +99,7 @@ export function mapBranchDetail(branch: ApiBranchDetail): RemoteVenue {
     phone: branch.phone || branch.business?.contactPhone || undefined,
     latitude: branch.latitude == null ? undefined : numberValue(branch.latitude),
     longitude: branch.longitude == null ? undefined : numberValue(branch.longitude),
-    imageUrls: branch.images?.map((item) => item.media.url).filter(Boolean) ?? [],
+    imageUrls: branch.images?.flatMap((item) => item?.media?.url ? [item.media.url] : []) ?? [],
     openingHours: todayHours?.isClosed
       ? 'Hôm nay đóng cửa'
       : todayHours
@@ -202,13 +200,13 @@ export function groupSearchRows(rows: ApiSearchService[]): SearchVenue[] {
       id: row.branchId,
       businessId: row.businessId,
       branchName: row.branchName,
-      name: row.businessName || row.branchName,
+      name: row.branchName || row.businessName,
       address: row.address || [row.districtName, row.provinceName].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ',
       rating: numberValue(row.rating),
       tag: 'Booking' as const,
       distanceKm: 0,
       hasHourlyPromo: false,
-      logoText: logoText(row.businessName || row.branchName),
+      logoText: logoText(row.branchName || row.businessName),
       reviewCount: numberValue(row.reviewCount),
       servicesFromSearch: [],
     };

@@ -11,6 +11,7 @@ import { PromotionsModule } from '../promotions/promotions.module';
 import { BookingItemsService } from './booking-items.service';
 import { ChangeRequestExpiryWorker } from './change-request-expiry.worker';
 import { StaffWorkItemsService } from './staff-work-items.service';
+import { ActualTimeCorrectionsService } from './actual-time-corrections.service';
 
 @Module({
   imports: [SchedulerModule, PaymentsModule, PromotionsModule],
@@ -24,6 +25,7 @@ import { StaffWorkItemsService } from './staff-work-items.service';
     ChangeRequestExpiryWorker,
     BookingItemsService,
     StaffWorkItemsService,
+    ActualTimeCorrectionsService,
   ],
   exports: [
     BookingsService,

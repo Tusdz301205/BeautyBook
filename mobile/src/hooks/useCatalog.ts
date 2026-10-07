@@ -36,7 +36,7 @@ export function useCatalog(location?: string) {
       const photosById = new Map<string, string[]>();
       photoResults.forEach((result, index) => {
         if (result.status === 'fulfilled' && result.value) {
-          photosById.set(searchVenues[index].id, result.value.images?.map((item) => item.media.url).filter(Boolean) ?? []);
+          photosById.set(searchVenues[index].id, result.value.images?.flatMap((item) => item?.media?.url ? [item.media.url] : []) ?? []);
         }
       });
       setVenues(searchVenues.map((venue) => ({ ...venue, imageUrls: photosById.get(venue.id) ?? [] })));

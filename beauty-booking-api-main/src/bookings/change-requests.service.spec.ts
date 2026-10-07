@@ -154,7 +154,7 @@ describe('ChangeRequestsService committed invalidations', () => {
       appointmentDate: new Date('2099-01-01T00:00:00Z'),
       appointmentStartTime: new Date('1970-01-01T09:00:00Z'),
       appointmentEndTime: new Date('1970-01-01T10:00:00Z'),
-      bookingServices: [{ id: 'item-1', serviceId: 'service-1', staffId: 'staff-1', status: 'SCHEDULED' }],
+      bookingServices: [{ id: 'item-1', bookingId: 'booking-1', revision: 1, serviceId: 'service-1', staffId: 'staff-1', status: 'SCHEDULED' }],
     };
     const request: any = {
       id: 'request-1', bookingId: booking.id, status: 'PENDING', requestType, requestedByType: 'SALON',
@@ -164,6 +164,8 @@ describe('ChangeRequestsService committed invalidations', () => {
     };
     let committed = false;
     const tx: any = {
+      staffProfile: { findMany: jest.fn().mockResolvedValue([{ id: 'staff-1', userId: 'staff-user-1' }, { id: 'staff-2', userId: 'staff-user-2' }]) },
+      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockResolvedValue({}) },
       $queryRaw: jest.fn().mockResolvedValue([]),
       appointmentChangeRequest: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -216,7 +218,12 @@ describe('ChangeRequestsService committed invalidations', () => {
     } });
     if (type === 'CANCEL') expect(benefits.releaseBookingBenefits).toHaveBeenCalledWith(tx, 'booking-1', null, null);
     if (type === 'RESCHEDULE') expect(tx.bookingService.update).toHaveBeenCalled();
-    if (type === 'STAFF_CHANGE') expect(tx.bookingService.updateMany).toHaveBeenCalledWith({ where: { bookingId: 'booking-1' }, data: { staffId: 'staff-2' } });
+    if (type === 'STAFF_CHANGE') expect(tx.bookingService.updateMany).toHaveBeenCalledWith({ where: { bookingId: 'booking-1', status: 'SCHEDULED' }, data: { staffId: 'staff-2', revision: { increment: 1 } } });
+    if (type !== 'CANCEL') expect(tx.bookingServiceAdjustment.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+      actorId: 'manager-1', bookingId: 'booking-1', action: 'REASSIGN',
+      beforeSnapshot: expect.objectContaining({ staffId: 'staff-1', staffUserId: 'staff-user-1' }),
+      afterSnapshot: expect.objectContaining({ staffId: 'staff-2', staffUserId: 'staff-user-2' }),
+    }) });
   });
 
   test('new pending cancellation invalidates only after the transaction resolves', async () => {

@@ -1,6 +1,6 @@
 # Kết quả Staff / Owner mobile — 06/10/2026
 
-## Kết quả đã chạy
+## Baseline V1 trước lượt UX
 
 | Lớp | Kết quả | Bằng chứng/phạm vi |
 |---|---|---|
@@ -64,3 +64,41 @@ V1 code và các luồng chính đã chạy API thật/Android, nhưng **chưa n
 - `owner-overview-final-20261006.png` là màn đỏ do Metro IPv6 không truy cập qua IPv4; giữ lịch sử, không phải ảnh nghiệm thu. Dùng `owner-overview-fixed` và `owner-large-text-stable`.
 - `owner-review-after` là lỗi feedback trước sửa; `owner-positive-after` là hồi quy thành công. Native sync baseline cũ vẫn stale sau web response; fixed watch mới giữ đủ samples/marker.
 - Secrets nằm trong runtime ignored, không ghi vào tài liệu. Các ảnh login/account chứa credentials không được capture. iOS và mobile web export/acceptance NOT_RUN ở đợt này; Edge web Owner thật được ghi riêng.
+
+## Lượt tinh chỉnh UX — 06/10/2026
+
+Phạm vi source: `operations/OperationPrimitives.tsx`, `OperationTabLabel.tsx`, `staff/{StaffTabs,StaffWorkScreen,WorkCard,workModel}`, `owner/{OwnerOverview,OwnerOperations,OwnerTabs,OwnerUI,OwnerDetails}`, hai file test Staff/Owner và ba tài liệu STAFF/OWNER/TESTS. Không đổi auth, shared operations provider, API client, backend, routing theo role hoặc dependencies.
+
+### Kiểm thử code
+
+- `npm run typecheck`: PASS.
+- `node --test tests/staff-work.test.cjs`: 20/20 PASS.
+- `node --test tests/owner-operations.test.cjs`: 16/16 PASS.
+- Bộ mobile đầy đủ gồm booking-feedback, booking-sync, operation-session, operations-provider, staff-work, owner-operations: **138/138 PASS**. Không cộng các số scoped vào số full suite.
+- Android Hermes export: PASS, 1101 modules; bundle cuối `index-1ed81edf490a9ebaa2aed0feb086f3db.hbc`.
+- Kiểm tra mới: phân nhóm tất cả item đang chạy; next ổn định khi đảo input; completed/terminal không thành next; không chúc mừng khi stale/empty/skipped; component thật đổi Nhận khách/Hoàn tất nhưng giữ START/COMPLETE; không START trước check-in; compact row chỉ mở detail; tên dài không ellipsis; nhãn trợ năng có giờ theo chi nhánh; Owner không báo all-clear khi loading/error và đếm attention theo đúng branch.
+
+### Bằng chứng Android đã xem
+
+Chỉ Pixel_7a/emulator-5556 và `com.beautybook.mobile`, API QA3012. Source Windows dùng Metro8084; APK debug mặc định quay lại runtime WSL8081 khi Activity khởi động. Runner chọn lại bundler và chờ tải đầy đủ. Độ rộng được tạo bằng `wm size` ở density420, đo từ số pixel thực: 360; 390.095; 411.048; 430.095dp. Font1.0 và1.3.
+
+| Bước | Kết quả đã xác nhận | Bằng chứng chọn |
+|---|---|---|
+| 1. Staff Today / Current | Hai dịch vụ đang chạy, tên khách/dịch vụ dài đầy đủ, mốc thực tế và CTA Hoàn tất; 4 độ rộng × 2 font | `evidence/native/ux-staff-{360,390,411,430}-font-{1,1-3}-v5-20261006.png` |
+| 2. Staff Next / Later | Nhận khách + Khách đã đến; timeline17:00/18:00 phân biệt đã đến/chưa đến; mục kết thúc vẫn ở dưới | `ux-staff-second-current-next`, `ux-staff-next-timeline-completed-20261006.png` |
+| 3. Staff detail | Khách lên đầu, tách dự kiến/thực tế/lịch hẹn; chưa có actual không tự tạo mốc hoặc tô xanh; CTA cuối cuộn tới được | `ux-staff-detail-spacing-fixed`, `ux-staff-detail-action-20261006.png` |
+| 4. Owner overview | Counts/trạng thái thật; all-clear khi hai nguồn đều0; 4 độ rộng × 2 font; tiêu đề hẹp được sửa co giãn | `ux-owner-360-font-{1,1-3}-v6-20261006.png`, các390/411/430-v5 |
+| 5. Owner có việc chờ | Sau refetch hiện đúng1 yêu cầu mới, thẻ attention đổi trọng lượng và mở đúng Vận hành | `ux-owner-needs-attention-20261006.png` (ảnh có overlay debug, không dùng đánh giá nav) |
+| 6. Owner request / review | Thẻ loại đổi lịch, tên dài, branch/deadline; mở đúng request và đọc trước/sau; không approve/reject | `ux-owner-request-card`, `ux-owner-review-readonly-20261006.png` |
+
+Ảnh có font lớn đã phát hiện tab “Thông báo” bị ellipsis; đã sửa bằng nhãn Text cho xuống dòng và chiều cao tab theo font/safe-area. Owner title cũng được đặt trong cột flex có minWidth0. Staff/Owner detail dùng header native-stack, bỏ title/safe-area lặp. Các target thao tác vẫn >=48dp; không thu nhỏ toàn bộ font hoặc giấu overflow.
+
+### Fixture và giới hạn
+
+- Thêm riêng2 booking synthetic trong business/branch QA đã được guard, khách test tên dài và1 request synthetic trên một booking mới. Hai START gọi API thật để tạo hai item IN_PROGRESS với SERVICE_ADJUSTMENT; CHECKED_IN và request là setup trực tiếp DB, **không chứng minh natural check-in/request creation**. Protected base hash và snapshot booking trước/sau request giữ nguyên; không reset/seed/delete/migration/ghi thanh toán hoặc review mutation.
+- Ảnh runner trước khi có source/dữ liệu ổn định (guest, bundling, loading, dev overlay) không phải PASS. Cácv4, matrix-density đầu và `ux-owner-review-spacing-fixed` chụp lúc Fast Refresh chưa đổi màn đang mở không được dùng nghiệm thu bản cuối. Ảnh form xác thực chụp nhầm đã bị loại khỏi disk/evidence. Marker/JSON chạy lỗi được giữ để phân biệt lỗi runner.
+- Counter khiến UIAutomator không idle ở một số màn: PNG được chụp riêng và xem trực tiếp; không dùng XML cũ. Không suy ra latency hay FPS chính xác từ ảnh.
+- Emulator/API3012/Metro8084 mất kết nối ở lượt chụp cuối. Đã khôi phục emulator và hai dịch vụ; API health200, scoped context-smoke3PASS, Android bundle200 có source mới/API QA. Tuy nhiên APK debug vẫn trắng ở bước bootstrap, XML0node và chưa có lỗi ReactNativeJS được xác định. `ux-native-recovery-environment-20261006.png` là bằng chứng blocker, không PASS. Lượt xác nhận native cuối cho spacing Owner detail/branch indicator và Agenda chưa hoàn tất; không dùng ảnh `ux-owner-review-spacing-fixed` còn title lặp để tuyên bố đã nghiệm thu fix đó. Source đã typecheck/full-test/export PASS; nguyên nhân bootstrap chưa kết luận là lỗi sản phẩm hay runtime.
+- iOS, thiết bị thật, TalkBack đầy đủ, native fault-injection/offline/scope-expiry, mọi mutation Owner và Customer booking mới **NOT_RUN trong lượt UX**. Các bảo vệ role/session/timeout/reassignment/offline và Customer feedback/sync vẫn PASS bằng bộ test hiện có; không gọi đó là native acceptance hoặc production-ready.
+
+Top5 Staff: Current/Next/Later rõ; arrival + Nhận khách rõ; timeline nhẹ/completed thấp; detail planned/actual dễ đọc; font lớn/timer/A11y cải thiện. Top3 Owner: attention lên trước và không fake0; branch gọn + chỉ báo đúng branch; request/impact khác hình thức và desktop handoff đúng nơi.

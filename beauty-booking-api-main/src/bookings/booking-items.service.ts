@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { assertNoOverlap, validateStaffForService } from './bookings.validation';
+import { assertNoOverlap, validateStaffForService, BOOKING_TIME_RULES } from './bookings.validation';
 import { toBookingInterval } from '../common/utils/booking-datetime';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { assertItemDuration, assertItemPrice, MAX_BOOKING_ITEM_PRICE } from './booking-item-values';
@@ -102,10 +102,11 @@ export class BookingItemsService {
       throw new BadRequestException('expectedRevision không hợp lệ');
     }
     const booking = await withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM booking_services WHERE id = ${itemId} FOR UPDATE`;
       const item = await tx.bookingService.findFirst({
         where: { id: itemId, bookingId },
-        include: { booking: true },
+        include: { booking: true, staff: { select: { userId: true } } },
       });
       if (!item) throw new NotFoundException('Không tìm thấy dịch vụ trong lịch hẹn');
       // Check the exact item after its row lock, so a concurrent reassignment
@@ -160,6 +161,25 @@ export class BookingItemsService {
       } else if (input.action === 'START') {
         if (item.status !== 'SCHEDULED') throw new ConflictException('Dịch vụ không ở trạng thái chờ bắt đầu');
         if (!['CHECKED_IN', 'IN_PROGRESS'].includes(item.booking.status)) throw new ConflictException('Khách cần check-in trước khi bắt đầu dịch vụ');
+        const now = new Date();
+        const plannedStart = item.itemStartAt ?? toBookingInterval(item.booking.appointmentDate, item.booking.appointmentStartTime, item.booking.appointmentEndTime).start;
+        const startGrace = Number.isFinite(BOOKING_TIME_RULES.startGraceMinutes) ? Math.max(0, BOOKING_TIME_RULES.startGraceMinutes) : 0;
+        if (now.getTime() < plannedStart.getTime() - startGrace * 60_000) throw new ConflictException('Chưa đến giờ bắt đầu dịch vụ theo lịch dự kiến và khoảng cho phép hiện hành');
+        // Validate the service still to be performed, not its expired planned
+        // interval. Keep the original schedule and DB audit timestamps intact.
+        const variant = item.variantId ? await tx.serviceVariant.findUnique({ where: { id: item.variantId }, select: { bufferAfterMinutes: true } }) : null;
+        const proposedEnd = new Date(now.getTime() + (item.durationMinutes + (item.transitionMinutes ?? 0) + (variant?.bufferAfterMinutes ?? 0)) * 60_000);
+        if (item.staffId) {
+          await validateStaffForService(tx as unknown as PrismaService, item.staffId, item.serviceId, now, proposedEnd, item.booking.branchId);
+          await assertNoOverlap(tx as unknown as PrismaService, item.staffId, bookingId, now, proposedEnd);
+          // Unstarted siblings are sequential work for the same customer, not
+          // another reservation. Do not silently shift their planned times;
+          // prevent concurrent execution and retain late-start warnings.
+          const runningSibling = await tx.bookingService.findFirst({ where: {
+            bookingId, id: { not: itemId }, staffId: item.staffId, status: 'IN_PROGRESS',
+          }, select: { id: true } });
+          if (runningSibling) throw new ConflictException('Nhân viên đang thực hiện dịch vụ khác trong cùng lịch hẹn; cần hoàn tất trước khi bắt đầu dịch vụ tiếp theo');
+        }
         data = { ...data, status: 'IN_PROGRESS' };
         if (item.booking.status !== 'IN_PROGRESS') await tx.booking.update({ where: { id: bookingId }, data: { status: 'IN_PROGRESS' } });
       } else if (input.action === 'COMPLETE') {
@@ -220,7 +240,7 @@ export class BookingItemsService {
           },
         });
       }
-      const after = await tx.bookingService.findUniqueOrThrow({ where: { id: itemId } });
+      const after = await tx.bookingService.findUniqueOrThrow({ where: { id: itemId }, include: { staff: { select: { userId: true } } } });
       await this.recordAdjustment(tx, item, actorId, input.action, input.reason, before, this.snapshot(after), amountDelta);
       if (amountDelta !== 0) await this.applyAmountDelta(tx, item.booking, itemId, actorId, amountDelta, input.reason);
       return this.detail(tx, bookingId);
@@ -232,6 +252,7 @@ export class BookingItemsService {
   private snapshot(item: any) {
     return {
       id: item.id, status: item.status, staffId: item.staffId, variantId: item.variantId,
+      staffUserId: item.staff?.userId ?? null,
       price: Number(item.priceAtBooking), durationMinutes: item.durationMinutes,
       itemStartAt: item.itemStartAt, itemEndAt: item.itemEndAt, revision: item.revision,
     };
@@ -251,8 +272,10 @@ export class BookingItemsService {
         id: { not: itemId },
         staffId,
         status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
-        itemStartAt: { lt: endAt },
-        itemEndAt: { gt: startAt },
+        OR: [
+          { itemStartAt: { lt: endAt }, itemEndAt: { gt: startAt } },
+          { status: 'IN_PROGRESS' },
+        ],
       },
       select: { id: true },
     });

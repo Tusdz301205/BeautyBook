@@ -112,7 +112,7 @@ describe('Committed booking changes always invalidate subscribers', () => {
       const gateway = { notifyBookingUpdated: jest.fn(() => { commitStates.push(committed); throw new Error('socket outage'); }) };
       const service = new BookingItemsService(f.prisma as never, gateway as never);
       const item = { id: 'item', bookingId: 'booking', staffId: null, revision: 1, priceAtBooking: 100,
-        itemStartAt: new Date('2099-01-03T09:00:00Z'), durationMinutes: 30,
+        itemStartAt: new Date(action === 'START' ? '2020-01-03T09:00:00Z' : '2099-01-03T09:00:00Z'), durationMinutes: 30,
         status: action === 'COMPLETE' ? 'IN_PROGRESS' : 'SCHEDULED', booking: { ...f.row, status: 'CHECKED_IN' } };
       f.tx.bookingService.findFirst = jest.fn().mockResolvedValue(item);
       f.tx.bookingService.count = jest.fn().mockResolvedValue(1);

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Clock3, History, MapPin, Phone, Scissors, Tag, UserRound } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -11,6 +11,12 @@ import { counterServicePayload, noShowAvailability } from '../../../utils/bookin
 import { formatActualServiceTime } from '../../../utils/bookingActualTime';
 import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
 import { BookingPolicyNotice } from '../../customer/BookingPolicyNotice';
+
+import ActualTimeCorrection from './ActualTimeCorrection';
+import ActualTimeCorrectionHistory from './ActualTimeCorrectionHistory';
+import OperationalTiming, { OperationalClock, useOperationalElapsed } from './OperationalTiming';
+import { useOperationalRefresh } from '../../../hooks/useOperationalRefresh';
+import { anchoredServerNow, itemOperationalLabel, SERVICE_STATUS_LABELS } from '../../../utils/operationalTiming';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
 
@@ -77,7 +83,11 @@ function AddItemOperation({ bookingId, branchId, onDone }) {
   return <div className="mt-3 grid gap-2 rounded-xl border border-zinc-200 p-3"><Select value={serviceId} onChange={(event) => setServiceId(event.target.value)}><option value="">Chọn dịch vụ phát sinh</option>{services.map((service) => <option key={service.id} value={service.id}>{service.name} · {money.format(service.price)}</option>)}</Select><Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Lý do thêm dịch vụ" /><div className="flex gap-2"><Button size="sm" loading={busy} disabled={!serviceId || !reason.trim()} onClick={submit}>Thêm</Button><Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Đóng</Button></div></div>;
 }
 
-export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
+export default function BookingDetailDrawer(props) {
+  return <OperationalClock><BookingDetailContent {...props} /></OperationalClock>;
+}
+
+function BookingDetailContent({ booking, onClose, onUpdated }) {
   const can = useAuthStore((state) => state.can);
   const user = useAuthStore((state) => state.user);
   const [detail, setDetail] = useState(null);
@@ -86,17 +96,15 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const [normalCancelDialog, setNormalCancelDialog] = useState(false);
   const [noShowDialog, setNoShowDialog] = useState(false);
   const [noShowConfirmed, setNoShowConfirmed] = useState(false);
-  const [clock, setClock] = useState(Date.now());
+  const elapsed = useOperationalElapsed();
+  const detailSequence = useRef(0);
   const [cancelDialog, setCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelPreview, setCancelPreview] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const activeBooking = detail || booking;
 
-  useEffect(() => {
-    const timer = setInterval(() => setClock(Date.now()), 15_000);
-    return () => clearInterval(timer);
-  }, []);
+  const clock = anchoredServerNow(activeBooking?.timingAnchor, elapsed);
 
   useEffect(() => { setNoShowDialog(false); setNoShowConfirmed(false); }, [booking?.id]);
 
@@ -114,20 +122,27 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const canForceCancel = platform && can('booking:cancel:platform');
   const receivesGuests = !platform && capabilities.frontDesk;
 
+  const reloadDetail = useCallback(async ({ required = false } = {}) => {
+    if (!booking?.id) return;
+    const sequence = ++detailSequence.current;
+    try {
+      const payload = await bookingsApi.getById(booking.id);
+      if (sequence === detailSequence.current) setDetail(normalizeBooking(payload));
+    } catch (error) { if (required) throw error; /* Retain observed facts until the next successful refresh. */ }
+    finally { if (sequence === detailSequence.current) setDetailLoading(false); }
+  }, [booking?.id]);
+  useOperationalRefresh(reloadDetail);
+
   useEffect(() => {
     if (!booking) {
       setDetail(null);
       return undefined;
     }
-    let active = true;
     setDetail(null);
     setDetailLoading(true);
-    bookingsApi.getById(booking.id)
-      .then((payload) => { if (active) setDetail(normalizeBooking(payload)); })
-      .catch(() => {})
-      .finally(() => { if (active) setDetailLoading(false); });
-    return () => { active = false; };
-  }, [booking]);
+    void reloadDetail();
+    return () => { detailSequence.current += 1; };
+  }, [booking, reloadDetail]);
 
   if (!activeBooking) return null;
   const status = BOOKING_STATUSES[activeBooking.status] ?? BOOKING_STATUSES.PENDING;
@@ -143,16 +158,18 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
   const blockedActionReason = timeDecision?.allowed === false ? timeDecision.reason : null;
   const forceCancellable = !['CANCELLED', 'COMPLETED'].includes(activeBooking.status);
   const canCancel = !platform && capabilities.canCancel && forceCancellable;
-  const canMarkNoShow = !platform && !detailLoading && noShowAvailability(activeBooking, capabilities, clock);
+  const canMarkNoShow = !platform && !detailLoading && Number.isFinite(clock) && noShowAvailability({ ...activeBooking, startAt: activeBooking.services.find((item) => item.itemStartAt)?.itemStartAt }, capabilities, clock);
   const activeServiceCount = activeBooking.services.filter((service) => !['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(service.status)).length;
 
   const runAction = async () => {
     if (!nextAction) return;
+    detailSequence.current += 1;
     setBusy(true);
     try {
       const updated = nextAction.status === 'CHECKED_IN'
         ? await bookingsApi.checkin(activeBooking.id)
         : await bookingsApi.updateStatus(activeBooking.id, nextAction.status);
+      detailSequence.current += 1;
       if (updated) setDetail(normalizeBooking(updated));
       toast.success(`Đã cập nhật: ${nextAction.label}`);
       await onUpdated?.();
@@ -174,6 +191,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
     setBusy(true);
     try {
       const updated = await bookingsApi.updateStatus(activeBooking.id, 'NO_SHOW', undefined, undefined, true);
+      detailSequence.current += 1;
       if (updated) setDetail(normalizeBooking(updated));
       setNoShowDialog(false);
       setNoShowConfirmed(false);
@@ -203,6 +221,7 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
     setBusy(true);
     try {
       const updated = await bookingsApi.updateStatus(activeBooking.id, 'CANCELLED', undefined, cancelReason.trim());
+      detailSequence.current += 1;
       if (updated) setDetail(normalizeBooking(updated));
       toast.success('Đã hủy lịch và thông báo cho khách');
       setNormalCancelDialog(false);
@@ -245,6 +264,8 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
     <Drawer open={Boolean(activeBooking)} onClose={onClose} title="Chi tiết lịch hẹn" description={activeBooking.bookingCode} footer={footer}>
       <div className="space-y-6">
         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.color}`}>{status.label}</span>
+        <OperationalTiming booking={activeBooking} />
+        <p className="text-xs text-zinc-600">{activeBooking.raw?.statusHistory?.some((entry) => entry.status === 'CHECKED_IN') || activeBooking.status === 'CHECKED_IN' ? 'Đã ghi nhận check-in' : 'Chưa có ghi nhận check-in'}</p>
         {detailLoading && <p role="status" className="text-xs font-medium text-zinc-500">Đang tải dữ liệu chi tiết và lịch sử...</p>}
         <section className="grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-2">
           <Detail icon={CalendarDays} label="Ngày" value={format(activeBooking.startAt, 'dd/MM/yyyy')} />
@@ -264,12 +285,18 @@ export default function BookingDetailDrawer({ booking, onClose, onUpdated }) {
               return <div key={service.bookingServiceId || index} className="px-4 py-3 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <span className="flex min-w-0 items-center gap-2 font-medium text-zinc-900"><Scissors size={15} className="shrink-0 text-pink-700" />{service.name}</span>
-                  <span className="text-right text-zinc-500">Dự kiến: {service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{service.status}</small></span>
+                  <span className="text-right text-zinc-500">Dự kiến: {service.durationMinutes ? `${service.durationMinutes} phút` : '—'}<small className="block">{SERVICE_STATUS_LABELS[service.status] || 'Chưa xác định'}</small></span>
                 </div>
+                {itemOperationalLabel(activeBooking.status, service, clock) && <p className="mt-2 text-xs font-semibold text-amber-800">{itemOperationalLabel(activeBooking.status, service, clock)}</p>}
                 <dl className="mt-2 space-y-1 text-xs text-zinc-600">
-                  <div><dt className="inline">Bắt đầu thực tế: </dt><dd className="inline">{started || 'Chưa có ghi nhận'}</dd></div>
-                  <div><dt className="inline">{service.status === 'SKIPPED' ? 'Dừng thực tế: ' : 'Kết thúc thực tế: '}</dt><dd className="inline">{stopped || 'Chưa có ghi nhận'}</dd></div>
+                  <div><dt className="inline">Khung giờ dự kiến ({timezone}): </dt><dd className="inline">{formatActualServiceTime(service.itemStartAt, timezone) || 'Chưa có dữ liệu'} – {formatActualServiceTime(service.itemEndAt, timezone) || 'Chưa có dữ liệu'}</dd></div>
+                  <div><dt className="inline">Bắt đầu thực tế: </dt><dd className="inline">{started || (service.actualTimingStatus === 'UNKNOWN' ? 'Chưa xác định' : 'Chưa có ghi nhận')}</dd></div>
+                  <div><dt className="inline">{service.status === 'SKIPPED' ? 'Dừng thực tế: ' : 'Kết thúc thực tế: '}</dt><dd className="inline">{stopped || (service.actualTimingStatus === 'UNKNOWN' ? 'Chưa xác định' : 'Chưa có ghi nhận')}</dd></div>
                 </dl>
+                {service.actualTimingStatus === 'UNKNOWN' && <p className="mt-2 text-xs text-zinc-600">Thời gian thực tế chưa xác định.</p>}
+                {service.actualTimingSource === 'ACTUAL_TIME_CORRECTION' && <p className="mt-1 text-xs text-zinc-600">Thời gian thực tế đã được bổ sung / hiệu chỉnh.</p>}
+                {service.canCorrectActualTime && !detailLoading && service.bookingServiceId && <ActualTimeCorrection bookingId={activeBooking.id} item={service} timezone={activeBooking.raw?.branch?.timezone} serverNow={clock} onRefresh={() => reloadDetail({ required: true })} />}
+                {service.canCorrectActualTime && !detailLoading && service.bookingServiceId && <ActualTimeCorrectionHistory bookingId={activeBooking.id} itemId={service.bookingServiceId} revision={service.revision} timezone={activeBooking.raw?.branch?.timezone} />}
                 {!platform && service.bookingServiceId && <ItemOperation allowedActions={bookingItemActions(user, activeBooking, service)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}
               </div>;
             })}

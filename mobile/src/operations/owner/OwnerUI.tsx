@@ -48,7 +48,7 @@ export function OwnerFilters() {
       <View style={{ flex: 1 }}><OperationButton secondary label="Hôm nay" onPress={today} /></View>
       <View style={{ flex: 1 }}><OperationButton secondary label="Sau" disabled={!validDate(operations.date)} onPress={() => operations.setDate(shiftDate(operations.date, 1))} /></View>
     </View>
-    <Meta>Số liệu theo ngày đã chọn trong múi giờ từng chi nhánh. Hôm nay theo {reference?.name || 'ngữ cảnh hiện tại'}.</Meta>
+    <Meta>Ngày và số liệu theo múi giờ từng chi nhánh.</Meta>
     {invalid && <OperationState message="Chưa xác định được ngày trong múi giờ chi nhánh." />}
     <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}><OperationPage title="Chọn ngày"><View style={{ padding: 20, gap: 16 }}>
       <Body>Ngày theo lịch chi nhánh · YYYY-MM-DD</Body>

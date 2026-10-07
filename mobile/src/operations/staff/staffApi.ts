@@ -8,7 +8,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   finally { clearTimeout(timeout); }
 }
 export const staffApi = {
-  page(query: { dateFrom?: string; dateTo?: string; branchId: string; bookingId?: string; page: number; limit: number }) {
+  page(query: { dateFrom?: string; dateTo?: string; branchId: string; bookingId?: string; includeUnresolved?: boolean; page: number; limit: number }) {
     return request<WorkPage>(withQuery('/bookings/my-work-items', query));
   },
   detail(itemId: string) { return request<WorkItem>(`/bookings/my-work-items/${encodeURIComponent(itemId)}`); },
@@ -21,7 +21,7 @@ export const staffApi = {
 };
 
 /** Complete bounded pagination; never present the first page as the entire workday. */
-export async function readWorkDay(query: { branchId: string; dateFrom?: string; dateTo?: string; bookingId?: string },
+export async function readWorkDay(query: { branchId: string; dateFrom?: string; dateTo?: string; bookingId?: string; includeUnresolved?: boolean },
   isCurrent: () => boolean, readPage = staffApi.page): Promise<WorkPage> {
   const items = new Map<string, WorkItem>();
   let latest: WorkPage | undefined;

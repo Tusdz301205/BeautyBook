@@ -23,8 +23,16 @@ export interface OwnerBooking {
   start: string | null;
   end: string | null;
   note: string | null;
-  items: Array<{ id: string; name: string; staffId: string | null; staffName: string | null; status: string; revision: number | null }>;
+  serverNow?: string;
+  items: Array<{ id: string; name: string; staffId: string | null; staffName: string | null; status: string; revision: number | null;
+    itemStartAt?: string | null; itemEndAt?: string | null; actualStartedAt?: string | null; actualCompletedAt?: string | null;
+    actualStoppedAt?: string | null; actualTimingSource?: string; durationMinutes?: number; canCorrectActualTime?: boolean }>;
   checkinAllowed: boolean;
+}
+export interface OwnerActualTimeCorrection {
+  id: string; version: number; actorName: string; correctedAt: string; reason: string;
+  oldActualStartedAt: string | null; oldActualCompletedAt: string | null;
+  actualStartedAt: string | null; actualCompletedAt: string | null; actualTimingStatus: string;
 }
 export interface OwnerRequest {
   id: string;

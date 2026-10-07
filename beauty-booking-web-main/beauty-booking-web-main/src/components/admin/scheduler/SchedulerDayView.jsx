@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { format, isSameDay } from 'date-fns';
 import BookingEventCard from './BookingEventCard';
+import { useOperationalElapsed } from './OperationalTiming';
+import { calendarServerNow } from '../../../utils/operationalTiming';
 import {
   CALENDAR_START_HOUR,
   CALENDAR_TOP_PADDING,
@@ -24,7 +26,7 @@ export default function SchedulerDayView({
 }) {
   const gridRef = useRef(null);
   const lastScrollKey = useRef('');
-  const [now, setNow] = React.useState(() => new Date());
+  const now = calendarServerNow(bookings, useOperationalElapsed());
   const hours = useMemo(makeHours, []);
   const visibleStaff = useMemo(() => {
     const known = [...staffList];
@@ -48,19 +50,14 @@ export default function SchedulerDayView({
     return result;
   }, {}), [bookings, currentDate, visibleStaff]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const showNow = isSameDay(currentDate, now) && now.getHours() >= CALENDAR_START_HOUR && now.getHours() <= 23;
+  const showNow = now && isSameDay(currentDate, now) && now.getHours() >= CALENDAR_START_HOUR && now.getHours() <= 23;
 
   useEffect(() => {
     const key = `${format(currentDate, 'yyyy-MM-dd')}:${bookings.map((item) => item.id).join(',')}`;
     if (!gridRef.current || lastScrollKey.current === key) return;
     lastScrollKey.current = key;
     const dayBookings = bookings.filter((booking) => isSameDay(booking.startAt, currentDate)).sort((a, b) => a.startAt - b.startAt);
-    const now = new Date();
-    const target = isSameDay(currentDate, now)
+    const target = now && isSameDay(currentDate, now)
       ? dayBookings.find((booking) => booking.endAt > now)?.startAt || now
       : dayBookings[0]?.startAt;
     if (!target) return;

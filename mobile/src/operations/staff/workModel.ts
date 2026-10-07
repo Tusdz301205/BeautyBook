@@ -11,6 +11,7 @@ export type WorkItem = {
 };
 export type WorkAction = 'START' | 'COMPLETE';
 export type WorkPage = { data: WorkItem[]; total: number; page: number; limit: number; serverNow: string };
+export const actionLabel = (action: WorkAction) => action === 'START' ? 'Nhận khách' : 'Hoàn tất';
 
 /** Database TIME is a wall clock value, even when serialized with an ISO date. */
 export function appointmentClock(value: string | null | undefined): string {
@@ -32,13 +33,35 @@ export function statusLabel(status: string): string {
 }
 export function arrivalLabel(status: string): string {
   if (['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(status)) return 'Khách đã đến';
-  if (['PENDING', 'CONFIRMED'].includes(status)) return 'Chờ khách đến';
+  if (['PENDING', 'CONFIRMED'].includes(status)) return 'Chưa ghi nhận khách đến';
   return ({ CANCELLED: 'Lịch đã hủy', NO_SHOW: 'Khách không đến', REJECTED: 'Lịch đã từ chối' } as Record<string, string>)[status] ?? 'Chưa có tình trạng đến';
 }
 export function orderWork(items: WorkItem[]): WorkItem[] {
   const rank = (item: WorkItem) => item.status === 'IN_PROGRESS' ? 0 : item.canStart ? 1 : item.status === 'SCHEDULED' ? 2 : 3;
   return [...items].sort((a, b) => rank(a) - rank(b) ||
     (a.itemStartAt ?? `${a.appointmentDate.slice(0, 10)}T${a.appointmentStartTime}`).localeCompare(b.itemStartAt ?? `${b.appointmentDate.slice(0, 10)}T${b.appointmentStartTime}`) || a.id.localeCompare(b.id));
+}
+export type TodayRow = { item: WorkItem; kind: 'current' | 'next' | 'later' | 'finished'; heading?: string; primary?: boolean };
+/** Presentation only: keep every assigned item, including parallel work and terminal siblings. */
+export function todayRows(items: WorkItem[], staffId?: string): TodayRow[] {
+  const ordered = orderWork(items);
+  const current = ordered.filter(item => item.status === 'IN_PROGRESS');
+  const scheduled = ordered.filter(item => item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(item.bookingStatus));
+  const next = scheduled.find(item => actionFor(item, staffId) === 'START') ?? scheduled[0];
+  const selected = new Set([...current.map(item => item.id), ...(next ? [next.id] : [])]);
+  const terminal = (item: WorkItem) => ['COMPLETED', 'CANCELLED', 'SKIPPED'].includes(item.status) ||
+    ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(item.bookingStatus);
+  const later = ordered.filter(item => !selected.has(item.id) && !terminal(item));
+  const finished = ordered.filter(item => !selected.has(item.id) && terminal(item));
+  return [
+    ...current.map((item, index): TodayRow => ({ item, kind: 'current', primary: index === 0, heading: index === 0 ? 'Đang thực hiện' : undefined })),
+    ...(next ? [{ item: next, kind: 'next' as const, heading: 'Tiếp theo' }] : []),
+    ...later.map((item, index): TodayRow => ({ item, kind: 'later', heading: index === 0 ? 'Còn lại hôm nay' : undefined })),
+    ...finished.map((item, index): TodayRow => ({ item, kind: 'finished', heading: index === 0 ? 'Đã kết thúc' : undefined })),
+  ];
+}
+export function allWorkCompleted(items: WorkItem[], fresh: boolean): boolean {
+  return fresh && items.length > 0 && items.every(item => item.status === 'COMPLETED');
 }
 export function branchDate(now: number, timezone?: string | null): string | null {
   if (!timezone || !Number.isFinite(now)) return null;
@@ -73,7 +96,10 @@ export function workError(error: unknown): { message: string; removeData: boolea
   if (code === 'STAFF_PROFILE_REQUIRED') return { message: 'Hồ sơ nhân viên chưa được liên kết hoặc không còn hoạt động. Hãy liên hệ quản lý.', removeData: true };
   if (status === 401 || status === 403) return { message: 'Bạn không còn quyền xem công việc trong ngữ cảnh này.', removeData: true };
   if (status === 404) return { message: 'Công việc không còn được giao cho bạn hoặc không còn tồn tại.', removeData: true };
-  if (status === 409) return { message: 'Phân công hoặc trạng thái vừa thay đổi. Đang đọc lại công việc.', removeData: false };
+  if (status === 400 || status === 409) {
+    const detail = error instanceof Error ? error.message : (error as { message?: unknown })?.message;
+    return { message: `${typeof detail === 'string' && detail.trim() ? detail : 'Phân công hoặc trạng thái vừa thay đổi.'} Đã đọc lại công việc. Nếu bắt đầu muộn bị trùng lịch, liên hệ quầy/quản lý để điều phối; không tự dời lịch tiếp theo.`, removeData: false };
+  }
   return { message: 'Chưa kết nối được để cập nhật. Dữ liệu đang hiển thị có thể đã cũ; hãy thử tải lại.', removeData: false };
 }
 

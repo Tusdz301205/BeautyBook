@@ -1,5 +1,7 @@
 import { Injectable, BadRequestException, ConflictException, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertUnstartedBookingItems } from './booking-schedule-integrity';
+import { auditProviderReassignment } from './booking-provider-audit';
 import {
   assertFutureAppointment,
   assertNoOverlap,
@@ -363,6 +365,7 @@ export class ChangeRequestsService {
       }
 
       const transactionClient = tx as unknown as PrismaService;
+      if (['RESCHEDULE', 'STAFF_CHANGE'].includes(req.requestType)) assertUnstartedBookingItems(lockedBooking.bookingServices);
       if (
         req.requestType === 'RESCHEDULE' &&
         req.proposedStartTime &&
@@ -499,6 +502,7 @@ export class ChangeRequestsService {
           ) || left.id.localeCompare(right.id),
         );
         for (const item of orderedItems) {
+          if (req.proposedStaffId) await auditProviderReassignment(tx, item, req.proposedStaffId, reviewerId, 'Duyệt đổi chuyên viên theo yêu cầu dời lịch');
           await tx.bookingService.update({
             where: { id: item.id },
             data: {
@@ -509,13 +513,15 @@ export class ChangeRequestsService {
               itemEndAt: item.itemEndAt
                 ? new Date(item.itemEndAt.getTime() + shiftMs)
                 : req.proposedEndTime,
+              revision: { increment: 1 },
             },
           });
         }
       } else if (req.requestType === 'STAFF_CHANGE' && req.proposedStaffId) {
+        for (const item of lockedBooking.bookingServices) await auditProviderReassignment(tx, item, req.proposedStaffId, reviewerId, 'Duyệt yêu cầu đổi chuyên viên');
         await tx.bookingService.updateMany({
-          where: { bookingId: req.bookingId },
-          data: { staffId: req.proposedStaffId },
+          where: { bookingId: req.bookingId, status: 'SCHEDULED' },
+          data: { staffId: req.proposedStaffId, revision: { increment: 1 } },
         });
       }
 

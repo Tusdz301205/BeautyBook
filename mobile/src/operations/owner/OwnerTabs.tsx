@@ -8,6 +8,7 @@ import { colors } from '../../constants/colors';
 import { useOperations } from '../OperationsContext';
 import OperationsAccount from '../OperationsAccount';
 import OperationsNotifications from '../OperationsNotifications';
+import OperationTabLabel, { useOperationTabHeight } from '../OperationTabLabel';
 import OwnerOverview from './OwnerOverview';
 import OwnerOperations from './OwnerOperations';
 import { OwnerBookingDetail, OwnerImpactDetail, OwnerRequestDetail } from './OwnerDetails';
@@ -25,8 +26,10 @@ function Notifications() {
   return <OperationsNotifications onOpenBooking={id => navigation.navigate('OwnerBooking', { id })} onOpenImpact={id => navigation.navigate('OwnerImpact', { id })} />;
 }
 function Tabs() {
+  const tabHeight = useOperationTabHeight();
   const icons: Record<keyof OwnerTabParams, React.ComponentProps<typeof Ionicons>['name']> = { TongQuan: 'grid-outline', VanHanh: 'clipboard-outline', ThongBao: 'notifications-outline', TaiKhoan: 'person-outline' };
-  return <Tab.Navigator initialRouteName="TongQuan" screenOptions={({ route }) => ({ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textGray, tabBarStyle: { backgroundColor: colors.card, minHeight: 64 }, tabBarLabelStyle: { fontSize: 12 }, tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name]} size={size} color={color} /> })}>
+  const titles = { TongQuan: 'Tổng quan', VanHanh: 'Vận hành', ThongBao: 'Thông báo', TaiKhoan: 'Tài khoản' };
+  return <Tab.Navigator initialRouteName="TongQuan" screenOptions={({ route }) => ({ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textGray, tabBarStyle: { backgroundColor: colors.card, height: tabHeight }, tabBarLabel: ({ color }) => <OperationTabLabel title={titles[route.name]} color={color} />, tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name]} size={size} color={color} /> })}>
     <Tab.Screen name="TongQuan" component={OwnerOverview} options={{ title: 'Tổng quan' }} />
     <Tab.Screen name="VanHanh" component={OwnerOperations} options={{ title: 'Vận hành' }} />
     <Tab.Screen name="ThongBao" component={Notifications} options={{ title: 'Thông báo' }} />

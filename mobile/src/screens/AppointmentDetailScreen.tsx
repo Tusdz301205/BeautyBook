@@ -16,6 +16,8 @@ import WriteReviewSheet from '../components/WriteReviewSheet';
 import { reviewsApi } from '../api/reviews';
 import { platformSettingsApi } from '../api/platformSettings';
 import { serviceTimingLines } from '../utils/bookingTiming';
+import { useOperationalTime } from '../hooks/useOperationalTime';
+import { operationalTimeLabel } from '../utils/bookingOperationalTime';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<HoatDongStackParamList, 'AppointmentDetail'>,
@@ -48,6 +50,7 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
   const [allowReschedule, setAllowReschedule] = useState(false);
   const [reviewMinLength, setReviewMinLength] = useState(0);
   const rawStatus = booking?.rawStatus;
+  const operationalNow = useOperationalTime(booking?.serverNow, !isLoading && !error);
   const meta = bookingStatusMeta(currentStatus, rawStatus);
 
   useFocusEffect(useCallback(() => {
@@ -67,7 +70,11 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
             ? ['Lịch hẹn đã hủy. Bạn có thể đặt lịch mới nếu cần.']
             : currentStatus === 'completed'
               ? ['Lịch hẹn đã hoàn thành. Bạn có thể đánh giá trải nghiệm của mình.']
-              : [...DEFAULT_NOTES, policyNote];
+              : rawStatus === 'CHECKED_IN'
+                ? ['Cơ sở đã ghi nhận bạn đến. Vui lòng chờ chuyên viên tiếp nhận.']
+                : rawStatus === 'IN_PROGRESS'
+                  ? ['Dịch vụ đang được thực hiện. Bạn có thể theo dõi thời gian thực tế bên dưới.']
+                  : [...DEFAULT_NOTES, policyNote];
   const hoursUntilAppointment = booking
     ? (new Date(booking.appointmentStartAt).getTime() - Date.now()) / 3_600_000
     : Number.POSITIVE_INFINITY;
@@ -230,6 +237,9 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
         {booking.bookingServices.map(item => (
           <View key={item.id} style={styles.card}>
             <Text style={styles.rowText}>{item.serviceName}</Text>
+            {operationalTimeLabel(item, rawStatus ?? '', operationalNow) && <Text style={styles.rowText}>
+              {item.status === 'IN_PROGRESS' ? 'Thời gian phục vụ đang vượt giờ dự kiến.' : 'Giờ dự kiến đã đến; chưa có ghi nhận bắt đầu. Bạn có thể liên hệ cơ sở để được hỗ trợ.'}
+            </Text>}
             {serviceTimingLines(item, booking.branchTimezone).map(line => (
               <Text key={line} style={styles.rowText}>{line}</Text>
             ))}
@@ -244,14 +254,21 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
           <Text style={styles.outlineButtonText}>Chỉ đường</Text>
         </TouchableOpacity>
 
-        {comboId && (
+        {isReal && booking && currentStatus !== 'upcoming' && (
+          <TouchableOpacity style={styles.primaryButton} accessibilityRole="button" onPress={() => {
+            if (!booking.branchId) { Alert.alert('Chọn lại cơ sở', 'Lịch cũ không còn thông tin cơ sở. Hãy tìm dịch vụ để đặt lịch mới.'); navigation.navigate('TimKiem'); return; }
+            navigation.navigate('DiaDiem', { screen: 'VenueDetail', params: { venueId: booking.branchId, serviceIds: booking.serviceIds, rebooking: true } });
+          }}><Text style={styles.primaryButtonText}>Đặt lại dịch vụ</Text></TouchableOpacity>
+        )}
+
+        {comboId && currentStatus === 'upcoming' && (
           <TouchableOpacity
-            style={currentStatus === 'completed' ? styles.primaryButton : styles.outlineButton}
+            style={styles.outlineButton}
             activeOpacity={0.85}
             onPress={() => navigation.navigate('DiaDiem', { screen: 'ComboDetail', params: { comboId } })}
           >
-            <Text style={currentStatus === 'completed' ? styles.primaryButtonText : styles.outlineButtonText}>
-              {currentStatus === 'completed' ? 'Đặt lại dịch vụ này' : 'Xem ưu đãi'}
+            <Text style={styles.outlineButtonText}>
+              Xem ưu đãi
             </Text>
           </TouchableOpacity>
         )}

@@ -69,10 +69,12 @@ export class StaffWorkItemsService {
       ...bookingItemActualTiming(item), serverNow,
       canStart: item.status === 'SCHEDULED' && ['CHECKED_IN', 'IN_PROGRESS'].includes(booking.status),
       canComplete: item.status === 'IN_PROGRESS' && !terminal,
+      // This view is always the authenticated provider's own work: correction is forbidden.
+      canCorrectActualTime: false,
     };
   }
 
-  async list(user: AuthUser, query: { dateFrom?: string; dateTo?: string; branchId?: string; bookingId?: string; page?: string; limit?: string } = {}) {
+  async list(user: AuthUser, query: { dateFrom?: string; dateTo?: string; branchId?: string; bookingId?: string; includeUnresolved?: string; page?: string; limit?: string } = {}) {
     const booking = this.scope(user);
     const staffId = await this.profileId(user);
     const from = this.date(query.dateFrom), to = this.date(query.dateTo);
@@ -81,11 +83,17 @@ export class StaffWorkItemsService {
     if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new BadRequestException('page hoặc limit không hợp lệ');
     }
+    const range: Prisma.BookingServiceWhereInput = { booking: { appointmentDate: { gte: from, lte: to } } };
     const where: Prisma.BookingServiceWhereInput = { staffId,
       staff: { userId: user.id, status: 'ACTIVE', deletedAt: null },
       booking: { AND: [booking, ...(query.branchId ? [{ branchId: query.branchId }] : []),
-        ...(query.bookingId ? [{ id: query.bookingId }] : [])],
-        ...(from || to ? { appointmentDate: { gte: from, lte: to } } : {}) } };
+        ...(query.bookingId ? [{ id: query.bookingId }] : [])] },
+      ...(from || to ? query.includeUnresolved === 'true' ? { OR: [range, {
+        status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
+        booking: { status: { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] } },
+        OR: [{ itemStartAt: { lte: new Date() } }, { itemStartAt: null, booking: { appointmentDate: { lt: from ?? new Date() } } }],
+      }] } : { booking: { AND: [booking, ...(query.branchId ? [{ branchId: query.branchId }] : []),
+        ...(query.bookingId ? [{ id: query.bookingId }] : [])], appointmentDate: { gte: from, lte: to } } } : {}) };
     const [items, total] = await Promise.all([
       this.prisma.bookingService.findMany({ where, select: WORK_ITEM_SELECT,
         orderBy: [{ booking: { appointmentDate: 'asc' } }, { itemStartAt: 'asc' }, { id: 'asc' }],

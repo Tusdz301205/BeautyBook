@@ -60,7 +60,7 @@ export function resolveWorkspaceAssignments(
   if (!available.length) throw new UnauthorizedException('Tài khoản chưa có không gian làm việc hợp lệ');
   if (!request.workspace && available.length > 1) {
     throw new BadRequestException({
-      message: 'Tài khoản có nhiều không gian làm việc; hãy chọn CUSTOMER, SALON hoặc PLATFORM',
+      message: 'Chọn không gian bạn muốn sử dụng để tiếp tục',
       code: 'WORKSPACE_REQUIRED',
       availableWorkspaces: available,
     });

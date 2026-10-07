@@ -698,6 +698,8 @@ export default function BookingScreen({ route, navigation }: Props) {
           </View>
         </View>
         {!isOutcomeUnknown && <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Xem lại đặt lịch"
           style={[styles.nextButton, !canContinue && styles.nextButtonDisabled]}
           activeOpacity={0.85}
           disabled={!canContinue}

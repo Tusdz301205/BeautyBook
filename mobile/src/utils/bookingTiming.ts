@@ -28,7 +28,7 @@ export function serviceTimingLines(item: {
   if (plannedStart) lines.push(`Bắt đầu dự kiến: ${plannedStart}`);
   if (plannedEnd) lines.push(`Kết thúc dự kiến: ${plannedEnd}`);
   let known = false;
-  if (item.actualTimingSource === 'SERVICE_ADJUSTMENT') {
+  if (['SERVICE_ADJUSTMENT', 'ACTUAL_TIME_CORRECTION'].includes(item.actualTimingSource ?? '')) {
     const start = formatServiceTimestamp(item.actualStartedAt, timezone);
     const complete = formatServiceTimestamp(item.actualCompletedAt, timezone);
     const stop = formatServiceTimestamp(item.actualStoppedAt, timezone);
@@ -37,5 +37,6 @@ export function serviceTimingLines(item: {
     else if (stop) { lines.push(`Dừng thực tế: ${stop}`); known = true; }
   }
   if (!known) lines.push('Chưa có mốc thời gian thực tế được ghi nhận');
+  if (item.actualTimingSource === 'ACTUAL_TIME_CORRECTION') lines.push('Thời gian thực tế đã được bổ sung / hiệu chỉnh');
   return lines;
 }

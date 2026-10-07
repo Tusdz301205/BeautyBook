@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function AppointmentCard({ item, onPress, onRebook }: Props) {
-  const pastPending = isPastUpcoming(item);
+  const pastPending = isPastUpcoming(item) && ['PENDING', 'CONFIRMED'].includes(item.rawStatus || '');
   const meta = pastPending
     ? { label: 'Quá hạn · chờ cập nhật', color: colors.textGray, background: colors.background }
     : bookingStatusMeta(item.status, item.rawStatus);

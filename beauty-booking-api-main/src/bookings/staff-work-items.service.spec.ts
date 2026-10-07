@@ -24,6 +24,17 @@ function setup() {
 }
 
 describe('personal STAFF work contract', () => {
+  it('includes unresolved older work with the same staff/branch scope, without adding terminal history', async () => {
+    const { service, prisma } = setup();
+    await service.list(user, { branchId: 'branch', dateFrom: '2026-10-06', dateTo: '2026-10-06', includeUnresolved: 'true' });
+    const args = prisma.bookingService.findMany.mock.calls[0][0];
+    expect(args.where.staffId).toBe('staff');
+    expect(args.where.booking.AND).toContainEqual({ branchId: 'branch' });
+    expect(args.where.OR[1].status.in).toEqual(['SCHEDULED', 'IN_PROGRESS']);
+    expect(args.where.OR[1].booking.status.in).toEqual(['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS']);
+    expect(args.where.OR[1].OR[0].itemStartAt.lte).toBeInstanceOf(Date);
+    expect(prisma.bookingService.count.mock.calls[0][0].where).toEqual(args.where);
+  });
   it('queries assigned items and exact active scopes with batched timing; allowlists every field', async () => {
     const { service, prisma, started } = setup();
     const result = await service.list(user, { dateFrom: '2026-10-05', dateTo: '2026-10-05' });

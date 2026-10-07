@@ -242,6 +242,18 @@ export const bookingsApi = {
     return request(`/bookings/available-slots?${query.toString()}`);
   },
 
+  counterSlots: ({ branchId, staffId, serviceIds, date, variantSelections, source }) => {
+    const query = new URLSearchParams({
+      branchId,
+      staffId: staffId || '',
+      date,
+      serviceIds: serviceIds.join(','),
+    });
+    if (source) query.set('source', source);
+    if (variantSelections && Object.keys(variantSelections).length) query.set('variantSelections', JSON.stringify(variantSelections));
+    return request(`/bookings/counter-slots?${query.toString()}`);
+  },
+
   getScheduler: (branchId, startDate, endDate) =>
     request(
       `/bookings/scheduler?branchId=${branchId}&startDate=${startDate}&endDate=${endDate}`,
@@ -268,6 +280,8 @@ export const bookingsApi = {
     }),
   addItem: (id, data) => request(`/bookings/${id}/items`, { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id, itemId, data) => request(`/bookings/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  correctActualTime: (id, itemId, data) => request(`/bookings/${id}/items/${itemId}/actual-time`, { method: 'PATCH', body: JSON.stringify(data) }),
+  actualTimeCorrectionHistory: (id, itemId) => request(`/bookings/${id}/items/${itemId}/actual-time`),
 
   // ===== Bổ sung nghiệp vụ 2026-07-10 =====
   myAppointments: (tab = 'upcoming') =>
@@ -679,10 +693,10 @@ export const notificationsApi = {
   getUnreadCount: () => request('/notifications/unread-count'),
 
   markAsRead: (id) =>
-    request(`/notifications/${id}/read`, { method: 'PATCH' }),
+    request(`/notifications/${id}/read`, { method: 'PATCH' }).then(result => { window.dispatchEvent(new Event('beautybook:notifications-changed')); return result; }),
 
   markAllAsRead: () =>
-    request('/notifications/read-all', { method: 'PATCH' }),
+    request('/notifications/read-all', { method: 'PATCH' }).then(result => { window.dispatchEvent(new Event('beautybook:notifications-changed')); return result; }),
 
   registerDeviceToken: (token, platform) =>
     request('/notifications/device-token', {

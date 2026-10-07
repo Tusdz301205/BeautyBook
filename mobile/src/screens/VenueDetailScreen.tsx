@@ -43,13 +43,13 @@ const ACTION_ICONS: { key: ActionKey; active: keyof typeof Ionicons.glyphMap; in
 export default function VenueDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const requestedServiceId = route.params.serviceId;
-  const [activeTab, setActiveTab] = useState<TabKey>(requestedServiceId ? 'services' : 'info');
-  const [quantities, setQuantities] = useState<Record<string, number>>(requestedServiceId ? { [requestedServiceId]: 1 } : {});
+  const requestedIds = route.params.serviceIds ?? (requestedServiceId ? [requestedServiceId] : []);
+  const [activeTab, setActiveTab] = useState<TabKey>(requestedIds.length || route.params.rebooking ? 'services' : 'info');
+  const [quantities, setQuantities] = useState<Record<string, number>>(Object.fromEntries(requestedIds.map(id => [id, 1])));
   useEffect(() => {
-    if (!requestedServiceId) return;
-    setQuantities({ [requestedServiceId]: 1 });
-    setActiveTab('services');
-  }, [requestedServiceId]);
+    setQuantities(Object.fromEntries(requestedIds.map(id => [id, 1])));
+    setActiveTab(requestedIds.length || route.params.rebooking ? 'services' : 'info');
+  }, [route.params.venueId, requestedServiceId, route.params.serviceIds, route.params.rebooking]);
   const [activeActions, setActiveActions] = useState<Record<ActionKey, boolean>>({
     call: false,
     chat: false,
@@ -64,6 +64,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
     reviews: remoteReviews,
     isLoading,
     error,
+    extrasError,
     reload,
   } = useBranchDetail(route.params.venueId);
 
@@ -87,6 +88,8 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
         <TouchableOpacity onPress={() => void reload()}>
           <Text style={styles.servicePrice}>Thử lại</Text>
         </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={{ padding: 16 }}><Text style={styles.servicePrice}>Quay lại</Text></TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.getParent()?.navigate('TimKiem')} style={{ padding: 16 }}><Text style={styles.servicePrice}>Tìm cơ sở khác</Text></TouchableOpacity>
       </View>
     );
   }
@@ -98,7 +101,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
   const reviews = remoteReviews;
   const allServices = serviceGroups.flatMap((group) => group.items);
   const selectedServices = allServices.filter((item) => (quantities[item.id] ?? 0) > 0);
-  const primaryService = selectedServices[0] ?? (requestedServiceId ? undefined : allServices[0]);
+  const primaryService = selectedServices[0];
   const bookingServiceIds = selectedServices.length ? selectedServices.map((item) => item.id) : primaryService ? [primaryService.id] : [];
   const displayRating = reviews.length
     ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length
@@ -138,6 +141,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {!!extrasError && <Text accessibilityRole="alert" style={[styles.serviceIntro, { padding: 16 }]}>{extrasError}</Text>}
         <View style={styles.bannerWrap}>
           {bannerSlides.length > 0 ? (
             <BannerCarousel slides={bannerSlides} height={260} style={styles.banner} imageBorderRadius={0} gap={0} />
@@ -145,6 +149,8 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
             <View style={styles.noBanner}><Ionicons name="storefront-outline" size={34} color={colors.primary} /><Text style={styles.noBannerText}>Cơ sở chưa cập nhật ảnh</Text></View>
           )}
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Quay lại"
             style={[styles.backButton, { top: insets.top + 12 }]}
             onPress={() => navigation.goBack()}
             hitSlop={10}
@@ -218,9 +224,11 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
         {activeTab === 'services' && (
           <View style={styles.tabContent}>
             <Text style={styles.serviceIntro}>Bấm chọn dịch vụ để đặt lịch</Text>
-            {requestedServiceId && !allServices.some((item) => item.id === requestedServiceId) && (
+            {requestedIds.some(id => !allServices.some(item => item.id === id)) && (
               <Text style={styles.serviceIntro}>Dịch vụ bạn chọn không còn ở cơ sở này. Hãy chọn dịch vụ khác bên dưới.</Text>
             )}
+            {route.params.rebooking && <Text style={styles.serviceIntro}>Giá và thời lượng dưới đây là thông tin hiện tại. Chọn lại dịch vụ nếu cần, sau đó chọn chuyên viên và giờ mới.</Text>}
+            {allServices.length === 0 && <Text style={styles.infoText}>Cơ sở chưa có dịch vụ đang nhận lịch.</Text>}
 
             {serviceGroups.map((group) => (
               <View key={group.name}>
@@ -234,10 +242,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
                 {group.items.map((item) => (
                   <View key={item.id} style={styles.serviceRow}>
                     <View style={styles.serviceInfo}>
-                      <View style={styles.serviceNameRow}>
-                        <Ionicons name="information-circle-outline" size={16} color={colors.textGray} />
-                        <Text style={styles.serviceName}>{item.name}</Text>
-                      </View>
+                      <Text style={styles.serviceName}>{item.name}</Text>
                       <Text style={styles.serviceDuration}>{item.duration}</Text>
                       <Text style={styles.servicePrice}>{formatCurrency(item.price)}</Text>
                       <TouchableOpacity accessibilityLabel={`Lưu dịch vụ ${item.name}`} onPress={() => void toggleFavorite(item.id)} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6 }}>
@@ -245,18 +250,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
                         <Text style={{ color: colors.primary, fontWeight: '600' }}>{isFavorite(item.id) ? 'Đã lưu' : 'Lưu dịch vụ'}</Text>
                       </TouchableOpacity>
                     </View>
-                    <View style={styles.stepper}>
-                      <TouchableOpacity style={styles.stepperButton} onPress={() => adjustQuantity(item.id, -1)}>
-                        <Ionicons name="remove" size={16} color={colors.textGray} />
-                      </TouchableOpacity>
-                      <Text style={styles.stepperValue}>{quantities[item.id] ?? 0}</Text>
-                      <TouchableOpacity
-                        style={[styles.stepperButton, styles.stepperButtonAdd]}
-                        onPress={() => adjustQuantity(item.id, 1)}
-                      >
-                        <Ionicons name="add" size={16} color={colors.primary} />
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel={`Chọn dịch vụ ${item.name}`} accessibilityState={{ checked: !!quantities[item.id] }} style={[styles.stepperButton, { minWidth: 80, minHeight: 48 }]} onPress={() => adjustQuantity(item.id, quantities[item.id] ? -1 : 1)}><Text style={styles.servicePrice}>{quantities[item.id] ? 'Đã chọn' : 'Chọn'}</Text></TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -347,6 +341,8 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
           );
         })}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !primaryService }}
           style={styles.bookButton}
           activeOpacity={0.85}
           disabled={!primaryService}
@@ -369,7 +365,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
             });
           }}
         >
-          <Text style={styles.bookButtonText}>Đặt Lịch</Text>
+          <Text style={styles.bookButtonText}>{selectedServices.length ? `Đặt lịch (${selectedServices.length})` : 'Chọn dịch vụ'}</Text>
         </TouchableOpacity>
       </SafeAreaView>
 
@@ -633,9 +629,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    gap: 12,
   },
   serviceInfo: {
     flex: 1,
+    minWidth: 0,
     gap: 4,
   },
   serviceNameRow: {

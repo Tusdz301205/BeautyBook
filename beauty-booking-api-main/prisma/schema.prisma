@@ -7,6 +7,10 @@ datasource db {
 }
 
 model User {
+  actualTimeCorrections BookingServiceActualTimeCorrection[] @relation("ActualTimeCorrectionActor")
+  actualTimeGrants BookingActualTimeGrant[] @relation("ActualTimeGrantUser")
+  actualTimeGrantsGiven BookingActualTimeGrant[] @relation("ActualTimeGrantActor")
+  actualTimeGrantsRevoked BookingActualTimeGrant[] @relation("ActualTimeGrantRevoker")
   recordedBookingViolations BookingViolationEvent[] @relation("BookingViolationActor")
   voidedBookingViolations BookingViolationEvent[] @relation("BookingViolationVoider")
   id                       String                       @id @default(uuid())
@@ -374,6 +378,7 @@ model District {
 }
 
 model Business {
+  actualTimeGrants BookingActualTimeGrant[]
   customerBookingPolicies CustomerBookingPolicy[]
   bookingViolations BookingViolationEvent[]
   id                        String                       @id @default(uuid())
@@ -448,6 +453,7 @@ model Business {
 }
 
 model Branch {
+  actualTimeGrants BookingActualTimeGrant[]
   id                        String                       @id @default(uuid())
   businessId                String                       @map("business_id")
   name                      String
@@ -1079,6 +1085,7 @@ model Booking {
 }
 
 model BookingService {
+  actualTimeCorrections BookingServiceActualTimeCorrection[]
   id                  String                     @id @default(uuid())
   bookingId           String                     @map("booking_id")
   serviceId           String                     @map("service_id")
@@ -1118,6 +1125,56 @@ model BookingService {
   @@map("booking_services")
   refs_BookingServiceAdjustment_bookingServiceId BookingServiceAdjustment[] @relation("Audit_BookingServiceAdjustment_bookingServiceId")
   refs_InvoiceLine_bookingServiceId InvoiceLine[] @relation("Audit_InvoiceLine_bookingServiceId")
+}
+
+enum ActualTimingStatus {
+  KNOWN
+  UNKNOWN
+}
+
+model BookingActualTimeGrant {
+  id         String @id @default(uuid())
+  userId     String @map("user_id")
+  businessId String @map("business_id")
+  branchId   String? @map("branch_id")
+  grantedBy  String @map("granted_by")
+  reason     String
+  grantedAt  DateTime @default(now()) @map("granted_at")
+  expiresAt  DateTime? @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  revokedBy  String? @map("revoked_by")
+  revokeReason String? @map("revoke_reason")
+  user User @relation("ActualTimeGrantUser", fields: [userId], references: [id], onDelete: Restrict)
+  grantor User @relation("ActualTimeGrantActor", fields: [grantedBy], references: [id], onDelete: Restrict)
+  revoker User? @relation("ActualTimeGrantRevoker", fields: [revokedBy], references: [id], onDelete: Restrict)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@index([userId, businessId, branchId, revokedAt, expiresAt])
+  @@map("booking_actual_time_grants")
+}
+
+model BookingServiceActualTimeCorrection {
+  id                       String @id @default(uuid())
+  bookingServiceId         String @map("booking_service_id")
+  version                  Int
+  actualStartedAt          DateTime? @map("actual_started_at")
+  actualCompletedAt        DateTime? @map("actual_completed_at")
+  actualTimingStatus       ActualTimingStatus @map("actual_timing_status")
+  oldActualStartedAt       DateTime? @map("old_actual_started_at")
+  oldActualCompletedAt     DateTime? @map("old_actual_completed_at")
+  oldActualTimingStatus    ActualTimingStatus @map("old_actual_timing_status")
+  oldItemStatus            BookingServiceStatus @map("old_item_status")
+  newItemStatus            BookingServiceStatus @default(COMPLETED) @map("new_item_status")
+  reason                   String
+  actorId                  String @map("actor_id")
+  correctedAt              DateTime @default(now()) @map("corrected_at")
+  bookingService           BookingService @relation(fields: [bookingServiceId], references: [id], onDelete: Restrict)
+  actor                    User @relation("ActualTimeCorrectionActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingServiceId, version])
+  @@index([bookingServiceId, correctedAt])
+  @@map("booking_service_actual_time_corrections")
 }
 
 model BookingStatusHistory {

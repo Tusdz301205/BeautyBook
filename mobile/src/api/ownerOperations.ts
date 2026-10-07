@@ -1,5 +1,5 @@
 import { ApiError, apiRequest, createIdempotencyKey, getApiSessionGeneration, withQuery } from './client';
-import type { OwnerBooking, OwnerDashboard, OwnerImpact, OwnerRequest, OwnerScope } from '../types/ownerOperations';
+import type { OwnerActualTimeCorrection, OwnerBooking, OwnerDashboard, OwnerImpact, OwnerRequest, OwnerScope } from '../types/ownerOperations';
 import { bookingFingerprint, completeImpactAllowed, isUuid, ordinaryRescheduleAllowed, ownerBranches, ownsBusiness, permitsResource, requestFingerprint, reviewAllowed, validDate } from '../operations/owner/policy';
 
 type Row = Record<string, unknown>;
@@ -33,16 +33,21 @@ export function projectBooking(value: unknown, scope: OwnerScope): OwnerBooking 
   uuid(id);
   const availability = row(row(raw.transitionAvailability).CHECKED_IN);
   return {
-    id, code: str(raw.bookingCode) || id, businessId, branchId, branchName: known?.name || str(branch.name),
+    id, code: str(raw.bookingCode) || (raw.bookingId ? str(raw.id) : '') || id, businessId, branchId, branchName: known?.name || str(branch.name),
     timezone: str(branch.timezone) || known?.timezone || 'Asia/Ho_Chi_Minh',
-    customerName: str(row(customer.user).fullName) || str(customer.fullName) || 'Khách hàng',
-    status: str(raw.status), date: str(raw.appointmentDate).slice(0, 10),
-    start: nullable(raw.appointmentStartTime), end: nullable(raw.appointmentEndTime), note: nullable(raw.note),
-    items: rows(raw.bookingServices).map(value => { const item = row(value), staff = row(item.staff); return {
-      id: str(item.id), name: str(row(item.service).name) || str(item.serviceName) || 'Dịch vụ',
-      staffId: nullable(item.staffId) || nullable(staff.id), staffName: nullable(staff.fullName) || nullable(row(staff.user).fullName) ||
+    customerName: str(row(customer.user).fullName) || str(customer.fullName) || str(raw.customer_name) || 'Khách hàng',
+    status: str(raw.statusEnum) || str(raw.status), date: (str(raw.appointmentDate) || str(raw.appointment_time)).slice(0, 10),
+    start: nullable(raw.appointmentStartTime) || nullable(raw.appointment_start), end: nullable(raw.appointmentEndTime) || nullable(raw.appointment_end), note: nullable(raw.note),
+    serverNow: typeof raw.serverNow === 'string' ? raw.serverNow : undefined,
+    items: rows(raw.bookingServices ?? raw.services).map(value => { const item = row(value), staff = row(item.staff); return {
+      id: str(item.bookingServiceId) || str(item.id), name: str(row(item.service).name) || str(item.serviceName) || str(item.name) || 'Dịch vụ',
+      staffId: nullable(item.staffId) || nullable(staff.id), staffName: nullable(staff.fullName) || nullable(row(staff.user).fullName) || nullable(item.staff) ||
         (nullable(item.staffId) || nullable(staff.id) ? 'Đã phân công; chưa tải tên nhân viên' : null), status: str(item.status),
       revision: typeof item.revision === 'number' ? item.revision : null,
+      itemStartAt: nullable(item.itemStartAt), itemEndAt: nullable(item.itemEndAt), actualStartedAt: nullable(item.actualStartedAt),
+      actualCompletedAt: nullable(item.actualCompletedAt), actualStoppedAt: nullable(item.actualStoppedAt),
+      actualTimingSource: str(item.actualTimingSource), durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : undefined,
+      canCorrectActualTime: item.canCorrectActualTime === true,
     }; }),
     checkinAllowed: raw.status === 'CONFIRMED' && availability.allowed === true,
   };
@@ -103,6 +108,34 @@ async function write(path: string, method: string, body?: object) {
 }
 export const ownerOperationsApi = {
   requests, booking, impact,
+  async actualTimeHistory(scope: OwnerScope, bookingId: string, itemId: string): Promise<OwnerActualTimeCorrection[]> {
+    assertScope(scope); const generation = getApiSessionGeneration();
+    const payload = row(await apiRequest<unknown>(`/bookings/${uuid(bookingId)}/items/${uuid(itemId)}/actual-time`));
+    fence(scope, generation);
+    return rows(payload.data).map(value => { const entry = row(value); return {
+      id: str(entry.id), version: count(entry.version), actorName: str(row(entry.actor).fullName) || 'Người được cấp quyền',
+      correctedAt: str(entry.correctedAt), reason: str(entry.reason),
+      oldActualStartedAt: nullable(entry.oldActualStartedAt), oldActualCompletedAt: nullable(entry.oldActualCompletedAt),
+      actualStartedAt: nullable(entry.actualStartedAt), actualCompletedAt: nullable(entry.actualCompletedAt), actualTimingStatus: str(entry.actualTimingStatus),
+    }; });
+  },
+  async unfinished(scope: OwnerScope, page = 1) {
+    assertScope(scope);
+    if (!scope.branchId || !Number.isInteger(page) || page < 1) throw new ApiError('Chọn chi nhánh để xem lịch chưa kết thúc.', 400);
+    const payload = row(await apiRequest<unknown>(withQuery('/bookings', { branchId: scope.branchId, status: 'unfinished', sortOrder: 'appointment', page, limit: 20 })));
+    return { data: rows(payload.data).map(value => projectBooking(value, scope)), total: count(row(payload.meta).total) };
+  },
+  async correctActualTime(scope: OwnerScope, bookingId: string, itemId: string, input: {
+    expectedRevision: number; actualStartedAt: string | null; actualCompletedAt: string | null; reason: string;
+  }) {
+    const generation = getApiSessionGeneration();
+    const current = await booking(scope, bookingId);
+    const item = current.items.find(value => value.id === itemId);
+    if (!item?.canCorrectActualTime) throw new ApiError('Bạn chưa được cấp quyền hiệu chỉnh thời gian thực tế của dịch vụ này.', 403);
+    if (item.revision !== input.expectedRevision) throw new ApiError('Dịch vụ vừa thay đổi. Tải lại trước khi hiệu chỉnh.', 409);
+    fence(scope, generation);
+    await write(`/bookings/${uuid(bookingId)}/items/${uuid(itemId)}/actual-time`, 'PATCH', input);
+  },
   async impacts(scope: OwnerScope): Promise<OwnerImpact[]> {
     assertScope(scope);
     const payload = await apiRequest<unknown>('/operational-impacts');

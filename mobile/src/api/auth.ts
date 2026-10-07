@@ -5,7 +5,7 @@ export const authApi = {
   login: (email: string, password: string, context: { workspace?: 'CUSTOMER' | 'SALON' | 'PLATFORM'; businessId?: string; branchId?: string } = {}) =>
     apiRequest<ApiAuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password, workspace: 'CUSTOMER', ...context, refreshTokenTransport: 'BODY' }),
+      body: JSON.stringify({ email, password, ...context, refreshTokenTransport: 'BODY' }),
     }, false),
   register: (fullName: string, email: string, password: string) =>
     apiRequest<ApiAuthResponse>('/auth/register', {

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
 import OperationsAccount from '../OperationsAccount';
 import OperationsNotifications from '../OperationsNotifications';
+import OperationTabLabel, { useOperationTabHeight } from '../OperationTabLabel';
 import { StaffListScreen, StaffDetailScreen, type StaffWorkStackParams, type WorkScreenProps } from './StaffWorkScreen';
 
 type StaffTabParams = { 'Hôm nay': undefined; 'Lịch': undefined; 'Thông báo': undefined; 'Tài khoản': undefined };
@@ -35,9 +36,10 @@ function NotificationStack() {
   </Stack.Navigator>;
 }
 export default function StaffTabs() {
+  const tabHeight = useOperationTabHeight();
   return <Tab.Navigator screenOptions={({ route }) => ({ headerShown: false, tabBarActiveTintColor: colors.primary,
-    tabBarInactiveTintColor: colors.textGray, tabBarStyle: { backgroundColor: colors.card, minHeight: 64 },
-    tabBarLabelStyle: { fontSize: 13 }, tabBarIcon: ({ color, size }) => <Ionicons color={color} size={size}
+    tabBarInactiveTintColor: colors.textGray, tabBarStyle: { backgroundColor: colors.card, height: tabHeight },
+    tabBarLabel: ({ color }) => <OperationTabLabel title={route.name} color={color} />, tabBarIcon: ({ color, size }) => <Ionicons color={color} size={size}
       name={({ 'Hôm nay': 'today-outline', 'Lịch': 'calendar-outline', 'Thông báo': 'notifications-outline', 'Tài khoản': 'person-outline' } as const)[route.name]} />,
   })}>
     <Tab.Screen name="Hôm nay" component={TodayStack} />

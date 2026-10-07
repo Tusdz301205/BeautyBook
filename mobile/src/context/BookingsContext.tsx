@@ -44,7 +44,7 @@ export interface ConfirmedBooking {
     actualStartedAt?: string | null;
     actualCompletedAt?: string | null;
     actualStoppedAt?: string | null;
-    actualTimingSource?: 'SERVICE_ADJUSTMENT' | 'UNAVAILABLE';
+    actualTimingSource?: 'SERVICE_ADJUSTMENT' | 'ACTUAL_TIME_CORRECTION' | 'UNAVAILABLE';
   }>;
 }
 

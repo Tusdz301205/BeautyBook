@@ -13,7 +13,7 @@ const start = event('START', 1, 'SCHEDULED', 'IN_PROGRESS');
 describe('Actual execution is a projection of persisted service audit facts', () => {
   test('scheduled time, duration, updatedAt and parent progress never invent a START', () => {
     const timing = bookingItemActualTiming({ status: 'IN_PROGRESS' });
-    expect(timing).toEqual({ actualStartedAt: null, actualCompletedAt: null, actualStoppedAt: null, actualTimingSource: 'UNAVAILABLE' });
+    expect(timing).toEqual({ actualStartedAt: null, actualCompletedAt: null, actualStoppedAt: null, actualTimingSource: 'UNAVAILABLE', actualTimingStatus: 'UNKNOWN' });
   });
   test.each([1, 60, 180])('early, planned and overdue completion (%i minutes) uses the actual COMPLETE', (minutes) => {
     const end = new Date(startAt.getTime() + minutes * 60000);
@@ -37,7 +37,7 @@ describe('Actual execution is a projection of persisted service audit facts', ()
     const stopAt = new Date(startAt.getTime() + 2000);
     expect(bookingItemActualTiming({ status: 'SKIPPED', refs_BookingServiceAdjustment_bookingServiceId: [
       start, event('SKIP', 2, 'IN_PROGRESS', 'SKIPPED', stopAt),
-    ] })).toEqual({ actualStartedAt: startAt, actualCompletedAt: null, actualStoppedAt: stopAt, actualTimingSource: 'SERVICE_ADJUSTMENT' });
+    ] })).toEqual({ actualStartedAt: startAt, actualCompletedAt: null, actualStoppedAt: stopAt, actualTimingSource: 'SERVICE_ADJUSTMENT', actualTimingStatus: 'KNOWN' });
   });
   test('skip before START and cancelled items without a stop audit keep unknown actual times null', () => {
     expect(bookingItemActualTiming({ status: 'SKIPPED', refs_BookingServiceAdjustment_bookingServiceId: [

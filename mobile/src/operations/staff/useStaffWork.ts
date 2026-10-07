@@ -4,9 +4,9 @@ import { useOperations } from '../OperationsContext';
 import { staffApi, readWorkDay } from './staffApi';
 import { workError, type WorkItem } from './workModel';
 
-export function useStaffWork(query: { day?: string | null; itemId?: string; bookingId?: string }) {
+export function useStaffWork(query: { day?: string | null; itemId?: string; bookingId?: string; includeUnresolved?: boolean }) {
   const ops = useOperations();
-  const key = `${ops.contextKey}|${ops.branchId}|${query.day}|${query.itemId}|${query.bookingId}`;
+  const key = `${ops.contextKey}|${ops.branchId}|${query.day}|${query.itemId}|${query.bookingId}|${query.includeUnresolved}`;
   const identity = `${key}|${ops.revision}|${ops.canWorkAsStaff}|${ops.staffProfile?.id}`;
   const current = useRef(identity); current.current = identity;
   const sequence = useRef(0);
@@ -21,7 +21,7 @@ export function useStaffWork(query: { day?: string | null; itemId?: string; book
     setLoading(true); setError(null); setVerifiedIdentity(null);
     try {
       const result = query.itemId ? await staffApi.detail(query.itemId) : await readWorkDay({ branchId: ops.branchId,
-        ...(query.bookingId ? { bookingId: query.bookingId } : { dateFrom: query.day!, dateTo: query.day! }) }, valid);
+        ...(query.bookingId ? { bookingId: query.bookingId } : { dateFrom: query.day!, dateTo: query.day!, includeUnresolved: query.includeUnresolved }) }, valid);
       if (!valid()) return false;
       const items = 'data' in result ? result.data : [result];
       // UI defence in depth; authorization and projection still belong to the backend.
@@ -37,7 +37,7 @@ export function useStaffWork(query: { day?: string | null; itemId?: string; book
       setError({ key, message: feedback.message });
       return false;
     } finally { if (valid()) setLoading(false); }
-  }, [identity, key, ops.branchId, ops.businessId, ops.canWorkAsStaff, ops.staffProfile?.id, query.day, query.itemId, query.bookingId]);
+  }, [identity, key, ops.branchId, ops.businessId, ops.canWorkAsStaff, ops.staffProfile?.id, query.day, query.itemId, query.bookingId, query.includeUnresolved]);
   useEffect(() => { void load(); return () => { sequence.current++; }; }, [load]);
   const visible = ops.canWorkAsStaff && snapshot?.key === key ? snapshot : null;
   return { ops, items: visible?.items ?? [], serverNow: visible?.serverNow ?? NaN, receivedAt: visible?.receivedAt ?? 0,

@@ -185,7 +185,9 @@ describe('Assigned service item authorization under transaction lock', () => {
     await expect(service.update('booking', 'item', 'actor',
       { action: 'COMPLETE', expectedRevision: 1, reason: 'Done' }, { assignedStaffUserId: 'actor' }))
       .rejects.toBeInstanceOf(ForbiddenException);
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FROM bookings');
+    expect(tx.$queryRaw.mock.calls[1][0].join('')).toContain('FROM booking_services');
     expect(tx.staffProfile.findFirst).toHaveBeenCalledWith({
       where: { id: 'provider', userId: 'actor', status: 'ACTIVE', deletedAt: null }, select: { id: true },
     });
