@@ -1475,7 +1475,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 262
+        "x-source-line": 303
       },
       "get": {
         "tags": [
@@ -1537,7 +1537,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 443
+        "x-source-line": 485
       }
     },
     "/bookings/{id}": {
@@ -1611,7 +1611,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 908
+        "x-source-line": 1006
       },
       "put": {
         "tags": [
@@ -1711,7 +1711,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 956
+        "x-source-line": 1057
       }
     },
     "/bookings/{id}/assign": {
@@ -1791,7 +1791,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1164
+        "x-source-line": 1267
       }
     },
     "/bookings/{id}/change-requests": {
@@ -1889,7 +1889,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1247
+        "x-source-line": 1350
       }
     },
     "/bookings/{id}/checkin": {
@@ -1969,7 +1969,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1360
+        "x-source-line": 1463
       }
     },
     "/bookings/{id}/force-cancel-preview": {
@@ -2036,7 +2036,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1087
+        "x-source-line": 1189
       }
     },
     "/bookings/{id}/items": {
@@ -2136,7 +2136,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1177
+        "x-source-line": 1280
       }
     },
     "/bookings/{id}/items/{itemId}": {
@@ -2226,7 +2226,160 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1206
+        "x-source-line": 1309
+      }
+    },
+    "/bookings/{id}/items/{itemId}/actual-time": {
+      "patch": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_correctActualTime_patch",
+        "summary": "correct Actual Time",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permissions": [
+          "booking.actual_time.correct"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 236
+      },
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_actualTimeCorrectionHistory_get",
+        "summary": "actual Time Correction History",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permissions": [
+          "booking.actual_time.correct"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 243
       }
     },
     "/bookings/{id}/move": {
@@ -2306,7 +2459,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1131
+        "x-source-line": 1233
       }
     },
     "/bookings/{id}/refund": {
@@ -2404,7 +2557,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1332
+        "x-source-line": 1435
       }
     },
     "/bookings/{id}/resize": {
@@ -2483,7 +2636,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1150
+        "x-source-line": 1253
       }
     },
     "/bookings/{id}/status": {
@@ -2590,7 +2743,147 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1034
+        "x-source-line": 1136
+      }
+    },
+    "/bookings/actual-time-grants": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_grantActualTimeCorrection_post",
+        "summary": "grant Actual Time Correction",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permissions": [
+          "booking.actual_time.correct"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 221
+      }
+    },
+    "/bookings/actual-time-grants/{grantId}/revoke": {
+      "post": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_revokeActualTimeCorrectionGrant_post",
+        "summary": "revoke Actual Time Correction Grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-permissions": [
+          "booking.actual_time.correct"
+        ],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 228
       }
     },
     "/bookings/available-slots": {
@@ -2616,7 +2909,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 771
+        "x-source-line": 814
       }
     },
     "/bookings/by-branch/{branchId}": {
@@ -2687,7 +2980,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 863
+        "x-source-line": 961
       }
     },
     "/bookings/by-category": {
@@ -2747,7 +3040,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 850
+        "x-source-line": 948
       }
     },
     "/bookings/by-customer/{userId}": {
@@ -2820,7 +3113,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 874
+        "x-source-line": 972
       }
     },
     "/bookings/change-requests/{reqId}/approve": {
@@ -2922,7 +3215,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1270
+        "x-source-line": 1373
       }
     },
     "/bookings/change-requests/{reqId}/reject": {
@@ -3002,7 +3295,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1289
+        "x-source-line": 1392
       }
     },
     "/bookings/change-requests/pending": {
@@ -3061,7 +3354,66 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 1307
+        "x-source-line": 1410
+      }
+    },
+    "/bookings/counter-slots": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_getCounterSlots_get",
+        "summary": "get Counter Slots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "BUSINESS_OWNER",
+          "RECEPTIONIST"
+        ],
+        "x-permissions": [
+          "booking:create:tenant",
+          "booking:create:branch"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 841
       }
     },
     "/bookings/guest": {
@@ -3151,7 +3503,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 224
+        "x-source-line": 265
       }
     },
     "/bookings/my-appointments": {
@@ -3208,7 +3560,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 588
+        "x-source-line": 631
       }
     },
     "/bookings/my-work-items": {
@@ -3320,7 +3672,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 567
+        "x-source-line": 609
       }
     },
     "/bookings/my-work-items/{itemId}": {
@@ -3389,7 +3741,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 577
+        "x-source-line": 620
       }
     },
     "/bookings/preview-price": {
@@ -3457,7 +3809,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 333
+        "x-source-line": 375
       }
     },
     "/bookings/salon-queue": {
@@ -3517,7 +3869,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 682
+        "x-source-line": 725
       }
     },
     "/bookings/salon-violations": {
@@ -3576,7 +3928,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 723
+        "x-source-line": 766
       }
     },
     "/bookings/scheduler": {
@@ -3638,7 +3990,69 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 797
+        "x-source-line": 895
+      }
+    },
+    "/bookings/scheduler/batch": {
+      "get": {
+        "tags": [
+          "bookings"
+        ],
+        "operationId": "BookingsController_getSchedulerBatch_get",
+        "summary": "get Scheduler Batch",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "PLATFORM_ADMIN",
+          "BUSINESS_OWNER",
+          "RECEPTIONIST",
+          "STAFF"
+        ],
+        "x-permissions": [
+          "booking:read:branch",
+          "booking:read:tenant",
+          "booking:read:platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/bookings/bookings.controller.ts",
+        "x-source-line": 871
       }
     },
     "/bookings/self-booking-policy": {
@@ -3695,7 +4109,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 210
+        "x-source-line": 251
       }
     },
     "/bookings/stats": {
@@ -3755,7 +4169,7 @@
           }
         },
         "x-source": "src/bookings/bookings.controller.ts",
-        "x-source-line": 828
+        "x-source-line": 926
       }
     },
     "/branches": {
@@ -6794,7 +7208,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 28
+        "x-source-line": 36
       }
     },
     "/notifications/{id}/read": {
@@ -6869,7 +7283,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 65
+        "x-source-line": 73
       }
     },
     "/notifications/device-token": {
@@ -6932,7 +7346,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 88
+        "x-source-line": 96
       }
     },
     "/notifications/device-token/remove": {
@@ -6995,7 +7409,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 107
+        "x-source-line": 115
       }
     },
     "/notifications/read-all": {
@@ -7060,7 +7474,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 78
+        "x-source-line": 86
       }
     },
     "/notifications/unread-count": {
@@ -7114,7 +7528,7 @@
           }
         },
         "x-source": "src/notifications/notifications.controller.ts",
-        "x-source-line": 55
+        "x-source-line": 63
       }
     },
     "/operational-impacts": {
@@ -10235,76 +10649,10 @@
           }
         },
         "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 25
+        "x-source-line": 24
       }
     },
     "/privacy/data-requests": {
-      "post": {
-        "tags": [
-          "privacy"
-        ],
-        "operationId": "PrivacyController_createDataRequest_post",
-        "summary": "create Data Request",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "privacy_request:manage:self"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 33
-      },
       "get": {
         "tags": [
           "privacy"
@@ -10358,75 +10706,7 @@
           }
         },
         "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 43
-      }
-    },
-    "/privacy/exports": {
-      "post": {
-        "tags": [
-          "privacy"
-        ],
-        "operationId": "PrivacyController_export_post",
-        "summary": "export",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-roles": [
-          "CUSTOMER"
-        ],
-        "x-permissions": [
-          "privacy_request:manage:self"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success (consult the controller for the exact success status and response schema)"
-          },
-          "400": {
-            "description": "Validation error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 67
+        "x-source-line": 32
       }
     },
     "/privacy/exports/{id}/download": {
@@ -10493,7 +10773,7 @@
           }
         },
         "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 77
+        "x-source-line": 56
       }
     },
     "/privacy/marketing-preferences": {
@@ -10550,7 +10830,7 @@
           }
         },
         "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 50
+        "x-source-line": 39
       },
       "put": {
         "tags": [
@@ -10616,7 +10896,7 @@
           }
         },
         "x-source": "src/privacy/privacy.controller.ts",
-        "x-source-line": 57
+        "x-source-line": 46
       }
     },
     "/promotions": {
@@ -16037,7 +16317,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 54
+        "x-source-line": 55
       }
     },
     "/users/{id}": {
@@ -16109,7 +16389,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 89
+        "x-source-line": 90
       }
     },
     "/users/{id}/permissions": {
@@ -16176,7 +16456,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 121
+        "x-source-line": 129
       },
       "post": {
         "tags": [
@@ -16252,7 +16532,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 128
+        "x-source-line": 136
       }
     },
     "/users/{id}/permissions/{permissionCode}": {
@@ -16327,7 +16607,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 144
+        "x-source-line": 152
       }
     },
     "/users/{id}/roles": {
@@ -16407,7 +16687,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 160
+        "x-source-line": 168
       }
     },
     "/users/{id}/roles/{roleCode}": {
@@ -16484,7 +16764,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 177
+        "x-source-line": 185
       }
     },
     "/users/{id}/suspend": {
@@ -16562,7 +16842,74 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 109
+        "x-source-line": 117
+      }
+    },
+    "/users/{id}/suspension-impact": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "UsersController_suspensionImpact_get",
+        "summary": "suspension Impact",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "PLATFORM_ADMIN"
+        ],
+        "x-permissions": [
+          "user:suspend:platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (consult the controller for the exact success status and response schema)"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-source": "src/users/users.controller.ts",
+        "x-source-line": 110
       }
     },
     "/users/me/profile": {
@@ -16623,7 +16970,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 34
+        "x-source-line": 35
       },
       "patch": {
         "tags": [
@@ -16693,7 +17040,7 @@
           }
         },
         "x-source": "src/users/users.controller.ts",
-        "x-source-line": 41
+        "x-source-line": 42
       }
     },
     "/vouchers": {

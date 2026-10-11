@@ -5,22 +5,26 @@ import { useOperations } from '../OperationsContext';
 import type { OwnerScope } from '../../types/ownerOperations';
 import { ownerError, ownsBusiness } from './policy';
 
-export function useOwnerScope(): OwnerScope {
+export function useOwnerScope(fromBookingNotification = false): OwnerScope {
   const { user } = useAuth();
   const operations = useOperations();
   const contextKey = operations.contextKey;
-  const current = useRef(contextKey); current.current = contextKey;
+  const generation = getApiSessionGeneration();
+  const identity = `${contextKey}:${operations.businessId}:${generation}:${fromBookingNotification}`;
+  const current = useRef(identity); current.current = identity;
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   return { userId: user?.id ?? '', workspace: user?.workspace, sessionType: user?.sessionType,
     roles: user?.roles ?? [], scopes: user?.scopes ?? [], businessId: operations.businessId,
-    branches: operations.branches, branchId: operations.branchId,
-    isCurrent: () => alive.current && current.current === contextKey };
+    // Only the explicit booking notification detail uses this transient scope.
+    // The current business, grants and branch allowlist are still authoritative.
+    branches: operations.branches, branchId: fromBookingNotification ? null : operations.branchId,
+    isCurrent: () => alive.current && current.current === identity && generation === getApiSessionGeneration() };
 }
-export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resource: string) {
-  const operations = useOperations(), scope = useOwnerScope();
+export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resource: string, fromBookingNotification = false) {
+  const operations = useOperations(), scope = useOwnerScope(fromBookingNotification);
   const [attempt, setAttempt] = useState(0);
-  const key = `${operations.contextKey}:${scope.userId}:${scope.businessId}:${scope.branchId}:${resource}`;
+  const key = `${operations.contextKey}:${getApiSessionGeneration()}:${scope.userId}:${scope.businessId}:${scope.branchId}:${fromBookingNotification}:${resource}`;
   const stamp = `${key}:${operations.revision}:${operations.loading}:${operations.error ?? ''}:${attempt}`;
   const latest = useRef(stamp); latest.current = stamp;
   const fetcher = useRef(loader); fetcher.current = loader;
@@ -31,7 +35,7 @@ export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resou
   useEffect(() => {
     const request = ++sequence.current, generation = getApiSessionGeneration();
     let alive = true;
-    const valid = () => alive && latest.current === stamp && sequence.current === request && generation === getApiSessionGeneration();
+    const valid = () => alive && latest.current === stamp && sequence.current === request && generation === getApiSessionGeneration() && scope.isCurrent?.() !== false;
     if (operations.loading) {
       setState({ key, stamp, loading: true, error: null });
       return;

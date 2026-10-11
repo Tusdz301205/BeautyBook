@@ -3,8 +3,8 @@ import { BadRequestException } from '@nestjs/common';
 
 describe('Immutable provider identity snapshots', () => {
   it('records old/new provider users under the authenticated operator, independent of later profile links', async () => {
-    const tx = { staffProfile: { findMany: jest.fn().mockResolvedValue([{ id: 'old', userId: 'old-user' }, { id: 'new', userId: 'new-user' }]) },
-      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(2), create: jest.fn().mockResolvedValue({}) } };
+    const tx = { booking: {findUniqueOrThrow:jest.fn().mockResolvedValue({branchId:'branch',branch:{businessId:'business'}})}, userRole:{findMany:jest.fn().mockResolvedValue([])}, notificationOutbox:{createMany:jest.fn()}, staffProfile: { findMany: jest.fn().mockResolvedValue([{ id: 'old', userId: 'old-user' }, { id: 'new', userId: 'new-user' }]) },
+      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(2), create: jest.fn().mockResolvedValue({id:'assignment-event'}) } };
     await auditProviderReassignment(tx as never, { id: 'item', bookingId: 'booking', staffId: 'old', status: 'SCHEDULED', revision: 4 }, 'new', 'operator', 'Approved reassignment');
     expect(tx.bookingServiceAdjustment.create).toHaveBeenCalledTimes(1);
     const created: unknown = (tx.bookingServiceAdjustment.create.mock.calls as readonly (readonly unknown[])[])[0][0];

@@ -45,7 +45,7 @@ describe('Available slots respect the same advance policy as booking creation', 
   it('authorized counter offers the next slot while retaining strict future and horizon limits', async () => {
     const slots = fixture(2, 1, false, { authorizedCounter: true, source: 'WALK_IN' });
     expect((await slots()).slots[0].start).toBe('2026-09-21T02:01:00.000Z');
-    expect((await slots()).slots.some(slot => slot.start === '2026-09-21T02:30:00.000Z')).toBe(true);
+    expect((await slots()).slots.map(slot => slot.start)).toContain('2026-09-21T02:30:00.000Z');
     expect((await slots('2026-09-23')).slots).toEqual([]);
   });
   it('counter channel policy still blocks near-now discovery', async () => {

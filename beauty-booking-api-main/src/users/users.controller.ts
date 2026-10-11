@@ -24,6 +24,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { can } from '../common/utils/policy';
 import { AuditAction } from '@prisma/client';
 import { UpdateSelfDto } from './dto/update-self.dto';
+import { SuspendUserDto } from './dto/suspend-user.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -106,16 +107,23 @@ export class UsersController {
   /**
    * POST /api/users/:id/suspend — platform-side suspension.
    */
+  @Get(':id/suspension-impact')
+  @Roles('PLATFORM_ADMIN')
+  @RequirePermission('user:suspend:platform')
+  suspensionImpact(@Param('id') id: string) {
+    return this.usersService.suspensionImpact(id);
+  }
+
   @Post(':id/suspend')
   @Roles('PLATFORM_ADMIN')
   @RequirePermission('user:suspend:platform')
   @Audited({ action: AuditAction.STATUS_CHANGE, entityType: 'User' })
   async suspend(
     @Param('id') id: string,
-    @Body() body: { reason?: string },
+    @Body() body: SuspendUserDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.usersService.suspend(id, user.id, body.reason);
+    return this.usersService.suspend(id, user.id, body);
   }
 
   @Get(':id/permissions')

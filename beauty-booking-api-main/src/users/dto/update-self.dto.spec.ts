@@ -23,4 +23,16 @@ describe('UpdateSelfDto runtime validation', () => {
     });
     await expect(validate({})).resolves.toBeInstanceOf(UpdateSelfDto);
   });
+
+  describe('birth date calendar boundary', () => {
+    beforeEach(() => { jest.useFakeTimers().setSystemTime(new Date('2026-10-07T17:01:00Z')); });
+    afterEach(() => { jest.useRealTimers(); });
+
+    it.each(['2026-10-08', '2000-02-29', '2026-10-08T00:00:00Z'])('accepts today in Vietnam and past dates: %s', async (dateOfBirth) => {
+      await expect(validate({ dateOfBirth })).resolves.toMatchObject({ dateOfBirth });
+    });
+    it.each(['2026-10-09', '2099-01-01', '2025-02-29', '2026-02-30', '', null, 20261008])('rejects future or invalid dates: %s', async (dateOfBirth) => {
+      await expect(validate({ dateOfBirth })).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });

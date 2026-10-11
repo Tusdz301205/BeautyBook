@@ -20,7 +20,7 @@ export function normalizeBusinessPhone(value) {
   return compact.startsWith('0') ? `+84${compact.slice(1)}` : compact;
 }
 
-export function validateBusinessIdentity(identity) {
+export function validateBusinessIdentity(identity, registration, config) {
   const errors = {};
   const value = Object.fromEntries(Object.entries(identity).map(([key, item]) => [
     key,
@@ -52,6 +52,7 @@ export function validateBusinessIdentity(identity) {
   if (value.description.length > BUSINESS_FIELD_LIMITS.description) errors.description = 'Phần giới thiệu không được vượt quá 2.000 ký tự.';
   if (value.identityCardNumber.length > BUSINESS_FIELD_LIMITS.identityCardNumber) errors.identityCardNumber = 'Số định danh không được vượt quá 100 ký tự.';
 
+  if (registration) Object.assign(errors, validateLegalIdentity(identity, registration, config, true));
   return errors;
 }
 
@@ -59,6 +60,12 @@ export function validateBusinessType(value, catalog) {
   return catalog.some((item) => item.code === value)
     ? ''
     : 'Chọn một loại hình dịch vụ đang được hỗ trợ.';
+}
+
+export function requiredBusinessDocuments(config, registration) {
+  const required = config?.requiredDocuments || [];
+  return [...new Set(registration?.legalSubjectType === 'LEGACY_DEPENDENT_10'
+    ? [...required, 'TAX_DOCUMENT'] : required)];
 }
 
 export function validateDocuments(documents, requiredTypes) {
@@ -91,7 +98,9 @@ export function validateDocuments(documents, requiredTypes) {
   for (const type of requiredTypes) {
     if (!knownTypes.has(type)) errors[type] = type === 'BUSINESS_LICENSE'
       ? 'Tải lên giấy phép kinh doanh dạng PDF.'
-      : 'Tải lên giấy tờ người đại diện dạng PDF.';
+      : type === 'TAX_DOCUMENT'
+        ? 'Tải lên tài liệu thuế chứng minh mã số thuế chuyển tiếp dạng PDF.'
+        : 'Tải lên giấy tờ người đại diện dạng PDF.';
   }
   return errors;
 }
@@ -114,7 +123,15 @@ export function validCompletedSteps(completedSteps, stepErrors) {
 
 export function businessErrorField(error) {
   const message = typeof error?.message === 'string' ? error.message : '';
+  const fields = error?.details?.fields;
+  if (fields && typeof fields === 'object') {
+    const field = ['legalSubjectType', 'representativeIdentityType', 'taxCode', 'identityCardNumber'].find(key => typeof fields[key] === 'string');
+    if (field) return { field, message: fields[field] };
+  }
   const mappings = [
+    [/loại chủ thể pháp lý/i, 'legalSubjectType'],
+    [/loại giấy tờ định danh/i, 'representativeIdentityType'],
+    [/số định danh cá nhân|identityCardNumber/i, 'identityCardNumber'],
     [/mã số thuế|tax.?code/i, 'taxCode'],
     [/slug|đường dẫn/i, 'slug'],
     [/tên thương hiệu|business name|\bname\b/i, 'name'],
@@ -137,6 +154,7 @@ export function businessErrorField(error) {
 
 export function toBusinessOnboardingError(error) {
   const message = typeof error?.message === 'string' ? error.message : '';
+  if (error?.details?.code === 'SHARED_LEGAL_IDENTITY_LOCKED') return 'Thông tin pháp nhân đang dùng chung với hồ sơ đã gửi hoặc đã duyệt. Không thể sửa từ hồ sơ nháp này; cần xử lý thay đổi pháp nhân riêng.';
   if (/Thiếu thông tin:\s*name/i.test(message)) return 'Nhập tên thương hiệu trước khi gửi hồ sơ.';
   if (/tên thương hiệu/i.test(message)) return 'Nhập tên thương hiệu trước khi gửi hồ sơ.';
   if (/slug/i.test(message) && /đã được sử dụng/i.test(message)) return 'Đường dẫn BeautyBook đã được sử dụng. Hãy chọn đường dẫn khác.';
@@ -151,4 +169,19 @@ export function toBusinessOnboardingError(error) {
   if (error?.status === 409) return 'Hồ sơ vừa thay đổi hoặc thông tin đã được sử dụng. Tải lại hồ sơ rồi thử lại.';
   if (error?.status >= 500 || error?.status || /^HTTP \d+$/.test(message)) return 'Máy chủ chưa thể xử lý yêu cầu. Dữ liệu trên biểu mẫu vẫn được giữ lại.';
   return 'Chưa thể lưu hồ sơ. Kiểm tra kết nối và thử lại; nội dung đã nhập vẫn được giữ lại.';
+}
+
+// Catalog and shapes are supplied by the backend; never infer a legal subject
+// from the service category, a legacy tax code length, or the user's role.
+export function validateLegalIdentity(identity, registration, config, required = false) {
+  const errors = {};
+  const tax = String(identity.taxCode || '').trim();
+  const number = String(identity.identityCardNumber || '').trim();
+  const subject = config?.legalSubjects?.find(x => x.code === registration.legalSubjectType);
+  const representative = config?.representativeIdentityTypes?.find(x => x.code === registration.representativeIdentityType);
+  if (!subject && (required || tax || registration.legalSubjectType)) errors.legalSubjectType = 'Chọn loại chủ thể pháp lý trước khi nhập mã số thuế.';
+  if (subject && ((required && !tax) || (tax && !new RegExp(subject.pattern).test(tax)))) errors.taxCode = `Mã số thuế: ${subject.hint}`;
+  if (!representative && (number || registration.representativeIdentityType)) errors.representativeIdentityType = 'Chọn loại giấy tờ định danh người đại diện.';
+  if (representative?.pattern && number && !new RegExp(representative.pattern).test(number)) errors.identityCardNumber = 'Số định danh cá nhân Việt Nam phải gồm 12 chữ số.';
+  return errors;
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { MediaService } from './media.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 
@@ -61,5 +61,20 @@ describe('MediaService entity-derived tenant scope', () => {
       entityType: 'LEGAL_DOCUMENT',
       entityId: 'biz-1',
     })).resolves.toEqual({ businessId: 'biz-1', branchId: null });
+  });
+});
+
+describe('media reference protection', () => {
+  it.each(['legal', 'shared'])('rejects %s references before detaching or deleting the file', async (kind) => {
+    const tx: Record<string, { count?: jest.Mock; delete?: jest.Mock; updateMany?: jest.Mock }> = {};
+    for (const table of ['businessDocumentVersion','branchDocumentVersion','user','business','businessImage','branchImage','serviceImage','comboImage','staffImage']) tx[table] = { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn() };
+    if (kind === 'legal') tx.businessDocumentVersion.count!.mockResolvedValue(1);
+    else tx.serviceImage.count!.mockResolvedValue(2);
+    tx.mediaFile={delete:jest.fn()};
+    const prisma = { mediaFile:{findUnique:jest.fn().mockResolvedValue({id:'media',visibility:'PUBLIC',businessId:'biz'})}, $transaction:jest.fn((fn)=>fn(tx)) };
+    const service=new MediaService(prisma as never,{get:jest.fn()} as never);
+    await expect(service.remove('media',{roles:['PLATFORM_ADMIN']} as AuthUser)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.mediaFile.delete).not.toHaveBeenCalled();
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
   });
 });

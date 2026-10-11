@@ -25,7 +25,7 @@ const capabilities = [
 
 const onboarding = [
   'Tạo tài khoản chủ doanh nghiệp',
-  'Hoàn thiện hồ sơ theo 10 bước',
+  'Hoàn thiện hồ sơ theo 4 bước',
   'Xem trước trang hiển thị trên marketplace',
   'Gửi giấy tờ và chờ quản trị BeautyBook xét duyệt',
 ];
@@ -46,7 +46,7 @@ export default function BusinessLanding() {
               <Link className="bb-business-button bb-business-button--primary" to="/register/business">
                 Đăng ký cơ sở của bạn <ArrowRight size={17} />
               </Link>
-              <Link className="bb-business-button bb-business-button--text" to="/login" state={{ workspace: 'SALON' }}>
+              <Link className="bb-business-button bb-business-button--text" to="/login?from=%2Fregister%2Fbusiness" state={{ from: "/register/business" }}>
                 Đã có tài khoản? Đăng nhập
               </Link>
             </div>

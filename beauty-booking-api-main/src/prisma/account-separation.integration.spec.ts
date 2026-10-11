@@ -27,9 +27,11 @@ if (enabled && (!/(^|[_/])(test|e2e)(_|$)/i.test(new URL(process.env.DATABASE_UR
   });
 
   async function account() {
-    const id = randomUUID(); ids.push(id);
+    const id = randomUUID();
     await pool.query(`INSERT INTO users(id,email,password_hash,full_name,updated_at)
       VALUES($1,$2,'TEST_DISABLED','Account separation test',now())`, [id, `${id}@example.test`]);
+    // Never put a failed/colliding INSERT into the cleanup allowlist.
+    ids.push(id);
     return id;
   }
   function grant(client: Pool | PoolClient, userId: string, code: string, expiresAt: Date | null = null) {

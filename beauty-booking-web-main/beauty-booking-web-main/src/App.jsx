@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'rea
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { businessApi } from './api/apiClient';
+import { FINANCE_WORKSPACE_ENABLED } from './config/featureAvailability';
+import UnavailableFeature from './components/UnavailableFeature';
 import { CUSTOMER_ACCOUNT_REQUIRED, isCustomerAccount } from './utils/authScope';
 import { getHomeMedia } from './config/homeMedia';
 import { applySeo, getSiteUrl } from './utils/seo';
@@ -67,7 +69,7 @@ const CustomerBenefits = React.lazy(() => import('./pages/Customer/CustomerBenef
 const IncomingOwnership = React.lazy(() => import('./pages/Salon/IncomingOwnership'));
 const SecuritySettings = React.lazy(() => import('./pages/SecuritySettings'));
 const ProfileSettings = React.lazy(() => import('./pages/ProfileSettings'));
-const PrivacySettings = React.lazy(() => import('./pages/Customer/PrivacySettings'));
+
 const PublicHome = React.lazy(() => import('./pages/Public/PublicHome'));
 const PublicBranchDetail = lazyNamed(() => import('./pages/Public/PublicDetails'), 'PublicBranchDetail');
 const PublicServiceDetail = lazyNamed(() => import('./pages/Public/PublicDetails'), 'PublicServiceDetail');
@@ -232,7 +234,7 @@ function ApprovedBusinessGate() {
       .then((business) => { if (active) setStatus(['APPROVED', 'ACTIVE'].includes(business?.status) ? 'allowed' : 'onboarding'); })
       .catch(() => { if (active) setStatus('onboarding'); });
     return () => { active = false; };
-  }, [isOwner]);
+  }, [isOwner, user?.businessId]);
 
   if (status === 'loading') return <RouteFallback />;
   if (status === 'onboarding') return <Navigate to="/salon/onboarding" replace />;
@@ -240,6 +242,7 @@ function ApprovedBusinessGate() {
 }
 
 function BusinessOnboardingRoute() {
+  const user = useAuthStore((state) => state.user);
   const [status, setStatus] = useState('loading');
   useEffect(() => {
     let active = true;
@@ -251,7 +254,7 @@ function BusinessOnboardingRoute() {
         if (active) setStatus('onboarding');
       });
     return () => { active = false; };
-  }, []);
+  }, [user?.businessId]);
   if (status === 'loading') return <RouteFallback />;
   return status === 'approved'
     ? <Navigate to="/salon/profile" replace />
@@ -308,7 +311,7 @@ export default function App() {
                   <Route path="benefits" element={<CustomerBenefits />} />
                   <Route path="security" element={<SecuritySettings />} />
                   <Route path="profile" element={<ProfileSettings />} />
-                  <Route path="privacy" element={<PrivacySettings />} />
+                  <Route path="privacy" element={<UnavailableFeature />} />
                   <Route path="*" element={<Navigate to="/customer/appointments" replace />} />
                 </Routes>
               </CustomerShell>
@@ -351,7 +354,7 @@ export default function App() {
                     <Route path="reviews" element={<PermissionGate fallback="/salon" anyOf={['review:moderate:tenant']}><SalonReviews /></PermissionGate>} />
                     <Route path="stats" element={<PermissionGate fallback="/salon" anyOf={['report:revenue:tenant', 'report:revenue:branch']}><SalonStats /></PermissionGate>} />
                     <Route path="profile" element={<PermissionGate fallback="/salon" anyOf={['branch:update:tenant']}><SalonProfile /></PermissionGate>} />
-                    <Route path="payments" element={<PermissionGate fallback="/salon" anyOf={['payment:read:branch', 'payment:read:tenant']}><PaymentsWorkspace /></PermissionGate>} />
+                    <Route path="payments" element={<PermissionGate fallback="/salon" anyOf={['payment:read:branch', 'payment:read:tenant']}>{FINANCE_WORKSPACE_ENABLED ? <PaymentsWorkspace /> : <UnavailableFeature finance home="/salon" />}</PermissionGate>} />
                     <Route path="operations" element={<PermissionGate fallback="/salon" anyOf={['booking:read:tenant', 'booking:read:branch', 'payment:read:tenant', 'payment:read:branch']}><SalonOperations /></PermissionGate>} />
                     <Route path="audit" element={<PermissionGate fallback="/salon" anyOf={['audit:read:tenant']}><SalonAudit /></PermissionGate>} />
                   </Route>
@@ -376,7 +379,7 @@ export default function App() {
                   <Route path="users" element={<PermissionGate fallback="/admin" anyOf={['user:read:platform']}><AdminUsers /></PermissionGate>} />
                   <Route path="users/:userId" element={<PermissionGate fallback="/admin" anyOf={['user:read:platform']}><AdminUserDetail /></PermissionGate>} />
                   <Route path="appointments" element={<PermissionGate fallback="/admin" anyOf={['booking:read:platform']}><AdminAppointmentsView /></PermissionGate>} />
-                  <Route path="payments" element={<PermissionGate fallback="/admin" anyOf={['payment:read:platform']}><PaymentsWorkspace /></PermissionGate>} />
+                  <Route path="payments" element={<PermissionGate fallback="/admin" anyOf={['payment:read:platform']}>{FINANCE_WORKSPACE_ENABLED ? <PaymentsWorkspace /> : <UnavailableFeature finance home="/admin" />}</PermissionGate>} />
                   <Route path="reports" element={<PermissionGate fallback="/admin" anyOf={['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']}><AdminReports /></PermissionGate>} />
                   <Route path="reviews" element={<PermissionGate fallback="/admin" anyOf={['review:moderate:platform']}><AdminReviewsModeration /></PermissionGate>} />
                   <Route path="ownership" element={<PermissionGate fallback="/admin" anyOf={['business:review:platform']}><AdminOwnership /></PermissionGate>} />

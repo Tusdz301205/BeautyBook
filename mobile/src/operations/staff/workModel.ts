@@ -11,7 +11,8 @@ export type WorkItem = {
 };
 export type WorkAction = 'START' | 'COMPLETE';
 export type WorkPage = { data: WorkItem[]; total: number; page: number; limit: number; serverNow: string };
-export const actionLabel = (action: WorkAction) => action === 'START' ? 'Nhận khách' : 'Hoàn tất';
+/** START is not check-in: Staff only starts an assigned service after the desk records arrival. */
+export const actionLabel = (action: WorkAction) => action === 'START' ? 'Bắt đầu dịch vụ' : 'Hoàn tất dịch vụ';
 
 /** Database TIME is a wall clock value, even when serialized with an ISO date. */
 export function appointmentClock(value: string | null | undefined): string {

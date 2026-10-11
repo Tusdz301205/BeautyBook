@@ -116,14 +116,22 @@ export function mapBranchDetail(branch: ApiBranchDetail): RemoteVenue {
 export function mapService(service: ApiService): RemoteServiceItem {
   const price = numberValue(service.price);
   const duration = service.durationMinutes ?? service.duration ?? 0;
+  // Keep the backend price semantics: variants and quotes are never a single fixed price.
+  const variants = service.variants ?? [];
+  const priced = variants.filter((variant) => variant.priceType !== 'QUOTE' && !variant.consultationRequired)
+    .map((variant) => Number(variant.price)).filter((value) => Number.isFinite(value) && value > 0);
+  const priceKind: ServiceItem['priceKind'] = !variants.length ? 'fixed' : priced.length ? 'from' : 'quote';
+  const shownPrice = priceKind === 'from' ? Math.min(...priced) : price;
   return {
     id: service.id,
     branchId: service.branchId,
     categoryId: service.categoryId || service.category?.id,
     name: service.name,
     duration: `${duration} phút`,
-    price,
-    originalPrice: price,
+    price: shownPrice,
+    originalPrice: shownPrice,
+    priceKind,
+    priceDisplay: service.priceDisplay || undefined,
   };
 }
 

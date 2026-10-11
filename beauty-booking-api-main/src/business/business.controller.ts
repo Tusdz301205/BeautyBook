@@ -13,6 +13,7 @@ import type { BusinessDraftInput } from './business-onboarding.service';
 import { Audited } from '../common/decorators/audit.decorator';
 import { AuditAction, Prisma } from '@prisma/client';
 import { ensureCanOnResource } from '../common/utils/policy';
+import { LEGAL_SUBJECT_CATALOG, REPRESENTATIVE_IDENTITY_CATALOG } from './legal-registration';
 import { readMobileBusinessContext } from './business-mobile-context';
 
 @Controller('business')
@@ -120,7 +121,7 @@ export class BusinessController {
           orderBy: { createdAt: 'asc' },
         },
         documents: {
-          include: { versions: { orderBy: { version: 'desc' }, take: 5 } },
+          include: { versions: { orderBy: { version: 'desc' } } },
           orderBy: { createdAt: 'desc' },
         },
         members: {
@@ -173,6 +174,8 @@ export class BusinessController {
     return {
       ...business,
       businessTypeLabel: businessTypeLabel(business.onboardingData),
+      legalSubjectLabel: LEGAL_SUBJECT_CATALOG.find(item => item.code === (business.onboardingData as {legalSubjectType?: string} | null)?.legalSubjectType)?.label ?? 'Chưa bổ sung phân loại pháp lý',
+      representativeIdentityLabel: REPRESENTATIVE_IDENTITY_CATALOG.find(item => item.code === (business.onboardingData as {representativeIdentityType?: string} | null)?.representativeIdentityType)?.label ?? 'Chưa bổ sung loại giấy tờ',
       auditTrail,
       summary: {
         branchCount: business.branches.length,

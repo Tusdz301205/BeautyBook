@@ -121,16 +121,32 @@ for (const mode of ['STAFF', 'OWNER']) {
   test(`${mode} routes related booking UUID and ignores actionUrl`, () => {
     assert.deepEqual(target({ relatedBooking: { id: booking }, actionUrl: 'https://untrusted.invalid/?token=forbidden' }, mode), { kind: 'BOOKING', id: booking });
     assert.deepEqual(target({ relatedBooking: { id: booking.toUpperCase() } }, mode), { kind: 'BOOKING', id: booking.toUpperCase() });
-    assert.equal(target({ targetType: 'BOOKING', targetId: booking, actionUrl: `/salon/appointments?bookingId=${booking}` }, mode), null);
+  });
+  test(`${mode} routes provider BOOKING UUID without a live relation and ignores metadata/URL`, () => {
+    for (const targetId of [booking, booking.toUpperCase()]) {
+      const value = notification({ targetType: 'BOOKING', targetId, metadata: { itemUUID: impact }, actionUrl: 'https://untrusted.invalid' });
+      const before = structuredClone(value);
+      assert.deepEqual(JSON.parse(JSON.stringify(operationNotificationTarget(value, mode))), { kind: 'BOOKING', id: targetId });
+      assert.deepEqual(value, before);
+    }
+  });
+  test(`${mode} preserves related-booking precedence and falls back from an invalid relation`, () => {
+    assert.deepEqual(target({ relatedBooking: { id: booking }, targetType: 'BOOKING', targetId: impact }, mode), { kind: 'BOOKING', id: booking });
+    assert.deepEqual(target({ relatedBooking: { id: 'BB-0096' }, targetType: 'BOOKING', targetId: booking }, mode), { kind: 'BOOKING', id: booking });
   });
   for (const id of ['', 'BB-0096', 'https://untrusted.invalid', `${booking}/edit`, ` ${booking}`, booking.replace(/-/g, ''), 'g'.repeat(36), null]) {
     test(`${mode} rejects malformed or display booking identifier ${JSON.stringify(id)}`, () => {
       assert.equal(target({ relatedBooking: { id }, actionUrl: 'beautybook://owner/impact' }, mode), null);
+      assert.equal(target({ targetType: 'BOOKING', targetId: id, metadata: { itemUUID: booking }, actionUrl: `/salon/appointments?bookingId=${booking}` }, mode), null);
     });
   }
   test(`${mode} never executes unsupported URL or target types`, () => {
-    for (const actionUrl of ['javascript:alert(1)', 'file:///private', 'beautybook://owner', '/salon/settings']) {
+    for (const actionUrl of ['javascript:alert(1)', 'file:///private', 'beautybook://owner', '/salon/settings', `https://untrusted.invalid/${booking}`, `/salon/appointments?bookingId=${booking}`]) {
       assert.equal(target({ actionUrl, targetType: 'User', targetId: impact }, mode), null);
+      assert.equal(target({ actionUrl, targetType: 'BOOKING' }, mode), null);
+    }
+    for (const targetType of ['Booking', 'booking', 'BOOKING ', 'User', null, undefined]) {
+      assert.equal(target({ targetType, targetId: booking }, mode), null);
     }
   });
 }

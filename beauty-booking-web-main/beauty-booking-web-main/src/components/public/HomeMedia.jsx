@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
+import { uploadedMediaUrl } from '../../utils/mediaUrl';
 
 export function HomeMedia({
   src,
@@ -18,7 +19,7 @@ export function HomeMedia({
   const backupMedia = typeof fallbackSrc === 'string' ? { src: fallbackSrc } : (fallbackSrc || {});
   const usingFallback = fallbackActive || (!primaryMedia.src && Boolean(backupMedia.src));
   const media = usingFallback ? backupMedia : primaryMedia;
-  const resolvedSrc = media.src || '';
+  const resolvedSrc = typeof media.src === 'string' && media.src.startsWith('/api/v1/media/') ? uploadedMediaUrl(media.src) : (media.src || '');
   const resolvedAlt = usingFallback
     ? (fallbackAlt ?? media.alt ?? alt ?? '')
     : (alt ?? media.alt ?? '');

@@ -4,8 +4,10 @@ import {
   businessErrorField,
   isInternalBusinessDraftName,
   normalizeBusinessPhone,
+  requiredBusinessDocuments,
   toBusinessOnboardingError,
   validateBusinessIdentity,
+  validateLegalIdentity,
   validateBusinessType,
   validateDocuments,
   validCompletedSteps,
@@ -98,4 +100,48 @@ test('invalidated steps and their dependent steps cannot remain completed', () =
   assert.deepEqual(validCompletedSteps([1, 2, 3], { 1: {}, 2: { name: 'missing' }, 3: {} }), [1]);
   assert.deepEqual(validCompletedSteps([1, 2, 3], { 1: {}, 2: {}, 3: {} }), [1, 2, 3]);
   assert.deepEqual(validCompletedSteps([2, 3], { 1: {}, 2: {}, 3: {} }), []);
+});
+
+const legalConfig = {
+  legalSubjects: [
+    { code: 'ORGANIZATION_10', pattern: '^[0-9]{10}$', hint: '10 chữ số' },
+    { code: 'DEPENDENT_13', pattern: '^[0-9]{10}-[0-9]{3}$', hint: '10-3' },
+    { code: 'VN_HOUSEHOLD_12', pattern: '^[0-9]{12}$', hint: '12 chữ số' },
+  ],
+  representativeIdentityTypes: [
+    { code: 'VN_CITIZEN_ID', pattern: '^[0-9]{12}$' },
+    { code: 'FOREIGN_PASSPORT', pattern: null },
+  ],
+};
+test('explicit subject uses backend shape, unknown legacy is not guessed', () => {
+  assert.ok(validateBusinessIdentity(validIdentity, {}, legalConfig).legalSubjectType);
+  assert.ok(validateLegalIdentity(validIdentity, {legalSubjectType:'ORGANIZATION_10'}, legalConfig).taxCode);
+  assert.equal(validateLegalIdentity({...validIdentity,taxCode:'0123456789',identityCardNumber:''},{legalSubjectType:'ORGANIZATION_10'},legalConfig).taxCode,undefined);
+  assert.ok(validateLegalIdentity({...validIdentity,taxCode:'0123456789',identityCardNumber:''},{legalSubjectType:'VN_HOUSEHOLD_12'},legalConfig).taxCode);
+});
+test('representative citizenship is explicit and foreign passports are not forced into CCCD shape', () => {
+  assert.ok(validateLegalIdentity({...validIdentity,taxCode:'',identityCardNumber:'123456789'},{representativeIdentityType:'VN_CITIZEN_ID'},legalConfig).identityCardNumber);
+  assert.deepEqual(validateLegalIdentity({...validIdentity,taxCode:'',identityCardNumber:'AB 123456'},{representativeIdentityType:'FOREIGN_PASSPORT'},legalConfig),{});
+});
+test('backend field errors map to exact legal field instead of generic role/type label', () => {
+  assert.deepEqual(businessErrorField({details:{fields:{identityCardNumber:'12 chữ số'}},message:'Invalid'}),{field:'identityCardNumber',message:'12 chữ số'});
+});
+
+
+test('transitional tax documents stay required even if the platform general checklist is empty', () => {
+  const config = { requiredDocuments: [] };
+  const required = requiredBusinessDocuments(config, { legalSubjectType: 'LEGACY_DEPENDENT_10' });
+  assert.deepEqual(required, ['TAX_DOCUMENT']);
+  assert.match(validateDocuments([], required).TAX_DOCUMENT, /tài liệu thuế/);
+  assert.deepEqual(validateDocuments([{ documentType: 'TAX_DOCUMENT', documentName: 'Xác nhận thuế QA', mediaId: 'qa-media' }], required), {});
+  assert.deepEqual(requiredBusinessDocuments({requiredDocuments:['BUSINESS_LICENSE','TAX_DOCUMENT']}, {legalSubjectType:'LEGACY_DEPENDENT_10'}), ['BUSINESS_LICENSE','TAX_DOCUMENT']);
+  assert.deepEqual(requiredBusinessDocuments(config, {legalSubjectType:'ORGANIZATION_10'}), []);
+  assert.deepEqual(config.requiredDocuments, [], 'do not mutate the shared policy catalog');
+});
+
+test('shared legal identity conflict explains the protected dossier rather than suggesting a blind retry', () => {
+  const error = { status: 409, details: { code: 'SHARED_LEGAL_IDENTITY_LOCKED' }, message: 'Conflict' };
+  assert.match(toBusinessOnboardingError(error), /dùng chung/);
+  assert.match(toBusinessOnboardingError(error), /thay đổi pháp nhân riêng/);
+  assert.doesNotMatch(toBusinessOnboardingError(error), /Tải lại/);
 });

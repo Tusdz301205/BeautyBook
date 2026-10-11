@@ -16,6 +16,14 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 
+function positiveInteger(value: string | undefined, fallback: number, max: number, name: string): number {
+  if (value === undefined) return fallback;
+  if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) > max) {
+    throw new BadRequestException(`${name} phải là số nguyên từ 1 đến ${max}.`);
+  }
+  return Number(value);
+}
+
 @Controller('notifications')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class NotificationsController {
@@ -38,8 +46,8 @@ export class NotificationsController {
     @Query('search') search?: string,
   ) {
     return this.notificationsService.findByUser(user.id, {
-      page: page ? parseInt(page, 10) : 1,
-      limit: limit ? parseInt(limit, 10) : 20,
+      page: positiveInteger(page, 1, 100000, 'Trang'),
+      limit: positiveInteger(limit, 20, 100, 'Số mục mỗi trang'),
       unreadOnly: unreadOnly === 'true',
       state,
       type,

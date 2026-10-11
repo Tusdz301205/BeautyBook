@@ -22,6 +22,8 @@ import { ReviewModal } from '../../components/customer/ReviewModal';
 import { Badge, Button, Card, Dialog, ErrorState, Field, InlineNotice, Page, PageHeader, Skeleton, Textarea } from '../../components/ui';
 import { useBookingStore } from '../../store/bookingStore';
 import { combineDateTime } from '../../utils/bookingCalendar.adapter';
+import { useAuthStore } from '../../store/authStore';
+import { useCustomerBookingRefresh } from '../../hooks/useCustomerBookingRefresh';
 import { useAsyncResource } from '../../hooks/useAsyncResource';
 import { customerCancellationMode, submitCustomerCancellation } from '../../utils/customerCancellation';
 
@@ -32,6 +34,8 @@ const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
 
 export function CustomerAppointmentDetail() {
   const { id } = useParams();
+  const userId = useAuthStore(state => state.user?.id);
+  const accessToken = useAuthStore(state => state.accessToken);
   const navigate = useNavigate();
   const setBranch = useBookingStore((state) => state.setBranch);
   const toggleService = useBookingStore((state) => state.toggleService);
@@ -40,24 +44,15 @@ export function CustomerAppointmentDetail() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [busy, setBusy] = useState(false);
-  const { data, loading, error: requestError, reload: load } = useAsyncResource(id, async () => {
+  const { data, loading, error: requestError, reload: load } = useAsyncResource(userId && accessToken ? JSON.stringify([id, userId, accessToken]) : null, async () => {
     const [booking, policy] = await Promise.all([bookingsApi.getById(id), platformPolicyApi.getPublic()]);
     return { booking, policy };
   });
   const booking = data?.booking;
   const policy = data?.policy || {};
   const error = requestError?.message || '';
-  useEffect(() => {
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void load();
-    };
-    window.addEventListener('focus', refreshWhenVisible);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => {
-      window.removeEventListener('focus', refreshWhenVisible);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
-    };
-  }, [load]);
+  useCustomerBookingRefresh(load);
+  useEffect(() => { setRescheduleOpen(false); setReviewOpen(false); setCancelOpen(false); setCancelReason(''); }, [userId, id]);
 
   const start = booking?.appointmentStartTime ? combineDateTime(booking.appointmentDate, booking.appointmentStartTime) : null;
   const end = booking?.appointmentEndTime ? combineDateTime(booking.appointmentDate, booking.appointmentEndTime) : null;

@@ -253,11 +253,13 @@ test('real detail never displays old route summary when shared booking disappear
     '@react-navigation/native': { useFocusEffect() {} }, '../constants/colors': { colors: {} }, '../data/catalogModels': { formatCurrency: String }, '../data/appointments': { bookingStatusMeta: () => ({}) },
     '../context/BookingsContext': { useBookings: () => ({ getBooking: () => booking, reload: async () => {}, isLoading: false }) },
     '../components/WriteReviewSheet': { default: 'Review' }, '../api/reviews': { reviewsApi: {} }, '../api/platformSettings': { platformSettingsApi: { publicPolicy: async () => ({}) } }, '../utils/bookingTiming': timing,
+    // Without a server clock the overdue hint stays hidden; the timing lines are what this test checks.
+    '../hooks/useOperationalTime': { useOperationalTime: () => NaN }, '../utils/bookingOperationalTime': load('utils/bookingOperationalTime.ts'), '../theme': load('theme/index.ts'),
   };
   const screen = load('screens/AppointmentDetailScreen.tsx', modules).default;
   const props = { route: { params: { id: 'old', isReal: true, shopName: 'PRIVATE OLD SHOP', title: 'PRIVATE OLD SERVICE', status: 'completed' } }, navigation: { goBack() {} } };
   function texts(tree) { if (typeof tree === 'string') return tree; if (!tree) return ''; if (Array.isArray(tree)) return tree.map(texts).join(' '); return texts(tree.props?.children); }
-  assert.doesNotMatch(texts(hook.render(screen, props)), /PRIVATE OLD|VIẾT ĐÁNH GIÁ/);
+  assert.doesNotMatch(texts(hook.render(screen, props)), /PRIVATE OLD|Viết đánh giá/i);
   booking = { id: 'old', status: 'upcoming', shopName: 'AUTHORIZED SHOP', serviceName: 'AUTHORIZED SERVICE', appointmentStartAt: '2026-10-07T03:00:00Z', branchTimezone: 'Asia/Ho_Chi_Minh', bookingServices: [{ id: 'item', serviceName: 'Service', durationMinutes: 30, actualTimingSource: 'SERVICE_ADJUSTMENT', actualStartedAt: '2026-10-07T03:00:00Z' }] };
   assert.match(texts(hook.render(screen, props)), /Bắt đầu thực tế:.*10:00:00/); booking = undefined;
   assert.doesNotMatch(texts(hook.render(screen, props)), /AUTHORIZED SHOP|PRIVATE OLD/); hook.dispose();

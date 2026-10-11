@@ -1,10 +1,10 @@
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-import { colors } from '../constants/colors';
+import { colors, radius, space, type } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
-import { Appointment, bookingStatusMeta, isPastUpcoming } from '../data/appointments';
+import { Appointment, OVERDUE_META, bookingStatusMeta, isPastUpcoming } from '../data/appointments';
+import { AppButton, StatusPill } from '../ui';
 
 interface Props {
   item: Appointment;
@@ -14,135 +14,47 @@ interface Props {
 
 export default function AppointmentCard({ item, onPress, onRebook }: Props) {
   const pastPending = isPastUpcoming(item) && ['PENDING', 'CONFIRMED'].includes(item.rawStatus || '');
-  const meta = pastPending
-    ? { label: 'Quá hạn · chờ cập nhật', color: colors.textGray, background: colors.background }
-    : bookingStatusMeta(item.status, item.rawStatus);
+  const meta = pastPending ? OVERDUE_META : bookingStatusMeta(item.status, item.rawStatus);
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
-      <View style={[styles.cardAccent, { backgroundColor: meta.color }]} />
-      <View style={styles.cardContent}>
-        {!!item.imageUri && <Image source={{ uri: item.imageUri }} style={styles.cardImage} />}
-        <View style={styles.cardBody}>
-          <View style={styles.cardTopRow}>
-            <Text style={styles.shopName}>
-              {item.shopName}
-            </Text>
-            <View style={[styles.statusBadge, { backgroundColor: meta.background }]}>
-              <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
-            </View>
-          </View>
-          <Text style={styles.comboTitle}>
-            {item.comboTitle}
-          </Text>
-          <View style={styles.metaRow}>
-            <Ionicons name="time-outline" size={13} color={colors.textGray} />
-            <Text style={styles.metaText}>
-              {item.time} • {item.staffName}
-            </Text>
-          </View>
-          <View style={styles.cardBottomRow}>
-            <Text style={styles.price}>{formatCurrency(item.price)}</Text>
-            {onRebook && (
-              <TouchableOpacity style={styles.rebookButton} activeOpacity={0.8} onPress={onRebook}>
-                <Text style={styles.rebookButtonText}>Đặt lại</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.shopName}, ${item.comboTitle}, ${item.date} lúc ${item.time}, ${meta.label}. Xem chi tiết`}
+        onPress={onPress}
+        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
+      >
+        <View style={styles.timeCol}>
+          <Text style={styles.time}>{item.time}</Text>
+          <Text style={styles.date}>{item.date.slice(0, 5)}</Text>
         </View>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.body}>
+          <StatusPill label={meta.label} tone={meta.tone} icon={meta.icon} />
+          <Text style={styles.service}>{item.comboTitle}</Text>
+          <Text style={styles.meta}>{item.shopName}</Text>
+          <View style={styles.row}>
+            <Ionicons accessible={false} name="person-outline" size={14} color={colors.secondaryText} />
+            <Text style={styles.meta}>{item.staffName}</Text>
+          </View>
+          <Text style={styles.price}>{formatCurrency(item.price)}</Text>
+        </View>
+        <Ionicons accessible={false} name="chevron-forward" size={18} color={colors.secondaryText} />
+      </Pressable>
+      {onRebook ? <View style={styles.footer}><AppButton compact variant="tonal" icon="refresh-outline" label="Đặt lại" accessibilityLabel={`Đặt lại ${item.comboTitle}`} onPress={onRebook} /></View> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  cardAccent: {
-    width: 4,
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    padding: 10,
-    gap: 12,
-  },
-  cardImage: {
-    width: 76,
-    height: 76,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-  },
-  cardBody: {
-    flex: 1,
-    minWidth: 0,
-    gap: 4,
-  },
-  cardTopRow: {
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  shopName: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  comboTitle: {
-    fontSize: 15,
-    color: colors.textBody,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  metaText: {
-    fontSize: 14,
-    color: colors.textGray,
-    flexShrink: 1,
-  },
-  cardBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  price: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  rebookButton: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  rebookButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: space.md, overflow: 'hidden' },
+  main: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg },
+  pressed: { backgroundColor: colors.surfacePressed },
+  timeCol: { width: 52, alignSelf: 'flex-start', paddingTop: 2 },
+  time: { ...type.clock },
+  date: { ...type.caption },
+  body: { flex: 1, minWidth: 0, gap: space.xs },
+  service: { ...type.h3 },
+  meta: { ...type.secondary, flexShrink: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  price: { ...type.price, marginTop: 2 },
+  footer: { borderTopWidth: 1, borderTopColor: colors.divider, paddingHorizontal: space.lg, paddingVertical: space.sm, alignItems: 'flex-end' },
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 import { HoatDongStackParamList } from '../navigation/HoatDongStack';
 import { RootTabParamList } from '../navigation/RootTabs';
-import { colors } from '../constants/colors';
+import { colors, layout, radius, space, tones, type } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import { bookingStatusMeta } from '../data/appointments';
 import { useBookings } from '../context/BookingsContext';
@@ -168,65 +168,46 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
   // real booking from route params after logout, deletion or access revocation.
   if (!booking) return (
     <SafeAreaView style={styles.screen}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Ionicons name="chevron-back" size={24} color={colors.primary} />
-      </TouchableOpacity>
-      <Text style={styles.rowText}>{isLoading ? 'Đang tải lịch hẹn...' : error || 'Lịch hẹn không còn khả dụng cho tài khoản này.'}</Text>
+      <View style={styles.header}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Quay lại" style={styles.iconButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={colors.heading} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.missing}>
+        <Ionicons name={isLoading ? 'hourglass-outline' : 'calendar-clear-outline'} size={30} color={colors.primary} />
+        <Text style={styles.missingText}>{isLoading ? 'Đang tải lịch hẹn...' : error || 'Lịch hẹn không còn khả dụng cho tài khoản này.'}</Text>
+      </View>
     </SafeAreaView>
   );
+
+  const tone = tones[meta.tone ?? 'neutral'] ?? tones.neutral;
+  const openMaps = () => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentAddress)}`);
 
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Quay lại" style={styles.iconButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={colors.heading} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết lịch hẹn</Text>
-        <View style={styles.backButton} />
+        <Text accessibilityRole="header" style={styles.headerTitle}>Chi tiết lịch hẹn</Text>
+        <View style={styles.iconButton} />
       </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {imageUri ? (
-          <View style={styles.imageWrap}>
-            <Image source={{ uri: imageUri }} style={styles.image} />
-            <View style={[styles.statusBadge, styles.statusBadgeFloating, { backgroundColor: meta.background }]}>
-              <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
-            </View>
+        <View style={styles.statusBlock}>
+          <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}>
+            <Ionicons name={(meta.icon ?? 'information-circle-outline') as keyof typeof Ionicons.glyphMap} size={16} color={tone.fg} />
+            <Text style={[styles.statusBadgeText, { color: tone.fg }]}>{meta.label}</Text>
           </View>
-        ) : (
-          <View style={[styles.statusBadge, { backgroundColor: meta.background }]}>
-            <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
-          </View>
-        )}
-
-        <View style={styles.titleBlock}>
           <Text style={styles.title}>{currentTitle}</Text>
-          <Text style={styles.bookingCode}>Mã đặt lịch #{bookingCode}</Text>
+          <Text selectable style={styles.bookingCode}>Mã đặt lịch #{bookingCode}</Text>
         </View>
 
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Ionicons name="storefront-outline" size={18} color={colors.textGray} />
-            <Text style={styles.rowText}>{currentShopName}</Text>
-          </View>
-          {!!currentStaffName && (
-            <View style={styles.row}>
-              <Ionicons name="person-outline" size={18} color={colors.textGray} />
-              <Text style={styles.rowText}>{currentStaffName}</Text>
-            </View>
-          )}
-          <View style={styles.row}>
-            <Ionicons name="location-outline" size={18} color={colors.textGray} />
-            <Text style={styles.rowText} numberOfLines={2}>
-              {currentAddress}
-            </Text>
-          </View>
-          <View style={styles.row}>
-            <Ionicons name="calendar-outline" size={18} color={colors.textGray} />
-            <Text style={styles.rowText}>
-              {currentDate} • {currentTime}
-            </Text>
-          </View>
+          <View style={styles.row}><Ionicons name="calendar-outline" size={18} color={colors.secondaryText} /><Text style={styles.rowStrong}>{currentDate} · {currentTime}</Text></View>
+          <View style={styles.row}><Ionicons name="storefront-outline" size={18} color={colors.secondaryText} /><Text style={styles.rowText}>{currentShopName}</Text></View>
+          <View style={styles.row}><Ionicons name="location-outline" size={18} color={colors.secondaryText} /><Text style={styles.rowText}>{currentAddress}</Text></View>
+          {!!currentStaffName && <View style={styles.row}><Ionicons name="person-outline" size={18} color={colors.secondaryText} /><Text style={styles.rowText}>Chuyên viên: {currentStaffName}</Text></View>}
           <View style={styles.divider} />
           <View style={styles.rowBetween}>
             <Text style={styles.priceLabel}>Tổng tiền</Text>
@@ -234,313 +215,137 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
           </View>
         </View>
 
+        <Text accessibilityRole="header" style={styles.sectionTitle}>Tiến trình dịch vụ</Text>
         {booking.bookingServices.map(item => (
           <View key={item.id} style={styles.card}>
-            <Text style={styles.rowText}>{item.serviceName}</Text>
-            {operationalTimeLabel(item, rawStatus ?? '', operationalNow) && <Text style={styles.rowText}>
-              {item.status === 'IN_PROGRESS' ? 'Thời gian phục vụ đang vượt giờ dự kiến.' : 'Giờ dự kiến đã đến; chưa có ghi nhận bắt đầu. Bạn có thể liên hệ cơ sở để được hỗ trợ.'}
-            </Text>}
+            <Text style={styles.rowStrong}>{item.serviceName}</Text>
+            {!!item.staffName && <Text style={styles.metaText}>Chuyên viên: {item.staffName}</Text>}
+            {operationalTimeLabel(item, rawStatus ?? '', operationalNow) && <View style={styles.warningRow}>
+              <Ionicons name="warning-outline" size={18} color={tones.warning.fg} />
+              <Text style={styles.warningText}>
+                {item.status === 'IN_PROGRESS' ? 'Thời gian phục vụ đang vượt giờ dự kiến.' : 'Giờ dự kiến đã đến; chưa có ghi nhận bắt đầu. Bạn có thể liên hệ cơ sở để được hỗ trợ.'}
+              </Text>
+            </View>}
             {serviceTimingLines(item, booking.branchTimezone).map(line => (
-              <Text key={line} style={styles.rowText}>{line}</Text>
+              <Text key={line} style={styles.metaText}>{line}</Text>
             ))}
           </View>
         ))}
 
-        <TouchableOpacity
-          style={styles.outlineButton}
-          activeOpacity={0.7}
-          onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentAddress)}`)}
-        >
-          <Text style={styles.outlineButtonText}>Chỉ đường</Text>
-        </TouchableOpacity>
-
-        {isReal && booking && currentStatus !== 'upcoming' && (
-          <TouchableOpacity style={styles.primaryButton} accessibilityRole="button" onPress={() => {
-            if (!booking.branchId) { Alert.alert('Chọn lại cơ sở', 'Lịch cũ không còn thông tin cơ sở. Hãy tìm dịch vụ để đặt lịch mới.'); navigation.navigate('TimKiem'); return; }
-            navigation.navigate('DiaDiem', { screen: 'VenueDetail', params: { venueId: booking.branchId, serviceIds: booking.serviceIds, rebooking: true } });
-          }}><Text style={styles.primaryButtonText}>Đặt lại dịch vụ</Text></TouchableOpacity>
-        )}
-
-        {comboId && currentStatus === 'upcoming' && (
-          <TouchableOpacity
-            style={styles.outlineButton}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('DiaDiem', { screen: 'ComboDetail', params: { comboId } })}
-          >
-            <Text style={styles.outlineButtonText}>
-              Xem ưu đãi
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {isReal && currentStatus === 'completed' && !booking?.reviewed && (
-          <TouchableOpacity style={styles.primaryButton} activeOpacity={0.85} onPress={() => setReviewVisible(true)}>
-            <Text style={styles.primaryButtonText}>VIẾT ĐÁNH GIÁ</Text>
-          </TouchableOpacity>
-        )}
-
-        {isReal && currentStatus === 'completed' && booking?.reviewed && (
-          <View style={styles.reviewedNotice}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.ratingGreen} />
-            <Text style={styles.reviewedText}>Bạn đã đánh giá lịch hẹn này.</Text>
-          </View>
-        )}
-
-        {canChange && allowReschedule && hoursUntilAppointment >= 1 && (
-          <TouchableOpacity style={styles.outlineButton} onPress={() => navigation.navigate('Reschedule', { bookingId: id })}>
-            <Text style={styles.outlineButtonText}>YÊU CẦU ĐỔI LỊCH</Text>
-          </TouchableOpacity>
-        )}
-
-        {canChange && !requiresCancellationRequest && (
-          <TouchableOpacity style={styles.cancelButton} activeOpacity={0.7} onPress={handleCancel}>
-            <Text style={styles.cancelButtonText}>HỦY NGAY</Text>
-          </TouchableOpacity>
-        )}
-
-        {canChange && requiresCancellationRequest && (
-          <TouchableOpacity style={styles.cancelButton} activeOpacity={0.7} onPress={handleCancellationRequest}>
-            <Text style={styles.cancelButtonText}>GỬI YÊU CẦU HỦY SÁT GIỜ</Text>
-          </TouchableOpacity>
-        )}
-
         {isReal && currentStatus === 'upcoming' && booking?.hasPendingCancellationRequest && (
-          <View style={styles.pendingRequestNotice}>
-            <Ionicons name="time-outline" size={18} color={colors.primary} />
-            <Text style={styles.pendingRequestText}>
+          <View style={[styles.notice, { backgroundColor: tones.request.bg, borderColor: tones.request.border }]}>
+            <Ionicons name="time-outline" size={18} color={tones.request.fg} />
+            <Text style={[styles.noticeText, { color: tones.request.fg }]}>
               Yêu cầu hủy đang chờ cơ sở xử lý
-              {booking.cancellationRequestExpiresAt
-                ? ` đến ${new Date(booking.cancellationRequestExpiresAt).toLocaleString('vi-VN')}`
-                : ''}.
+              {booking.cancellationRequestExpiresAt ? ` đến ${new Date(booking.cancellationRequestExpiresAt).toLocaleString('vi-VN')}` : ''}.
               {' '}Yêu cầu gửi trước giờ hẹn vẫn có hiệu lực trong thời hạn này.
             </Text>
           </View>
         )}
 
+        {isReal && currentStatus === 'completed' && booking?.reviewed && (
+          <View style={[styles.notice, { backgroundColor: tones.success.bg, borderColor: tones.success.border }]}>
+            <Ionicons name="checkmark-circle-outline" size={18} color={tones.success.fg} />
+            <Text style={[styles.noticeText, { color: tones.success.fg }]}>Bạn đã đánh giá lịch hẹn này.</Text>
+          </View>
+        )}
+
+        <View style={styles.actions}>
+          {isReal && currentStatus === 'completed' && !booking?.reviewed && (
+            <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={() => setReviewVisible(true)}>
+              <Ionicons name="star-outline" size={20} color={colors.onPrimary} />
+              <Text style={styles.primaryButtonText}>Viết đánh giá</Text>
+            </TouchableOpacity>
+          )}
+          {isReal && booking && currentStatus !== 'upcoming' && (
+            <TouchableOpacity accessibilityRole="button" style={currentStatus === 'completed' && !booking.reviewed ? styles.outlineButton : styles.primaryButton} onPress={() => {
+              if (!booking.branchId) { Alert.alert('Chọn lại cơ sở', 'Lịch cũ không còn thông tin cơ sở. Hãy tìm dịch vụ để đặt lịch mới.'); navigation.navigate('TimKiem'); return; }
+              navigation.navigate('DiaDiem', { screen: 'VenueDetail', params: { venueId: booking.branchId, serviceIds: booking.serviceIds, rebooking: true } });
+            }}>
+              <Ionicons name="refresh-outline" size={20} color={currentStatus === 'completed' && !booking.reviewed ? colors.primary : colors.onPrimary} />
+              <Text style={currentStatus === 'completed' && !booking.reviewed ? styles.outlineButtonText : styles.primaryButtonText}>Đặt lại dịch vụ</Text>
+            </TouchableOpacity>
+          )}
+          {canChange && allowReschedule && hoursUntilAppointment >= 1 && (
+            <TouchableOpacity accessibilityRole="button" accessibilityHint="Lịch hiện tại giữ nguyên tới khi cơ sở duyệt" style={styles.outlineButton} onPress={() => navigation.navigate('Reschedule', { bookingId: id })}>
+              <Ionicons name="swap-horizontal-outline" size={20} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>Yêu cầu đổi lịch</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity accessibilityRole="button" style={styles.outlineButton} onPress={openMaps}>
+            <Ionicons name="navigate-outline" size={20} color={colors.primary} />
+            <Text style={styles.outlineButtonText}>Chỉ đường</Text>
+          </TouchableOpacity>
+          {comboId && currentStatus === 'upcoming' && (
+            <TouchableOpacity accessibilityRole="button" style={styles.outlineButton} onPress={() => navigation.navigate('DiaDiem', { screen: 'ComboDetail', params: { comboId } })}>
+              <Ionicons name="gift-outline" size={20} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>Xem gói dịch vụ</Text>
+            </TouchableOpacity>
+          )}
+          {canChange && !requiresCancellationRequest && (
+            <TouchableOpacity accessibilityRole="button" style={styles.dangerButton} onPress={handleCancel}>
+              <Text style={styles.dangerButtonText}>Hủy lịch hẹn</Text>
+            </TouchableOpacity>
+          )}
+          {canChange && requiresCancellationRequest && (
+            <TouchableOpacity accessibilityRole="button" accessibilityHint="Cơ sở cần duyệt yêu cầu hủy sát giờ" style={styles.dangerButton} onPress={handleCancellationRequest}>
+              <Text style={styles.dangerButtonText}>Gửi yêu cầu hủy sát giờ</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.noteCard}>
-          <Text style={styles.noteTitle}>Lưu ý</Text>
+          <Text accessibilityRole="header" style={styles.noteTitle}>Lưu ý</Text>
           {notes.map((note) => (
             <View key={note} style={styles.noteRow}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+              <Ionicons name="information-circle-outline" size={18} color={colors.secondary} />
               <Text style={styles.noteText}>{note}</Text>
             </View>
           ))}
         </View>
       </ScrollView>
 
-      <WriteReviewSheet
-        visible={isReviewVisible}
-        onClose={() => setReviewVisible(false)}
-        onSubmit={handleSubmitReview}
-        isSubmitting={isSubmittingReview}
-        minLength={reviewMinLength}
-      />
+      <WriteReviewSheet visible={isReviewVisible} onClose={() => setReviewVisible(false)} onSubmit={handleSubmitReview} isSubmitting={isSubmittingReview} minLength={reviewMinLength} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.card,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingBottom: 16,
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.white,
-  },
-  content: {
-    padding: 20,
-    gap: 16,
-  },
-  imageWrap: {
-    position: 'relative',
-  },
-  image: {
-    width: '100%',
-    height: 170,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-  },
-  statusBadgeFloating: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-  },
-  titleBlock: {
-    gap: 4,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  bookingCode: {
-    fontSize: 13,
-    color: colors.textGray,
-    fontWeight: '600',
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 18,
-    gap: 14,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  rowText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textBody,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 2,
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  originalPriceLabel: {
-    fontSize: 14,
-    color: colors.textGray,
-  },
-  originalPriceValue: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
-  },
-  priceLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  priceValue: {
-    fontSize: 19,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  outlineButton: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  outlineButtonText: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  cancelButton: {
-    borderWidth: 1.5,
-    borderColor: colors.discountRed,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: colors.discountRed,
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  reviewedNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    backgroundColor: colors.background,
-    paddingVertical: 14,
-  },
-  reviewedText: {
-    color: colors.ratingGreen,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  pendingRequestNotice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 14,
-    backgroundColor: colors.primaryLight,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-  },
-  pendingRequestText: {
-    flex: 1,
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  noteCard: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 18,
-    gap: 10,
-  },
-  noteTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: colors.textDark,
-    marginBottom: 2,
-  },
-  noteRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  noteText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.textBody,
-    lineHeight: 19,
-  },
+  screen: { flex: 1, backgroundColor: colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xs, paddingBottom: space.xs, backgroundColor: colors.background },
+  iconButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { ...type.h3, flex: 1, textAlign: 'center' },
+  missing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xxl },
+  missingText: { ...type.body, textAlign: 'center' },
+  content: { paddingHorizontal: layout.gutter, paddingTop: space.sm, paddingBottom: space.xxxl, gap: space.md },
+  statusBlock: { gap: space.sm, marginBottom: space.xs },
+  statusBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.pill },
+  statusBadgeText: { ...type.secondaryStrong },
+  title: { ...type.h1 },
+  bookingCode: { ...type.secondary, fontVariant: ['tabular-nums'] },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: space.lg, gap: space.sm },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
+  rowText: { ...type.body, flex: 1 },
+  rowStrong: { ...type.bodyStrong, flex: 1 },
+  metaText: { ...type.secondary },
+  divider: { height: 1, backgroundColor: colors.divider, marginVertical: space.xs },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  priceLabel: { ...type.secondary },
+  priceValue: { ...type.price, fontSize: 18, color: colors.primary },
+  sectionTitle: { ...type.h3, marginTop: space.sm },
+  warningRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, backgroundColor: tones.warning.bg, borderRadius: radius.md, padding: space.md },
+  warningText: { ...type.secondaryStrong, color: tones.warning.fg, flex: 1 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, borderRadius: radius.md, borderWidth: 1, padding: space.md },
+  noticeText: { ...type.secondaryStrong, flex: 1 },
+  actions: { gap: space.sm, marginTop: space.xs },
+  primaryButton: { minHeight: layout.buttonMinHeight, flexDirection: 'row', gap: space.sm, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg },
+  primaryButtonText: { ...type.button, color: colors.onPrimary },
+  outlineButton: { minHeight: layout.buttonMinHeight, flexDirection: 'row', gap: space.sm, borderWidth: 1.5, borderColor: colors.primary, backgroundColor: colors.surface, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg },
+  outlineButtonText: { ...type.button, color: colors.primary },
+  dangerButton: { minHeight: layout.buttonMinHeight, borderWidth: 1.5, borderColor: colors.error, backgroundColor: colors.surface, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg, marginTop: space.sm },
+  dangerButtonText: { ...type.button, color: colors.error },
+  noteCard: { backgroundColor: colors.surfaceMuted, borderRadius: radius.lg, padding: space.lg, gap: space.sm, marginTop: space.sm },
+  noteTitle: { ...type.secondaryStrong, color: colors.heading },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  noteText: { ...type.secondary, color: colors.body, flex: 1 },
 });

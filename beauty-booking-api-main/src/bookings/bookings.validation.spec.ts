@@ -177,11 +177,15 @@ describe('date-aware booking overlap', () => {
     );
 
     const where = findFirst.mock.calls[0][0].where;
-    expect(where.OR[0]).toEqual({
+    expect(where.OR[0]).toEqual({ status: 'IN_PROGRESS', AND: [
+      { OR: [{ itemEndAt: { lt: expect.any(Date) } }, { itemEndAt: null }] },
+      { OR: [{ itemStartAt: { lt: new Date('2026-07-15T03:00:00.000Z') } }, { itemStartAt: null }] },
+    ] });
+    expect(where.OR[1]).toEqual({
       itemStartAt: { lt: new Date('2026-07-15T03:00:00.000Z') },
       itemEndAt: { gt: new Date('2026-07-15T02:00:00.000Z') },
     });
-    expect(where.OR[1].booking).toEqual({
+    expect(where.OR[2].booking).toEqual({
       appointmentDate: new Date('2026-07-15T00:00:00.000Z'),
       AND: [
         { appointmentStartTime: { lt: new Date('1970-01-01T10:00:00.000Z') } },

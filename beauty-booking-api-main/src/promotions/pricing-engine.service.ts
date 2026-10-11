@@ -34,7 +34,8 @@ export class PricingEngineService {
     subtotal: number;
     voucherCode?: string;
     at?: Date;
-  }): Promise<BookingPricingQuote> {
+  }, context?: { allocatedWalkInCustomerId: string }): Promise<BookingPricingQuote> {
+    if (context && context.allocatedWalkInCustomerId !== input.customerId) throw new BadRequestException('Ngữ cảnh khách tại quầy không khớp.');
     const at = input.at ?? new Date();
     const branch = await this.prisma.branch.findUnique({
       where: { id: input.branchId },
@@ -55,7 +56,7 @@ export class PricingEngineService {
       include: { branchLinks: true, serviceLinks: true, comboLinks: true },
     });
 
-    const customer = await this.prisma.customerProfile.findUnique({
+    const storedCustomer = await this.prisma.customerProfile.findUnique({
       where: { id: input.customerId },
       select: {
         user: { select: { dateOfBirth: true } },
@@ -65,6 +66,11 @@ export class PricingEngineService {
         },
       },
     });
+    // Server-only, preallocated guest: unknown DOB and no history exactly match
+    // the profile that will be inserted with its booking in the same transaction.
+    // Existing profiles always retain their actual history/identity for pricing.
+    const customer = storedCustomer ?? (context?.allocatedWalkInCustomerId === input.customerId
+      ? { user: { dateOfBirth: null }, bookings: [] } : null);
     if (!customer) throw new BadRequestException('Khách hàng không tồn tại');
     const segments = await this.prisma.customerBusinessSegment.findMany({
       where: { businessId: branch.businessId, customerId: input.customerId },

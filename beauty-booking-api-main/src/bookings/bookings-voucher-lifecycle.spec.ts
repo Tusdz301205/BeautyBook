@@ -64,6 +64,7 @@ describe('BookingsService voucher/combo reservation lifecycle', () => {
         id: 'booking-1',
         status: 'PENDING',
         pendingExpiresAt: { lte: expect.any(Date) },
+        bookingServices: { none: { status: { in: ['IN_PROGRESS', 'COMPLETED'] } } },
       },
       data: { status: 'EXPIRED', pendingExpiresAt: null },
     });

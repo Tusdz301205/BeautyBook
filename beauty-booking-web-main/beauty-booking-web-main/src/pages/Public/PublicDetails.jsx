@@ -1,3 +1,4 @@
+import { uploadedMediaUrl } from '../../utils/mediaUrl';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, CalendarCheck, Clock3, Heart, Image as ImageIcon, MapPin, Scissors, Star, UserRound } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -198,7 +199,7 @@ function Gallery({ images = [], label, fallbackMedia = null, fallbackAlt = '' })
     return <div className="bb-detail-gallery bb-detail-gallery--illustration"><HomeMedia src={fallbackMedia} alt={fallbackAlt || fallbackMedia.alt} ratio="4 / 3" label={label} /></div>;
   }
   if (!urls.length) return <div className="bb-detail-empty"><ImageIcon size={21} /><p>Chưa có hình ảnh do cơ sở tải lên.</p></div>;
-  return <div className="bb-detail-gallery">{urls.slice(0, 6).map((url, index) => <img key={`${url}-${index}`} src={url} alt={`${label} ${index + 1}`} loading="lazy" decoding="async" />)}</div>;
+  return <div className="bb-detail-gallery">{urls.slice(0, 6).map((url, index) => <img key={`${url}-${index}`} src={uploadedMediaUrl(url)} alt={`${label} ${index + 1}`} loading="lazy" decoding="async" />)}</div>;
 }
 
 function ReviewList({ data }) {

@@ -86,12 +86,12 @@ describe('BookingsController authenticated customer checkout', () => {
   it('keeps cancelled item status and historical service snapshot in the customer response', async () => {
     const { controller, bookingsService } = buildController();
     bookingsService.create.mockResolvedValue({ id: 'booking-1', branchId: 'branch-1', bookingServices: [{
-      id: 'item-1', serviceId: 'service-1', status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60,
+      id: 'item-1', serviceId: 'service-1', status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60, staffId: 'assigned-staff',
       priceAtBooking: 100000, service: { id: 'service-1', name: 'Tên đã đổi' },
     }] } as any);
     const result = await controller.createGuest(counterRequest, { id: 'customer-user', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer' } as any);
     expect(result.branchId).toBe('branch-1');
-    expect(result.bookingServices[0]).toMatchObject({ status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60 });
+    expect(result.bookingServices[0]).toMatchObject({ status: 'CANCELLED', serviceNameSnapshot: 'Tên khi đặt', durationMinutes: 60, staffId: 'assigned-staff' });
   });
 
   it('reuses the booking service for an authenticated customer', async () => {

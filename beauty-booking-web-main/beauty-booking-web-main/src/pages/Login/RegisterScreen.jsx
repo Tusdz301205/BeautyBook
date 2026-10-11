@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { AuthField, AuthInput, AuthShell, PasswordControl } from '../../components/public/AuthShell';
 import { useAuthStore } from '../../store/authStore';
 
+import { registrationReturnPath, businessRegistrationTarget } from '../../utils/registrationIntent';
+
 const fieldIds = ['fullName', 'email', 'phone', 'password', 'confirmPassword', 'terms'];
 
 function normalizePhone(value) {
@@ -46,13 +48,21 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
   const [loading, setLoading] = useState(false);
   const errors = useMemo(() => validate(form), [form]);
   const strength = useMemo(() => passwordStrength(form.password), [form.password]);
-  const requestedPath = typeof location.state?.from === 'string' && location.state.from.startsWith('/')
-    ? location.state.from
-    : null;
+  const requestedPath = registrationReturnPath(location);
+
+  const businessIntent = accountType === 'BUSINESS_OWNER' || requestedPath === '/register/business';
+  if (isAuthenticated() && businessIntent) {
+    const target = businessRegistrationTarget(user?.sessionType);
+    if (target) return <Navigate to={target} replace />;
+    return <AuthShell mode="register" eyebrow="BeautyBook Business" title="Đăng ký cơ sở làm đẹp" description="Tài khoản hiện tại chưa có quyền tạo hồ sơ doanh nghiệp.">
+      <div className="bb-auth-alert" role="status">Hãy dùng tài khoản chủ doanh nghiệp để tiếp tục đăng ký cơ sở. Bạn có thể đăng xuất từ menu tài khoản rồi đăng nhập hoặc tạo tài khoản chủ doanh nghiệp.</div>
+      <Link to="/business">Thông tin đăng ký doanh nghiệp</Link>
+    </AuthShell>;
+  }
 
   if (isAuthenticated()) {
     const target = user?.sessionType === 'admin' ? '/admin' : user?.sessionType === 'salon' ? '/salon' : '/customer/appointments';
-    return <Navigate to={target} replace />;
+    return <Navigate to={requestedPath || target} replace />;
   }
 
   const update = (field) => (event) => {
@@ -193,7 +203,7 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
         </button>
       </form>
       <div className="bb-auth-alternate">
-        <p>Đã có tài khoản?</p><Link to="/login">Đăng nhập</Link>
+        <p>Đã có tài khoản?</p><Link to={businessIntent ? "/login?from=%2Fregister%2Fbusiness" : requestedPath ? `/login?from=${encodeURIComponent(requestedPath)}` : "/login"} state={{ from: businessIntent ? "/register/business" : requestedPath }}>Đăng nhập</Link>
       </div>
     </AuthShell>
   );

@@ -1,26 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { colors, layout, radius, space, tones, type, type Tone } from '../../theme';
 import { useOperationalTime } from '../../hooks/useOperationalTime';
 import { operationalTimeLabel } from '../../utils/bookingOperationalTime';
 import { OperationButton } from '../OperationPrimitives';
 import { actionFor, actionLabel, appointmentClock, arrivalLabel, elapsedLabel, elapsedSeconds, statusLabel, type WorkAction, type WorkItem } from './workModel';
 
+function stateLook(item: WorkItem): { label: string; tone: Tone; icon: keyof typeof Ionicons.glyphMap } {
+  if (item.status === 'IN_PROGRESS') return { label: 'Đang thực hiện', tone: 'brand', icon: 'play-circle-outline' };
+  if (item.status === 'COMPLETED') return { label: 'Hoàn tất', tone: 'success', icon: 'checkmark-done-outline' };
+  if (item.status === 'SCHEDULED') {
+    const arrived = ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(item.bookingStatus);
+    return arrived
+      ? { label: arrivalLabel(item.bookingStatus), tone: 'arrived', icon: 'enter-outline' }
+      : { label: arrivalLabel(item.bookingStatus), tone: ['CANCELLED', 'NO_SHOW', 'REJECTED'].includes(item.bookingStatus) ? 'danger' : 'neutral', icon: 'hourglass-outline' };
+  }
+  return { label: statusLabel(item.status), tone: 'neutral', icon: 'remove-circle-outline' };
+}
+
 export function WorkState({ item }: { item: WorkItem }) {
-  const active = item.status === 'IN_PROGRESS', completed = item.status === 'COMPLETED';
-  const arrived = ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(item.bookingStatus);
-  const label = active ? 'Đang thực hiện' : completed ? 'Hoàn tất' : item.status === 'SCHEDULED' ? arrivalLabel(item.bookingStatus) : statusLabel(item.status);
-  return <View style={styles.state}>
-    <Ionicons accessible={false} name={active ? 'ellipse' : arrived || completed ? 'checkmark-circle-outline' : 'ellipse-outline'} size={18} color={active ? colors.primary : arrived || completed ? colors.ratingGreen : colors.textGray} />
-    <Text style={[styles.stateLabel, (arrived || completed) && { color: colors.ratingGreen }, active && { color: colors.primary }]}>{label}</Text>
+  const look = stateLook(item);
+  const palette = tones[look.tone];
+  return <View style={[styles.state, { backgroundColor: palette.bg }]}>
+    <Ionicons accessible={false} name={look.icon} size={16} color={palette.fg} />
+    <Text style={[styles.stateLabel, { color: palette.fg }]}>{look.label}</Text>
   </View>;
 }
 
 export function WorkTimeNotice({ item, serverNow, fresh }: { item: WorkItem; serverNow: number; fresh: boolean }) {
   const now = useOperationalTime(serverNow, fresh);
   const label = operationalTimeLabel(item, item.bookingStatus, now);
-  return label ? <Text style={styles.warning}>{label}{!fresh ? ' · Theo lần cập nhật gần nhất' : ''}</Text> : null;
+  return label ? <View style={styles.warning}>
+    <Ionicons accessible={false} name="warning-outline" size={16} color={tones.warning.fg} />
+    <Text style={styles.warningText}>{label}{!fresh ? ' · Theo lần cập nhật gần nhất' : ''}</Text>
+  </View> : null;
 }
 
 function serviceClock(value: string, zone?: string | null) {
@@ -29,8 +43,13 @@ function serviceClock(value: string, zone?: string | null) {
   catch { return 'Múi giờ chưa hợp lệ'; }
 }
 function PlannedTime({ item, compact = false }: { item: WorkItem; compact?: boolean }) {
-  if (!item.itemStartAt) return <Text style={styles.meta}>Giờ hẹn {appointmentClock(item.appointmentStartTime)}{compact ? '' : ' · Chưa có giờ dịch vụ'}</Text>;
-  return <Text style={compact ? styles.clock : styles.planned}>{compact ? '' : 'Dự kiến '}{serviceClock(item.itemStartAt, item.branch.timezone)}{!compact && item.itemEndAt ? ` – ${serviceClock(item.itemEndAt, item.branch.timezone)}` : ''}</Text>;
+  if (!item.itemStartAt) return <Text style={compact ? styles.clockMuted : styles.meta}>{compact ? appointmentClock(item.appointmentStartTime) : `Giờ hẹn ${appointmentClock(item.appointmentStartTime)} · Chưa có giờ dịch vụ`}</Text>;
+  if (compact) return <Text style={styles.clock}>{serviceClock(item.itemStartAt, item.branch.timezone)}</Text>;
+  return <View style={styles.planned}>
+    <Ionicons accessible={false} name="time-outline" size={16} color={colors.secondaryText} />
+    <Text style={styles.plannedText}>Dự kiến {serviceClock(item.itemStartAt, item.branch.timezone)}{item.itemEndAt ? ` – ${serviceClock(item.itemEndAt, item.branch.timezone)}` : ''}</Text>
+    <Text style={styles.meta}>· {item.durationMinutes} phút</Text>
+  </View>;
 }
 
 /** Only active cards tick; the full FlatList does not re-render every second. */
@@ -43,7 +62,10 @@ export function ActualElapsed({ item, serverNow, receivedAt, fresh = true }: { i
     return () => clearInterval(timer);
   }, [fresh, item.id, item.status, item.actualTimingSource, item.actualStartedAt, serverNow, receivedAt]);
   const seconds = elapsedSeconds(item, serverNow, receivedAt, fresh ? now : receivedAt);
-  return <Text style={[styles.timing, seconds === null && { color: colors.textGray }]}>{!fresh && item.status === 'IN_PROGRESS' ? 'Lúc cập nhật: ' : ''}{elapsedLabel(seconds)}</Text>;
+  return <View style={styles.elapsed}>
+    <Ionicons accessible={false} name="stopwatch-outline" size={18} color={seconds === null ? colors.secondaryText : colors.primary} />
+    <Text style={[styles.timing, seconds === null && styles.timingUnknown]}>{!fresh && item.status === 'IN_PROGRESS' ? 'Lúc cập nhật: ' : ''}{elapsedLabel(seconds)}</Text>
+  </View>;
 }
 
 export default function WorkCard({ item, staffId, serverNow, receivedAt, onOpen, onAction, disabled, busy, variant = 'next', primary = false, fresh = true }:
@@ -54,36 +76,59 @@ export default function WorkCard({ item, staffId, serverNow, receivedAt, onOpen,
   const timeLabel = item.itemStartAt ? `Dự kiến ${serviceClock(item.itemStartAt, item.branch.timezone)}` : `Giờ hẹn ${appointmentClock(item.appointmentStartTime)}`;
   if (variant === 'compact') return <Pressable accessibilityRole="button"
     accessibilityLabel={`${timeLabel}. ${item.customer.fullName}, ${item.serviceNameSnapshot}, ${statusLabel(item.status)}, ${arrivalLabel(item.bookingStatus)}. Xem chi tiết công việc`}
-    disabled={!onOpen} onPress={onOpen} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
+    disabled={!onOpen} onPress={onOpen} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
     <View style={styles.timeColumn}><PlannedTime item={item} compact /></View>
-    <View style={styles.rowContent}><Text style={styles.rowCustomer}>{item.customer.fullName || 'Khách hàng'}</Text><Text style={styles.rowService}>{item.serviceNameSnapshot}</Text><WorkState item={item} /><WorkTimeNotice item={item} serverNow={serverNow} fresh={fresh} /></View>
-    <Ionicons accessible={false} name="chevron-forward" size={18} color={colors.textGray} />
+    <View style={styles.rowContent}>
+      <Text style={styles.rowCustomer}>{item.customer.fullName || 'Khách hàng'}</Text>
+      <Text style={styles.rowService}>{item.serviceNameSnapshot}</Text>
+      <WorkState item={item} />
+      <WorkTimeNotice item={item} serverNow={serverNow} fresh={fresh} />
+    </View>
+    <Ionicons accessible={false} name="chevron-forward" size={18} color={colors.secondaryText} />
   </Pressable>;
+  const waitingArrival = !action && item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED'].includes(item.bookingStatus);
   return <View style={[styles.card, variant === 'current' && styles.active]}>
     <Text style={[styles.customer, primary && styles.primaryCustomer]}>{item.customer.fullName || 'Khách hàng'}</Text>
     <Text style={styles.service}>{item.serviceNameSnapshot}</Text>
-    <WorkState item={item} />
+    <View style={styles.badges}><WorkState item={item} /></View>
     <WorkTimeNotice item={item} serverNow={serverNow} fresh={fresh} />
-    {variant !== 'detail' && <><PlannedTime item={item} /><Text style={styles.meta}>{item.durationMinutes} phút dự kiến</Text></>}
+    {variant !== 'detail' && <PlannedTime item={item} />}
     {item.status === 'IN_PROGRESS' && variant !== 'detail' && <ActualElapsed item={item} serverNow={serverNow} receivedAt={receivedAt} fresh={fresh} />}
-    {onAction && action && <OperationButton label={actionLabel(action)} onPress={() => onAction(item, action)} busy={busy} disabled={disabled || busy} />}
+    {variant !== 'detail' && waitingArrival && <Text style={styles.meta}>Chờ quầy ghi nhận khách đến trước khi bắt đầu.</Text>}
+    {onAction && action && <OperationButton label={actionLabel(action)} icon={action === 'START' ? 'play-outline' : 'checkmark-done-outline'} onPress={() => onAction(item, action)} busy={busy} disabled={disabled || busy} />}
     {onOpen && <Pressable accessibilityRole="button" accessibilityLabel={`Xem công việc ${item.serviceNameSnapshot} của ${item.customer.fullName}`}
-      style={({ pressed }) => [styles.open, pressed && { opacity: 0.7 }]} onPress={onOpen}><Text style={styles.link}>Chi tiết công việc</Text></Pressable>}
+      style={({ pressed }) => [styles.open, pressed && styles.pressed]} onPress={onOpen}>
+      <Text style={styles.link}>Chi tiết công việc</Text>
+      <Ionicons accessible={false} name="chevron-forward" size={16} color={colors.primary} />
+    </Pressable>}
   </View>;
 }
+
 const styles = StyleSheet.create({
-  warning: { fontSize: 14, lineHeight: 21, color: '#8A4914', fontWeight: '600', flexShrink: 1 },
-  card: { padding: 18, marginBottom: 12, gap: 10, borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  active: { borderColor: colors.primary, borderLeftWidth: 4, backgroundColor: colors.primaryLight },
-  customer: { fontSize: 21, fontWeight: '700', color: colors.textDark }, primaryCustomer: { fontSize: 25 },
-  service: { fontSize: 17, fontWeight: '600', color: colors.textBody },
-  state: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', flexShrink: 1, paddingVertical: 4 },
-  stateLabel: { fontSize: 15, lineHeight: 21, color: colors.textGray, fontWeight: '600', flexShrink: 1 },
-  planned: { fontSize: 18, fontWeight: '600', color: colors.textDark },
-  meta: { fontSize: 14, lineHeight: 21, color: colors.textGray, flexShrink: 1 },
-  timing: { fontSize: 18, fontWeight: '700', color: colors.ratingGreen, lineHeight: 26 },
-  open: { minHeight: 48, justifyContent: 'center' }, link: { fontSize: 15, color: colors.primary, fontWeight: '600' },
-  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
-  timeColumn: { width: 64, flexShrink: 0, alignSelf: 'flex-start', paddingTop: 3 }, clock: { fontSize: 16, fontWeight: '700', color: colors.textDark },
-  rowContent: { flex: 1, gap: 4 }, rowCustomer: { fontSize: 17, fontWeight: '600', color: colors.textDark }, rowService: { fontSize: 15, lineHeight: 21, color: colors.textBody },
+  pressed: { backgroundColor: colors.surfacePressed },
+  card: { padding: space.lg, marginBottom: space.md, gap: space.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  active: { borderColor: '#E3C3D2', borderLeftWidth: 4, borderLeftColor: colors.primary, backgroundColor: colors.primarySoft },
+  customer: { ...type.h2 },
+  primaryCustomer: { ...type.display },
+  service: { ...type.body, color: colors.body, fontWeight: '500' },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  state: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', flexShrink: 1, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: space.xs },
+  stateLabel: { ...type.caption, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  warning: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs + 2, alignSelf: 'flex-start', borderRadius: radius.sm, backgroundColor: tones.warning.bg, paddingHorizontal: space.sm, paddingVertical: space.xs },
+  warningText: { ...type.secondaryStrong, color: tones.warning.fg, flexShrink: 1 },
+  planned: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.xs + 2 },
+  plannedText: { ...type.clock },
+  meta: { ...type.secondary, flexShrink: 1 },
+  elapsed: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
+  timing: { ...type.clock, fontSize: 17, color: colors.primary },
+  timingUnknown: { color: colors.secondaryText, fontWeight: '500' },
+  open: { minHeight: layout.touch, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: space.xs, borderRadius: radius.sm, paddingRight: space.sm },
+  link: { ...type.secondaryStrong, color: colors.primary },
+  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, paddingHorizontal: space.md, marginBottom: space.sm, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  timeColumn: { width: 56, flexShrink: 0, alignSelf: 'flex-start', paddingTop: 2 },
+  clock: { ...type.clock },
+  clockMuted: { ...type.clock, color: colors.secondaryText },
+  rowContent: { flex: 1, gap: space.xs },
+  rowCustomer: { ...type.bodyStrong },
+  rowService: { ...type.secondary, color: colors.body },
 });

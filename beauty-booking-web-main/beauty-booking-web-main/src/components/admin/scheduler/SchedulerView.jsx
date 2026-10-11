@@ -1,3 +1,4 @@
+import { schedulerSocketUrl } from '../../../utils/socketEndpoint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { addDays, addMonths, addWeeks, subDays, subMonths, subWeeks } from 'date-fns';
@@ -5,6 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Filter, LayoutGrid, RefreshCw,
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import { bookingsApi, refreshSession } from '../../../api/apiClient';
+import { captureSessionGeneration, isSessionGenerationCurrent } from '../../../utils/sessionGeneration';
 import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking, normalizeSchedulerResponse } from '../../../utils/bookingCalendar.adapter';
@@ -80,6 +82,13 @@ export default function SchedulerView({
 
   const range = useMemo(() => getCalendarRange(viewMode, currentDate), [currentDate, viewMode]);
 
+  useEffect(() => {
+    authorizationEpoch.current += 1;
+    requestSequence.current += 1;
+    deepLinkHandled.current = '';
+    setBookings([]); setStaffList([]); setSelectedBooking(null); setSelectedDay(null);
+  }, [accessToken, branchKey]);
+
   const fetchData = useCallback(async ({ silent = false } = {}) => {
     const scopedBranchIds = branchKey ? branchKey.split(',') : [];
     const requestId = ++requestSequence.current;
@@ -92,10 +101,9 @@ export default function SchedulerView({
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const payloads = await Promise.all(scopedBranchIds.map(async (scopedBranchId) => ({
-        branchId: scopedBranchId,
-        payload: await bookingsApi.getScheduler(scopedBranchId, range.start.toISOString(), range.end.toISOString()),
-      })));
+      const payloads = scopedBranchIds.length > 1
+        ? await bookingsApi.getSchedulerBatch(scopedBranchIds, range.start.toISOString(), range.end.toISOString())
+        : [{ branchId: scopedBranchIds[0], payload: await bookingsApi.getScheduler(scopedBranchIds[0], range.start.toISOString(), range.end.toISOString()) }];
       if (requestId !== requestSequence.current) return;
       const multiBranch = scopedBranchIds.length > 1;
       const staffById = new Map();
@@ -124,7 +132,7 @@ export default function SchedulerView({
     } finally {
       if (!silent && requestId === requestSequence.current) setLoading(false);
     }
-  }, [branchKey, branchNames, range.end, range.start, refreshKey]);
+  }, [accessToken, branchKey, branchNames, range.end, range.start, refreshKey]);
 
   useEffect(() => {
     fetchData();
@@ -165,7 +173,8 @@ export default function SchedulerView({
 
   useEffect(() => {
     if (!accessToken) return;
-    const socketUrl = import.meta.env.VITE_WS_URL || window.location.origin;
+    const socketUrl = schedulerSocketUrl();
+    let active = true;
     const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       auth: (callback) => callback({ token: useAuthStore.getState().accessToken }),
@@ -185,14 +194,23 @@ export default function SchedulerView({
       setError('Phiên hoặc quyền truy cập lịch đã thay đổi. Vui lòng tải lại hoặc đăng nhập lại.');
     };
     const authorizationChanged = async () => {
+      if (!active) return;
+      const lease = captureSessionGeneration();
       clearScopedData();
+      const epoch = authorizationEpoch.current;
+      const current = () => active && epoch === authorizationEpoch.current && isSessionGenerationCurrent(lease);
       try {
-        const result = await refreshSession();
-        if (!useAuthStore.getState().setSession(result)) authFailed();
-      } catch { authFailed(); useAuthStore.getState().clearSession(); }
+        const result = await refreshSession(lease);
+        if (!current()) return;
+        if (!useAuthStore.getState().setSession(result, lease)) authFailed();
+      } catch {
+        if (!current()) return;
+        authFailed(); useAuthStore.getState().clearSession(lease);
+      }
     };
-    const unbind = bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed, authorizationChanged });
+    const unbind = bindSchedulerSocketEvents(socket, { refresh, clearScopedData, authFailed, authorizationChanged, coalesceRefresh: true });
     return () => {
+      active = false;
       unbind();
       socket.disconnect();
     };

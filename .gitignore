@@ -89,6 +89,12 @@ mobile-preview/artifacts/
 *.zip
 *.7z
 *.rar
+# Local Git backups and compiled mobile deliverables are not source files.
+*.bundle
+*.hbc
+*.apk
+*.aab
+*.ipa
 **/.hallmark/
 **/.agents/
 **/playwright-report/

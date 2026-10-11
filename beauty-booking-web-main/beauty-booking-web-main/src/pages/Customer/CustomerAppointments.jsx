@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { differenceInHours, differenceInMinutes, format } from 'date-fns';
 import { ArrowRight, ArrowRightLeft, Building2, CalendarCheck, CalendarPlus, CheckCircle2, Clock3, Compass, Eye, MapPin, Pause, Play, Repeat2, Star, XCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { bookingsApi, branchesApi, platformPolicyApi, recurringApi } from '../../api/apiClient';
+import { useCustomerBookingRefresh } from '../../hooks/useCustomerBookingRefresh';
+import { useAsyncResource } from '../../hooks/useAsyncResource';
 import { useAuthStore } from '../../store/authStore';
 import { useBookingStore } from '../../store/bookingStore';
 import { RescheduleModal } from '../../components/customer/RescheduleModal';
@@ -21,10 +23,6 @@ export function CustomerAppointments() {
   const navigate = useNavigate();
   const accessToken = useAuthStore((state) => state.accessToken);
   const [tab, setTab] = useState('upcoming');
-  const [bookings, setBookings] = useState([]);
-  const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [reschedule, setReschedule] = useState(null);
   const [review, setReview] = useState(null);
   const [cancel, setCancel] = useState(null);
@@ -34,28 +32,21 @@ export function CustomerAppointments() {
   const [recommendations, setRecommendations] = useState([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsError, setRecommendationsError] = useState('');
-  const [policy, setPolicy] = useState({ freeCancellationHours: 4, allowRescheduleRequests: true, maxRescheduleCountPerBooking: 2, reviewMinLength: 0, allowAnonymousReview: false });
   const setBranch = useBookingStore((state) => state.setBranch);
   const toggleService = useBookingStore((state) => state.toggleService);
-  const load = useCallback(async () => {
-    if (!accessToken) return;
-    setLoading(true); setError('');
-    try { const [result, platformPolicy, planRows] = await Promise.all([bookingsApi.myAppointments(tab), platformPolicyApi.getPublic(), recurringApi.mine()]); setBookings(result.data ?? result ?? []); setPolicy(platformPolicy); setPlans(planRows ?? []); }
-    catch (requestError) { setError(requestError.message); }
-    finally { setLoading(false); }
-  }, [accessToken, tab]);
-  useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') void load();
-    };
-    window.addEventListener('focus', refreshWhenVisible);
-    document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => {
-      window.removeEventListener('focus', refreshWhenVisible);
-      document.removeEventListener('visibilitychange', refreshWhenVisible);
-    };
-  }, [load]);
+  const userId = useAuthStore(state => state.user?.id);
+  const resource = useAsyncResource(accessToken && userId ? JSON.stringify([userId, accessToken, tab]) : null, async () => {
+    const [result, policy, plans] = await Promise.all([bookingsApi.myAppointments(tab), platformPolicyApi.getPublic(), recurringApi.mine()]);
+    return { bookings: result.data ?? result ?? [], policy, plans: plans ?? [] };
+  });
+  const bookings = resource.data?.bookings || [];
+  const plans = resource.data?.plans || [];
+  const policy = resource.data?.policy || {};
+  const loading = resource.loading;
+  const error = resource.error?.message || '';
+  const load = resource.reload;
+  useCustomerBookingRefresh(load);
+  useEffect(() => { setReschedule(null); setReview(null); setCancel(null); setPlanCancel(null); setReason(''); }, [userId]);
   useEffect(() => {
     let active = true;
     setRecommendationsLoading(true);

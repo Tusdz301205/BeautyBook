@@ -22,13 +22,14 @@ if (enabled && (!/(^|[_/])(test|e2e)(_|$)/i.test(new URL(process.env.DATABASE_UR
   });
 
   test('converted grants preserve all fields except role_id, and old Salon sessions are revoked', async () => {
-    const grants = await pool.query<{ valid: boolean }>(`SELECT bool_and(
-      (to_jsonb(ur)-'role_id') = (a.snapshot-'role_id') AND r.code::text='RECEPTIONIST') AS valid
+    const grants = await pool.query<{ invalid_count: string }>(`SELECT count(*) FILTER (WHERE
+      ur.id IS NULL OR r.code::text IS DISTINCT FROM 'RECEPTIONIST'
+      OR (to_jsonb(ur)-'role_id') IS DISTINCT FROM (a.snapshot-'role_id')) AS invalid_count
       FROM archive_20260915_manager_retirement a
       LEFT JOIN user_roles ur ON ur.id=a.entity_key LEFT JOIN roles r ON r.id=ur.role_id
       WHERE a.entity_table='user_roles'`);
-    // The rehearsed source has one Manager; a clean installation may have none.
-    expect(grants.rows[0].valid === true || grants.rows[0].valid === null).toBe(true);
+    // No historical Manager grants is valid; a missing converted grant is not.
+    expect(grants.rows[0].invalid_count).toBe('0');
     const sessions = await pool.query<{ count: string }>(`SELECT count(*)
       FROM archive_20260915_manager_retirement a LEFT JOIN user_sessions s ON s.id=a.entity_key
       WHERE a.entity_table='user_sessions'

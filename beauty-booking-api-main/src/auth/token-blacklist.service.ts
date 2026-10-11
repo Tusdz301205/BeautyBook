@@ -19,7 +19,7 @@ import Redis from 'ioredis';
 export class TokenBlacklistService implements OnModuleDestroy {
   private readonly logger = new Logger(TokenBlacklistService.name);
   private redis: Redis | null = null;
-  private readonly memoryStore = new Map<string, number>(); // userId -> revokedAt epoch(s)
+  private readonly memoryStore = new Map<string, number>(); // userId -> revokedAt epoch(ms)
   private readonly ttlSeconds: number;
   private readonly production: boolean;
 
@@ -62,7 +62,7 @@ export class TokenBlacklistService implements OnModuleDestroy {
 
   /** Vô hiệu hóa TẤT CẢ JWT hiện tại của user (khóa tài khoản, nghỉ việc, đổi mật khẩu). */
   async revokeAllForUser(userId: string): Promise<void> {
-    const now = Math.floor(Date.now() / 1000);
+    const now = Date.now();
     if (this.redis) {
       await this.redis.set(this.key(userId), String(now), 'EX', this.ttlSeconds);
     } else {
@@ -75,7 +75,7 @@ export class TokenBlacklistService implements OnModuleDestroy {
    * Token có bị thu hồi không?
    * @param iat JWT issued-at (epoch seconds)
    */
-  async isRevoked(userId: string, iat?: number): Promise<boolean> {
+  async isRevoked(userId: string, iat?: number, verifiedSessionCreatedAt?: Date): Promise<boolean> {
     let revokedAt: number | null = null;
     if (this.redis) {
       const v = await this.redis.get(this.key(userId));
@@ -85,7 +85,15 @@ export class TokenBlacklistService implements OnModuleDestroy {
     }
     if (revokedAt === null) return false;
     // Token phát hành TRƯỚC thời điểm revoke → chết. Token mới (re-login) sống.
-    return iat === undefined || iat <= revokedAt;
+    if (!Number.isFinite(revokedAt)) return true;
+    // Backward-compatible Redis records used seconds. Keep their entire second
+    // fenced; new records use milliseconds to distinguish a subsequent login.
+    const fence = revokedAt < 1_000_000_000_000 ? revokedAt * 1000 + 999 : revokedAt;
+    // This timestamp must come from a verified DB session, never a JWT/client claim.
+    const issuedAt = verifiedSessionCreatedAt instanceof Date
+      ? verifiedSessionCreatedAt.getTime()
+      : iat === undefined ? NaN : iat * 1000;
+    return !Number.isFinite(issuedAt) || issuedAt <= fence;
   }
 
   onModuleDestroy(): void {

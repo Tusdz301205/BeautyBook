@@ -11,7 +11,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { ReviewsService } from './reviews.service';
+import { ReviewsService, assertReviewCreationInput } from './reviews.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -22,6 +22,10 @@ import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertBranchAccess, assertBusinessAccess } from '../common/utils/multi-tenancy';
+
+function assertReviewBody(body: unknown): void {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new BadRequestException('Nội dung yêu cầu đánh giá phải là đối tượng JSON');
+}
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction } from '@prisma/client';
 
@@ -122,12 +126,7 @@ export class ReviewsController {
     },
     @CurrentUser() user: AuthUser,
   ) {
-    if (!body.bookingId || !body.overallRating) {
-      throw new BadRequestException('bookingId và overallRating là bắt buộc');
-    }
-    if (body.overallRating < 1 || body.overallRating > 5) {
-      throw new BadRequestException('overallRating phải từ 1 đến 5');
-    }
+    assertReviewCreationInput(body);
 
     // Resolve customerId from user
     const customer = await this.prisma.customerProfile.findUnique({
@@ -153,6 +152,7 @@ export class ReviewsController {
     @Body() body: { reason: string; category?: string; severity?: string },
     @CurrentUser() user: AuthUser,
   ) {
+    assertReviewBody(body);
     return this.reviewsService.report(id, user.id, body);
   }
 
@@ -169,7 +169,8 @@ export class ReviewsController {
     @Body() body: { content: string },
     @CurrentUser() user: AuthUser,
   ) {
-    if (!body.content?.trim()) {
+    assertReviewBody(body);
+    if (typeof body.content !== 'string' || !body.content.trim()) {
       throw new BadRequestException('content và businessId là bắt buộc');
     }
     const review = await this.prisma.review.findUnique({
@@ -195,6 +196,7 @@ export class ReviewsController {
     @Body() body: { status: 'APPROVED' | 'HIDDEN'; reasonCode: string; reason: string },
     @CurrentUser() user: AuthUser,
   ) {
+    assertReviewBody(body);
     if (!body.status || !['APPROVED', 'HIDDEN'].includes(body.status)) {
       throw new BadRequestException('status phải là APPROVED hoặc HIDDEN');
     }
@@ -210,7 +212,8 @@ export class ReviewsController {
     @Body() body: { reason: string },
     @CurrentUser() user: AuthUser,
   ) {
-    return this.reviewsService.appeal(id, user.id, body.reason);
+    assertReviewBody(body);
+    return this.reviewsService.appeal(id, user, body.reason);
   }
 
   @Patch('appeals/:appealId')
@@ -222,6 +225,7 @@ export class ReviewsController {
     @Body() body: { approve: boolean; resolution: string },
     @CurrentUser() user: AuthUser,
   ) {
+    assertReviewBody(body);
     return this.reviewsService.resolveAppeal(appealId, body.approve, body.resolution, user);
   }
 }

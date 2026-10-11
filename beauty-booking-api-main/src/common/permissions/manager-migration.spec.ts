@@ -3,13 +3,15 @@ import { resolve } from 'node:path';
 import { PERMISSIONS, ROLE_LEVELS, ROLE_PERMISSIONS } from './permission-catalog';
 
 const sql = readFileSync(resolve(__dirname, '../../../prisma/migrations/20260915_remove_manager_role/migration.sql'), 'utf8');
+const correctionSql = readFileSync(resolve(__dirname, '../../../prisma/migrations/20261006_actual_time_corrections/migration.sql'), 'utf8');
+const laterPermissions = new Set(['booking.actual_time.correct']);
 const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
 describe('Manager retirement migration contract', () => {
   it('persists current account-role grants and only the approved historical Guest grants', () => {
     const grantBlock = sql.split('INSERT INTO _target_grants VALUES\n')[1].split(';')[0];
     const actual = grantBlock.split('\n').map((line) => line.trim().replace(/,$/, '')).sort();
-    const expected = Object.entries(ROLE_PERMISSIONS).flatMap(([role, permissions]) => permissions.map((code) => `(${quote(role)},${quote(code)})`)).sort();
+    const expected = Object.entries(ROLE_PERMISSIONS).flatMap(([role, permissions]) => permissions.filter((code) => !laterPermissions.has(code)).map((code) => `(${quote(role)},${quote(code)})`)).sort();
     const historicalGuest = [
       'branch:read:public',
       'canonical_service:read:public',
@@ -22,7 +24,7 @@ describe('Manager retirement migration contract', () => {
   });
 
   it('includes all catalog permission definitions and retained role levels', () => {
-    for (const p of PERMISSIONS) expect(sql).toContain(`(${[p.code, p.resource, p.action, p.defaultScope, p.description].map(quote).join(',')})`);
+    for (const p of PERMISSIONS.filter(p => !laterPermissions.has(p.code))) expect(sql).toContain(`(${[p.code, p.resource, p.action, p.defaultScope, p.description].map(quote).join(',')})`);
     for (const role of Object.keys(ROLE_PERMISSIONS)) expect(sql).toContain(quote(ROLE_LEVELS[role]));
     expect(sql).toContain('CREATE TYPE "RoleCode" AS ENUM (\'PLATFORM_ADMIN\',\'BUSINESS_OWNER\',\'RECEPTIONIST\',\'STAFF\',\'CUSTOMER\',\'GUEST\')');
     expect(sql).toContain('CREATE TYPE "SalonMemberRole" AS ENUM (\'OWNER\',\'RECEPTIONIST\')');
@@ -45,5 +47,20 @@ describe('Manager retirement migration contract', () => {
     expect(sql).toContain("to_jsonb(current_grant)-'role_id'");
     expect(sql).toContain('BEGIN;');
     expect(sql.trimEnd()).toMatch(/COMMIT;$/);
+  });
+});
+
+// A historical migration is immutable. Permissions added in a later migration
+// are checked in the effective chain, not incorrectly required in the old SQL.
+describe('additive actual-time permission after manager retirement', () => {
+  it('retains exact current correction permission definition and owner-only default grant', () => {
+    const p = PERMISSIONS.find(p => p.code === 'booking.actual_time.correct')!;
+    for (const value of [p.code,p.resource,p.action,p.defaultScope]) expect(correctionSql).toContain(quote(value));
+    expect(correctionSql).toContain(quote('Đính chính thời gian thực tế với lịch sử bổ sung và phạm vi được xác minh'));
+    expect(p.description).toBeTruthy(); // Current display wording may evolve; permission identity/scope may not.
+    expect(correctionSql).toContain("WHERE r.code='BUSINESS_OWNER' AND p.code='booking.actual_time.correct'");
+    expect(ROLE_PERMISSIONS.BUSINESS_OWNER).toContain(p.code);
+    expect(ROLE_PERMISSIONS.STAFF).not.toContain(p.code);
+    expect(ROLE_PERMISSIONS.RECEPTIONIST).not.toContain(p.code);
   });
 });

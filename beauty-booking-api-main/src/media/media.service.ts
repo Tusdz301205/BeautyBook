@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -14,6 +15,7 @@ import { assertBranchAccess, assertBusinessAccess, restrictToRoles } from '../co
 import type { UploadMediaDto } from './dto/media.dto';
 import { auditLog } from '../common/utils/audit';
 import { canAccessStoredMedia } from './media-access';
+import { validateImageContent } from './image-content';
 
 type IncomingFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 
@@ -37,6 +39,9 @@ export class MediaService {
   }
 
   async upload(user: AuthUser, file: IncomingFile, input: UploadMediaDto) {
+    if (file.size !== file.buffer.length || file.size < 1 || file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('Tệp phải có dung lượng từ 1 byte đến 10 MB và khớp dữ liệu nhận được');
+    }
     const kind = this.detectKind(file.buffer);
     const allowed = ALLOWED[kind];
     if (!allowed || allowed.mime !== file.mimetype) {
@@ -59,6 +64,8 @@ export class MediaService {
     }
 
     const scope = await this.resolveScope(user, input);
+    // Decode only after authorization, before any file or DB write.
+    if (kind !== 'pdf') await validateImageContent(file.buffer);
     const now = new Date();
     const storageKey = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${randomUUID()}${allowed.extension}`;
     const destination = this.safePath(storageKey);
@@ -155,6 +162,26 @@ export class MediaService {
       throw new ForbiddenException('Bạn không có quyền xóa tệp tại cơ sở hoặc chi nhánh này');
     }
     await this.prisma.$transaction(async (tx) => {
+      const legalReferences = await Promise.all([
+        tx.businessDocumentVersion.count({ where: { mediaId: id } }),
+        tx.branchDocumentVersion.count({ where: { mediaId: id } }),
+      ]);
+      if (legalReferences.some((count) => count > 0)) {
+        throw new ConflictException('Tệp đang được hồ sơ pháp lý tham chiếu. Giữ bản lịch sử và dùng luồng cập nhật hồ sơ để thay tài liệu.');
+      }
+      const imageReferences = await Promise.all([
+        tx.user.count({ where: { avatarMediaId: id } }),
+        tx.business.count({ where: { logoMediaId: id } }),
+        tx.businessImage.count({ where: { mediaId: id } }),
+        tx.branchImage.count({ where: { mediaId: id } }),
+        tx.serviceImage.count({ where: { mediaId: id } }),
+        tx.comboImage.count({ where: { mediaId: id } }),
+        tx.staffImage.count({ where: { mediaId: id } }),
+      ]);
+      if (imageReferences.reduce((sum, count) => sum + count, 0) > 1) {
+        throw new ConflictException('Ảnh đang được nhiều đối tượng sử dụng; không thể gỡ toàn bộ liên kết bằng thao tác này.');
+      }
+
       await tx.user.updateMany({ where: { avatarMediaId: id }, data: { avatarMediaId: null } });
       await tx.business.updateMany({ where: { logoMediaId: id }, data: { logoMediaId: null } });
       await tx.businessImage.deleteMany({ where: { mediaId: id } });
@@ -254,7 +281,10 @@ export class MediaService {
     if (entityType === 'BUSINESS_LOGO') await tx.business.update({ where: { id: entityId }, data: { logoMediaId: mediaId } });
     if (entityType === 'BUSINESS_IMAGE') await tx.businessImage.create({ data: { businessId: entityId, mediaId } });
     if (entityType === 'BRANCH_IMAGE') await tx.branchImage.create({ data: { branchId: entityId, mediaId } });
-    if (entityType === 'SERVICE_IMAGE') await tx.serviceImage.create({ data: { serviceId: entityId, mediaId } });
+    if (entityType === 'SERVICE_IMAGE') {
+      const order = await tx.serviceImage.aggregate({ where: { serviceId: entityId }, _max: { sortOrder: true } });
+      await tx.serviceImage.create({ data: { serviceId: entityId, mediaId, sortOrder: (order._max.sortOrder ?? -1) + 1 } });
+    }
     if (entityType === 'COMBO_IMAGE') await tx.comboImage.create({ data: { comboId: entityId, mediaId } });
     if (entityType === 'STAFF_IMAGE') await tx.staffImage.create({ data: { staffId: entityId, mediaId } });
   }

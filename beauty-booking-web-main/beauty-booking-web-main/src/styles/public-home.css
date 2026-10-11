@@ -1299,7 +1299,7 @@
   .bb-auth-editorial { display: none; }
   .bb-auth-main { min-height: 100svh; align-items: start; padding: var(--space-page); }
   .bb-auth-main__inner { padding-block: var(--space-sm) var(--space-xl); }
-  .bb-auth-mobile-brand { display: inline-flex; margin-top: var(--space-lg); }
+  .bb-auth-mobile-brand { display: flex; width: fit-content; margin-top: var(--space-lg); }
   .bb-auth-heading { margin-top: var(--space-xl); }
   .bb-auth-form--register { grid-template-columns: minmax(0, 1fr); }
   .bb-auth-form--register > * { grid-column: 1 !important; }

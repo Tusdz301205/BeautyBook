@@ -301,7 +301,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
               </div>;
             })}
           </div>
-          {canUpdate && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
+          {canUpdate && ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(activeBooking.status) && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>
         <section className="grid gap-3 sm:grid-cols-2">
           <Detail icon={Tag} label="Tổng tiền" value={money.format(activeBooking.totalAmount)} />

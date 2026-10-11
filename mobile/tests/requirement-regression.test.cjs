@@ -36,7 +36,7 @@ test('public branch mapping tolerates absent media, keeps branch identity and ra
 });
 
 test('all backend appointment statuses retain distinct visible labels', () => {
-  const { bookingStatusMeta } = load('data/appointments.ts', { '../constants/colors': { colors: {} } });
+  const { bookingStatusMeta } = load('data/appointments.ts', { '../constants/colors': { colors: {} }, '../theme': load('theme/index.ts') });
   const statuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'EXPIRED', 'REJECTED', 'NO_SHOW'];
   const labels = statuses.map(raw => bookingStatusMeta(raw === 'COMPLETED' ? 'completed' : ['CANCELLED', 'EXPIRED', 'REJECTED', 'NO_SHOW'].includes(raw) ? 'cancelled' : 'upcoming', raw).label);
   assert.equal(new Set(labels).size, statuses.length);
@@ -44,7 +44,7 @@ test('all backend appointment statuses retain distinct visible labels', () => {
 });
 
 test('active check-in and service stay in upcoming even after planned start', () => {
-  const { isPastUpcoming } = load('data/appointments.ts', { '../constants/colors': { colors: {} } });
+  const { isPastUpcoming } = load('data/appointments.ts', { '../constants/colors': { colors: {} }, '../theme': load('theme/index.ts') });
   const old = { status: 'upcoming', date: '01/01/2020', time: '08:30' };
   assert.equal(isPastUpcoming({ ...old, rawStatus: 'CHECKED_IN' }), false);
   assert.equal(isPastUpcoming({ ...old, rawStatus: 'IN_PROGRESS' }), false);

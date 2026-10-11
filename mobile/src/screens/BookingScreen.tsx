@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreventRemove } from '@react-navigation/native';
 
 import { BookingServiceLine, HomeStackParamList } from '../navigation/HomeStack';
-import { colors } from '../constants/colors';
+import { colors, elevation, layout, radius, space, tones, type } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import SelectListSheet from '../components/SelectListSheet';
 import { useBookings } from '../context/BookingsContext';
@@ -17,6 +17,7 @@ import { staffApi } from '../api/staff';
 import type { ApiAvailableSlot, ApiPricePreview, ApiService, ApiStaff } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { navigationRef } from '../navigation/navigationRef';
+import { slotClock, slotDate, slotHour } from '../utils/bookingClock';
 
 const ANY_STAFF = 'Bất kỳ';
 
@@ -27,11 +28,8 @@ function isSlotConflict(error: unknown): error is ApiError {
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Booking'>;
 
-const WEEKDAY_LABELS = ['Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Cn'];
+const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const WEEK_COUNT = 5;
-function formatSlotTime(value: string): string {
-  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-}
 
 function mondayOf(date: Date): Date {
   const d = new Date(date);
@@ -46,34 +44,14 @@ function dateKey(date: Date): string {
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
 
-function formatDisplayDate(date: Date): string {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${day}-${month}-${date.getFullYear()}`;
-}
-
-function Stepper({
-  value,
-  onDecrement,
-  onIncrement,
-}: {
-  value: number;
-  onDecrement: () => void;
-  onIncrement: () => void;
-}) {
+function StepTitle({ index, title, hint }: { index: number; title: string; hint?: string }) {
   return (
-    <View style={styles.stepper}>
-      <TouchableOpacity style={styles.stepperButton} activeOpacity={0.7} onPress={onDecrement}>
-        <Ionicons name="remove" size={16} color={colors.textBody} />
-      </TouchableOpacity>
-      <Text style={styles.stepperValue}>{value}</Text>
-      <TouchableOpacity
-        style={[styles.stepperButton, styles.stepperButtonPrimary]}
-        activeOpacity={0.7}
-        onPress={onIncrement}
-      >
-        <Ionicons name="add" size={16} color={colors.primary} />
-      </TouchableOpacity>
+    <View style={styles.stepHead}>
+      <Text style={styles.stepIndex}>{index}</Text>
+      <View style={styles.flex}>
+        <Text accessibilityRole="header" style={styles.stepTitle}>{title}</Text>
+        {hint ? <Text style={styles.helperText}>{hint}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -100,10 +78,8 @@ export default function BookingScreen({ route, navigation }: Props) {
       return { id: person.id, label: labels.filter((value) => value === base).length > 1 ? `${base} (${occurrence})` : base };
     });
   }, [publicStaff]);
-  const staffOptions = useMemo(() => [ANY_STAFF, ...staffChoices.map((choice) => choice.label)], [staffChoices]);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const selectedStaffLabel = staffChoices.find((choice) => choice.id === selectedStaffId)?.label || ANY_STAFF;
-  const [isStaffPickerVisible, setStaffPickerVisible] = useState(false);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -292,8 +268,12 @@ export default function BookingScreen({ route, navigation }: Props) {
     };
   }, [isLoggedIn, selectedTime, variantsComplete, branchId, selectedServiceKey, comboId, voucherCode, JSON.stringify(variantSelections)]);
 
-  const morningSlots = availableSlots.filter((slot) => new Date(slot.start).getHours() < 12);
-  const afternoonSlots = availableSlots.filter((slot) => new Date(slot.start).getHours() >= 12);
+  // Slots are instants from the backend booking zone; group and label them in that zone.
+  const slotGroups = [
+    { label: 'Sáng', slots: availableSlots.filter((slot) => slotHour(slot.start) < 12) },
+    { label: 'Chiều', slots: availableSlots.filter((slot) => slotHour(slot.start) >= 12 && slotHour(slot.start) < 17) },
+    { label: 'Tối', slots: availableSlots.filter((slot) => slotHour(slot.start) >= 17) },
+  ].filter((group) => group.slots.length > 0);
 
   const extraTotal = addedServices.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const localTotalPrice = service.price * serviceQuantity + extraTotal;
@@ -404,304 +384,278 @@ export default function BookingScreen({ route, navigation }: Props) {
     if (bookingId) navigation.navigate('BookingSuccess', { bookingId });
   };
 
+  const locked = isSubmitting || isOutcomeUnknown;
+  const priceIsServerQuote = Boolean(pricePreview);
+  const blockedReason = !isLoggedIn ? 'Đăng nhập để xem giá chính xác và gửi yêu cầu.'
+    : isLoadingServiceInfo ? 'Đang kiểm tra dịch vụ…'
+      : !variantsComplete ? 'Chọn lựa chọn cho từng dịch vụ để xem giờ trống.'
+        : !selectedTime ? 'Chọn giờ để tiếp tục.'
+          : policy && !policy.selfBookingAllowed ? 'Tài khoản đang bị hạn chế tự đặt lịch tại cơ sở này.'
+            : policy?.acknowledgmentRequired && !acknowledged ? 'Xác nhận cảnh báo chính sách để tiếp tục.'
+              : isLoadingPrice ? 'Đang tính giá từ hệ thống…'
+                : !pricePreview ? 'Chưa có giá từ hệ thống. Kiểm tra kết nối hoặc chọn lại giờ.'
+                  : null;
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} disabled={isSubmitting || isOutcomeUnknown} onPress={() => navigation.goBack()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={24} color={colors.white} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Quay lại" style={styles.backButton} disabled={locked} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={locked ? colors.disabledText : colors.heading} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Đặt lịch</Text>
+        <View style={styles.headerCenter}>
+          <Text accessibilityRole="header" style={styles.headerTitle}>Đặt lịch</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>{shopName}</Text>
+        </View>
         <View style={styles.backButton} />
       </SafeAreaView>
 
-      <ScrollView pointerEvents={isSubmitting || isOutcomeUnknown ? 'none' : 'auto'} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Text style={styles.sectionTitle}>Chọn chi nhánh</Text>
-        <TouchableOpacity
-          style={styles.branchPill}
-          activeOpacity={0.7}
-          onPress={() => setAddressPickerVisible(true)}
-        >
-          <Text style={styles.branchText}>
-            {selectedAddress}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={colors.textGray} />
-        </TouchableOpacity>
-
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Chọn ngày</Text>
-        <View style={styles.card}>
-          <View style={styles.monthNavRow}>
-            <TouchableOpacity
-              hitSlop={10}
-              disabled={weekIndex === 0}
-              onPress={() => setWeekIndex((prev) => Math.max(0, prev - 1))}
-            >
-              <Ionicons name="chevron-back" size={20} color={weekIndex === 0 ? colors.textMuted : colors.textDark} />
-            </TouchableOpacity>
-            <Text style={styles.monthLabel}>
-              THÁNG {weekDays[0].getMonth() + 1}/{weekDays[0].getFullYear()}
-              {(weekDays[0].getMonth() !== weekDays[weekDays.length - 1].getMonth() ||
-                weekDays[0].getFullYear() !== weekDays[weekDays.length - 1].getFullYear()) &&
-                ` – ${weekDays[weekDays.length - 1].getMonth() + 1}/${weekDays[weekDays.length - 1].getFullYear()}`}
-            </Text>
-            <TouchableOpacity
-              hitSlop={10}
-              disabled={weekIndex === WEEK_COUNT - 1}
-              onPress={() => setWeekIndex((prev) => Math.min(WEEK_COUNT - 1, prev + 1))}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={weekIndex === WEEK_COUNT - 1 ? colors.textMuted : colors.textDark}
-              />
-            </TouchableOpacity>
+      <ScrollView pointerEvents={locked ? 'none' : 'auto'} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+        <View style={styles.section}>
+          <StepTitle index={1} title="Dịch vụ" hint={comboId ? 'Gói dịch vụ áp dụng nguyên gói.' : undefined} />
+          <View style={styles.card}>
+            <Text style={styles.serviceName}>{service.name}</Text>
+            <Text style={styles.helperText}>{service.duration}</Text>
+            <View style={styles.servicePriceRow}>
+              <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
+              {service.originalPrice > service.price ? <Text style={styles.serviceOriginalPrice}>{formatCurrency(service.originalPrice)}</Text> : null}
+            </View>
+            {addedServices.map((item) => (
+              <View key={item.id} style={styles.extraServiceRow}>
+                <Ionicons name="add-circle-outline" size={18} color={colors.secondaryText} />
+                <View style={styles.flex}>
+                  <Text style={styles.extraServiceName}>{item.name}</Text>
+                  <Text style={styles.helperText}>{item.duration}</Text>
+                </View>
+                <Text style={styles.extraServicePrice}>{formatCurrency(item.price * item.quantity)}</Text>
+              </View>
+            ))}
+            <View style={styles.addressRow}>
+              <Ionicons name="location-outline" size={16} color={colors.secondaryText} />
+              <Text style={styles.addressText}>{selectedAddress}</Text>
+              {addresses.length > 1 ? (
+                <TouchableOpacity accessibilityRole="button" accessibilityLabel="Đổi chi nhánh" style={styles.linkButton} onPress={() => setAddressPickerVisible(true)}>
+                  <Text style={styles.linkText}>Đổi</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
 
-          <View style={styles.daysRow}>
-            {weekDays.map((date, index) => {
-              const dateIndex = weekIndex * 7 + index;
-              const isSelected = dateIndex === selectedDateIndex;
-              const isDisabled = date.getTime() < today.getTime();
-              return (
-                <TouchableOpacity
-                  key={dateKey(date)}
-                  style={[styles.dayCell, isSelected && styles.dayCellSelected]}
-                  activeOpacity={0.7}
-                  disabled={isDisabled}
-                  onPress={() => {
-                    setSelectedDateIndex(dateIndex);
-                    setSelectedTime(null);
-                  }}
-                >
-                  <Text style={[styles.dayWeekday, isDisabled && styles.dayTextDisabled, isSelected && styles.dayTextSelected]}>
-                    {WEEKDAY_LABELS[index]}
-                  </Text>
-                  <Text style={[styles.dayNumber, isDisabled && styles.dayTextDisabled, isSelected && styles.dayTextSelected]}>
-                    {date.getDate()}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Chọn giờ</Text>
-        <View style={styles.card}>
-          <Text style={styles.timeGroupLabel}>Sáng</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeSlotRow}>
-            {morningSlots.map((slot) => {
-              const isSelected = selectedTime === slot.start;
-              return (
-                <TouchableOpacity
-                  key={slot.start}
-                  style={[styles.timeSlot, isSelected && styles.timeSlotSelected]}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedTime(slot.start)}
-                >
-                  <Text style={[styles.timeSlotTime, isSelected && styles.timeSlotTextSelected]}>
-                    {formatSlotTime(slot.start)}
-                  </Text>
-                  <Text style={[styles.timeSlotSeats, isSelected && styles.timeSlotTextSelected]}>
-                    Còn trống
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <Text style={[styles.timeGroupLabel, styles.timeGroupSpacing]}>Chiều</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeSlotRow}>
-            {afternoonSlots.map((slot) => {
-              const isSelected = selectedTime === slot.start;
-              return (
-                <TouchableOpacity
-                  key={slot.start}
-                  style={[styles.timeSlot, isSelected && styles.timeSlotSelected]}
-                  activeOpacity={0.7}
-                  onPress={() => setSelectedTime(slot.start)}
-                >
-                  <Text style={[styles.timeSlotTime, isSelected && styles.timeSlotTextSelected]}>
-                    {formatSlotTime(slot.start)}
-                  </Text>
-                  <Text style={[styles.timeSlotSeats, isSelected && styles.timeSlotTextSelected]}>
-                    Còn trống
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          {isLoadingSlots && <ActivityIndicator color={colors.primary} style={{ marginVertical: 16 }} />}
-          {!!slotsError && <Text style={styles.savingsText}>{slotsError}</Text>}
-          {!isLoadingSlots && !slotsError && availableSlots.length === 0 && (
-            <Text style={styles.serviceDuration}>Không còn giờ trống trong ngày đã chọn.</Text>
+          {!comboId && selectedApiServices.map((item) => {
+            const variants = (item.variants ?? []).filter((variant) => variant.priceType !== 'QUOTE' && !variant.consultationRequired);
+            if (!item.variants?.length) return null;
+            return (
+              <View key={`variants-${item.id}`} style={styles.card}>
+                <Text style={styles.variantTitle}>Lựa chọn cho {item.name}</Text>
+                {variants.length ? variants.map((variant) => {
+                  const selected = variantSelections[item.id] === variant.id;
+                  return (
+                    <TouchableOpacity
+                      key={variant.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
+                      style={[styles.option, selected && styles.optionSelected]}
+                      onPress={() => setVariantSelections((current) => ({ ...current, [item.id]: variant.id }))}
+                    >
+                      <Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={22} color={selected ? colors.primary : colors.borderStrong} />
+                      <View style={styles.flex}>
+                        <Text style={[styles.optionTitle, selected && styles.optionTitleSelected]}>{variant.name}</Text>
+                        <Text style={styles.helperText}>{variant.priceDisplay || formatCurrency(Number(variant.price ?? item.price))} · {variant.durationMinutes ?? item.durationMinutes} phút</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }) : <Text style={styles.errorText}>Dịch vụ này cần tư vấn và chưa thể đặt trực tuyến.</Text>}
+              </View>
+            );
+          })}
+          {!isLoadingServiceInfo && selectedApiServices.length !== selectedServiceIds.length && (
+            <Text style={styles.errorText}>Có dịch vụ không còn khả dụng. Vui lòng quay lại chi nhánh và chọn lại dịch vụ.</Text>
+          )}
+          {!comboId && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={styles.outlineButton}
+              onPress={() => navigation.navigate('AddService', {
+                branchId,
+                shopName,
+                selected: Object.fromEntries(addedServices.map((item) => [item.id, item.quantity])),
+                onConfirm: setAddedServices,
+              })}
+            >
+              <Ionicons name="add" size={20} color={colors.primary} />
+              <Text style={styles.outlineButtonText}>{addedServices.length ? 'Sửa dịch vụ thêm' : 'Thêm dịch vụ'}</Text>
+            </TouchableOpacity>
           )}
         </View>
 
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Chọn chuyên viên</Text>
-        <TouchableOpacity
-          style={styles.branchPill}
-          activeOpacity={0.7}
-          disabled={isLoadingStaff}
-          onPress={() => setStaffPickerVisible(true)}
-        >
-          <Text style={styles.branchText}>
-            {selectedStaffLabel}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={colors.textGray} />
-        </TouchableOpacity>
-        {isLoadingStaff && <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />}
-        {!!staffError && (
-          <Text style={styles.helperText}>
-            {staffError}. Bạn vẫn có thể để hệ thống tự phân công.
-          </Text>
-        )}
-
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Chọn dịch vụ</Text>
-        <View style={styles.serviceRow}>
-          <Ionicons name="information-circle-outline" size={18} color={colors.textGray} />
-          <Text style={styles.serviceName}>{service.name}</Text>
-        </View>
-        <Text style={styles.serviceDuration}>{service.duration}</Text>
-        <View style={styles.servicePriceRow}>
-          <View style={styles.servicePriceTextWrap}>
-            <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
-            <Text style={styles.serviceOriginalPrice}>{formatCurrency(service.originalPrice)}</Text>
-          </View>
-          <Text style={styles.serviceDuration}>1 dịch vụ</Text>
+        <View style={styles.section}>
+          <StepTitle index={2} title="Chuyên viên" hint="Chọn trước khi xem giờ trống; đổi chuyên viên sẽ cập nhật lại giờ." />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            {[{ id: null as string | null, label: ANY_STAFF }, ...staffChoices].map((choice) => {
+              const selected = selectedStaffId === choice.id;
+              return (
+                <TouchableOpacity
+                  key={choice.id ?? 'any'}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected, disabled: isLoadingStaff }}
+                  disabled={isLoadingStaff}
+                  style={[styles.chip, selected && styles.chipSelected]}
+                  onPress={() => { setSelectedStaffId(choice.id); setSelectedTime(null); }}
+                >
+                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{choice.id ? choice.label : 'Bất kỳ chuyên viên'}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {isLoadingStaff && <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />}
+          {!!staffError && <Text style={styles.helperText}>{staffError}. Bạn vẫn có thể để cơ sở tự phân công.</Text>}
         </View>
 
-        {addedServices.map((item) => (
-          <View key={item.id} style={styles.extraServiceRow}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.textGray} />
-            <View style={styles.extraServiceInfo}>
-              <Text style={styles.extraServiceName}>
-                {item.name} × {item.quantity}
+        <View style={styles.section}>
+          <StepTitle index={3} title="Ngày" />
+          <View style={styles.card}>
+            <View style={styles.monthNavRow}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Tuần trước" accessibilityState={{ disabled: weekIndex === 0 }} style={styles.navButton} disabled={weekIndex === 0} onPress={() => setWeekIndex((prev) => Math.max(0, prev - 1))}>
+                <Ionicons name="chevron-back" size={22} color={weekIndex === 0 ? colors.disabledText : colors.heading} />
+              </TouchableOpacity>
+              <Text style={styles.monthLabel}>
+                Tháng {weekDays[0].getMonth() + 1}/{weekDays[0].getFullYear()}
+                {(weekDays[0].getMonth() !== weekDays[weekDays.length - 1].getMonth() || weekDays[0].getFullYear() !== weekDays[weekDays.length - 1].getFullYear()) && ` – ${weekDays[weekDays.length - 1].getMonth() + 1}/${weekDays[weekDays.length - 1].getFullYear()}`}
               </Text>
-              <Text style={styles.serviceDuration}>{item.duration}</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Tuần sau" accessibilityState={{ disabled: weekIndex === WEEK_COUNT - 1 }} style={styles.navButton} disabled={weekIndex === WEEK_COUNT - 1} onPress={() => setWeekIndex((prev) => Math.min(WEEK_COUNT - 1, prev + 1))}>
+                <Ionicons name="chevron-forward" size={22} color={weekIndex === WEEK_COUNT - 1 ? colors.disabledText : colors.heading} />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.extraServicePrice}>{formatCurrency(item.price * item.quantity)}</Text>
-          </View>
-        ))}
-
-        {!comboId && selectedApiServices.map((item) => {
-          const variants = (item.variants ?? []).filter(
-            (variant) => variant.priceType !== 'QUOTE' && !variant.consultationRequired,
-          );
-          if (!item.variants?.length) return null;
-          return (
-            <View key={`variants-${item.id}`} style={styles.variantCard}>
-              <Text style={styles.variantTitle}>Lựa chọn cho {item.name}</Text>
-              {variants.length ? variants.map((variant) => {
-                const selected = variantSelections[item.id] === variant.id;
+            <View style={styles.daysRow}>
+              {weekDays.map((date, index) => {
+                const dateIndex = weekIndex * 7 + index;
+                const isSelected = dateIndex === selectedDateIndex;
+                const isDisabled = date.getTime() < today.getTime();
                 return (
                   <TouchableOpacity
-                    key={variant.id}
-                    style={[styles.variantOption, selected && styles.variantOptionSelected]}
-                    onPress={() => setVariantSelections((current) => ({ ...current, [item.id]: variant.id }))}
+                    key={dateKey(date)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${WEEKDAY_LABELS[index]}, ngày ${date.getDate()}/${date.getMonth() + 1}${dateIndex === todayIndex ? ', hôm nay' : ''}`}
+                    accessibilityState={{ selected: isSelected, disabled: isDisabled }}
+                    style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                    disabled={isDisabled}
+                    onPress={() => { setSelectedDateIndex(dateIndex); setSelectedTime(null); }}
                   >
-                    <View style={styles.variantTextWrap}>
-                      <Text style={[styles.variantName, selected && styles.variantNameSelected]}>{variant.name}</Text>
-                      <Text style={styles.helperText}>
-                        {variant.priceDisplay || formatCurrency(Number(variant.price ?? item.price))}
-                        {' · '}{variant.durationMinutes ?? item.durationMinutes} phút
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={selected ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={selected ? colors.primary : colors.textMuted}
-                    />
+                    <Text style={[styles.dayWeekday, isDisabled && styles.dayTextDisabled, isSelected && styles.dayTextSelected]}>{WEEKDAY_LABELS[index]}</Text>
+                    <Text style={[styles.dayNumber, isDisabled && styles.dayTextDisabled, isSelected && styles.dayTextSelected]}>{date.getDate()}</Text>
+                    {dateIndex === todayIndex ? <View style={[styles.todayDot, isSelected && styles.todayDotSelected]} /> : null}
                   </TouchableOpacity>
                 );
-              }) : (
-                <Text style={styles.errorText}>Dịch vụ này cần tư vấn và chưa thể đặt trực tuyến.</Text>
-              )}
+              })}
             </View>
-          );
-        })}
-        {!isLoadingServiceInfo && selectedApiServices.length !== selectedServiceIds.length && (
-          <Text style={styles.errorText}>
-            Có dịch vụ không còn khả dụng. Vui lòng quay lại chi nhánh và chọn lại dịch vụ.
-          </Text>
-        )}
+          </View>
+        </View>
 
-        {!comboId && <TouchableOpacity
-          style={styles.outlineButton}
-          activeOpacity={0.7}
-          onPress={() =>
-            navigation.navigate('AddService', {
-              branchId,
-              shopName,
-              selected: Object.fromEntries(addedServices.map((item) => [item.id, item.quantity])),
-              onConfirm: setAddedServices,
-            })
-          }
-        >
-          <Text style={styles.outlineButtonText}>THÊM DỊCH VỤ</Text>
-        </TouchableOpacity>}
+        <View style={styles.section}>
+          <StepTitle index={4} title="Giờ" hint="Giờ theo múi giờ Việt Nam (GMT+7)." />
+          <View style={styles.card}>
+            {slotGroups.map((group) => (
+              <View key={group.label} style={styles.slotGroup}>
+                <Text style={styles.timeGroupLabel}>{group.label}</Text>
+                <View style={styles.slotGrid}>
+                  {group.slots.map((slot) => {
+                    const isSelected = selectedTime === slot.start;
+                    return (
+                      <TouchableOpacity
+                        key={slot.start}
+                        accessibilityRole="radio"
+                        accessibilityLabel={`${slotClock(slot.start)}, còn trống`}
+                        accessibilityState={{ checked: isSelected }}
+                        style={[styles.timeSlot, isSelected && styles.timeSlotSelected]}
+                        onPress={() => setSelectedTime(slot.start)}
+                      >
+                        <Text style={[styles.timeSlotTime, isSelected && styles.timeSlotTextSelected]}>{slotClock(slot.start)}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            ))}
+            {isLoadingSlots && <ActivityIndicator color={colors.primary} style={styles.slotLoader} />}
+            {!!slotsError && (
+              <View style={styles.inlineNotice}>
+                <Text style={styles.errorText}>{slotsError}</Text>
+                <TouchableOpacity accessibilityRole="button" style={styles.linkButton} onPress={() => setSlotsRefreshKey((current) => current + 1)}><Text style={styles.linkText}>Tải lại giờ trống</Text></TouchableOpacity>
+              </View>
+            )}
+            {!isLoadingSlots && !slotsError && availableSlots.length === 0 && (
+              <Text style={styles.helperText}>{variantsComplete ? 'Không còn giờ trống trong ngày đã chọn. Thử ngày khác hoặc chuyên viên khác.' : 'Chọn lựa chọn dịch vụ ở bước 1 để xem giờ trống.'}</Text>
+            )}
+          </View>
+        </View>
 
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Khuyến mãi</Text>
-        <TextInput
-          style={styles.voucherInput}
-          value={voucherCode}
-          onChangeText={setVoucherCode}
-          editable={!isSubmitting && !isOutcomeUnknown}
-          autoCapitalize="characters"
-          placeholder="Nhập mã voucher (không bắt buộc)"
-          placeholderTextColor={colors.textMuted}
-        />
-        {isLoadingPrice && <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />}
-        {!!priceError && <Text style={styles.errorText}>{priceError}</Text>}
-        {!!policyError && <Text style={styles.errorText}>{policyError}</Text>}
-        {policy && !policy.selfBookingAllowed && (
-          <Text style={styles.errorText}>Tài khoản đang bị hạn chế tự đặt lịch tại {policy.businessName}. Vui lòng liên hệ cơ sở.</Text>
-        )}
-        {policy?.acknowledgmentRequired && (
-          <TouchableOpacity onPress={() => setAcknowledged((value) => !value)} style={styles.outlineButton}>
-            <Text style={styles.outlineButtonText}>{acknowledged ? '☑' : '☐'} Tôi hiểu cảnh báo {policy.score} điểm vi phạm và vẫn muốn đặt lịch.</Text>
-          </TouchableOpacity>
-        )}
-        {!!pricePreview?.promotionDiscount && (
-          <Text style={styles.discountText}>Khuyến mãi tự động: -{formatCurrency(pricePreview.promotionDiscount)}</Text>
-        )}
-        {!!pricePreview?.voucherDiscount && (
-          <Text style={styles.discountText}>Voucher: -{formatCurrency(pricePreview.voucherDiscount)}</Text>
-        )}
-
-        <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>Ghi chú</Text>
-        <TextInput
-          style={styles.noteInput}
-          placeholder="Ví dụ: Da nhạy cảm, xin shop nhẹ tay"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          editable={!isSubmitting && !isOutcomeUnknown}
-          value={note}
-          onChangeText={setNote}
-        />
+        <View style={styles.section}>
+          <StepTitle index={5} title="Ưu đãi và ghi chú" />
+          <Text style={styles.fieldLabel}>Mã voucher <Text style={styles.helperText}>· không bắt buộc</Text></Text>
+          <TextInput
+            accessibilityLabel="Mã voucher, không bắt buộc"
+            style={styles.input}
+            value={voucherCode}
+            onChangeText={setVoucherCode}
+            editable={!locked}
+            autoCapitalize="characters"
+            placeholder="Nhập mã nếu có"
+            placeholderTextColor={colors.disabledText}
+          />
+          {isLoadingPrice && <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />}
+          {!!priceError && <Text style={styles.errorText}>{priceError}</Text>}
+          {!!pricePreview?.promotionDiscount && <Text style={styles.discountText}>Khuyến mãi tự động: -{formatCurrency(pricePreview.promotionDiscount)}</Text>}
+          {!!pricePreview?.voucherDiscount && <Text style={styles.discountText}>Voucher: -{formatCurrency(pricePreview.voucherDiscount)}</Text>}
+          <Text style={[styles.fieldLabel, styles.fieldSpacing]}>Ghi chú cho cơ sở <Text style={styles.helperText}>· không bắt buộc</Text></Text>
+          <TextInput
+            accessibilityLabel="Ghi chú cho cơ sở, không bắt buộc"
+            style={[styles.input, styles.noteInput]}
+            placeholder="Ví dụ: da nhạy cảm, xin nhẹ tay"
+            placeholderTextColor={colors.disabledText}
+            multiline
+            editable={!locked}
+            value={note}
+            onChangeText={setNote}
+          />
+          {!!policyError && <Text style={styles.errorText}>{policyError}</Text>}
+          {policy && !policy.selfBookingAllowed && (
+            <Text style={styles.errorText}>Tài khoản đang bị hạn chế tự đặt lịch tại {policy.businessName}. Vui lòng liên hệ cơ sở.</Text>
+          )}
+          {policy?.acknowledgmentRequired && (
+            <TouchableOpacity accessibilityRole="checkbox" accessibilityState={{ checked: acknowledged }} onPress={() => setAcknowledged((value) => !value)} style={styles.ackRow}>
+              <Ionicons name={acknowledged ? 'checkbox' : 'square-outline'} size={24} color={acknowledged ? colors.primary : colors.borderStrong} />
+              <Text style={styles.ackText}>Tôi hiểu cảnh báo {policy.score} điểm vi phạm và vẫn muốn đặt lịch.</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
-        {isOutcomeUnknown && <View accessibilityLiveRegion="polite">
-          <Text style={styles.errorText}>Chưa rõ kết quả đặt lịch</Text>
-          <Text style={styles.helperText}>Yêu cầu có thể đã được tạo. Hãy kiểm tra Lịch hẹn. Thử lại sẽ kiểm tra cùng yêu cầu đã gửi, không tạo yêu cầu mới.</Text>
+        {isOutcomeUnknown && <View accessibilityLiveRegion="polite" style={styles.unknownBox}>
+          <View style={styles.unknownHead}>
+            <Ionicons name="warning-outline" size={20} color={tones.warning.fg} />
+            <Text style={styles.unknownTitle}>Chưa rõ kết quả đặt lịch</Text>
+          </View>
+          <Text style={styles.unknownText}>Yêu cầu có thể đã được tạo. Hãy kiểm tra Lịch hẹn. Thử lại sẽ kiểm tra cùng yêu cầu đã gửi, không tạo yêu cầu mới.</Text>
           <TouchableOpacity accessibilityRole="button" style={styles.outlineButton} onPress={() => navigation.getParent()?.navigate('LichHen')}>
             <Text style={styles.outlineButtonText}>Xem lịch hẹn của tôi</Text>
           </TouchableOpacity>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Thử lại yêu cầu đặt lịch đã gửi" style={[styles.nextButton, isSubmitting && styles.nextButtonDisabled]} disabled={isSubmitting} onPress={() => void submitBooking()}>
-            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>THỬ LẠI YÊU CẦU ĐÃ GỬI</Text>}
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>Thử lại yêu cầu đã gửi</Text>}
           </TouchableOpacity>
         </View>}
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Tổng tiền</Text>
-          <View style={styles.totalValueWrap}>
-            <Text style={styles.totalValue}>{formatCurrency(totalPrice)}</Text>
-            {totalSavings > 0 && <Text style={styles.savingsText}>tiết kiệm: {formatCurrency(totalSavings)}</Text>}
+          <View style={styles.flex}>
+            <Text style={styles.totalLabel}>{priceIsServerQuote ? 'Tổng dự kiến' : 'Tạm tính'}</Text>
+            {totalSavings > 0 && <Text style={styles.savingsText}>Tiết kiệm {formatCurrency(totalSavings)}</Text>}
           </View>
+          <Text style={styles.totalValue}>{formatCurrency(totalPrice)}</Text>
         </View>
+        {!isOutcomeUnknown && !!blockedReason && <Text style={styles.blockedText}>{blockedReason}</Text>}
         {!isOutcomeUnknown && <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Xem lại đặt lịch"
+          accessibilityLabel={isLoggedIn ? 'Xem lại đặt lịch' : 'Đăng nhập để tiếp tục đặt lịch'}
+          accessibilityState={{ disabled: !canContinue }}
           style={[styles.nextButton, !canContinue && styles.nextButtonDisabled]}
-          activeOpacity={0.85}
           disabled={!canContinue}
           onPress={() => {
             if (!selectedTime) return;
@@ -714,47 +668,34 @@ export default function BookingScreen({ route, navigation }: Props) {
             setReviewVisible(true);
           }}
         >
-          <Text style={styles.nextButtonText}>XEM LẠI ĐẶT LỊCH</Text>
+          <Text style={[styles.nextButtonText, !canContinue && styles.nextButtonTextDisabled]}>{isLoggedIn ? 'Xem lại đặt lịch' : 'Đăng nhập để tiếp tục'}</Text>
         </TouchableOpacity>}
       </SafeAreaView>
 
       {isReviewVisible && <View style={styles.reviewBackdrop} accessibilityViewIsModal>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Đóng xem lại đặt lịch" style={styles.reviewDismissArea} disabled={isSubmitting} onPress={() => setReviewVisible(false)} />
-          <SafeAreaView edges={['bottom']} style={styles.reviewSheet}>
-            <View style={styles.reviewHeading}>
-              <View style={styles.reviewHeadingCopy}><Text style={styles.reviewEyebrow}>BƯỚC CUỐI CÙNG</Text><Text style={styles.reviewTitle}>Xem lại đặt lịch</Text></View>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Đóng xem lại đặt lịch" disabled={isSubmitting} onPress={() => setReviewVisible(false)} style={styles.reviewClose}><Ionicons name="close" size={22} color={colors.textDark} /></TouchableOpacity>
-            </View>
-            <ScrollView style={styles.reviewScroll} contentContainerStyle={styles.reviewContent}>
-              <Text style={styles.reviewLabel}>Cơ sở</Text><Text style={styles.reviewValue}>{shopName}</Text><Text style={styles.reviewSubvalue}>{selectedAddress}</Text>
-              <View style={styles.reviewDivider} />
-              <Text style={styles.reviewLabel}>Dịch vụ</Text><Text style={styles.reviewValue}>{selectedApiServices.map((item) => item.name).join(', ') || service.name}</Text>
-              <View style={styles.reviewDivider} />
-              <Text style={styles.reviewLabel}>Thời gian</Text><Text style={styles.reviewValue}>{selectedTime ? `${new Date(selectedTime).toLocaleDateString('vi-VN')} · ${formatSlotTime(selectedTime)}` : ''}</Text>
-              <Text style={styles.reviewSubvalue}>Chuyên viên: {selectedStaffLabel}</Text>
-              <View style={styles.reviewDivider} />
-              <Text style={styles.reviewLabel}>Giá dự kiến</Text><Text style={styles.reviewPrice}>{formatCurrency(pricePreview?.finalAmount ?? totalPrice)}</Text>
-              <Text style={styles.reviewNote}>Yêu cầu sẽ ở trạng thái chờ cơ sở xác nhận. Giá được kiểm tra lại khi bạn gửi.</Text>
-            </ScrollView>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Xác nhận gửi đặt lịch" style={[styles.nextButton, isSubmitting && styles.nextButtonDisabled]} disabled={isSubmitting} onPress={() => void submitBooking()}>
-              {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>XÁC NHẬN ĐẶT LỊCH</Text>}
-            </TouchableOpacity>
-          </SafeAreaView>
-        </View>}
-
-      <SelectListSheet
-        visible={isStaffPickerVisible}
-        title="Chọn chuyên viên"
-        options={staffOptions}
-        selectedValue={selectedStaffLabel}
-        onSelect={(label) => {
-          setSelectedStaffId(label === ANY_STAFF ? null : staffChoices.find((choice) => choice.label === label)?.id || null);
-          setSelectedTime(null);
-          setStaffPickerVisible(false);
-        }}
-        onClose={() => setStaffPickerVisible(false)}
-        columns={1}
-      />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Đóng xem lại đặt lịch" style={styles.reviewDismissArea} disabled={isSubmitting} onPress={() => setReviewVisible(false)} />
+        <SafeAreaView edges={['bottom']} style={styles.reviewSheet}>
+          <View style={styles.reviewHandle} />
+          <View style={styles.reviewHeading}>
+            <View style={styles.flex}><Text style={styles.reviewEyebrow}>Bước cuối</Text><Text accessibilityRole="header" style={styles.reviewTitle}>Xem lại đặt lịch</Text></View>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Đóng xem lại đặt lịch" disabled={isSubmitting} onPress={() => setReviewVisible(false)} style={styles.backButton}><Ionicons name="close" size={24} color={colors.heading} /></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.reviewScroll} contentContainerStyle={styles.reviewContent}>
+            <Text style={styles.reviewLabel}>Cơ sở</Text><Text style={styles.reviewValue}>{shopName}</Text><Text style={styles.reviewSubvalue}>{selectedAddress}</Text>
+            <View style={styles.reviewDivider} />
+            <Text style={styles.reviewLabel}>Dịch vụ</Text><Text style={styles.reviewValue}>{selectedApiServices.map((item) => item.name).join(', ') || service.name}</Text>
+            <View style={styles.reviewDivider} />
+            <Text style={styles.reviewLabel}>Thời gian</Text><Text style={styles.reviewValue}>{selectedTime ? `${slotDate(selectedTime)} · ${slotClock(selectedTime)}` : ''}</Text>
+            <Text style={styles.reviewSubvalue}>Chuyên viên: {selectedStaffLabel}</Text>
+            <View style={styles.reviewDivider} />
+            <Text style={styles.reviewLabel}>Giá dự kiến</Text><Text style={styles.reviewPrice}>{formatCurrency(pricePreview?.finalAmount ?? totalPrice)}</Text>
+            <Text style={styles.reviewNote}>Cơ sở có thể cần xác nhận trước khi lịch có hiệu lực. Giá được kiểm tra lại khi bạn gửi.</Text>
+          </ScrollView>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Xác nhận gửi đặt lịch" style={[styles.nextButton, isSubmitting && styles.nextButtonDisabled]} disabled={isSubmitting} onPress={() => void submitBooking()}>
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>Xác nhận đặt lịch</Text>}
+          </TouchableOpacity>
+        </SafeAreaView>
+      </View>}
 
       <SelectListSheet
         visible={isAddressPickerVisible}
@@ -768,403 +709,105 @@ export default function BookingScreen({ route, navigation }: Props) {
         onClose={() => setAddressPickerVisible(false)}
         columns={1}
       />
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.card,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingBottom: 16,
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.white,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.textDark,
-    marginBottom: 12,
-  },
-  sectionSpacingTop: {
-    marginTop: 26,
-  },
-  branchPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  branchText: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.textDark,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 16,
-  },
-  monthNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  monthLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dayCell: {
-    flex: 1,
-    paddingVertical: 8,
-    marginHorizontal: 2,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 4,
-  },
-  dayCellSelected: {
-    backgroundColor: colors.primaryLight,
-  },
-  dayWeekday: {
-    fontSize: 12,
-    color: colors.textGray,
-    fontWeight: '600',
-  },
-  dayNumber: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  dayTextSelected: {
-    color: colors.primary,
-  },
-  dayTextDisabled: {
-    color: colors.textMuted,
-  },
-  timeGroupLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textGray,
-    marginBottom: 12,
-  },
-  timeGroupSpacing: {
-    marginTop: 20,
-  },
-  timeSlotRow: {
-    gap: 10,
-    paddingRight: 4,
-  },
-  timeSlot: {
-    minWidth: 96,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    gap: 2,
-  },
-  timeSlotSelected: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primary,
-  },
-  timeSlotTime: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  timeSlotSeats: {
-    fontSize: 12,
-    color: colors.textGray,
-  },
-  timeSlotTextSelected: {
-    color: colors.primary,
-  },
-  rowCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rowCardLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  stepperButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonPrimary: {
-    backgroundColor: colors.primaryLight,
-  },
-  stepperValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-    minWidth: 18,
-    textAlign: 'center',
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  serviceName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  serviceDuration: {
-    fontSize: 13,
-    color: colors.textGray,
-    marginBottom: 12,
-  },
-  servicePriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  servicePriceTextWrap: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  servicePrice: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  serviceOriginalPrice: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
-  },
-  extraServiceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  extraServiceInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  extraServiceName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textDark,
-  },
-  extraServicePrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  inlineLoader: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
-  },
-  helperText: {
-    fontSize: 12,
-    color: colors.textGray,
-    lineHeight: 18,
-  },
-  errorText: {
-    fontSize: 12,
-    color: colors.discountRed,
-    lineHeight: 18,
-    marginTop: 8,
-  },
-  variantCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
-    gap: 10,
-  },
-  variantTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  variantOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  variantOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  variantTextWrap: {
-    flex: 1,
-  },
-  variantName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  variantNameSelected: {
-    color: colors.primary,
-  },
-  outlineButton: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  outlineButtonDisabled: {
-    borderColor: colors.border,
-  },
-  outlineButtonText: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  outlineButtonTextDisabled: {
-    color: colors.textMuted,
-  },
-  voucherInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 14,
-    color: colors.textDark,
-  },
-  discountText: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.ratingGreen,
-  },
-  noteInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    minHeight: 90,
-    fontSize: 15,
-    color: colors.textDark,
-    textAlignVertical: 'top',
-  },
-  bottomBar: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  totalValueWrap: {
-    alignItems: 'flex-end',
-  },
-  totalValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  savingsText: {
-    fontSize: 12,
-    color: colors.textGray,
-    marginTop: 2,
-  },
-  nextButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 24,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  nextButtonDisabled: {
-    backgroundColor: colors.border,
-  },
-  nextButtonText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 15,
-    letterSpacing: 0.5,
-  },
-  reviewBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, elevation: 20, backgroundColor: '#22151CAA', justifyContent: 'flex-end' },
+  screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, minWidth: 0 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xs, paddingBottom: space.xs, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  backButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
+  headerCenter: { flex: 1, alignItems: 'center', minWidth: 0 },
+  headerTitle: { ...type.h3 },
+  headerSubtitle: { ...type.caption },
+  content: { paddingHorizontal: layout.gutter, paddingTop: space.lg, paddingBottom: space.xxxl },
+  section: { marginBottom: space.xxl },
+  stepHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, marginBottom: space.md },
+  stepIndex: { width: 28, height: 28, borderRadius: 14, textAlign: 'center', ...type.caption, lineHeight: 28, fontSize: 13, fontWeight: '700', color: colors.onSecondary, backgroundColor: colors.secondary, overflow: 'hidden' },
+  stepTitle: { ...type.h3, lineHeight: 28 },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: space.lg, gap: space.sm, marginBottom: space.md },
+  serviceName: { ...type.bodyStrong },
+  servicePriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, flexWrap: 'wrap' },
+  servicePrice: { ...type.price, color: colors.primary },
+  serviceOriginalPrice: { ...type.secondary, textDecorationLine: 'line-through' },
+  extraServiceRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.divider },
+  extraServiceName: { ...type.secondaryStrong, color: colors.heading },
+  extraServicePrice: { ...type.price, fontSize: 14 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.divider },
+  addressText: { ...type.secondary, flex: 1 },
+  linkButton: { minHeight: layout.touch, justifyContent: 'center', paddingHorizontal: space.sm },
+  linkText: { ...type.secondaryStrong, color: colors.primary },
+  variantTitle: { ...type.secondaryStrong, color: colors.heading },
+  option: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm },
+  optionSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  optionTitle: { ...type.secondaryStrong, color: colors.heading },
+  optionTitleSelected: { color: colors.primary },
+  outlineButton: { minHeight: layout.touch, flexDirection: 'row', gap: space.sm, borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg, backgroundColor: colors.surface },
+  outlineButtonText: { ...type.button, color: colors.primary },
+  chipRow: { gap: space.sm, paddingVertical: space.xs },
+  chip: { minHeight: layout.touch - 4, justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: space.lg },
+  chipSelected: { backgroundColor: colors.secondary, borderColor: colors.secondary },
+  chipText: { ...type.secondaryStrong, color: colors.heading },
+  chipTextSelected: { color: colors.onSecondary },
+  inlineLoader: { alignSelf: 'flex-start', marginTop: space.sm },
+  monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  navButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
+  monthLabel: { ...type.secondaryStrong, color: colors.heading, flex: 1, textAlign: 'center' },
+  daysRow: { flexDirection: 'row', gap: space.xs },
+  dayCell: { flex: 1, minHeight: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  dayCellSelected: { backgroundColor: colors.secondary },
+  dayWeekday: { ...type.caption, fontWeight: '600' },
+  dayNumber: { ...type.clock, fontSize: 17 },
+  dayTextSelected: { color: colors.onSecondary },
+  dayTextDisabled: { color: colors.disabledText },
+  todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary },
+  todayDotSelected: { backgroundColor: colors.onSecondary },
+  slotGroup: { marginBottom: space.sm },
+  timeGroupLabel: { ...type.overline, marginBottom: space.sm },
+  slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  timeSlot: { minWidth: 76, minHeight: layout.touch, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.md, backgroundColor: colors.surface },
+  timeSlotSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  timeSlotTime: { ...type.clock },
+  timeSlotTextSelected: { color: colors.onPrimary },
+  slotLoader: { marginVertical: space.lg },
+  inlineNotice: { gap: space.xs },
+  fieldLabel: { ...type.secondaryStrong, color: colors.heading, marginBottom: space.xs + 2 },
+  fieldSpacing: { marginTop: space.lg },
+  input: { minHeight: layout.inputMinHeight, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.md, paddingHorizontal: space.lg, ...type.body, color: colors.heading, backgroundColor: colors.surface },
+  noteInput: { minHeight: 96, paddingTop: space.md, textAlignVertical: 'top' },
+  helperText: { ...type.secondary },
+  errorText: { ...type.secondary, color: colors.error, marginTop: space.sm },
+  discountText: { ...type.secondaryStrong, color: colors.success, marginTop: space.sm },
+  ackRow: { minHeight: layout.touch, flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.lg, padding: space.md, borderRadius: radius.md, backgroundColor: colors.warningSoft },
+  ackText: { ...type.secondary, color: colors.heading, flex: 1 },
+  bottomBar: { paddingHorizontal: layout.gutter, paddingTop: space.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, gap: space.sm, ...elevation.raised },
+  unknownBox: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: tones.warning.bg, borderWidth: 1, borderColor: tones.warning.border },
+  unknownHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  unknownTitle: { ...type.secondaryStrong, color: tones.warning.fg },
+  unknownText: { ...type.secondary, color: colors.body },
+  totalRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  totalLabel: { ...type.secondaryStrong, color: colors.heading },
+  totalValue: { ...type.numeric, fontSize: 22, lineHeight: 28, color: colors.primary },
+  savingsText: { ...type.caption, color: colors.success },
+  blockedText: { ...type.caption },
+  nextButton: { minHeight: layout.buttonMinHeight, backgroundColor: colors.primary, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg, marginBottom: space.sm },
+  nextButtonDisabled: { backgroundColor: colors.disabledSurface },
+  nextButtonText: { ...type.button, color: colors.onPrimary },
+  nextButtonTextDisabled: { color: colors.disabledText },
+  reviewBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, elevation: 20, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   reviewDismissArea: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
-  reviewSheet: { backgroundColor: colors.background, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 22, maxHeight: '88%' },
-  reviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  reviewHeadingCopy: { flex: 1, minWidth: 0 },
-  reviewEyebrow: { color: colors.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  reviewTitle: { color: colors.textDark, fontSize: 25, lineHeight: 32, fontWeight: '700', marginTop: 3 },
-  reviewClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  reviewScroll: { flexGrow: 0, marginTop: 20, marginBottom: 18 },
-  reviewContent: { paddingBottom: 4 },
-  reviewLabel: { color: colors.textGray, fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  reviewValue: { color: colors.textDark, fontSize: 16, lineHeight: 23, fontWeight: '700' },
-  reviewSubvalue: { color: colors.textBody, fontSize: 14, lineHeight: 20, marginTop: 3 },
-  reviewDivider: { height: 1, backgroundColor: colors.border, marginVertical: 15 },
-  reviewPrice: { color: colors.primary, fontSize: 25, fontWeight: '700' },
-  reviewNote: { color: colors.textGray, fontSize: 13, lineHeight: 19, marginTop: 12 },
+  reviewSheet: { backgroundColor: colors.background, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingHorizontal: layout.gutter + space.xs, paddingTop: space.sm, maxHeight: '88%' },
+  reviewHandle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, marginBottom: space.sm },
+  reviewHeading: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  reviewEyebrow: { ...type.overline, color: colors.primary },
+  reviewTitle: { ...type.h2, marginTop: 2 },
+  reviewScroll: { flexGrow: 0, marginTop: space.lg, marginBottom: space.lg },
+  reviewContent: { paddingBottom: space.xs },
+  reviewLabel: { ...type.caption, marginBottom: space.xs },
+  reviewValue: { ...type.bodyStrong },
+  reviewSubvalue: { ...type.secondary, marginTop: 2 },
+  reviewDivider: { height: 1, backgroundColor: colors.divider, marginVertical: space.md },
+  reviewPrice: { ...type.numeric, color: colors.primary },
+  reviewNote: { ...type.secondary, marginTop: space.md },
 });

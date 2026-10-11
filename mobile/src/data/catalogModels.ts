@@ -46,6 +46,9 @@ export interface ServiceItem {
   name: string;
   duration: string;
   price: number;
+  /** fixed: one price; from: lowest bookable variant; quote: consultation only. */
+  priceKind?: 'fixed' | 'from' | 'quote';
+  priceDisplay?: string;
 }
 
 export interface ServiceGroup {
@@ -67,3 +70,11 @@ export interface Review {
 }
 
 export const formatCurrency = (value: number): string => `${value.toLocaleString('vi-VN')} đ`;
+
+/** Customer-facing price that preserves FIXED / FROM / QUOTE semantics. */
+export function servicePriceLabel(item: Pick<ServiceItem, 'price' | 'priceKind' | 'priceDisplay'>): string {
+  if (item.priceDisplay) return item.priceDisplay;
+  if (item.priceKind === 'quote') return 'Cần tư vấn';
+  if (!Number.isFinite(item.price) || item.price <= 0) return 'Liên hệ cơ sở';
+  return item.priceKind === 'from' ? `Từ ${formatCurrency(item.price)}` : formatCurrency(item.price);
+}

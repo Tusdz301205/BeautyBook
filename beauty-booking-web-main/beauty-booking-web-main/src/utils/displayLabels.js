@@ -68,7 +68,7 @@ export const STATUS_TONES = {
 
 export const DOCUMENT_LABELS = {
   BUSINESS_LICENSE: 'Giấy phép kinh doanh',
-  OWNER_ID_CARD: 'CCCD người đại diện',
+  OWNER_ID_CARD: 'Giấy tờ định danh người đại diện',
   TAX_DOCUMENT: 'Tài liệu thuế',
   BUSINESS_REGISTRATION: 'Giấy chứng nhận đăng ký doanh nghiệp',
   TAX_REGISTRATION: 'Hồ sơ đăng ký thuế',

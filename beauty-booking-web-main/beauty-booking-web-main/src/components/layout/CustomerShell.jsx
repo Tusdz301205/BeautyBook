@@ -9,7 +9,6 @@ import {
   Heart,
   KeyRound,
   LogOut,
-  ShieldCheck,
   Sparkles,
   Star,
   Store,
@@ -46,7 +45,6 @@ const accountGroups = [
     label: 'Hệ thống',
     items: [
       ['/customer/security', 'Bảo mật & phiên đăng nhập', KeyRound],
-      ['/customer/privacy', 'Quyền riêng tư', ShieldCheck],
     ],
   },
 ];

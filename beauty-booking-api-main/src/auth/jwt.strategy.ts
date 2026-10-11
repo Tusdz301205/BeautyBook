@@ -66,18 +66,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // issuers create a UserSession, so reject these rather than bypassing a
     // password change when Redis is unavailable.
     if (!payload.sessionId) throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
-    // Security Rule 9 — Token Revocation: token phát hành trước thời điểm
-    // revoke (Admin khóa tài khoản / nhân viên nghỉ việc) bị từ chối ngay,
-    // kể cả khi chữ ký và hạn dùng vẫn hợp lệ.
-    if (await this.tokenBlacklist.isRevoked(payload.sub, payload.iat)) {
-      throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
-    }
-
     if (payload.sessionId) {
       const session = await this.prisma.userSession.findUnique({
         where: { id: payload.sessionId },
         select: {
           userId: true,
+          createdAt: true,
           revokedAt: true,
           expiresAt: true,
           lastActiveAt: true,
@@ -92,6 +86,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         session.revokedAt ||
         session.expiresAt.getTime() <= Date.now()
       ) {
+        throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
+      }
+      if (await this.tokenBlacklist.isRevoked(payload.sub, payload.iat, session.createdAt)) {
         throw new UnauthorizedException('Phiên đăng nhập đã bị thu hồi');
       }
       payload.workspace = session.workspace as AuthWorkspaceName;

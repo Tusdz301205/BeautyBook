@@ -1,3 +1,4 @@
+import { foldNameSql, nameSearchPattern } from '../common/utils/name-search';
 import {
   BadRequestException,
   ConflictException,
@@ -264,7 +265,7 @@ export class ServicesService {
           include: {
             media: { select: { id: true, url: true, fileType: true, originalName: true } },
           },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
         },
         promotionLinks: {
           where: {
@@ -328,8 +329,8 @@ export class ServicesService {
     const minPrice = Number.isFinite(Number(input.minPrice)) ? Math.max(0, Number(input.minPrice)) : null;
     const maxPrice = Number.isFinite(Number(input.maxPrice)) ? Math.max(0, Number(input.maxPrice)) : null;
     const minRating = Number.isFinite(Number(input.minRating)) ? Math.max(0, Number(input.minRating)) : null;
-    const likeQuery = `%${query}%`;
-    const likeLocation = `%${location}%`;
+    const likeQuery = nameSearchPattern(query);
+    const likeLocation = nameSearchPattern(location);
 
     let canonicalId = input.canonicalServiceId ?? null;
     if (canonicalId) {
@@ -343,35 +344,35 @@ export class ServicesService {
 
     const queryPredicate = query
       ? Prisma.sql`AND (
-          LOWER(bs."name") LIKE LOWER(${likeQuery})
-          OR LOWER(COALESCE(bs."description", '')) LIKE LOWER(${likeQuery})
-          OR LOWER(c."name") LIKE LOWER(${likeQuery})
-          OR LOWER(resolved."name") LIKE LOWER(${likeQuery})
-          OR LOWER(COALESCE(category."name", '')) LIKE LOWER(${likeQuery})
-          OR EXISTS (SELECT 1 FROM UNNEST(c."synonyms") synonym WHERE LOWER(synonym) LIKE LOWER(${likeQuery}))
-          OR EXISTS (SELECT 1 FROM UNNEST(resolved."synonyms") synonym WHERE LOWER(synonym) LIKE LOWER(${likeQuery}))
+          ${foldNameSql(Prisma.sql`bs."name"`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`COALESCE(bs."description", '')`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`c."name"`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`resolved."name"`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`COALESCE(category."name", '')`)} LIKE ${likeQuery}
+          OR EXISTS (SELECT 1 FROM UNNEST(c."synonyms") synonym WHERE ${foldNameSql(Prisma.sql`synonym`)} LIKE ${likeQuery})
+          OR EXISTS (SELECT 1 FROM UNNEST(resolved."synonyms") synonym WHERE ${foldNameSql(Prisma.sql`synonym`)} LIKE ${likeQuery})
           OR EXISTS (
             SELECT 1
             FROM "canonical_services" alias
             WHERE alias."replacement_canonical_id" = resolved."id"
               AND alias."status" = 'MERGED'
               AND (
-                LOWER(alias."name") LIKE LOWER(${likeQuery})
+                ${foldNameSql(Prisma.sql`alias."name"`)} LIKE ${likeQuery}
                 OR EXISTS (
                   SELECT 1 FROM UNNEST(alias."synonyms") synonym
-                  WHERE LOWER(synonym) LIKE LOWER(${likeQuery})
+                  WHERE ${foldNameSql(Prisma.sql`synonym`)} LIKE ${likeQuery}
                 )
               )
           )
-          OR EXISTS (SELECT 1 FROM UNNEST(bs."keywords") keyword WHERE LOWER(keyword) LIKE LOWER(${likeQuery}))
+          OR EXISTS (SELECT 1 FROM UNNEST(bs."keywords") keyword WHERE ${foldNameSql(Prisma.sql`keyword`)} LIKE ${likeQuery})
         )`
       : Prisma.empty;
     const locationPredicate = location
       ? Prisma.sql`AND (
-          LOWER(branch."name") LIKE LOWER(${likeLocation})
-          OR LOWER(COALESCE(branch."address_line", '')) LIKE LOWER(${likeLocation})
-          OR LOWER(COALESCE(district."name", '')) LIKE LOWER(${likeLocation})
-          OR LOWER(COALESCE(province."name", '')) LIKE LOWER(${likeLocation})
+          ${foldNameSql(Prisma.sql`branch."name"`)} LIKE ${likeLocation}
+          OR ${foldNameSql(Prisma.sql`COALESCE(branch."address_line", '')`)} LIKE ${likeLocation}
+          OR ${foldNameSql(Prisma.sql`COALESCE(district."name", '')`)} LIKE ${likeLocation}
+          OR ${foldNameSql(Prisma.sql`COALESCE(province."name", '')`)} LIKE ${likeLocation}
         )`
       : Prisma.empty;
     const canonicalPredicate = canonicalId
@@ -433,12 +434,12 @@ export class ServicesService {
           ) THEN 82
           WHEN EXISTS (SELECT 1 FROM UNNEST(resolved."synonyms") synonym WHERE LOWER(synonym) = LOWER(${query})) THEN 80
           WHEN EXISTS (SELECT 1 FROM UNNEST(c."synonyms") synonym WHERE LOWER(synonym) = LOWER(${query})) THEN 78
-          WHEN LOWER(bs."name") LIKE LOWER(${likeQuery}) THEN 70
-          WHEN LOWER(resolved."name") LIKE LOWER(${likeQuery}) THEN 60
-          WHEN LOWER(c."name") LIKE LOWER(${likeQuery}) THEN 58
-          WHEN EXISTS (SELECT 1 FROM UNNEST(resolved."synonyms") synonym WHERE LOWER(synonym) LIKE LOWER(${likeQuery})) THEN 55
-          WHEN EXISTS (SELECT 1 FROM UNNEST(c."synonyms") synonym WHERE LOWER(synonym) LIKE LOWER(${likeQuery})) THEN 53
-          WHEN LOWER(COALESCE(bs."description", '')) LIKE LOWER(${likeQuery}) THEN 40
+          WHEN ${foldNameSql(Prisma.sql`bs."name"`)} LIKE ${likeQuery} THEN 70
+          WHEN ${foldNameSql(Prisma.sql`resolved."name"`)} LIKE ${likeQuery} THEN 60
+          WHEN ${foldNameSql(Prisma.sql`c."name"`)} LIKE ${likeQuery} THEN 58
+          WHEN EXISTS (SELECT 1 FROM UNNEST(resolved."synonyms") synonym WHERE ${foldNameSql(Prisma.sql`synonym`)} LIKE ${likeQuery}) THEN 55
+          WHEN EXISTS (SELECT 1 FROM UNNEST(c."synonyms") synonym WHERE ${foldNameSql(Prisma.sql`synonym`)} LIKE ${likeQuery}) THEN 53
+          WHEN ${foldNameSql(Prisma.sql`COALESCE(bs."description", '')`)} LIKE ${likeQuery} THEN 40
           ELSE 30
         END AS "searchRank"
       FROM "services" offering
@@ -547,6 +548,7 @@ export class ServicesService {
           where: { branchId: { in: branches.map((branch) => branch.id) }, deletedAt: null },
           include: {
             branch: { select: { id: true, name: true } },
+            images: { include: { media: { select: { id: true, url: true } } }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], take: 1 },
             _count: {
               select: {
                 staffServices: true,
@@ -580,6 +582,7 @@ export class ServicesService {
           durationMinutes: row?.durationMinutes ?? catalog.baseDurationMinutes,
           staffCount: row?._count.staffServices ?? 0,
           futureBookingCount: row?._count.bookingServices ?? 0,
+          primaryImageUrl: row?.images?.[0]?.media?.url ?? null,
         };
       });
       const count = (status: string) => availability.filter((item) => item.status === status).length;
@@ -600,6 +603,7 @@ export class ServicesService {
         createdAt: catalog.createdAt,
         updatedAt: catalog.updatedAt,
         branchAvailability: availability,
+        primaryImageUrl: availability.find((branch) => branch.primaryImageUrl)?.primaryImageUrl ?? null,
         branchCoverage: {
           total: availability.length,
           active: count('ACTIVE'),

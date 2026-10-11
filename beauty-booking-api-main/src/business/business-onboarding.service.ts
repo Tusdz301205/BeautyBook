@@ -11,6 +11,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
 import { Prisma } from '@prisma/client';
+import { businessOwnerRecipientIds } from '../common/utils/notify';
+import { LEGAL_SUBJECT_CATALOG, REPRESENTATIVE_IDENTITY_CATALOG, assertLegalIdentifiers, legalIdentifierErrors } from './legal-registration';
 
 export const BUSINESS_TYPE_CATALOG = [
   { code: 'HAIR_SALON', label: 'Salon tóc', active: true },
@@ -78,6 +80,8 @@ interface LegalDocumentInput {
 }
 
 type OnboardingDraft = {
+  legalSubjectType?: string;
+  representativeIdentityType?: string;
   businessType?: string;
   completedSteps?: number[];
   branch?: Record<string, unknown>;
@@ -102,6 +106,8 @@ export class BusinessOnboardingService {
       ? await this.prisma.user.findUnique({ where: { id: userId }, select: { isPhoneVerified: true } })
       : null;
     return {
+      legalSubjects: LEGAL_SUBJECT_CATALOG,
+      representativeIdentityTypes: REPRESENTATIVE_IDENTITY_CATALOG,
       businessTypes: BUSINESS_TYPE_CATALOG.filter((item) => item.active).map(({ code, label }) => ({ code, label })),
       requiredDocuments: policy.requireIdVerification ? ['BUSINESS_LICENSE', 'OWNER_ID_CARD'] : [],
       requirePhoneVerification: policy.requirePhoneVerification,
@@ -246,6 +252,13 @@ export class BusinessOnboardingService {
     }
     const input = value as Record<string, unknown>;
     const result: OnboardingDraft = {};
+    for (const [field, catalog] of [['legalSubjectType', LEGAL_SUBJECT_CATALOG], ['representativeIdentityType', REPRESENTATIVE_IDENTITY_CATALOG]] as const) {
+      if (input[field] === undefined || input[field] === '') continue;
+      if (typeof input[field] !== 'string' || !catalog.some(row => row.code === input[field])) {
+        throw new BadRequestException(field === 'legalSubjectType' ? 'Loại chủ thể pháp lý không hợp lệ' : 'Loại giấy tờ định danh người đại diện không hợp lệ');
+      }
+      result[field] = input[field];
+    }
     if (input.businessType !== undefined) {
       if (!activeBusinessTypeCodes().has(String(input.businessType) as (typeof BUSINESS_TYPE_CATALOG)[number]['code'])) {
         throw new BadRequestException('Loại hình doanh nghiệp không còn khả dụng. Hãy chọn một loại hình đang được hỗ trợ.');
@@ -454,6 +467,36 @@ export class BusinessOnboardingService {
     }
   }
 
+  private async protectSharedOwnerIdentity(tx: Prisma.TransactionClient, ownerId: string, input: BusinessDraftInput, businessId?: string, expected?: {companyName?: string | null; taxCode?: string | null; identityCardNumber?: string | null}) {
+    // Legal values currently live on the shared owner profile. Serialize changes
+    // and refuse to rewrite another submitted/approved business indirectly.
+    await tx.$queryRaw`SELECT id FROM business_owner_profiles WHERE id = ${ownerId} FOR UPDATE`;
+    const current = await tx.businessOwnerProfile.findUniqueOrThrow({ where: { id: ownerId } });
+    if (expected && (['companyName', 'taxCode', 'identityCardNumber'] as const).some(key => current[key] !== expected[key])) throw new ConflictException('Thông tin pháp nhân vừa thay đổi; vui lòng tải lại.');
+    const changed = (['companyName', 'taxCode', 'identityCardNumber'] as const)
+      .some(key => input[key] !== undefined && input[key] !== current[key]);
+    if (changed) {
+      const protectedBusiness = await tx.business.findFirst({ where: {
+        ownerId, deletedAt: null, ...(businessId ? { id: { not: businessId } } : {}),
+        status: { notIn: ['DRAFT', 'NEED_MORE_INFO'] },
+      }, select: { id: true } });
+      if (protectedBusiness) throw new ConflictException({ code: 'SHARED_LEGAL_IDENTITY_LOCKED', message: 'Thông tin pháp nhân đang dùng chung với hồ sơ đã gửi hoặc đã duyệt. Không thể thay đổi từ hồ sơ nháp này; cần xử lý thay đổi pháp nhân riêng.' });
+    }
+  }
+
+  private async queueReviewResult(tx: Prisma.TransactionClient, business: {id: string; name: string; owner: {userId: string; user: {isActive: boolean; deletedAt: Date | null}}}, eventId: string, decision: 'APPROVE' | 'REQUEST_INFO' | 'REJECT', note?: string) {
+    const recipients = new Set(await businessOwnerRecipientIds(tx, business.id));
+    if (business.owner.user.isActive && !business.owner.user.deletedAt) recipients.add(business.owner.userId);
+    const title = decision === 'APPROVE' ? 'Hồ sơ doanh nghiệp đã được duyệt' : decision === 'REQUEST_INFO' ? 'Hồ sơ doanh nghiệp cần bổ sung' : 'Hồ sơ doanh nghiệp bị từ chối';
+    for (const userId of recipients) await tx.notificationOutbox.create({data: {
+      userId, type: 'SYSTEM', severity: decision === 'APPROVE' ? 'INFO' : 'WARNING', title,
+      body: `${business.name}. ${note || 'Mở hồ sơ đăng ký để xem trạng thái và các bước tiếp theo.'}`,
+      targetType: 'BUSINESS', targetId: business.id, actionUrl: '/salon/onboarding',
+      metadata: {businessId: business.id, reviewEventId: eventId, decision},
+      dedupeKey: `business-review:${eventId}:${userId}`,
+    }});
+  }
+
   async createDraft(user: AuthUser, input: BusinessDraftInput) {
     input = this.normalizeDraftInput(input);
     if (!input.name || input.name.length < 2 || !input.slug) {
@@ -463,6 +506,7 @@ export class BusinessOnboardingService {
       where: { userId: user.id },
     });
     if (!owner) throw new ForbiddenException('Business owner profile not found');
+    assertLegalIdentifiers(input, this.validateOnboardingData(input.onboardingData));
 
     if (input.taxCode) {
       const taxCodeOwner = await this.prisma.businessOwnerProfile.findUnique({
@@ -481,6 +525,7 @@ export class BusinessOnboardingService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+      await this.protectSharedOwnerIdentity(tx, owner.id, input, undefined, owner);
       const business = await tx.business.create({
         data: {
           ownerId: owner.id,
@@ -539,6 +584,15 @@ export class BusinessOnboardingService {
     if (!['DRAFT', 'NEED_MORE_INFO'].includes(business.status)) {
       throw new ConflictException('Chỉ hồ sơ draft/need-more-info mới được sửa');
     }
+    const registration = this.validateOnboardingData(input.onboardingData ?? business.onboardingData) ?? {};
+    // An untouched legacy identifier is preserved while the missing classification
+    // is being supplied. New/changed identifiers require an explicit classification.
+    const tax = input.taxCode === undefined ? business.owner.taxCode : input.taxCode;
+    const identity = input.identityCardNumber === undefined ? business.owner.identityCardNumber : input.identityCardNumber;
+    assertLegalIdentifiers({
+      taxCode: !registration.legalSubjectType && tax === business.owner.taxCode ? undefined : tax,
+      identityCardNumber: !registration.representativeIdentityType && identity === business.owner.identityCardNumber ? undefined : identity,
+    }, registration);
     if (input.taxCode) {
       const taxCodeOwner = await this.prisma.businessOwnerProfile.findUnique({
         where: { taxCode: input.taxCode }, select: { id: true },
@@ -549,6 +603,7 @@ export class BusinessOnboardingService {
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
+      await this.protectSharedOwnerIdentity(tx, business.ownerId, input, businessId, business.owner);
       await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
       const current = await tx.business.findUnique({ where: { id: businessId }, select: { status: true, updatedAt: true } });
       if (!current || current.status !== business.status || current.updatedAt.getTime() !== business.updatedAt.getTime()) {
@@ -601,7 +656,7 @@ export class BusinessOnboardingService {
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
       include: {
-        owner: { include: { user: { select: { isPhoneVerified: true } } } },
+        owner: { include: { user: { select: { isPhoneVerified: true, isActive: true, deletedAt: true } } } },
         documents: { where: { status: { not: 'ARCHIVED' } } },
       },
     });
@@ -612,7 +667,9 @@ export class BusinessOnboardingService {
     }
     const policy = await this.settings.getEffective();
     const onboarding = this.validateOnboardingData(business.onboardingData) ?? {};
+    assertLegalIdentifiers(business.owner, onboarding, true);
     const documentTypes = new Set(business.documents.map((item) => item.documentType));
+    const transitionalTax = onboarding.legalSubjectType === 'LEGACY_DEPENDENT_10';
     const missing = [
       (!business.contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(business.contactEmail)) && 'email liên hệ hợp lệ',
       (!business.contactPhone || !/^\+84\d{9}$/.test(business.contactPhone)) && 'số điện thoại Việt Nam hợp lệ',
@@ -621,6 +678,7 @@ export class BusinessOnboardingService {
       (!business.owner.companyName?.trim() || business.owner.companyName.trim().length < 2) && 'tên pháp nhân hợp lệ',
       !business.owner.taxCode?.trim() && 'mã số thuế',
       !onboarding.businessType && 'loại hình dịch vụ',
+      transitionalTax && !documentTypes.has('TAX_DOCUMENT') && 'giấy tờ thuế xác nhận trường hợp chuyển tiếp',
       policy.requireIdVerification && !documentTypes.has('BUSINESS_LICENSE') && 'giấy phép kinh doanh đã tải lên',
       policy.requireIdVerification && !documentTypes.has('OWNER_ID_CARD') && 'giấy tờ người đại diện đã tải lên',
       policy.requirePhoneVerification && !business.owner.user.isPhoneVerified && 'xác minh số điện thoại tài khoản',
@@ -629,8 +687,9 @@ export class BusinessOnboardingService {
       throw new BadRequestException(`Hoàn thiện trước khi gửi hồ sơ: ${missing.join('; ')}.`);
     }
     const fromStatus = business.status;
-    const nextStatus = policy.autoApproveNewSalons ? 'APPROVED' : 'PENDING_REVIEW';
+    const nextStatus = policy.autoApproveNewSalons && !transitionalTax ? 'APPROVED' : 'PENDING_REVIEW';
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.protectSharedOwnerIdentity(tx, business.ownerId, {}, businessId, business.owner);
       await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${businessId} FOR UPDATE`;
       const current = await tx.business.findUnique({ where: { id: businessId }, select: { status: true, updatedAt: true } });
       if (!current || current.status !== fromStatus || current.updatedAt.getTime() !== business.updatedAt.getTime()) {
@@ -638,10 +697,10 @@ export class BusinessOnboardingService {
       }
       const row = await tx.business.update({
         where: { id: businessId },
-        data: { name: businessName, status: nextStatus, submittedAt: new Date(), reviewedAt: policy.autoApproveNewSalons ? new Date() : null, reviewNote: null },
+        data: { name: businessName, status: nextStatus, submittedAt: new Date(), reviewedAt: nextStatus === 'APPROVED' ? new Date() : null, reviewNote: null },
       });
-      await tx.businessReviewEvent.create({ data: {
-        businessId, actorId: user.id, action: fromStatus === 'NEED_MORE_INFO' ? 'RESUBMIT' : policy.autoApproveNewSalons ? 'AUTO_APPROVE' : 'SUBMIT',
+      const reviewEvent = await tx.businessReviewEvent.create({ data: {
+        businessId, actorId: user.id, action: fromStatus === 'NEED_MORE_INFO' ? 'RESUBMIT' : nextStatus === 'APPROVED' ? 'AUTO_APPROVE' : 'SUBMIT',
         fromStatus, toStatus: nextStatus,
       } });
       for (const document of business.documents) {
@@ -657,6 +716,7 @@ export class BusinessOnboardingService {
           toStatus: 'SUBMITTED',
         } });
       }
+      if (nextStatus === 'APPROVED') await this.queueReviewResult(tx, business, reviewEvent.id, 'APPROVE');
       return row;
     });
     await auditLog(this.prisma, { userId: user.id, action: 'STATUS_CHANGE', entityType: 'BusinessOnboarding', entityId: businessId, oldData: { status: fromStatus }, newData: { status: nextStatus }, reason: fromStatus === 'NEED_MORE_INFO' ? 'Gửi lại hồ sơ sau bổ sung' : 'Gửi hồ sơ xét duyệt' });
@@ -669,9 +729,13 @@ export class BusinessOnboardingService {
     note: string | undefined,
     actorId: string,
   ) {
+    if (!['APPROVE', 'REQUEST_INFO', 'REJECT'].includes(decision)) throw new BadRequestException('Quyết định xét duyệt không hợp lệ');
+    if (note !== undefined && typeof note !== 'string') throw new BadRequestException('Lý do xét duyệt không hợp lệ');
+    note = note?.trim();
+    if (decision !== 'APPROVE' && !note) throw new BadRequestException('Cần ghi rõ lý do');
     const business = await this.prisma.business.findUnique({
       where: { id: businessId },
-      include: { documents: { where: { status: { not: 'ARCHIVED' } } } },
+      include: { owner: { include: { user: { select: { isActive: true, deletedAt: true } } } }, documents: { where: { status: { not: 'ARCHIVED' } } } },
     });
     if (!business) throw new NotFoundException('Business not found');
     if (business.status !== 'PENDING_REVIEW') {
@@ -692,7 +756,7 @@ export class BusinessOnboardingService {
       });
       if (changed.count !== 1) throw new ConflictException('Hồ sơ vừa được xử lý; vui lòng tải lại');
       const row = await tx.business.findUniqueOrThrow({ where: { id: businessId } });
-      await tx.businessReviewEvent.create({ data: {
+      const reviewEvent = await tx.businessReviewEvent.create({ data: {
         businessId, actorId, action: decision, fromStatus: business.status, toStatus: status, reason: note?.trim() || null,
       } });
       const documentStatus = decision === 'APPROVE'
@@ -720,6 +784,7 @@ export class BusinessOnboardingService {
           reason: note?.trim() || null,
         } });
       }
+      await this.queueReviewResult(tx, business, reviewEvent.id, decision, note);
       return row;
     });
     await auditLog(this.prisma, { userId: actorId, action: 'STATUS_CHANGE', entityType: 'BusinessOnboarding', entityId: businessId, oldData: { status: business.status }, newData: { status }, reason: note?.trim() || `Hồ sơ ${decision.toLowerCase()}` });
@@ -730,7 +795,7 @@ export class BusinessOnboardingService {
     const owner = await this.prisma.businessOwnerProfile.findUnique({ where: { userId: user.id }, select: { id: true } });
     if (!owner) throw new NotFoundException('Không tìm thấy hồ sơ chủ doanh nghiệp');
     const business = await this.prisma.business.findFirst({
-      where: { ownerId: owner.id, deletedAt: null },
+      where: { ownerId: owner.id, deletedAt: null, ...(user.businessId ? { id: user.businessId } : {}) },
       include: {
         owner: { select: { id: true, userId: true, companyName: true, taxCode: true, identityCardNumber: true } },
         branches: {
@@ -803,7 +868,7 @@ export class BusinessOnboardingService {
         legalRepresentative: true,
         onboardingData: true,
         status: true,
-        owner: { select: { companyName: true, taxCode: true } },
+        owner: { select: { companyName: true, taxCode: true, identityCardNumber: true } },
         documents: {
           where: { status: { not: 'ARCHIVED' } },
           select: { documentType: true, status: true, versions: { orderBy: { version: 'desc' }, take: 1, select: { mediaId: true } } },
@@ -823,7 +888,8 @@ export class BusinessOnboardingService {
       business.addressLine?.trim() &&
       (business.legalRepresentative?.trim().length ?? 0) >= 2 &&
       (business.owner.companyName?.trim().length ?? 0) >= 2 &&
-      business.owner.taxCode?.trim(),
+      business.owner.taxCode?.trim() &&
+      Object.keys(legalIdentifierErrors(business.owner, onboarding ?? {}, true)).length === 0,
     );
     return [
       { key: 'business', label: 'Hoàn tất thông tin doanh nghiệp và pháp nhân', completed: legalComplete },

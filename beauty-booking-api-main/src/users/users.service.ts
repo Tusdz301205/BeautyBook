@@ -7,6 +7,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { foldNameSql, nameSearchPattern } from '../common/utils/name-search';
+import type { SuspendUserDto } from './dto/suspend-user.dto';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { canOnResource } from '../common/utils/policy';
@@ -103,11 +106,12 @@ export class UsersService {
     const { search, page = 1, limit = 50, role, status } = query || {};
 
     const where: any = { deletedAt: null };
-    if (search) {
+    if (search?.trim()) {
+      const matchedNames = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`SELECT id FROM users WHERE deleted_at IS NULL AND ${foldNameSql(Prisma.sql`full_name`)} LIKE ${nameSearchPattern(search)}`);
       where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
+        { id: { in: matchedNames.map((row) => row.id) } },
+        { email: { contains: search.trim(), mode: 'insensitive' } },
+        { phone: { contains: search.trim(), mode: 'insensitive' } },
       ];
     }
     if (role) where.userRoles = { some: { role: { code: role } } };
@@ -234,41 +238,66 @@ export class UsersService {
     return { ...user, auditTrail };
   }
 
-  /** Platform-side suspension toggle. Writes an audit row. */
-  async suspend(id: string, actorUserId: string, reason?: string) {
-    const before = await this.prisma.user.findUnique({
-      where: { id },
-      select: { isActive: true },
-    });
-    if (!before) throw new NotFoundException('User not found');
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data: { isActive: !before.isActive },
-      select: {
-        id: true, email: true, phone: true, fullName: true, avatarMediaId: true,
-        isActive: true, isEmailVerified: true, isPhoneVerified: true,
-        lastLoginAt: true, createdAt: true, updatedAt: true,
-      },
-    });
+  async suspensionImpact(id: string, database: Prisma.TransactionClient = this.prisma) {
+    const user = await database.user.findUnique({ where: { id }, select: { id: true, isActive: true } });
+    if (!user) throw new NotFoundException('Tài khoản không tồn tại.');
+    const today = new Date(new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10) + 'T00:00:00Z');
+    const activeBookings: Prisma.BookingWhereInput = {
+      deletedAt: null,
+      status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] },
+      OR: [{ appointmentDate: { gte: today } }, { status: { in: ['CHECKED_IN', 'IN_PROGRESS'] } }],
+    };
+    const [customerBookings, assignedServices, activeAssignments, ownedBusinesses] = await Promise.all([
+      database.booking.count({ where: { ...activeBookings, customer: { userId: id } } }),
+      database.bookingService.count({ where: { staff: { userId: id }, status: { in: ['SCHEDULED', 'IN_PROGRESS'] }, booking: activeBookings } }),
+      database.staffBranchAssignment.count({ where: { staff: { userId: id }, status: 'ACTIVE' } }),
+      database.business.count({ where: { owner: { userId: id }, deletedAt: null } }),
+    ]);
+    return { ...user, customerBookings, assignedServices, activeAssignments, ownedBusinesses,
+      requiresAcknowledgement: customerBookings + assignedServices + activeAssignments + ownedBusinesses > 0,
+      handling: 'KEEP_EXISTING_AND_COORDINATE' };
+  }
 
-    // Security Rule 9 — khi KHÓA tài khoản, thu hồi ngay mọi JWT đang sống
-    // (Redis blacklist). Mở khóa thì không cần revoke.
-    if (!updated.isActive) {
-      await this.tokenBlacklist.revokeAllForUser(id);
+  /** Explicit desired state: retries never toggle an account back on. */
+  async suspend(id: string, actorUserId: string, input: SuspendUserDto) {
+    if (id === actorUserId) throw new ForbiddenException('Không thể tự khóa tài khoản quản trị đang dùng.');
+    if (!input || typeof input.isActive !== 'boolean' || typeof input.expectedIsActive !== 'boolean'
+      || typeof input.acknowledgeImpact !== 'boolean' || typeof input.reason !== 'string'
+      || !input.reason.trim() || input.reason.trim().length > 1000) {
+      throw new BadRequestException('Cần trạng thái đích, trạng thái đã xem và lý do từ 1 đến 1.000 ký tự.');
     }
-
-    await this.prisma.auditLog.create({
-      data: {
-        userId: actorUserId,
-        action: 'STATUS_CHANGE',
-        entityType: 'User',
-        entityId: id,
-        oldData: { isActive: before.isActive } as any,
-        newData: { isActive: updated.isActive } as any,
-        reason: reason ?? 'suspend toggle',
-      },
-    });
-    return updated;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const select = { id: true, email: true, phone: true, fullName: true, avatarMediaId: true,
+        isActive: true, isEmailVerified: true, isPhoneVerified: true, lastLoginAt: true,
+        createdAt: true, updatedAt: true } as const;
+      const before = await tx.user.findUnique({ where: { id }, select });
+      if (!before) throw new NotFoundException('Tài khoản không tồn tại.');
+      if (before.isActive === input.isActive) return { ...before, stateChanged: false };
+      if (before.isActive !== input.expectedIsActive) throw new ConflictException('Trạng thái đã thay đổi. Hãy tải lại hồ sơ trước khi thao tác.');
+      const impact = await this.suspensionImpact(id, tx);
+      if (!input.isActive && impact.requiresAcknowledgement && !input.acknowledgeImpact) {
+        throw new ConflictException({ code: 'ACCOUNT_IMPACT_ACK_REQUIRED', message: 'Cần xác nhận phương án giữ lịch và phối hợp xử lý các ảnh hưởng trước khi khóa.', impact });
+      }
+      const claimed = await tx.user.updateMany({ where: { id, isActive: input.expectedIsActive }, data: { isActive: input.isActive } });
+      if (claimed.count !== 1) throw new ConflictException('Trạng thái đã thay đổi. Hãy tải lại hồ sơ.');
+      if (!input.isActive) {
+        await tx.userSession.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date(), refreshTokenHash: null } });
+      }
+      const audit = await tx.auditLog.create({ data: { userId: actorUserId, action: 'STATUS_CHANGE', entityType: 'User', entityId: id,
+        oldData: { isActive: before.isActive }, newData: { isActive: input.isActive, impact, handling: 'KEEP_EXISTING_AND_COORDINATE' }, reason: input.reason.trim() } });
+      await tx.notificationOutbox.create({ data: { userId: id, type: 'SYSTEM', severity: input.isActive ? 'INFO' : 'WARNING',
+        title: input.isActive ? 'Tài khoản đã được mở lại' : 'Tài khoản đã ngừng hoạt động',
+        body: input.isActive ? 'Bạn có thể đăng nhập lại. Các phiên cũ vẫn đã bị thu hồi.' : 'Tài khoản đã bị khóa bởi quản trị. Lịch hẹn và dữ liệu lịch sử vẫn được giữ; liên hệ hỗ trợ để phối hợp xử lý.',
+        targetType: 'SECURITY', dedupeKey: 'account-status:' + audit.id } });
+      const updated = await tx.user.findUniqueOrThrow({ where: { id }, select });
+      return { ...updated, stateChanged: true };
+    }, { isolationLevel: 'Serializable' });
+    if (!result.isActive) {
+      // Durable UserSession revocation + DB isActive are enforced by JwtStrategy.
+      // Redis is an additional fence; its failure must not invert a committed state on retry.
+      await this.tokenBlacklist.revokeAllForUser(id).catch(() => undefined);
+    }
+    return result;
   }
 
   async assignRole(

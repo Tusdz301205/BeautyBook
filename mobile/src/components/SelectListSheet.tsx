@@ -1,11 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../constants/colors';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const ANIM_DURATION = 250;
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radius, space, type } from '../theme';
+import { SheetModal } from '../ui';
 
 interface Props {
   visible: boolean;
@@ -17,154 +14,37 @@ interface Props {
   columns?: 1 | 2;
 }
 
-export default function SelectListSheet({
-  visible,
-  title,
-  options,
-  selectedValue,
-  onSelect,
-  onClose,
-  columns = 2,
-}: Props) {
-  const [isRendered, setIsRendered] = useState(visible);
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (visible) {
-      setIsRendered(true);
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: 0, duration: ANIM_DURATION, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 1, duration: ANIM_DURATION, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: ANIM_DURATION, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: ANIM_DURATION, useNativeDriver: true }),
-      ]).start(({ finished }) => {
-        if (finished) setIsRendered(false);
-      });
-    }
-  }, [visible, translateY, backdropOpacity]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
-      return true;
-    });
-    return () => subscription.remove();
-  }, [visible, onClose]);
-
-  if (!isRendered) return null;
-
+export default function SelectListSheet({ visible, title, options, selectedValue, onSelect, onClose, columns = 1 }: Props) {
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
-      <AnimatedTouchable
-        style={[styles.backdrop, { opacity: backdropOpacity }]}
-        activeOpacity={1}
-        onPress={onClose}
-      />
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-        </View>
-        <ScrollView contentContainerStyle={styles.grid}>
-          {options.map((option) => {
-            const isSelected = option === selectedValue;
-            return (
-              <TouchableOpacity
-                key={option}
-                style={[styles.item, { width: columns === 2 ? '50%' : '100%' }]}
-                activeOpacity={0.7}
-                onPress={() => onSelect(option)}
-              >
-                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                  {isSelected && <View style={styles.radioDot} />}
-                </View>
-                <Text style={[styles.itemText, isSelected && styles.itemTextSelected]} numberOfLines={2}>
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
-    </View>
+    <SheetModal visible={visible} title={title} onClose={onClose}>
+      <View accessibilityRole="radiogroup" style={[styles.list, columns === 2 && styles.grid]}>
+        {options.map((option) => {
+          const selected = option === selectedValue;
+          return (
+            <Pressable
+              key={option}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: selected }}
+              onPress={() => onSelect(option)}
+              style={({ pressed }) => [styles.item, columns === 2 && styles.half, selected && styles.selected, pressed && !selected && styles.pressed]}
+            >
+              <Ionicons accessible={false} name={selected ? 'radio-button-on' : 'radio-button-off'} size={22} color={selected ? colors.primary : colors.borderStrong} />
+              <Text style={[styles.text, selected && styles.textSelected]}>{option}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'flex-end',
-    zIndex: 999,
-    elevation: 999,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '50%',
-    paddingBottom: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.textDark,
-    paddingLeft: 5,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    paddingLeft: 20,
-    paddingRight: 12,
-  },
-  radio: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioSelected: {
-    borderColor: colors.primary,
-  },
-  radioDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.primary,
-  },
-  itemText: {
-    flex: 1,
-    fontSize: 17,
-    color: colors.textBody,
-  },
-  itemTextSelected: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
+  list: { gap: space.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  item: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  half: { width: '48.5%' },
+  selected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  pressed: { backgroundColor: colors.surfacePressed },
+  text: { ...type.body, color: colors.heading, flex: 1 },
+  textSelected: { fontWeight: '600', color: colors.primary },
 });

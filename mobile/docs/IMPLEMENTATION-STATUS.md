@@ -27,3 +27,9 @@ Các lượt QA native đặt/hủy lịch, hồ sơ, lưu dịch vụ và mất
 ## Staff / Owner V1 — 05/10/2026
 
 Đã thêm shell Staff và Owner dùng API vận hành; tách provider khách hàng, scope/session theo ngữ cảnh, work item cá nhân và Owner review/impact. Các kết quả ngày 30/09 ở trên là lịch sử, không phải bằng chứng cho V1. Theo dõi kết quả thực tế và giới hạn tại docs/mobile-staff-owner/TESTS.md trong root; chưa đánh dấu hoàn tất nghiệm thu native chỉ từ typecheck/export.
+
+## Thiết kế lại Berry Clarity — 09/10/2026
+
+Hệ token `src/theme`, bộ component `src/ui` và giao diện mới cho Customer/Staff/Owner; không đổi API hay nghiệp vụ. Chi tiết, kết quả kiểm chứng và phần chưa QA trên thiết bị: [REDESIGN-BERRY-CLARITY.md](REDESIGN-BERRY-CLARITY.md).
+
+Đã ghép vào bản chính ngày 11/10/2026, đồng thời giữ các sửa lỗi thông báo và phạm vi phiên/chi nhánh. Kết quả merge, test và các giới hạn: [MERGE-123.md](MERGE-123.md).

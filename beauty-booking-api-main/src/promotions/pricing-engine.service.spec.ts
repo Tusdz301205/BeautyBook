@@ -45,3 +45,23 @@ describe('PricingEngineService quote', () => {
     expect(result.explanations).toContain('Số lượng có hạn: đã hết lượt');
   });
 });
+
+describe('server allocated walk-in identity before atomic insert', () => {
+  function fixture() {
+    const db = { branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'biz' }) }, promotion: { findMany: jest.fn().mockResolvedValue([]) }, customerProfile: { findUnique: jest.fn().mockResolvedValue(null) }, customerBusinessSegment: { findMany: jest.fn().mockResolvedValue([]) } };
+    return { db, service: new PricingEngineService(db as never) };
+  }
+  const input = { customerId: 'allocated', branchId: 'branch', serviceIds: ['service'], subtotal: 100 };
+  it('ordinary missing customer still rejects rather than getting fake successful pricing', async () => {
+    await expect(fixture().service.quote(input)).rejects.toThrow('Khách hàng không tồn tại');
+  });
+  it('only exact server-allocated ID can receive unknown-DOB/empty-history pricing before its transaction', async () => {
+    await expect(fixture().service.quote(input, { allocatedWalkInCustomerId: input.customerId })).resolves.toMatchObject({ subtotal: 100, finalAmount: 100 });
+    await expect(fixture().service.quote(input, { allocatedWalkInCustomerId: 'foreign' })).rejects.toThrow('không khớp');
+  });
+  it('an existing profile remains authoritative even when an allocation context is supplied', async () => {
+    const { db, service } = fixture(); db.customerProfile.findUnique.mockResolvedValue({ user: { dateOfBirth: null }, bookings: [{ id: 'old-booking' }] } as never);
+    await expect(service.quote(input, { allocatedWalkInCustomerId: input.customerId })).resolves.toMatchObject({ finalAmount: 100 });
+    expect(db.customerProfile.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: input.customerId } }));
+  });
+});

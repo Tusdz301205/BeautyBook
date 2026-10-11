@@ -1,27 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import AuthField from '../components/AuthField';
 import AuthScreenLayout from '../components/AuthScreenLayout';
-import { colors } from '../constants/colors';
+import { colors, radius, space, type } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../api/client';
+import { AppButton, Notice } from '../ui';
 import type { RootStackParamList } from '../navigation/RootStack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type Workspace = 'CUSTOMER' | 'SALON' | 'PLATFORM';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const WORKSPACE_COPY: Record<Workspace, { label: string; detail: string; icon: keyof typeof Ionicons.glyphMap }> = {
+  CUSTOMER: { label: 'Không gian khách hàng', detail: 'Đặt và theo dõi lịch hẹn của bạn', icon: 'person-outline' },
+  SALON: { label: 'Không gian vận hành', detail: 'Công việc nhân viên hoặc quản lý doanh nghiệp', icon: 'briefcase-outline' },
+  PLATFORM: { label: 'Không gian quản trị (web)', detail: 'Quản trị nền tảng thực hiện trên web', icon: 'desktop-outline' },
+};
 
 export default function LoginScreen({ navigation, route }: Props) {
   const { login, user, isSubmitting, error, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [workspace, setWorkspace] = useState<'CUSTOMER' | 'SALON' | 'PLATFORM'>();
+  const [workspace, setWorkspace] = useState<Workspace>();
   const [businesses, setBusinesses] = useState<Array<{ id: string; name: string }>>([]);
   const [businessId, setBusinessId] = useState<string>();
-  const [availableWorkspaces, setAvailableWorkspaces] = useState<Array<'CUSTOMER' | 'SALON' | 'PLATFORM'>>([]);
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<Workspace[]>([]);
 
   useEffect(() => {
     clearError();
@@ -53,7 +61,7 @@ export default function LoginScreen({ navigation, route }: Props) {
       setEmail('');
     } catch (reason) {
       if (reason instanceof ApiError && reason.payload && typeof reason.payload === 'object') {
-        const payload = reason.payload as { code?: string; businesses?: Array<{ id: string; name: string }>; availableWorkspaces?: Array<'CUSTOMER' | 'SALON' | 'PLATFORM'> };
+        const payload = reason.payload as { code?: string; businesses?: Array<{ id: string; name: string }>; availableWorkspaces?: Workspace[] };
         if (payload.code === 'BUSINESS_REQUIRED') setBusinesses(payload.businesses ?? []);
         if (payload.code === 'WORKSPACE_REQUIRED') setAvailableWorkspaces(payload.availableWorkspaces ?? []);
       }
@@ -61,26 +69,36 @@ export default function LoginScreen({ navigation, route }: Props) {
     }
   };
 
+  const resetChallenge = () => { setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]); };
+
   return (
-    <AuthScreenLayout
-      title="Chào mừng trở lại"
-      subtitle="Đăng nhập để quản lý lịch hẹn và tiếp tục trải nghiệm BeautyBook."
-      onBack={() => navigation.goBack()}
-    >
-      {availableWorkspaces.map(value => <TouchableOpacity key={value} accessibilityRole="button" disabled={isSubmitting} style={styles.workspaceChoice} onPress={() => { setWorkspace(value); setAvailableWorkspaces([]); clearError(); }}><Text style={styles.workspaceText}>{value === 'SALON' ? 'Không gian vận hành' : value === 'CUSTOMER' ? 'Không gian khách hàng' : 'Không gian quản trị (web)'}</Text></TouchableOpacity>)}
-      {businesses.length > 0 && <View style={styles.workspaceRow}><Text style={styles.switchLabel}>Chọn doanh nghiệp để tiếp tục:</Text>{businesses.map(business => <TouchableOpacity key={business.id} accessibilityRole="radio" accessibilityState={{ checked: businessId === business.id }} disabled={isSubmitting} style={[styles.workspaceChoice, businessId === business.id && styles.workspaceSelected]} onPress={() => { setBusinessId(business.id); clearError(); }}><Text style={styles.workspaceText}>{business.name}</Text></TouchableOpacity>)}</View>}
+    <AuthScreenLayout title="Chào mừng trở lại" subtitle="Đăng nhập để quản lý lịch hẹn và tiếp tục với BeautyBook." onBack={() => navigation.goBack()}>
+      {availableWorkspaces.length > 0 && (
+        <View style={styles.challenge}>
+          <Text accessibilityRole="header" style={styles.challengeTitle}>Tài khoản có nhiều không gian. Chọn nơi bạn muốn vào:</Text>
+          {availableWorkspaces.map((value) => (
+            <Choice key={value} icon={WORKSPACE_COPY[value].icon} label={WORKSPACE_COPY[value].label} detail={WORKSPACE_COPY[value].detail} disabled={isSubmitting} onPress={() => { setWorkspace(value); setAvailableWorkspaces([]); clearError(); }} />
+          ))}
+        </View>
+      )}
+      {businesses.length > 0 && (
+        <View accessibilityRole="radiogroup" style={styles.challenge}>
+          <Text accessibilityRole="header" style={styles.challengeTitle}>Chọn doanh nghiệp để tiếp tục:</Text>
+          {businesses.map((business) => (
+            <Choice key={business.id} radio selected={businessId === business.id} icon="business-outline" label={business.name} disabled={isSubmitting} onPress={() => { setBusinessId(business.id); clearError(); }} />
+          ))}
+        </View>
+      )}
       <AuthField
         label="Email"
         icon="mail-outline"
         value={email}
-        onChangeText={(value) => {
-          setEmail(value); setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]);
-          if (error) clearError();
-        }}
+        onChangeText={(value) => { setEmail(value); resetChallenge(); if (error) clearError(); }}
         placeholder="email@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
+        autoComplete="email"
         textContentType="emailAddress"
         returnKeyType="next"
         error={emailError}
@@ -90,75 +108,64 @@ export default function LoginScreen({ navigation, route }: Props) {
         icon="lock-closed-outline"
         password
         value={password}
-        onChangeText={(value) => {
-          setPassword(value); setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]);
-          if (error) clearError();
-        }}
+        onChangeText={(value) => { setPassword(value); resetChallenge(); if (error) clearError(); }}
         placeholder="Nhập mật khẩu"
+        autoComplete="current-password"
         textContentType="password"
         returnKeyType="done"
         onSubmitEditing={() => void submit()}
         error={passwordError}
       />
-
-      <TouchableOpacity
-        style={styles.forgotButton}
-        onPress={() => navigation.navigate('ForgotPassword')}
-      >
+      <Pressable accessibilityRole="link" onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgot}>
         <Text style={styles.forgotText}>Quên mật khẩu?</Text>
-      </TouchableOpacity>
-
-      {!!error && (
-        <View style={styles.serverError}>
-          <Text style={styles.serverErrorText}>{error}</Text>
+      </Pressable>
+      {!!error && <Notice tone="error" message={error} style={styles.notice} />}
+      <AppButton label={workspace || businessId ? 'Tiếp tục đăng nhập' : 'Đăng nhập'} loading={isSubmitting} onPress={() => void submit()} />
+      {!workspace || workspace === 'CUSTOMER' ? (
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Chưa có tài khoản?</Text>
+          <Pressable accessibilityRole="link" onPress={() => navigation.navigate('Register', route.params)} style={styles.switchAction}>
+            <Text style={styles.switchActionText}>Đăng ký khách hàng</Text>
+          </Pressable>
         </View>
-      )}
-
-      <TouchableOpacity
-        style={[styles.submitButton, isSubmitting && styles.submitDisabled]}
-        disabled={isSubmitting}
-        activeOpacity={0.85}
-        onPress={() => void submit()}
-      >
-        {isSubmitting
-          ? <ActivityIndicator color={colors.white} />
-          : <Text style={styles.submitText}>ĐĂNG NHẬP</Text>}
-      </TouchableOpacity>
-
-      {!workspace || workspace === 'CUSTOMER' ? <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>Chưa có tài khoản?</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register', route.params)}>
-          <Text style={styles.switchAction}>Đăng ký ngay</Text>
-        </TouchableOpacity>
-      </View> : <Text style={[styles.switchLabel, { marginTop: 18 }]}>Dùng tài khoản vận hành do doanh nghiệp cấp. Đăng ký chủ doanh nghiệp thực hiện trên phiên bản web.</Text>}
+      ) : <Text style={styles.operational}>Dùng tài khoản vận hành do doanh nghiệp cấp. Đăng ký chủ doanh nghiệp thực hiện trên phiên bản web.</Text>}
     </AuthScreenLayout>
   );
 }
 
+function Choice({ label, detail, icon, onPress, disabled, radio, selected }: { label: string; detail?: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; disabled?: boolean; radio?: boolean; selected?: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole={radio ? 'radio' : 'button'}
+      accessibilityState={radio ? { checked: Boolean(selected), disabled } : { disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.choice, selected && styles.choiceSelected, pressed && { backgroundColor: colors.surfacePressed }]}
+    >
+      <Ionicons accessible={false} name={icon} size={22} color={selected ? colors.primary : colors.secondary} />
+      <View style={styles.flex}>
+        <Text style={styles.choiceLabel}>{label}</Text>
+        {detail ? <Text style={styles.choiceDetail}>{detail}</Text> : null}
+      </View>
+      <Ionicons accessible={false} name={radio ? (selected ? 'radio-button-on' : 'radio-button-off') : 'chevron-forward'} size={20} color={selected ? colors.primary : colors.secondaryText} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  workspaceRow: { gap: 10, marginBottom: 18 },
-  workspaceChoice: { minHeight: 48, justifyContent: 'center', padding: 12, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  workspaceSelected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  workspaceText: { color: colors.textDark, fontSize: 16, fontWeight: '700' },
-  forgotButton: { alignSelf: 'flex-end', marginTop: -5, marginBottom: 18, paddingVertical: 4 },
-  forgotText: { color: colors.primary, fontSize: 14, fontWeight: '800' },
-  serverError: { backgroundColor: '#FFF0F3', borderRadius: 12, padding: 12, marginBottom: 14 },
-  serverErrorText: { color: colors.discountRed, fontSize: 14, lineHeight: 20 },
-  submitButton: {
-    minHeight: 54,
-    borderRadius: 27,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
-  },
-  submitDisabled: { opacity: 0.7 },
-  submitText: { color: colors.white, fontSize: 16, fontWeight: '900', letterSpacing: 0.4 },
-  switchRow: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 22 },
-  switchLabel: { color: colors.textGray, fontSize: 14 },
-  switchAction: { color: colors.primary, fontSize: 14, fontWeight: '800' },
+  flex: { flex: 1, minWidth: 0 },
+  challenge: { gap: space.sm, marginBottom: space.xl },
+  challengeTitle: { ...type.secondaryStrong, color: colors.heading },
+  choice: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface },
+  choiceSelected: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySoft },
+  choiceLabel: { ...type.bodyStrong },
+  choiceDetail: { ...type.caption },
+  forgot: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -space.sm, marginBottom: space.md },
+  forgotText: { ...type.secondaryStrong, color: colors.primary },
+  notice: { marginBottom: space.lg },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: space.xs, marginTop: space.lg },
+  switchLabel: { ...type.secondary },
+  switchAction: { minHeight: 44, justifyContent: 'center' },
+  switchActionText: { ...type.secondaryStrong, color: colors.primary },
+  operational: { ...type.secondary, textAlign: 'center', marginTop: space.lg },
 });

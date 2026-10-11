@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { BranchOperationalStatus, BranchReviewStatus, BranchStatus, Prisma } from '@prisma/client';
+import { Branch, BranchOperationalStatus, BranchReviewStatus, BranchStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 
@@ -62,7 +62,9 @@ export class BranchStateService {
     };
   }
 
-  async transition(branchId: string, action: BranchTransitionAction, actorId: string, reason: string) {
+  async transition(branchId: string, action: BranchTransitionAction, actorId: string, reason: string,
+    onTransition?: (tx: Prisma.TransactionClient, current: Branch, updated: Branch) => Promise<void>,
+  ) {
     if (!reason?.trim()) throw new BadRequestException('Lý do chuyển trạng thái là bắt buộc');
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchId, deletedAt: null },
@@ -168,6 +170,7 @@ export class BranchStateService {
           reason: reason.trim(),
         },
       });
+      if (onTransition) await onTransition(tx, current, updated);
       return { transitioned: true, branch: updated, canonical: this.canonicalState(updated) };
     }, { conflictMessage: 'Trạng thái chi nhánh vừa thay đổi; vui lòng tải lại' });
   }

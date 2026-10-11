@@ -1,97 +1,48 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
+import { colors, radius, space, type } from '../../theme';
 import { Combo, formatCurrency } from '../../data/catalogModels';
-import PlaceholderCover from '../PlaceholderCover';
-import Card, { CardCover } from '../Card';
 
 interface Props {
   combo: Combo;
-  width?: number;
+  width?: DimensionValue;
   onPress?: () => void;
 }
 
-export default function ComboCard({ combo, width = 230, onPress }: Props) {
+/** Package card with real prices only; the discount badge appears only when the API reports one. */
+export default function ComboCard({ combo, width = 240, onPress }: Props) {
+  const discounted = combo.originalPrice > combo.price;
   return (
-    <Card width={width} onPress={onPress}>
-      <CardCover>
-        <PlaceholderCover seed={combo.id} label={combo.logoText} icon="pricetag-outline" height={110} />
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>{combo.discountPercent}%</Text>
-        </View>
-      </CardCover>
-
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>
-          {combo.title}
-        </Text>
-        <View style={styles.row}>
-          <Ionicons name="home-outline" size={13} color={colors.textGray} />
-          <Text style={styles.shopName} numberOfLines={1}>
-            {combo.shopName}
-          </Text>
-        </View>
-        <View style={styles.priceRow}>
-          <Ionicons name="sunny-outline" size={13} color={colors.primary} />
-          <Text style={styles.price}>{formatCurrency(combo.price)}</Text>
-          <Text style={styles.originalPrice}>{formatCurrency(combo.originalPrice)}</Text>
-        </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Gói ${combo.title} tại ${combo.shopName}, ${formatCurrency(combo.price)}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, { width }, pressed && styles.pressed]}
+    >
+      <View style={styles.top}>
+        <View style={styles.icon}><Ionicons accessible={false} name="gift-outline" size={18} color={colors.accent} /></View>
+        {discounted && combo.discountPercent > 0 ? <Text style={styles.badge}>Giảm {combo.discountPercent}%</Text> : null}
       </View>
-    </Card>
+      <Text style={styles.title} numberOfLines={2}>{combo.title}</Text>
+      <Text style={styles.shop} numberOfLines={1}>{combo.shopName}</Text>
+      <View style={styles.priceRow}>
+        <Text style={styles.price}>{formatCurrency(combo.price)}</Text>
+        {discounted ? <Text style={styles.original}>{formatCurrency(combo.originalPrice)}</Text> : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  discountBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: colors.discountRed,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderBottomLeftRadius: 12,
-  },
-  discountText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 15,
-  },
-  body: {
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 16,
-    gap: 5,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  shopName: {
-    fontSize: 13,
-    color: colors.textGray,
-    flex: 1,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  originalPrice: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
-  },
+  card: { minHeight: 156, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: space.lg, gap: space.xs },
+  pressed: { backgroundColor: colors.surfacePressed },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
+  icon: { width: 32, height: 32, borderRadius: radius.pill, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  badge: { ...type.caption, fontWeight: '700', color: colors.accent, backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, overflow: 'hidden' },
+  title: { ...type.h3 },
+  shop: { ...type.secondary },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: space.sm, marginTop: 'auto', paddingTop: space.sm },
+  price: { ...type.price, color: colors.primary },
+  original: { ...type.caption, textDecorationLine: 'line-through' },
 });

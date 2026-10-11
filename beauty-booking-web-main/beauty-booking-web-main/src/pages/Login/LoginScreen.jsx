@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { AuthField, AuthInput, AuthShell, PasswordControl } from '../../components/public/AuthShell';
 
+import { registrationReturnPath } from '../../utils/registrationIntent';
+
 const homeFor = (type) => type === 'admin' ? '/admin' : type === 'salon' ? '/salon' : '/customer/appointments';
 
 export function LoginScreen() {
@@ -13,13 +15,10 @@ export function LoginScreen() {
   const { login, isAuthenticated, user } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const from = location.state?.from || '';
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const requestedPath = typeof location.state?.from === 'string' && location.state.from.startsWith('/')
-    ? location.state.from
-    : null;
+  const requestedPath = registrationReturnPath(location);
   if (isAuthenticated()) return <Navigate to={requestedPath || homeFor(user?.sessionType)} replace />;
 
   const submit = async (event) => {
@@ -64,7 +63,7 @@ export function LoginScreen() {
       </form>
       <div className="bb-auth-alternate">
         <p>Chưa có tài khoản BeautyBook?</p>
-        <Link to="/register" state={requestedPath ? { from: requestedPath } : undefined}>Tạo tài khoản</Link>
+        <Link to={requestedPath === "/register/business" ? requestedPath : requestedPath ? `/register?from=${encodeURIComponent(requestedPath)}` : "/register"} state={requestedPath ? { from: requestedPath } : undefined}>Tạo tài khoản</Link>
       </div>
       <p className="bb-auth-guest">Bạn có thể khám phá cơ sở trước khi đăng nhập. <Link to="/explore">Khám phá BeautyBook</Link></p>
     </AuthShell>

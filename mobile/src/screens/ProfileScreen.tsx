@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AccountStackParamList } from '../navigation/AccountStack';
-import { colors } from '../constants/colors';
+import { colors, layout, space, type } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useAddresses } from '../context/AddressContext';
 import { getInitials } from '../utils/hash';
 import { usersApi } from '../api/users';
+import { AppButton, Card, Chip, ListRow, ScreenHeader, TextField } from '../ui';
 
 type Props = NativeStackScreenProps<AccountStackParamList, 'Profile'>;
+
+const GENDERS = [{ value: 'FEMALE', label: 'Nữ' }, { value: 'MALE', label: 'Nam' }, { value: 'OTHER', label: 'Khác' }];
+const genderLabel = (value: string) => GENDERS.find((item) => item.value === value)?.label ?? '';
 
 export default function ProfileScreen({ navigation }: Props) {
   const { user, userName, updateName } = useAuth();
@@ -73,207 +75,69 @@ export default function ProfileScreen({ navigation }: Props) {
     setIsEditing((prev) => !prev);
   };
 
-  const FIELDS: { label: string; value: string; onChangeText?: (text: string) => void; editable: boolean }[] = [
-    { label: 'Tên', value: firstName, onChangeText: setFirstName, editable: true },
-    { label: 'Họ', value: lastName, onChangeText: setLastName, editable: true },
-    { label: 'Số điện thoại di động', value: phone, onChangeText: setPhone, editable: true },
-    { label: 'Email', value: email, editable: false },
-    { label: 'Ngày sinh', value: dob, onChangeText: setDob, editable: true },
-    { label: 'Giới tính', value: gender, onChangeText: setGender, editable: true },
-  ];
-
   return (
     <View style={styles.screen}>
-      <SafeAreaView edges={['top']} style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={24} color={colors.textDark} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hồ sơ của tôi</Text>
-        <View style={styles.backButton} />
-      </SafeAreaView>
+      <ScreenHeader title="Hồ sơ của tôi" onBack={() => navigation.goBack()} />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+          <View style={styles.identity}>
+            <View style={styles.avatar}><Text style={styles.avatarText}>{getInitials(userName)}</Text></View>
+            <Text style={styles.name}>{userName}</Text>
+            {email ? <Text style={styles.email}>{email}</Text> : null}
+          </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <TouchableOpacity style={styles.editLink} activeOpacity={0.7} disabled={isSaving} onPress={() => void handleToggleEdit()}>
-            <Text style={styles.editLinkText}>{isSaving ? 'Đang lưu...' : isEditing ? 'Lưu' : 'Chỉnh sửa'}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(userName)}</Text>
+          {isEditing ? (
+            <View>
+              <TextField label="Họ" value={lastName} onChangeText={setLastName} autoCapitalize="words" textContentType="familyName" />
+              <TextField label="Tên" value={firstName} onChangeText={setFirstName} autoCapitalize="words" textContentType="givenName" />
+              <TextField label="Số điện thoại" optional value={phone} onChangeText={setPhone} keyboardType="phone-pad" textContentType="telephoneNumber" />
+              <TextField label="Ngày sinh" optional value={dob} onChangeText={setDob} placeholder="YYYY-MM-DD" helper="Định dạng năm-tháng-ngày, ví dụ 1995-08-21." keyboardType="numbers-and-punctuation" />
+              <Text style={styles.fieldLabel}>Giới tính <Text style={styles.optional}>· không bắt buộc</Text></Text>
+              <View accessibilityRole="radiogroup" style={styles.chips}>
+                {GENDERS.map((item) => <Chip key={item.value} role="radio" label={item.label} selected={gender === item.value} onPress={() => setGender(item.value)} />)}
+              </View>
+              <TextField label="Email" value={email} editable={false} helper="Email đăng nhập không đổi trên ứng dụng." />
             </View>
-          </View>
-          <Text style={styles.name}>{userName}</Text>
+          ) : (
+            <Card padded={false}>
+              <ListRow label="Họ và tên" detail={`${lastName} ${firstName}`.trim() || '—'} divider />
+              <ListRow label="Số điện thoại" detail={phone || 'Chưa cập nhật'} divider />
+              <ListRow label="Ngày sinh" detail={dob || 'Chưa cập nhật'} divider />
+              <ListRow label="Giới tính" detail={genderLabel(gender) || 'Chưa cập nhật'} />
+            </Card>
+          )}
 
-          <View style={styles.divider} />
+          <AppButton
+            variant={isEditing ? 'primary' : 'outline'}
+            icon={isEditing ? 'checkmark' : 'create-outline'}
+            label={isSaving ? 'Đang lưu…' : isEditing ? 'Lưu thay đổi' : 'Chỉnh sửa hồ sơ'}
+            loading={isSaving}
+            onPress={() => void handleToggleEdit()}
+            style={styles.action}
+          />
 
-          {FIELDS.map((field) => (
-            <View key={field.label} style={styles.fieldRow}>
-              <Text style={styles.fieldLabel}>{field.label}</Text>
-              {isEditing && field.editable ? (
-                <TextInput
-                  style={styles.fieldInput}
-                  value={field.value}
-                  onChangeText={field.onChangeText}
-                  placeholder="-"
-                  placeholderTextColor={colors.textMuted}
-                />
-              ) : (
-                <Text style={styles.fieldValue}>{field.value || '-'}</Text>
-              )}
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Địa chỉ của tôi</Text>
-        <TouchableOpacity
-          style={styles.addressRow}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('AddressForm', { addressType: 'home' })}
-        >
-          <View style={styles.addressIcon}>
-            <Ionicons name="home-outline" size={18} color={colors.textGray} />
-          </View>
-          <View style={styles.addressTextWrap}>
-            <Text style={styles.addressLabel}>Địa chỉ</Text>
-            <Text style={styles.addressValue}>
-              {homeAddress || 'Thêm địa chỉ'}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </TouchableOpacity>
-      </ScrollView>
+          <Text accessibilityRole="header" style={styles.groupTitle}>Địa chỉ của tôi</Text>
+          <Card padded={false}>
+            <ListRow icon="home-outline" label="Địa chỉ" detail={homeAddress || 'Thêm địa chỉ'} onPress={() => navigation.navigate('AddressForm', { addressType: 'home' })} />
+          </Card>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.card,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingBottom: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    gap: 16,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-  },
-  editLink: {
-    alignSelf: 'flex-end',
-  },
-  editLinkText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  avatarWrap: {
-    position: 'relative',
-    marginTop: 8,
-    marginBottom: 14,
-  },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.primary,
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.textDark,
-    marginBottom: 16,
-  },
-  divider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: colors.border,
-    marginBottom: 16,
-  },
-  fieldRow: {
-    width: '100%',
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    color: colors.textGray,
-    marginBottom: 4,
-  },
-  fieldValue: {
-    fontSize: 16,
-    color: colors.textDark,
-    fontWeight: '600',
-  },
-  fieldInput: {
-    fontSize: 16,
-    color: colors.textDark,
-    fontWeight: '600',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.primary,
-    paddingVertical: 2,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-  },
-  addressIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addressTextWrap: {
-    flex: 1,
-  },
-  addressLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  addressValue: {
-    fontSize: 13,
-    color: colors.textGray,
-  },
+  screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  content: { paddingHorizontal: layout.gutter, paddingBottom: space.xxxl },
+  identity: { alignItems: 'center', paddingVertical: space.xl, gap: space.xs },
+  avatar: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.secondary, alignItems: 'center', justifyContent: 'center', marginBottom: space.sm },
+  avatarText: { ...type.h2, color: colors.white },
+  name: { ...type.h2, textAlign: 'center' },
+  email: { ...type.secondary },
+  fieldLabel: { ...type.secondaryStrong, color: colors.heading, marginBottom: space.sm },
+  optional: { ...type.secondary },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.lg },
+  action: { marginTop: space.lg },
+  groupTitle: { ...type.overline, marginTop: space.xxl, marginBottom: space.sm },
 });

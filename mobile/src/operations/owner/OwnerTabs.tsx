@@ -3,12 +3,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation, type NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../constants/colors';
 import { useOperations } from '../OperationsContext';
 import OperationsAccount from '../OperationsAccount';
 import OperationsNotifications from '../OperationsNotifications';
-import OperationTabLabel, { useOperationTabHeight } from '../OperationTabLabel';
+import { stackScreenOptions } from '../stackOptions';
+import { BrandTabBar, type TabConfig } from '../../ui';
 import OwnerOverview from './OwnerOverview';
 import OwnerOperations from './OwnerOperations';
 import { OwnerBookingDetail, OwnerImpactDetail, OwnerRequestDetail } from './OwnerDetails';
@@ -18,18 +17,21 @@ export type OwnerStackParams = {
   OwnerHome: NavigatorScreenParams<OwnerTabParams> | undefined;
   OwnerRequest: { id: string };
   OwnerImpact: { id: string };
-  OwnerBooking: { id: string };
+  OwnerBooking: { id: string; fromNotification?: true };
 };
 const Tab = createBottomTabNavigator<OwnerTabParams>(), Stack = createNativeStackNavigator<OwnerStackParams>();
 function Notifications() {
   const navigation = useNavigation<NativeStackNavigationProp<OwnerStackParams>>();
-  return <OperationsNotifications onOpenBooking={id => navigation.navigate('OwnerBooking', { id })} onOpenImpact={id => navigation.navigate('OwnerImpact', { id })} />;
+  return <OperationsNotifications onOpenBooking={id => navigation.navigate('OwnerBooking', { id, fromNotification: true })} onOpenImpact={id => navigation.navigate('OwnerImpact', { id })} />;
 }
+const TABS: TabConfig = {
+  TongQuan: { label: 'Tổng quan', icon: 'grid-outline', activeIcon: 'grid' },
+  VanHanh: { label: 'Vận hành', icon: 'clipboard-outline', activeIcon: 'clipboard' },
+  ThongBao: { label: 'Thông báo', icon: 'notifications-outline', activeIcon: 'notifications' },
+  TaiKhoan: { label: 'Tài khoản', icon: 'person-outline', activeIcon: 'person' },
+};
 function Tabs() {
-  const tabHeight = useOperationTabHeight();
-  const icons: Record<keyof OwnerTabParams, React.ComponentProps<typeof Ionicons>['name']> = { TongQuan: 'grid-outline', VanHanh: 'clipboard-outline', ThongBao: 'notifications-outline', TaiKhoan: 'person-outline' };
-  const titles = { TongQuan: 'Tổng quan', VanHanh: 'Vận hành', ThongBao: 'Thông báo', TaiKhoan: 'Tài khoản' };
-  return <Tab.Navigator initialRouteName="TongQuan" screenOptions={({ route }) => ({ headerShown: false, tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.textGray, tabBarStyle: { backgroundColor: colors.card, height: tabHeight }, tabBarLabel: ({ color }) => <OperationTabLabel title={titles[route.name]} color={color} />, tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name]} size={size} color={color} /> })}>
+  return <Tab.Navigator initialRouteName="TongQuan" screenOptions={{ headerShown: false }} tabBar={props => <BrandTabBar {...props} config={TABS} />}>
     <Tab.Screen name="TongQuan" component={OwnerOverview} options={{ title: 'Tổng quan' }} />
     <Tab.Screen name="VanHanh" component={OwnerOperations} options={{ title: 'Vận hành' }} />
     <Tab.Screen name="ThongBao" component={Notifications} options={{ title: 'Thông báo' }} />
@@ -39,7 +41,7 @@ function Tabs() {
 export default function OwnerTabs() {
   const operations = useOperations();
   // Branch/mode/session changes remove old details, confirmation and review notes.
-  return <Stack.Navigator key={`${operations.contextKey}:${operations.branchId ?? 'all'}`} screenOptions={{ headerTintColor: colors.primary, headerStyle: { backgroundColor: colors.background }, contentStyle: { backgroundColor: colors.background } }}>
+  return <Stack.Navigator key={`${operations.contextKey}:${operations.branchId ?? 'all'}`} screenOptions={stackScreenOptions}>
     <Stack.Screen name="OwnerHome" component={Tabs} options={{ headerShown: false }} />
     <Stack.Screen name="OwnerRequest" component={OwnerRequestDetail} options={{ title: 'Xét duyệt yêu cầu' }} />
     <Stack.Screen name="OwnerImpact" component={OwnerImpactDetail} options={{ title: 'Ảnh hưởng vận hành' }} />

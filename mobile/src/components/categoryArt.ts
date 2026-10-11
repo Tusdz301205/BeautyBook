@@ -21,5 +21,3 @@ export function categoryArt(name: string): ImageSourcePropType | null {
   if (/spa|massage|thư giãn|body/.test(label)) return art.spa;
   return null;
 }
-
-export const heroArt = art.skin;

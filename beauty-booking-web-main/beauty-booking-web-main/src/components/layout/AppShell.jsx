@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { BarChart3, Bell, Building2, CalendarCheck, ChevronRight, ClipboardCheck, CreditCard, FileClock, Gift, LayoutDashboard, LogOut, Menu, ShieldCheck, Sparkles, Star, Store, Tag, UserCog, Users, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { businessApi } from '../../api/apiClient';
+import { FINANCE_WORKSPACE_ENABLED } from '../../config/featureAvailability';
 import { IconButton, cx } from '../ui';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 
@@ -15,7 +16,6 @@ const zoneMeta = {
 const navigation = {
   customer: [
     ['appointments', 'Lịch hẹn của tôi', CalendarCheck],
-    ['privacy', 'Quyền riêng tư', ShieldCheck],
     ['profile', 'Hồ sơ cá nhân', UserCog],
     ['security', 'Bảo mật', ShieldCheck],
   ],
@@ -109,9 +109,10 @@ export function AppShell({ zone, children }) {
         }
       });
     return () => { active = false; };
-  }, [mainRole, zone]);
+  }, [mainRole, zone, user?.businessId]);
 
   const items = useMemo(() => navigation[zone].filter(([path, , , permissions]) => {
+    if (path === 'payments' && !FINANCE_WORKSPACE_ENABLED) return false;
     if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security', 'incoming-ownership'].includes(path)) return false;
     if (businessApproved && path === 'onboarding') return false;
     if (permissions && !permissions.some((code) => can(code))) return false;

@@ -7,11 +7,15 @@
  */
 import { useAuthStore } from '../store/authStore';
 import { sanitizeApiErrorMessage } from '../utils/requestError';
+import { assertSessionGeneration, captureSessionGeneration, isSessionGenerationCurrent, sameSessionIdentity } from '../utils/sessionGeneration';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000/api/v1';
 let refreshPromise = null;
 
-async function performRefresh() {
+async function performRefresh(lease) {
+  // A queued Web Lock must not send cookies for an obsolete session.
+  assertSessionGeneration(lease);
+  const owner = useAuthStore.getState().user;
   const response = await fetch(`${API_BASE}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
@@ -21,35 +25,47 @@ async function performRefresh() {
     },
     body: JSON.stringify({}),
   });
+  assertSessionGeneration(lease);
   if (!response.ok) {
     const error = new Error('Không thể làm mới phiên đăng nhập');
     error.status = response.status;
     throw error;
   }
-  return response.json();
+  const result = await response.json();
+  assertSessionGeneration(lease);
+  if (owner && !sameSessionIdentity(owner, result?.user)) {
+    throw new Error('Phiên đăng nhập không còn thuộc tài khoản này.');
+  }
+  return result;
 }
 
-export async function refreshSession() {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
+export async function refreshSession(lease = captureSessionGeneration()) {
+  assertSessionGeneration(lease);
+  if (!refreshPromise || refreshPromise.lease !== lease) {
+    const entry = { lease, promise: null };
+    entry.promise = (async () => {
       // React StrictMode can initialize twice and separate tabs share the same
       // rotating refresh cookie. A per-tab promise plus the browser-wide Web
       // Lock serializes both cases so a valid token is not mistaken for replay.
       if (typeof navigator !== 'undefined' && navigator.locks?.request) {
-        return navigator.locks.request('beautybook-auth-refresh', performRefresh);
+        return navigator.locks.request('beautybook-auth-refresh', () => performRefresh(lease));
       }
-      return performRefresh();
+      return performRefresh(lease);
     })().finally(() => {
-      refreshPromise = null;
+      if (refreshPromise === entry) refreshPromise = null;
     });
+    refreshPromise = entry;
   }
-  return refreshPromise;
+  const result = await refreshPromise.promise;
+  assertSessionGeneration(lease);
+  return result;
 }
 
 /**
  * Gọi API — tự động attach token + auto-refresh khi 401.
  */
-async function request(endpoint, options = {}, _isRetry = false) {
+async function request(endpoint, options = {}, _isRetry = false, lease = captureSessionGeneration()) {
+  assertSessionGeneration(lease);
   const url = `${API_BASE}${endpoint}`;
   const { accessToken, user, setSession, clearSession } =
     useAuthStore.getState();
@@ -81,12 +97,15 @@ async function request(endpoint, options = {}, _isRetry = false) {
   const config = { ...options, credentials: 'include', headers };
 
   const response = await fetch(url, config);
+  assertSessionGeneration(lease);
 
   // Auto-refresh token khi 401 và chưa retry
-  if (response.status === 401 && user && !_isRetry && endpoint !== '/auth/refresh') {
+  if (response.status === 401 && user && !_isRetry
+    && !['/auth/refresh', '/auth/login', '/auth/register', '/auth/logout'].includes(endpoint)) {
     try {
-      const data = await refreshSession();
-      if (!setSession(data)) throw new Error('Phiên đăng nhập không còn quyền truy cập.');
+      const data = await refreshSession(lease);
+      assertSessionGeneration(lease);
+      if (!setSession(data, lease)) throw new Error('Phiên đăng nhập không còn quyền truy cập.');
       const retryOptions = {
         ...options,
         headers: {
@@ -96,9 +115,14 @@ async function request(endpoint, options = {}, _isRetry = false) {
             : {}),
         },
       };
-      return request(endpoint, retryOptions, true);
-    } catch {
-      clearSession();
+      assertSessionGeneration(lease);
+      return request(endpoint, retryOptions, true, lease);
+    } catch (error) {
+      if (!isSessionGenerationCurrent(lease)) throw error;
+      clearSession(lease);
+      // This request intentionally cleared its own lease. Preserve the original
+      // HTTP error, while still fencing any later login during body parsing.
+      lease = captureSessionGeneration();
     }
   }
 
@@ -117,6 +141,7 @@ async function request(endpoint, options = {}, _isRetry = false) {
     } catch {
       // ignore JSON parse error
     }
+    assertSessionGeneration(lease);
     const err = new Error(sanitizeApiErrorMessage(response.status, message));
     err.status = response.status;
     err.details = details;
@@ -125,12 +150,17 @@ async function request(endpoint, options = {}, _isRetry = false) {
 
   // 204 No Content
   if (response.status === 204) return null;
-  if (options.responseType === 'blob') return response.blob();
+  if (options.responseType === 'blob') {
+    const blob = await response.blob();
+    assertSessionGeneration(lease);
+    return blob;
+  }
   // Nest/Express may legitimately return an empty 200 body for a nullable
   // resource (for example a new owner without an onboarding draft yet).
   // Parse from text so an empty success response becomes `null` instead of a
   // misleading "Unexpected end of JSON input" client error.
   const responseText = await response.text();
+  assertSessionGeneration(lease);
   if (!responseText.trim()) return null;
   try {
     return JSON.parse(responseText);
@@ -254,6 +284,14 @@ export const bookingsApi = {
     return request(`/bookings/counter-slots?${query.toString()}`);
   },
 
+  getSchedulerBatch: async (branchIds, startDate, endDate) => {
+    const ids = [...new Set(branchIds)];
+    const chunks = [];
+    for (let index = 0; index < ids.length; index += 50) chunks.push(ids.slice(index, index + 50));
+    const results = await Promise.all(chunks.map(chunk => request(`/bookings/scheduler/batch?branchIds=${encodeURIComponent(chunk.join(','))}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`)));
+    return results.flatMap(result => result.branches);
+  },
+
   getScheduler: (branchId, startDate, endDate) =>
     request(
       `/bookings/scheduler?branchId=${branchId}&startDate=${startDate}&endDate=${endDate}`,
@@ -360,7 +398,8 @@ export const usersApi = {
   getById: (id) => request(`/users/${id}`),
   getMe: () => request('/users/me/profile'),
   updateMe: (data) => request('/users/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
-  suspend: (id, reason) => request(`/users/${id}/suspend`, { method: 'POST', body: JSON.stringify({ reason }) }),
+  suspensionImpact: (id) => request(`/users/${id}/suspension-impact`),
+  suspend: (id, input) => request(`/users/${id}/suspend`, { method: 'POST', body: JSON.stringify(input) }),
   assignRole: (id, data) => request(`/users/${id}/roles`, { method: 'POST', body: JSON.stringify(data) }),
   revokeRole: (id, roleCode, businessId, branchId) => {
     const query = new URLSearchParams();
@@ -850,29 +889,6 @@ export const paymentsApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-};
-
-// ======================== PRIVACY CENTER ========================
-export const privacyApi = {
-  getCenter: () => request('/privacy/center'),
-  createDataRequest: (data) => request('/privacy/data-requests', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  getDataRequests: () => request('/privacy/data-requests'),
-  getMarketingPreferences: () => request('/privacy/marketing-preferences'),
-  updateMarketingPreferences: (data) => request('/privacy/marketing-preferences', {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
-  createExport: (currentPassword) => request('/privacy/exports', {
-    method: 'POST',
-    body: JSON.stringify({ currentPassword }),
-  }),
-  downloadExport: (id, downloadToken) => request(`/privacy/exports/${id}/download`, {
-    headers: { 'X-Privacy-Download-Token': downloadToken },
-    cache: 'no-store',
-  }),
 };
 
 // ======================== BUSINESS COMPLETION 2026-08 ========================

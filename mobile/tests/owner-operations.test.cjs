@@ -37,7 +37,7 @@ test('Owner overview prioritizes real attention counts and never treats loading 
   const navigation = { navigate() {} };
   const mod = load('operations/owner/OwnerOverview.tsx', {
     react: React, 'react-native': { FlatList: 'FlatList', RefreshControl: 'RefreshControl', View: 'View', Text: 'Text', StyleSheet: { create: x => x } },
-    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '@react-navigation/native': { useNavigation: () => navigation },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '../../theme': load('theme/index.ts'), '@react-navigation/native': { useNavigation: () => navigation },
     '../../api/ownerOperations': { ownerOperationsApi: { dashboard() {}, requests() {}, impacts() {} } }, '../OperationsContext': { useOperations: () => operations },
     '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' },
     './hooks': { useOwnerData: (_, key) => key.startsWith('dashboard') ? dashboard : key === 'overview-requests' ? requests : impacts },
@@ -46,7 +46,7 @@ test('Owner overview prioritizes real attention counts and never treats loading 
   const nodes = t => t == null || typeof t === 'boolean' ? [] : Array.isArray(t) ? t.flatMap(nodes) : typeof t !== 'object' ? [t] : [t, ...t.children.flatMap(nodes), ...nodes(t.props.ListHeaderComponent)];
   let tree = nodes(mod.default());
   assert.ok(tree.includes('Cần bạn xử lý'));
-  assert.ok(tree.indexOf('Cần bạn xử lý') < tree.indexOf('Ngày 2026-10-06'));
+  assert.ok(tree.indexOf('Cần bạn xử lý') < tree.indexOf('Ngày 06/10/2026'));
   const initialList = tree.find(n => n?.type === 'FlatList');
   const pendingBranch = nodes(initialList.props.renderItem({ item: dashboard.data.branches[0] }));
   assert.ok(pendingBranch.some(n => n?.type === 'Text' && n.children[0] === 1 && n.children[1] === ' mục cần xử lý'));
@@ -248,4 +248,184 @@ test('legacy unfinished rows keep booking code separate from UUID and prioritize
   assert.equal(result.data[0].id, bookingId); assert.equal(result.data[0].code, 'BB-QA-LEGACY');assert.equal(result.data[0].items[0].id, itemId);
   assert.match(h.calls[0].path, /sortOrder=appointment/);assert.match(h.calls[0].path, /status=unfinished/);
   assert.ok(!JSON.stringify(result).includes('private-phone'));
+});
+
+// Notification details may read another owned branch, but never another business.
+const notificationBranch = id(30);
+const notificationBooking = () => ({ ...rawBooking(), branchId: notificationBranch,
+  branch: { id: notificationBranch, businessId: business, name: 'Chi nhánh B' } });
+function notificationModules(client) {
+  const modules = hookModules();
+  modules.op.branchId = branch;
+  modules.op.branches.push({ id: notificationBranch, businessId: business, name: 'Chi nhánh B' });
+  if (client) modules.client = client;
+  return modules;
+}
+
+test('notification detail reads owned B while A stays selected; default detail still denies B', async () => {
+  for (const fromNotification of [true, false]) {
+    const h = apiHarness(() => notificationBooking());
+    const modules = notificationModules(h.client);
+    const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, fromNotification), modules);
+    host.render(); await settle(); const result = host.render();
+    assert.equal(modules.op.branchId, branch);
+    assert.equal(result.scope.businessId, business);
+    assert.equal(result.scope.branchId, fromNotification ? null : branch);
+    assert.equal(h.calls[0].path, `/bookings/${bookingId}`);
+    if (fromNotification) {
+      assert.equal(result.data.branchId, notificationBranch); assert.equal(result.data.branchName, 'Chi nhánh B'); assert.equal(result.error, null);
+    } else { assert.equal(result.data, undefined); assert.ok(result.error); }
+    host.unmount();
+  }
+});
+
+for (const [label, replacement] of [
+  ['foreign business', { branchId: otherBranch, branch: { id: otherBranch, businessId: otherBusiness } }],
+  ['unknown branch', { branchId: id(31), branch: { id: id(31), businessId: business } }],
+]) test(`notification detail still denies ${label}`, async () => {
+  const h = apiHarness(() => ({ ...notificationBooking(), ...replacement }));
+  const modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, true), modules);
+  host.render(); await settle(); assert.equal(host.render().data, undefined); assert.ok(host.render().error);
+  assert.equal(modules.op.branchId, branch); host.unmount();
+});
+
+test('notification marker cannot grant ownership or switch the selected business', async () => {
+  const modules = notificationModules(); modules.op.businessId = otherBusiness; let calls = 0;
+  const host = hookHost(hooks => hooks.useOwnerData(async () => { calls++; return notificationBooking(); }, `booking:${bookingId}`, true), modules);
+  host.render(); await settle(); assert.equal(calls, 0); assert.ok(host.render().error); host.unmount();
+});
+
+for (const dimension of ['context', 'business', 'session', 'unmount']) test(`notification ${dimension} change invalidates scopes and pending detail response`, async () => {
+  const read = deferred(); const h = apiHarness(() => read.promise);
+  const modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, true), modules);
+  const original = host.render().scope;
+  if (dimension === 'context') { modules.op.contextKey = 'selected-other-branch'; modules.op.branchId = notificationBranch; host.render(); }
+  if (dimension === 'business') { modules.op.businessId = otherBusiness; host.render(); }
+  if (dimension === 'session') { h.replaceSession(); host.render(); }
+  if (dimension === 'unmount') host.unmount();
+  assert.equal(original.isCurrent(), false);
+  read.resolve(notificationBooking()); await settle();
+  if (dimension === 'business') assert.equal(host.render().data, undefined);
+  if (dimension !== 'unmount') host.unmount();
+});
+
+test('notification context fence suppresses old response even when the next context read fails', async () => {
+  const first = deferred(), second = deferred(); let calls = 0;
+  const h = apiHarness(() => ++calls === 1 ? first.promise : second.promise);
+  const modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, true), modules);
+  host.render(); modules.op.contextKey = 'next-context'; host.render();
+  first.resolve(notificationBooking()); await settle(); assert.equal(host.render().data, undefined);
+  second.reject(new ApiError('not found', 404)); await settle();
+  assert.equal(host.render().data, undefined); assert.match(host.render().error, /không còn được phép xem/); host.unmount();
+});
+
+test('notification actions refetch and act only on verified owned B; branch A, foreign and unknown results deny writes', async () => {
+  let response = notificationBooking();
+  const h = apiHarness((_, init) => init.method ? {} : response);
+  const modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, true), modules);
+  host.render(); await settle(); const result = host.render();
+  const actionScope = { ...result.scope, branchId: result.data.branchId };
+  await h.ownerOperationsApi.bookingAction(actionScope, bookingId, 'confirm', '', result.data);
+  assert.equal(h.calls.at(-1).path, `/bookings/${bookingId}`); assert.equal(h.calls.at(-1).init.method, 'PUT');
+  for (const row of [rawBooking(), { ...notificationBooking(), branchId: otherBranch, branch: { id: otherBranch, businessId: otherBusiness } },
+    { ...notificationBooking(), branchId: id(31), branch: { id: id(31), businessId: business } }]) {
+    response = row;
+    await assert.rejects(h.ownerOperationsApi.bookingAction(actionScope, bookingId, 'confirm', '', result.data), e => e.status === 403);
+  }
+  assert.equal(h.calls.filter(call => call.init.method).length, 1); assert.equal(modules.op.branchId, branch); host.unmount();
+});
+
+for (const dimension of ['context', 'business', 'session', 'unmount']) test(`notification ${dimension} change during action refetch prevents the write`, async () => {
+  const read = deferred(); let pending = false;
+  const h = apiHarness(() => pending ? read.promise : notificationBooking());
+  const modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.booking(s, bookingId), `booking:${bookingId}`, true), modules);
+  host.render(); await settle(); const result = host.render(); pending = true;
+  const actionScope = { ...result.scope, branchId: result.data.branchId };
+  const action = h.ownerOperationsApi.bookingAction(actionScope, bookingId, 'confirm', '', result.data);
+  if (dimension === 'context') { modules.op.contextKey = 'next-branch'; host.render(); }
+  if (dimension === 'business') { modules.op.businessId = otherBusiness; host.render(); }
+  if (dimension === 'session') h.replaceSession();
+  if (dimension === 'unmount') host.unmount();
+  read.resolve(notificationBooking());
+  await assert.rejects(action, e => [401, 409].includes(e.status));
+  assert.equal(h.calls.filter(call => call.init.method).length, 0);
+  if (dimension !== 'unmount') host.unmount();
+});
+
+function notificationTreeNodes(tree) {
+  if (!tree || typeof tree !== 'object') return [];
+  if (Array.isArray(tree)) return tree.flatMap(notificationTreeNodes);
+  return [tree, ...(tree.children ?? []).flatMap(notificationTreeNodes)];
+}
+
+test('Owner notification source marks only booking opens and leaves branch selection and impact routing intact', () => {
+  const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }) };
+  const navigationCalls = [];
+  const navigator = () => ({ Navigator: 'Navigator', Screen: 'Screen' });
+  const mod = load('operations/owner/OwnerTabs.tsx', {
+    react: React, '@react-navigation/bottom-tabs': { createBottomTabNavigator: navigator },
+    '@react-navigation/native-stack': { createNativeStackNavigator: navigator },
+    '@react-navigation/native': { useNavigation: () => ({ navigate: (...args) => navigationCalls.push(args) }) },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} },
+    '../OperationsContext': { useOperations: () => ({ contextKey: 'selected-A', branchId: branch }) },
+    '../OperationsAccount': 'Account', '../OperationsNotifications': 'Notifications',
+    '../stackOptions': { stackScreenOptions: {} }, '../../ui': { BrandTabBar: 'TabBar' },
+    './OwnerOverview': 'Overview', './OwnerOperations': 'Operations',
+    './OwnerDetails': { OwnerBookingDetail: 'Booking', OwnerImpactDetail: 'Impact', OwnerRequestDetail: 'Request' },
+  });
+  const stack = mod.default();
+  assert.equal(stack.props.key, `selected-A:${branch}`);
+  const tabs = notificationTreeNodes(stack).find(node => node.props.name === 'OwnerHome').props.component();
+  const notifications = notificationTreeNodes(tabs).find(node => node.props.name === 'ThongBao').props.component();
+  notifications.props.onOpenBooking(bookingId); notifications.props.onOpenImpact(impactId);
+  assert.deepEqual(navigationCalls.map(args => JSON.parse(JSON.stringify(args))), [
+    ['OwnerBooking', { id: bookingId, fromNotification: true }], ['OwnerImpact', { id: impactId }],
+  ]);
+});
+
+test('Owner booking source passes explicit notification read scope, displays actual branch and pins every action/correction', async () => {
+  const h = apiHarness(() => {});
+  for (const fromNotification of [true, false]) for (const status of ['PENDING', 'CONFIRMED']) {
+    const selectedScope = { ...scope(), branchId: fromNotification ? null : branch };
+    selectedScope.branches.push({ id: notificationBranch, businessId: business, name: 'Chi nhánh B' });
+    const raw = fromNotification ? notificationBooking() : rawBooking(); raw.status = status;
+    const booking = h.projectBooking(raw, selectedScope); booking.checkinAllowed = true;
+    const calls = [], readArgs = [], reads = [];
+    const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+      useRef: () => ({ current: null }), useState: initial => [typeof initial === 'boolean' ? true : 'Đã xác minh', () => {}] };
+    const mod = load('operations/owner/OwnerDetails.tsx', {
+      react: React, 'react-native': { FlatList: 'FlatList', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'android' }, RefreshControl: 'Refresh', ScrollView: 'Scroll', View: 'View', Text: 'Text', StyleSheet: { create: value => value } },
+      '@expo/vector-icons': { Ionicons: 'Icon' }, '../../theme': load('theme/index.ts'),
+      '../../api/ownerOperations': { ownerOperationsApi: { booking(s, id) { reads.push({ scope: s, id }); return Promise.resolve(booking); },
+        bookingAction: async (s, id, action) => calls.push({ scope: s, id, action }) } },
+      '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' },
+      './policy': policy,
+      './hooks': { useOwnerData(loader, resource, flag) { readArgs.push({ resource, flag }); void loader(selectedScope); return { data: booking, scope: selectedScope, loading: false, error: null, reload() {} }; },
+        useOwnerMutation: () => ({ busy: false, blocked: false, run: action => action() }) },
+      './OwnerUI': { Body: 'Body', BookingSummary: 'BookingSummary', Card: 'Card', DesktopLink: 'Desktop', Heading: 'Heading', Meta: 'Meta', momentLabel: () => '', Note: 'Note', ReviewAction: 'ReviewAction', StatusTag: 'StatusTag', statusLabel: s => s, styles: {} },
+      '../../hooks/useOperationalTime': { useOperationalTime: () => null },
+      '../../utils/bookingOperationalTime': { operationalTimeLabel: () => null }, '../../utils/bookingTiming': { serviceTimingLines: () => [] },
+      './ActualTimeCorrection': { ActualTimeCorrection: 'Correction' },
+    });
+    const params = fromNotification ? { id: bookingId, fromNotification: true } : { id: bookingId };
+    const nodes = notificationTreeNodes(mod.OwnerBookingDetail({ route: { params } }));
+    assert.equal(readArgs[0].flag, fromNotification); assert.equal(readArgs[0].resource, `booking:${bookingId}`);
+    assert.equal(reads[0].scope, selectedScope); assert.equal(reads[0].id, bookingId);
+    assert.equal(nodes.find(node => node.type === 'BookingSummary').props.booking.branchName, fromNotification ? 'Chi nhánh B' : 'Chi nhánh A');
+    const correction = nodes.find(node => node.type === 'Correction');
+    assert.equal(correction.props.scope.branchId, booking.branchId); assert.equal(correction.props.scope.businessId, business);
+    const actions = nodes.filter(node => node.type === 'ReviewAction');
+    assert.equal(actions.length, status === 'PENDING' ? 2 : 1);
+    actions.forEach(action => action.props.onConfirm()); await settle();
+    assert.equal(calls.length, actions.length);
+    calls.forEach(call => {
+      assert.equal(call.scope.branchId, booking.branchId); assert.equal(call.scope.businessId, business); assert.equal(call.id, bookingId);
+      if (!fromNotification) assert.equal(call.scope, selectedScope);
+    });
+  }
 });

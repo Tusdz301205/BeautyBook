@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -17,6 +17,9 @@ import {
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { notificationsApi } from '../../api/apiClient';
+import { useAuthStore } from '../../store/authStore';
+import { allowedNotificationUrl, createNotificationCenter } from './notificationCenterState';
+import { FINANCE_WORKSPACE_ENABLED } from '../../config/featureAvailability';
 import {
   Badge,
   Button,
@@ -66,56 +69,40 @@ const timeAgo = (value) => {
 
 export function NotificationCenter({ platform = false, zone = platform ? 'platform' : 'salon' }) {
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
   const [state, setState] = useState('all');
   const [type, setType] = useState('ALL');
   const [severity, setSeverity] = useState('ALL');
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const limit = 20;
-
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [result, count] = await Promise.all([
-        notificationsApi.getAll({ page, limit, state, type, severity, search }),
-        notificationsApi.getUnreadCount(),
-      ]);
-      setItems(result.data ?? result ?? []);
-      setPagination(result.pagination ?? { page, total: result.data?.length ?? 0, totalPages: 1 });
-      setUnread(Number(count?.count ?? count ?? 0));
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const user = useAuthStore(store => store.user);
+  const token = useAuthStore(store => store.accessToken);
+  const can = useAuthStore(store => store.can);
+  const query = useRef();
+  query.current = { page, limit: 20, state, type, severity, search };
+  const controller = useMemo(() => createNotificationCenter({
+    api: notificationsApi,
+    getQuery: () => query.current,
+    isCurrent: () => Boolean(user && token) && useAuthStore.getState().user === user
+      && useAuthStore.getState().accessToken === token,
+    onPage: setPage,
+    onError: requestError => toast.error(requestError.message),
+    onReadAll: () => toast.success('Đã đánh dấu tất cả là đã đọc'),
+  }), [user, token, zone]);
+  const { items, unread, selected, pagination, loading, error, pending, allPending } =
+    useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+  const setSelected = controller.select;
+  const load = controller.load;
+  const mark = controller.mark;
+  const markAll = controller.markAll;
 
   useEffect(() => {
-    void load();
-  }, [page, state, type, severity, search]);
+    controller.activate();
+    return () => controller.dispose();
+  }, [controller]);
+  useEffect(() => { void load(); }, [controller, page, state, type, severity, search]);
 
-  const mark = async (item) => {
-    if (item.isRead || item.readAt) return;
-    try {
-      await notificationsApi.markAsRead(item.id);
-      const readAt = new Date().toISOString();
-      setItems((list) => list.map((row) => (row.id === item.id ? { ...row, isRead: true, readAt } : row)));
-      setSelected((row) => (row?.id === item.id ? { ...row, isRead: true, readAt } : row));
-      setUnread((count) => Math.max(0, count - 1));
-    } catch (requestError) {
-      toast.error(requestError.message);
-    }
-  };
-
-  const contextUrl = (item) => {
+  const candidateUrl = (item) => {
     const prefixes = {
       customer: ['/customer/', '/book', '/explore'],
       salon: ['/salon/'],
@@ -143,16 +130,16 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
     const routes = {
       customer: {
         PAYMENT: '/customer/appointments', REFUND: '/customer/appointments', VOUCHER: '/customer/vouchers',
-        PROMOTION: '/explore', REVIEW: '/customer/reviews', PRIVACY: '/customer/privacy',
+        PROMOTION: '/explore', REVIEW: '/customer/reviews', PRIVACY: '/customer/profile',
         SECURITY: '/customer/security',
       },
       salon: {
-        PAYMENT: '/salon/payments', REFUND: '/salon/payments', PROMOTION: '/salon/promotions',
+        PAYMENT: FINANCE_WORKSPACE_ENABLED ? '/salon/payments' : '', REFUND: FINANCE_WORKSPACE_ENABLED ? '/salon/payments' : '', PROMOTION: '/salon/promotions',
         VOUCHER: '/salon/promotions', REVIEW: '/salon/reviews',
         STAFF: '/salon/staff', BRANCH: '/salon/profile', BUSINESS: '/salon/profile', SECURITY: '/salon/security',
       },
       platform: {
-        PAYMENT: '/admin/payments', REFUND: '/admin/payments', PROMOTION: '/admin/salons',
+        PAYMENT: FINANCE_WORKSPACE_ENABLED ? '/admin/payments' : '', REFUND: FINANCE_WORKSPACE_ENABLED ? '/admin/payments' : '', PROMOTION: '/admin/salons',
         VOUCHER: '/admin/salons', REVIEW: '/admin/reviews', BRANCH: '/admin/salons',
         BUSINESS: '/admin/salons', USER: '/admin/users', VIOLATION: '/admin/salons',
         AUDIT: '/admin/audit', SECURITY: '/admin/security',
@@ -166,22 +153,12 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
     void mark(item);
   };
 
-  const markAll = async () => {
-    try {
-      await notificationsApi.markAllAsRead();
-      setItems((list) => list.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })));
-      setUnread(0);
-      toast.success('Đã đánh dấu tất cả là đã đọc');
-    } catch (requestError) {
-      toast.error(requestError.message);
-    }
-  };
-
   const submitSearch = (event) => {
     event.preventDefault();
     setPage(1);
     setSearch(searchDraft.trim());
   };
+  const contextUrl = item => allowedNotificationUrl(candidateUrl(item), zone, can, item, FINANCE_WORKSPACE_ENABLED);
   const relatedUrl = selected ? contextUrl(selected) : '';
   const contextName = zone === 'customer' ? 'Tài khoản của tôi' : zone === 'platform' ? 'Nền tảng' : 'Cơ sở';
 
@@ -191,7 +168,7 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
         eyebrow={contextName}
         title="Thông báo"
         description={unread ? `${unread} thông báo chưa đọc. Chọn một mục để xem chi tiết trước khi chuyển đến nội dung liên quan.` : 'Bạn đã đọc tất cả thông báo.'}
-        actions={unread > 0 && <Button variant="secondary" size="sm" onClick={markAll}><CheckCheck size={15} />Đọc tất cả</Button>}
+        actions={unread > 0 && <Button variant="secondary" size="sm" disabled={allPending || pending.length > 0 || loading} onClick={markAll}><CheckCheck size={15} />Đọc tất cả</Button>}
       />
 
       <Card className="grid gap-3 p-3 md:grid-cols-[minmax(12rem,1fr)_11rem_11rem_11rem]">
@@ -227,7 +204,7 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
             const [severityLabel, severityTone] = SEVERITIES[item.severity] || SEVERITIES.INFO;
             const isUnread = !item.isRead && !item.readAt;
             return (
-              <button key={item.id} type="button" onClick={() => open(item)} className="flex min-h-24 w-full items-start gap-3 p-4 text-left transition-colors hover:bg-[var(--bb-surface-subtle)] sm:items-center">
+              <button key={item.id} type="button" disabled={allPending || pending.includes(item.id)} aria-busy={pending.includes(item.id)} onClick={() => open(item)} className="flex min-h-24 w-full items-start gap-3 p-4 text-left transition-colors hover:bg-[var(--bb-surface-subtle)] sm:items-center">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[var(--bb-surface-subtle)] text-[var(--bb-brand-strong)]"><Icon size={18} aria-hidden="true" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
@@ -260,7 +237,7 @@ export function NotificationCenter({ platform = false, zone = platform ? 'platfo
         onClose={() => setSelected(null)}
         title={selected?.title || 'Chi tiết thông báo'}
         description={selected?.createdAt ? new Date(selected.createdAt).toLocaleString('vi-VN') : ''}
-        footer={<><Button variant="secondary" onClick={() => setSelected(null)}>Đóng</Button>{relatedUrl && <Button onClick={() => { setSelected(null); navigate(relatedUrl); }}>Xem nội dung liên quan</Button>}</>}
+        footer={<><Button variant="secondary" onClick={() => setSelected(null)}>Đóng</Button>{relatedUrl && <Button onClick={() => { setSelected(null); const url = contextUrl(selected); if (url) navigate(url); }}>Xem nội dung liên quan</Button>}</>}
       >
         <div className="flex flex-wrap gap-2">
           {selected && <Badge tone={(TYPES[selected.type] || TYPES.SYSTEM)[2]}>{(TYPES[selected.type] || TYPES.SYSTEM)[0]}</Badge>}

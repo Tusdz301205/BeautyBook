@@ -1,24 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  BackHandler,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../constants/colors';
+import { colors, layout, space, type } from '../theme';
+import { AppButton, SheetModal, TextField } from '../ui';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const ANIM_DURATION = 250;
 const STAR_COUNT = 5;
-
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const STAR_WORDS = ['', 'Không hài lòng', 'Chưa tốt', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
+const STAR_COLOR = '#9A6206';
 
 interface Props {
   visible: boolean;
@@ -29,170 +17,51 @@ interface Props {
 }
 
 export default function WriteReviewSheet({ visible, onClose, onSubmit, isSubmitting = false, minLength = 0 }: Props) {
-  const [isRendered, setIsRendered] = useState(visible);
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [stars, setStars] = useState(0);
   const [text, setText] = useState('');
 
   useEffect(() => {
-    if (visible) {
-      setIsRendered(true);
-      setStars(0);
-      setText('');
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: 0, duration: ANIM_DURATION, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 1, duration: ANIM_DURATION, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: SCREEN_HEIGHT, duration: ANIM_DURATION, useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: ANIM_DURATION, useNativeDriver: true }),
-      ]).start(({ finished }) => {
-        if (finished) setIsRendered(false);
-      });
-    }
-  }, [visible, translateY, backdropOpacity]);
+    if (visible) { setStars(0); setText(''); }
+  }, [visible]);
 
-  useEffect(() => {
-    if (!visible) return;
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
-      return true;
-    });
-    return () => subscription.remove();
-  }, [visible, onClose]);
-
-  if (!isRendered) return null;
-
-  const handleSubmit = () => {
-    if (stars === 0 || text.trim().length < minLength) return;
-    onSubmit(stars, text.trim());
-  };
+  const tooShort = text.trim().length < minLength;
+  const disabled = stars === 0 || tooShort || isSubmitting;
+  const submit = () => { if (!disabled) onSubmit(stars, text.trim()); };
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
-      <AnimatedTouchable style={[styles.backdrop, { opacity: backdropOpacity }]} activeOpacity={1} onPress={onClose} />
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Viết đánh giá</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10}>
-              <Ionicons name="close" size={24} color={colors.textDark} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.content}>
-            <Text style={styles.label}>Bạn hài lòng như thế nào?</Text>
-            <View style={styles.starsRow}>
-              {Array.from({ length: STAR_COUNT }, (_, i) => i + 1).map((value) => (
-                <TouchableOpacity key={value} activeOpacity={0.7} onPress={() => setStars(value)} hitSlop={6}>
-                  <Ionicons
-                    name={value <= stars ? 'star' : 'star-outline'}
-                    size={36}
-                    color={value <= stars ? '#F5A623' : colors.textMuted}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.label}>Chia sẻ trải nghiệm của bạn</Text>
-            <TextInput
-              style={styles.textInput}
-              value={text}
-              onChangeText={setText}
-              placeholder="Dịch vụ, thái độ nhân viên, không gian..."
-              placeholderTextColor={colors.textMuted}
-              multiline
-              numberOfLines={4}
-            />
-            {minLength > 0 && <Text style={styles.label}>Nhận xét tối thiểu {minLength} ký tự.</Text>}
-
-            <TouchableOpacity
-              style={[styles.submitButton, (stars === 0 || text.trim().length < minLength || isSubmitting) && styles.submitButtonDisabled]}
-              activeOpacity={0.85}
-              disabled={stars === 0 || text.trim().length < minLength || isSubmitting}
-              onPress={handleSubmit}
-            >
-              <Text style={styles.submitButtonText}>{isSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </View>
+    <SheetModal
+      visible={visible}
+      title="Viết đánh giá"
+      subtitle="Đánh giá giúp người khác chọn dịch vụ phù hợp."
+      onClose={onClose}
+      locked={isSubmitting}
+      footer={<AppButton label={isSubmitting ? 'Đang gửi…' : 'Gửi đánh giá'} loading={isSubmitting} disabled={disabled} onPress={submit} />}
+    >
+      <Text style={styles.label}>Bạn hài lòng như thế nào?</Text>
+      <View accessibilityRole="radiogroup" style={styles.stars}>
+        {Array.from({ length: STAR_COUNT }, (_, index) => index + 1).map((value) => (
+          <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`${value} sao, ${STAR_WORDS[value]}`} accessibilityState={{ checked: stars === value }} onPress={() => setStars(value)} style={styles.star}>
+            <Ionicons name={value <= stars ? 'star' : 'star-outline'} size={34} color={value <= stars ? STAR_COLOR : colors.borderStrong} />
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.verdict}>{stars ? `${stars}/5 · ${STAR_WORDS[stars]}` : 'Chạm vào số sao để chọn'}</Text>
+      <TextField
+        label="Chia sẻ trải nghiệm của bạn"
+        optional={minLength === 0}
+        value={text}
+        onChangeText={setText}
+        placeholder="Dịch vụ, thái độ nhân viên, không gian…"
+        multiline
+        helper={minLength > 0 ? `Nhận xét tối thiểu ${minLength} ký tự (${text.trim().length}/${minLength}).` : undefined}
+      />
+    </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'flex-end',
-    zIndex: 999,
-    elevation: 999,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 32,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textDark,
-    marginBottom: 12,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: colors.textDark,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    marginBottom: 20,
-  },
-  submitButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitButtonDisabled: {
-    backgroundColor: colors.primaryLight,
-  },
-  submitButtonText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 15,
-    letterSpacing: 0.5,
-  },
+  label: { ...type.secondaryStrong, color: colors.heading, marginTop: space.xs },
+  stars: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.sm },
+  star: { width: layout.touch + 8, height: layout.touch + 8, alignItems: 'center', justifyContent: 'center' },
+  verdict: { ...type.secondary, textAlign: 'center', marginBottom: space.lg },
 });

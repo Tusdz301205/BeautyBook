@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Building2, CalendarCheck, CircleDollarSign, Scale, Star, TrendingUp, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { branchesApi, reportsApi } from '../../api/apiClient';
+import { FINANCE_WORKSPACE_ENABLED } from '../../config/featureAvailability';
 import { useAuthStore } from '../../store/authStore';
 import { Card, EmptyState, ErrorState, MetricCard, Page, PageHeader, Skeleton } from '../../components/ui';
 import { CategoryPieChart } from '../../components/charts/CategoryPieChart';
@@ -23,7 +24,7 @@ export function AdminOverview() {
   const [data, setData] = useState({ branches: [], overview: null, categories: [], topSalons: [] });
   const [loading, setLoading] = useState(canOverview);
   const [error, setError] = useState('');
-  const available = workspaces.filter(([, , , , permissions]) => permissions.some((permission) => can(permission)));
+  const available = workspaces.filter(([route, , , , permissions]) => (FINANCE_WORKSPACE_ENABLED || route !== '/admin/payments') && permissions.some((permission) => can(permission)));
   const load = async () => {
     if (!canOverview) return;
     setLoading(true); setError('');

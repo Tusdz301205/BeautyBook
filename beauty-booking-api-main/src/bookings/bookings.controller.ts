@@ -66,7 +66,7 @@ import { ActualTimeCorrectionDto, ActualTimeGrantDto, RevokeActualTimeGrantDto }
 import { staffBookingView } from './staff-booking-view';
 
 type CustomerBookingServiceView = Prisma.BookingServiceGetPayload<{
-  include: { service: { include: { category: true } }; staff: { include: { user: true } } };
+  include: { service: { include: { category: true } }; staff: { include: { user: { select: { id: true; fullName: true; avatarMediaId: true } } } } };
 }> & Partial<ReturnType<typeof bookingItemActualTiming>>;
 
 /**
@@ -159,6 +159,7 @@ export class BookingsController {
       bookingServices: (booking.bookingServices ?? []).map((item: CustomerBookingServiceView) => ({
         id: item.id,
         serviceId: item.serviceId,
+        staffId: item.staffId,
         status: item.status,
         serviceNameSnapshot: item.serviceNameSnapshot,
         itemStartAt: item.itemStartAt,
@@ -331,6 +332,7 @@ export class BookingsController {
       throw new ForbiddenException('Chỉ chủ doanh nghiệp được phép overbooking có kiểm soát');
     }
     let customerId = body.customerId;
+    let walkInCustomer: { customerId: string; userId: string; fullName: string } | undefined;
     if (customerOnly) {
       const profile = await this.prisma.customerProfile.findUnique({
         where: { userId: user.id },
@@ -343,20 +345,10 @@ export class BookingsController {
       if (!body.guestName?.trim()) {
         throw new BadRequestException('Nhập tên khách vãng lai hoặc chọn hồ sơ khách hàng');
       }
-      const guest = await this.prisma.user.create({
-        data: {
-          email: `walkin-${randomUUID()}@guest.local`,
-          phone: null,
-          fullName: body.guestName.trim(),
-          passwordHash: 'WALK_IN_ACCOUNT_DISABLED',
-          isActive: false,
-          customerProfile: { create: { note: 'Khách tại quầy' } },
-        },
-        select: { customerProfile: { select: { id: true } } },
-      });
-      customerId = guest.customerProfile!.id;
+      walkInCustomer = { customerId: randomUUID(), userId: randomUUID(), fullName: body.guestName.trim() };
+      customerId = walkInCustomer.customerId;
     }
-    const booking = await this.bookingsService.create({
+    const bookingData = {
       ...body,
       customerId,
       createdBy: user.id,
@@ -368,7 +360,11 @@ export class BookingsController {
       overbookingReason: body.controlledOverbooking === true && mayOverbook
         ? body.overbookingReason?.trim()
         : undefined,
-    }, { authorizedCounter: !customerOnly });
+    };
+    const leadContext = { authorizedCounter: !customerOnly };
+    const booking = walkInCustomer
+      ? await this.bookingsService.create(bookingData, leadContext, walkInCustomer)
+      : await this.bookingsService.create(bookingData, leadContext);
     return customerOnly ? this.customerBookingView(booking) : booking;
   }
 
@@ -866,6 +862,30 @@ export class BookingsController {
       branchId, staffId: staffId || null, serviceIds: serviceIds.split(',').filter(Boolean),
       date, variantSelections,
     }, { authorizedCounter: true, source });
+  }
+
+  @Get('scheduler/batch')
+  @Roles('PLATFORM_ADMIN', 'BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF')
+  @RequirePermission('booking:read:branch', 'booking:read:tenant', 'booking:read:platform')
+  async getSchedulerBatch(
+    @Query('branchIds') branchIds: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (typeof branchIds !== 'string') throw new BadRequestException('branchIds phải là danh sách mã chi nhánh.');
+    const ids = [...new Set(branchIds.split(',').map(id => id.trim()).filter(Boolean))];
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    if (!ids.length || ids.length > 50 || ids.some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+      || !Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > 92 * 86400000) {
+      throw new BadRequestException('Danh sách chi nhánh hoặc khoảng ngày lịch không hợp lệ. Tối đa 50 chi nhánh và 92 ngày mỗi lần.');
+    }
+    // Authorize the entire requested set before loading any appointment data.
+    await Promise.all(ids.map(id => assertBranchAccess(this.prisma, user, id)));
+    const branches = await Promise.all(ids.map(async branchId => ({ branchId,
+      payload: await this.getSchedulerData(branchId, startDate, endDate, user) })));
+    return { branches };
   }
 
   @Get('scheduler')

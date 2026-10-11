@@ -4,7 +4,6 @@ import {
   Get,
   Headers,
   Param,
-  Post,
   Put,
   Res,
 } from '@nestjs/common';
@@ -13,7 +12,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { CreateDataSubjectRequestDto, CreatePrivacyExportDto, MarketingPreferenceDto } from './dto/privacy.dto';
+import { MarketingPreferenceDto } from './dto/privacy.dto';
 import { PrivacyCenterService } from './privacy-center.service';
 
 @Controller('privacy')
@@ -29,16 +28,6 @@ export class PrivacyController {
     return this.privacyCenter.center(user);
   }
 
-
-  @Post('data-requests')
-  @Roles('CUSTOMER')
-  @RequirePermission('privacy_request:manage:self')
-  createDataRequest(
-    @Body() body: CreateDataSubjectRequestDto,
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.privacyCenter.createDataRequest(body, user);
-  }
 
   @Get('data-requests')
   @Roles('CUSTOMER')
@@ -62,16 +51,6 @@ export class PrivacyController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.privacyCenter.updateMarketingPreferences(body, user);
-  }
-
-  @Post('exports')
-  @Roles('CUSTOMER')
-  @RequirePermission('privacy_request:manage:self')
-  export(
-    @Body() body: CreatePrivacyExportDto,
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.privacyCenter.createExport(body, user);
   }
 
   @Get('exports/:id/download')

@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootStack, { RootStackParamList } from './src/navigation/RootStack';
 import { navigationRef } from './src/navigation/navigationRef';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { colors } from './src/constants/colors';
+import { colors } from './src/theme';
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['beautybook://'],
@@ -35,9 +35,9 @@ function LogoutRedirect() {
 function AppNavigation() {
   const { isRestoring, isLoggedIn, user } = useAuth();
   const [routeName, setRouteName] = useState<string>();
-  const authRoutes = ['Login', 'Register', 'ForgotPassword', 'ResetPassword', 'VerifyEmail', 'OtpVerify'];
-  const authHeader = authRoutes.includes(routeName || '');
-  const darkHeader = authHeader || routeName === 'Booking' || routeName === 'AppointmentDetail' || (routeName === 'AccountMain' && !isLoggedIn);
+  // Plum surfaces sit behind the status bar only on auth screens and the guest account intro.
+  const authRoutes = ['Login', 'Register', 'ForgotPassword', 'ResetPassword', 'VerifyEmail'];
+  const darkHeader = authRoutes.includes(routeName || '') || (routeName === 'AccountMain' && !isLoggedIn);
   if (isRestoring) {
     return (
       <>
@@ -78,5 +78,5 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: colors.background,
   },
-  restoringText: { color: colors.textGray, fontSize: 15 },
+  restoringText: { color: colors.secondaryText, fontSize: 15, lineHeight: 22 },
 });

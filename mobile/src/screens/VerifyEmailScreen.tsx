@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
 
 import { authApi } from '../api/auth';
 import AuthField from '../components/AuthField';
+import AuthResult from '../components/AuthResult';
 import AuthScreenLayout from '../components/AuthScreenLayout';
-import { colors } from '../constants/colors';
+import { space } from '../theme';
+import { AppButton, LoadingState, Notice } from '../ui';
 import type { RootStackParamList } from '../navigation/RootStack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
@@ -38,71 +39,20 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   }, [route.params?.token]);
 
   return (
-    <AuthScreenLayout
-      title="Xác minh email"
-      subtitle="Hoàn tất xác minh để bảo vệ tài khoản BeautyBook của bạn."
-      onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}
-    >
-      {status === 'loading' ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.info}>Đang xác minh email...</Text>
-        </View>
-      ) : status === 'success' ? (
-        <View style={styles.center}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark" size={38} color={colors.ratingGreen} />
-          </View>
-          <Text style={styles.title}>Email đã được xác minh</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.replace('Login')}>
-            <Text style={styles.primaryText}>ĐĂNG NHẬP</Text>
-          </TouchableOpacity>
-        </View>
+    <AuthScreenLayout title="Xác minh email" subtitle="Hoàn tất xác minh để bảo vệ tài khoản BeautyBook của bạn." onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}>
+      {status === 'loading' ? <LoadingState message="Đang xác minh email…" style={styles.loading} /> : status === 'success' ? (
+        <AuthResult icon="checkmark" title="Email đã được xác minh" actionLabel="Đăng nhập" onAction={() => navigation.replace('Login')} />
       ) : (
         <>
           {!route.params?.token && (
-            <AuthField
-              label="Mã xác minh"
-              icon="key-outline"
-              value={token}
-              onChangeText={setToken}
-              placeholder="Dán mã từ email"
-              autoCapitalize="none"
-              error={status === 'error' && !token.trim() ? 'Mã xác minh là bắt buộc.' : undefined}
-            />
+            <AuthField label="Mã xác minh" icon="key-outline" value={token} onChangeText={setToken} placeholder="Dán mã từ email" autoCapitalize="none" autoCorrect={false} error={status === 'error' && !token.trim() ? 'Mã xác minh là bắt buộc.' : undefined} />
           )}
-          {!!message && <Text style={styles.error}>{message}</Text>}
-          <TouchableOpacity style={styles.primaryButton} onPress={() => void verify(token)}>
-            <Text style={styles.primaryText}>XÁC MINH</Text>
-          </TouchableOpacity>
+          {!!message && <Notice tone="error" message={message} style={styles.notice} />}
+          <AppButton label="Xác minh" onPress={() => void verify(token)} />
         </>
       )}
     </AuthScreenLayout>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { alignItems: 'center', gap: 14 },
-  info: { color: colors.textGray, fontSize: 15 },
-  successIcon: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: '#EAF7EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textDark, fontSize: 21, fontWeight: '900', textAlign: 'center' },
-  error: { color: colors.discountRed, fontSize: 14, lineHeight: 20, marginBottom: 14 },
-  primaryButton: {
-    minHeight: 54,
-    borderRadius: 27,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    paddingHorizontal: 26,
-    alignSelf: 'stretch',
-  },
-  primaryText: { color: colors.white, fontSize: 15, fontWeight: '900' },
-});
+const styles = StyleSheet.create({ notice: { marginBottom: space.lg }, loading: { flex: 0, paddingVertical: space.xxxl } });

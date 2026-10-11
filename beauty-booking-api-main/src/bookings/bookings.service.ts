@@ -40,6 +40,7 @@ import { assertBookingChannelAllowed } from './booking-channel-policy';
 import { assertBookingAdvance, bookingLeadMilliseconds, type BookingLeadContext } from './booking-lead-policy';
 import { assertUnstartedBookingItems } from './booking-schedule-integrity';
 import { auditProviderReassignment } from './booking-provider-audit';
+import { queueProviderReassignment } from './booking-provider-notifications';
 import { CANCELLED_BOOKING_OUTCOMES, cancelUnfinishedBookingItems } from './booking-item-lifecycle';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -869,7 +870,10 @@ export class BookingsService {
     source?: 'ONLINE_WEB' | 'ONLINE_APP' | 'WALK_IN' | 'PHONE' | 'STAFF_CREATED' | 'ADMIN_CREATED';
     controlledOverbooking?: boolean;
     overbookingReason?: string;
-  }, leadContext?: BookingLeadContext) {
+  }, leadContext?: BookingLeadContext, walkInCustomer?: { customerId: string; userId: string; fullName: string }) {
+    if (walkInCustomer && (!leadContext?.authorizedCounter || !data.createdBy || walkInCustomer.customerId !== data.customerId || !walkInCustomer.fullName.trim())) {
+      throw new BadRequestException('Khách tại quầy phải được cấp từ ngữ cảnh vận hành đã xác minh.');
+    }
     await this.expirePendingHolds(data.branchId);
     const statusChangedBy = data.createdBy ?? (await this.prisma.customerProfile.findUnique({
       where: { id: data.customerId },
@@ -1126,7 +1130,7 @@ export class BookingsService {
       allocatedSubtotal += amount;
       return { serviceId: item.service.id, amount };
     });
-    const pricingQuote = await this.pricingEngine.quote({
+    const pricingInput = {
       customerId: data.customerId,
       branchId: data.branchId,
       serviceIds: resolvedServiceIds,
@@ -1135,7 +1139,10 @@ export class BookingsService {
       subtotal,
       voucherCode: data.voucherCode,
       at: now,
-    });
+    };
+    const pricingQuote = walkInCustomer
+      ? await this.pricingEngine.quote(pricingInput, { allocatedWalkInCustomerId: walkInCustomer.customerId })
+      : await this.pricingEngine.quote(pricingInput);
     const voucherInfo = pricingQuote.voucher;
     const finalTotal = pricingQuote.finalAmount;
 
@@ -1204,6 +1211,17 @@ export class BookingsService {
     const bookingId = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
+        // Guest identity and booking are one atomic allocation. A conflict,
+        // closed-hours rejection or transaction failure retains neither row.
+        if (walkInCustomer) {
+          await tx.user.create({ data: {
+            id: walkInCustomer.userId,
+            email: `walkin-${walkInCustomer.userId}@guest.local`, phone: null,
+            fullName: walkInCustomer.fullName, passwordHash: 'WALK_IN_ACCOUNT_DISABLED', isActive: false,
+            customerProfile: { create: { id: walkInCustomer.customerId, note: 'Khách tại quầy' } },
+          } });
+        }
+
         if (data.recurringPlanId) {
           await reserveRecurringOccurrence(tx, data.recurringPlanId, data.customerId, data.branchId);
         }
@@ -2640,13 +2658,15 @@ export class BookingsService {
         const providerUsers = new Map((await tx.staffProfile.findMany({ where: { id: { in: providerIds } }, select: { id: true, userId: true } }))
           .map(profile => [profile.id, profile.userId]));
         for (const item of locked.bookingServices) {
-          await tx.bookingServiceAdjustment.create({ data: {
+          const event = await tx.bookingServiceAdjustment.create({ data: {
             bookingServiceId: item.id, bookingId: id, actorId, action: 'REASSIGN',
             reason: 'Phân công chuyên viên cho các dịch vụ chưa bắt đầu', amountDelta: 0,
             version: await tx.bookingServiceAdjustment.count({ where: { bookingServiceId: item.id } }) + 1,
             beforeSnapshot: { status: item.status, staffId: item.staffId, staffUserId: item.staffId ? providerUsers.get(item.staffId) ?? null : null, revision: item.revision },
             afterSnapshot: { status: item.status, staffId, staffUserId: providerUsers.get(staffId) ?? null, revision: item.revision + 1 },
           } });
+          await queueProviderReassignment(tx, { bookingId: id, itemId: item.id, eventId: event.id,
+            previousStaffId: item.staffId, nextStaffId: staffId });
         }
         await tx.bookingStatusHistory.create({
           data: {
@@ -2664,7 +2684,7 @@ export class BookingsService {
       },
     );
 
-    this.schedulerGateway.notifyBookingUpdated(booking);
+    await emitCommittedBookingUpdate(this.schedulerGateway, booking);
     return booking;
   }
 

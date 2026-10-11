@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { authApi } from '../api/apiClient';
 import { useBookingStore } from './bookingStore';
 import { activeContextFor, activeScopes, canAt, isCustomerAccount, roleAt, sessionState } from '../utils/authScope';
+import { advanceSessionGeneration, assertSessionGeneration, isSessionGenerationCurrent, sameSessionIdentity } from '../utils/sessionGeneration';
+
+let initialization = null;
 
 /**
  * RBAC + Scope shape carried from the backend. Each scoped role holds
@@ -88,52 +91,73 @@ export const useAuthStore = create(
       },
 
       login: async (email, password, context = {}) => {
+        const lease = advanceSessionGeneration();
+        set({ initialized: true });
         const res = await authApi.login(email, password, context);
+        assertSessionGeneration(lease);
         const state = sessionState(res);
+        advanceSessionGeneration();
+        useBookingStore.getState().reset();
         set(state);
         if (!state.user) throw new Error('Tài khoản không còn quyền truy cập không gian này.');
         return state.user;
       },
 
       register: async (data) => {
+        const lease = advanceSessionGeneration();
+        set({ initialized: true });
         const res = await authApi.register(data);
+        assertSessionGeneration(lease);
         const state = sessionState(res);
+        advanceSessionGeneration();
+        useBookingStore.getState().reset();
         set(state);
         if (!state.user) throw new Error('Tài khoản không còn quyền truy cập không gian này.');
         return state.user;
       },
 
-      clearSession: () => {
+      clearSession: (lease) => {
+        if (lease !== undefined && !isSessionGenerationCurrent(lease)) return;
+        advanceSessionGeneration();
         useBookingStore.getState().reset();
         set({ user: null, accessToken: null, initialized: true });
       },
 
       logout: async () => {
-        try {
-          if (get().accessToken) await authApi.logout();
-        } finally {
-          // Do not carry contact details, notes or selections into the next
-          // account when two users share the same browser tab.
-          useBookingStore.getState().reset();
-          set({ user: null, accessToken: null, initialized: true });
-        }
+        advanceSessionGeneration();
+        // Dispatch with the captured credential, then revoke local access now.
+        // Completion has no authority to clear a subsequent login.
+        const pending = get().accessToken ? authApi.logout() : Promise.resolve();
+        useBookingStore.getState().reset();
+        set({ user: null, accessToken: null, initialized: true });
+        await pending;
       },
 
-      setAccessToken: (token) => set({ accessToken: token }),
-      setSession: (result) => {
+      setAccessToken: (token) => { advanceSessionGeneration(); set({ accessToken: token }); },
+      setSession: (result, lease) => {
+        if (lease !== undefined) assertSessionGeneration(lease);
         const state = sessionState(result);
-        if (!state.user) useBookingStore.getState().reset();
+        if (!state.user || !sameSessionIdentity(state.user, get().user)) {
+          advanceSessionGeneration();
+          useBookingStore.getState().reset();
+        }
         set(state);
         return state.user;
       },
       initialize: async () => {
         if (get().initialized) return;
-        try {
-          const result = await authApi.refresh();
-          get().setSession(result);
-        } catch {
-          set({ user: null, accessToken: null, initialized: true });
-        }
+        if (initialization && isSessionGenerationCurrent(initialization.lease)) return initialization.promise;
+        const entry = { lease: advanceSessionGeneration(), promise: null };
+        entry.promise = (async () => {
+          try {
+            const result = await authApi.refresh();
+            if (isSessionGenerationCurrent(entry.lease)) get().setSession(result, entry.lease);
+          } catch {
+            if (isSessionGenerationCurrent(entry.lease)) get().clearSession(entry.lease);
+          }
+        })().finally(() => { if (initialization === entry) initialization = null; });
+        initialization = entry;
+        return entry.promise;
       },
     }),
     {

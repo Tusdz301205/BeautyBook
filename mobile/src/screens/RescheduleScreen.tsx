@@ -1,12 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { HoatDongStackParamList } from '../navigation/HoatDongStack';
 import { useBookings } from '../context/BookingsContext';
 import { bookingsApi } from '../api/bookings';
 import type { ApiAvailableSlot } from '../types/api';
-import { colors } from '../constants/colors';
+import { colors, elevation, layout, space, type } from '../theme';
+import { slotClock } from '../utils/bookingClock';
+import { AppButton, Chip, EmptyState, Notice, ScreenHeader, TextField } from '../ui';
 
 type Props = NativeStackScreenProps<HoatDongStackParamList, 'Reschedule'>;
 
@@ -66,50 +68,39 @@ export default function RescheduleScreen({ route, navigation }: Props) {
     } finally { setSubmitting(false); }
   };
 
-  return <SafeAreaView style={styles.screen}>
-    <ScrollView contentContainerStyle={styles.content}>
-      <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.link}>‹ Quay lại</Text></TouchableOpacity>
-      <Text style={styles.title}>Yêu cầu đổi lịch</Text>
-      {!booking ? <Text>Không tìm thấy lịch hẹn.</Text> : <>
-        <Text style={styles.note}>Lịch hiện tại được giữ cho đến khi cơ sở duyệt yêu cầu.</Text>
-        <Text style={styles.heading}>Chọn ngày mới</Text>
-        <View style={styles.row}>{days.map((day) => {
+  const weekday = (day: Date) => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][day.getDay()];
+  return <View style={styles.screen}>
+    <ScreenHeader title="Yêu cầu đổi lịch" onBack={() => navigation.goBack()} backDisabled={submitting} />
+    {!booking ? <EmptyState icon="calendar-clear-outline" title="Không tìm thấy lịch hẹn" message="Lịch hẹn không còn khả dụng cho tài khoản này." actionLabel="Quay lại" onAction={() => navigation.goBack()} /> : <>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Notice tone="info" title="Lịch hiện tại vẫn giữ nguyên" message={`${booking.serviceName} · ${booking.date} lúc ${booking.time}. Lịch chỉ đổi khi cơ sở duyệt yêu cầu.`} />
+        <Text accessibilityRole="header" style={styles.heading}>Chọn ngày mới</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>{days.map((day) => {
           const value = dateString(day);
-          return <TouchableOpacity key={value} style={[styles.chip, date === value && styles.selected]} onPress={() => setDate(value)}>
-            <Text style={styles.chipText}>{day.getDate()}/{day.getMonth() + 1}</Text>
-          </TouchableOpacity>;
-        })}</View>
-        <Text style={styles.heading}>Giờ trống</Text>
-        {loading && <ActivityIndicator color={colors.primary} />}
-        {!!error && <Text style={styles.error}>{error}</Text>}
-        {!loading && !error && slots.length === 0 && <Text>Không có giờ trống.</Text>}
-        <View style={styles.row}>{slots.map((item) => <TouchableOpacity key={item.start} style={[styles.chip, slot?.start === item.start && styles.selected]} onPress={() => setSlot(item)}>
-          <Text style={styles.chipText}>{new Date(item.start).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</Text>
-        </TouchableOpacity>)}</View>
-        <Text style={styles.heading}>Lý do đổi lịch</Text>
-        <TextInput value={reason} onChangeText={setReason} multiline placeholder="Cho cơ sở biết lý do" style={styles.input} />
-        <TouchableOpacity disabled={!slot || !reason.trim() || submitting} onPress={() => void submit()} style={[styles.submit, (!slot || !reason.trim() || submitting) && styles.disabled]}>
-          <Text style={styles.submitText}>{submitting ? 'Đang gửi...' : 'GỬI YÊU CẦU'}</Text>
-        </TouchableOpacity>
-      </>}
-    </ScrollView>
-  </SafeAreaView>;
+          return <Chip key={value} role="radio" label={`${weekday(day)} ${day.getDate()}/${day.getMonth() + 1}`} selected={date === value} onPress={() => setDate(value)} />;
+        })}</ScrollView>
+        <Text accessibilityRole="header" style={styles.heading}>Giờ trống</Text>
+        <Text style={styles.hint}>Giờ theo múi giờ Việt Nam (GMT+7), cùng chuyên viên hiện tại.</Text>
+        {loading && <ActivityIndicator color={colors.primary} style={styles.loader} />}
+        {!!error && <Notice tone="error" message={error} />}
+        {!loading && !error && slots.length === 0 && <Text style={styles.hint}>Không có giờ trống trong ngày này. Thử ngày khác.</Text>}
+        <View style={styles.grid}>{slots.map((item) => <Chip key={item.start} role="radio" label={slotClock(item.start)} selected={slot?.start === item.start} onPress={() => setSlot(item)} />)}</View>
+        <TextField label="Lý do đổi lịch" value={reason} onChangeText={setReason} multiline placeholder="Cho cơ sở biết lý do" helper="Bắt buộc để cơ sở xem xét yêu cầu." />
+      </ScrollView>
+      <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
+        <AppButton label={submitting ? 'Đang gửi…' : 'Gửi yêu cầu đổi lịch'} loading={submitting} disabled={!slot || !reason.trim() || submitting} onPress={() => void submit()} />
+      </SafeAreaView>
+    </>}
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.card },
-  content: { padding: 20, gap: 16 },
-  link: { color: colors.primary, fontSize: 16 },
-  title: { fontSize: 24, fontWeight: '800', color: colors.textDark },
-  note: { color: colors.textGray, lineHeight: 21 },
-  heading: { fontSize: 17, fontWeight: '700', color: colors.textDark },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 10 },
-  selected: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  chipText: { color: colors.textDark },
-  input: { minHeight: 90, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 12, textAlignVertical: 'top' },
-  error: { color: colors.discountRed },
-  submit: { alignItems: 'center', backgroundColor: colors.primary, padding: 16, borderRadius: 12 },
-  disabled: { opacity: 0.5 },
-  submitText: { color: colors.white, fontWeight: '800' },
+  screen: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: layout.gutter, paddingTop: space.sm, paddingBottom: space.xxl, gap: space.md },
+  heading: { ...type.h3, marginTop: space.sm },
+  hint: { ...type.secondary, marginTop: -space.xs },
+  loader: { marginVertical: space.lg },
+  row: { gap: space.sm, paddingVertical: space.xs },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  bottomBar: { paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: space.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, ...elevation.raised },
 });

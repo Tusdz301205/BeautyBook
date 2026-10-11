@@ -1,0 +1,90 @@
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');const root=path.resolve(__dirname,'../../../..');const apiReq=require('node:module').createRequire(path.join(root,'beauty-booking-api-main/package.json'));const{PrismaClient}=apiReq('@prisma/client'),{PrismaPg}=apiReq('@prisma/adapter-pg'),bcrypt=apiReq('bcryptjs');const webReq=require('node:module').createRequire(path.join(root,'beauty-booking-web-main/beauty-booking-web-main/package.json'));const{chromium,expect}=webReq('@playwright/test');const{BrowserCases}=require('./browser-case.cjs');
+const rt=JSON.parse(fs.readFileSync(path.join(root,'report-output/full-system-qa/runtime.json'))),fixture=JSON.parse(fs.readFileSync(path.join(root,'report-output/full-system-qa/actors.json'))),b=fixture.businesses[0];if(rt.NODE_ENV!=='test'||new URL(rt.DATABASE_URL).pathname.slice(1)!==rt.QA_DATABASE||fixture.database!==rt.QA_DATABASE)throw Error('QA database guard');const db=new PrismaClient({adapter:new PrismaPg({connectionString:rt.DATABASE_URL})});const label=process.argv.find(x=>x.startsWith('--label='))?.slice(8)||'initial';if(!/^[a-z0-9-]{1,40}$/.test(label))throw Error('Invalid run label');const runId=crypto.randomUUID(),out=path.join(root,'report-output/bugreport-remediation','transport-'+runId);fs.writeFileSync(path.join(root,'report-output/bugreport-remediation','transport-'+label+'-armed.json'),JSON.stringify({runId,at:new Date().toISOString()}),{flag:'wx'});fs.mkdirSync(out);const api='http://127.0.0.1:3014/api/v1',base='http://127.0.0.1:5176';const report={kind:'ACTUAL_COMMIT_LOST_RESPONSE_AND_SUSTAINED_OFFLINE',runId,checks:[],posts:[],fixturePrerequisites:'New test user with verified email/phone; OTP/registration not tested',payment:'EXCLUDED'};let browser,h,booking,customerToken,user;const save=()=>fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));
+const check=(name,ok)=>{report.checks.push({name,status:ok?'PASS':'FAIL'});save();if(!ok)throw Error(name);};const call=async(token,p,options={})=>{const r=await fetch(api+p,{...options,headers:{'x-forwarded-for':'127.0.0.70',...(token?{Authorization:'Bearer '+token}:{}),...options.headers}});return{status:r.status,body:await r.json()};};
+report.version = require('./source-version.cjs')(root);
+(async()=>{try{
+ check('QA API ready',(await fetch(api+'/platform-settings/public')).status===200);const role=await db.role.findUniqueOrThrow({where:{code:'CUSTOMER'}}),password=crypto.randomBytes(20).toString('base64url')+'Aa1!',phone='09'+crypto.randomInt(10000000,99999999);user=await db.user.create({data:{email:'qa-booking-'+runId+'@example.test',fullName:'QA khách đặt lịch '+runId.slice(0,8),phone,passwordHash:await bcrypt.hash(password,10),isEmailVerified:true,isPhoneVerified:true,customerProfile:{create:{}},userRoles:{create:{roleId:role.id}}},select:{id:true,email:true,fullName:true,customerProfile:{select:{id:true}}}});report.newUserId=user.id;
+ browser=await chromium.launch({channel:'msedge',headless:true});const context=await browser.newContext(),page=await context.newPage();await page.setViewportSize({width:375,height:900});h=new BrowserCases(page,{role:'new QA customer',runId,redact:s=>String(s).split(password).join('[PASSWORD]').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g,'[JWT]')});
+ await page.route('**/api/v1/**',async route=>{const req=route.request(),p=new URL(req.url()).pathname;const allowedAuth=['/api/v1/auth/login','/api/v1/auth/refresh'];if(req.method()==='POST'&&p==='/api/v1/bookings'){
+   const body=req.postDataJSON(), key=req.headers()['idempotency-key'], payloadHash=crypto.createHash('sha256').update(req.postDataBuffer()).digest('hex');
+   const first=report.posts[0];
+   if(body.branchId!==b.branchId||body.staffId!==b.staffId||body.serviceIds.length!==1||body.serviceIds[0]!==b.serviceId||body.source!=='ONLINE_WEB'||new Date(body.appointmentDate).getTime()<Date.now()+48*3600000||!key||report.posts.length>=2||(first&&(first.key!==key||first.payloadHash!==payloadHash))){h.record({kind:'guard',at:new Date().toISOString(),phase:h.current?.phase,message:'Unsafe write: replay requires identical key and bytes'});return route.abort();}
+   const receipt={key,payloadHash,armedAt:new Date().toISOString()};report.posts.push(receipt);save();
+   const response=await route.fetch({postData:req.postDataBuffer(),headers:{...req.headers(),'x-forwarded-for':'127.0.0.70'}}), data=await response.json();
+   receipt.http=response.status();receipt.id=data.id;receipt.receivedAt=new Date().toISOString();
+   if(response.ok()){if(booking&&booking.id!==data.id){h.record({kind:'guard',phase:h.current?.phase,message:'Replay produced a different booking'});}booking={id:data.id,code:data.bookingCode,status:data.status};report.booking={...booking,branchId:b.branchId,staffId:b.staffId,serviceIds:body.serviceIds,start:body.appointmentDate};fs.writeFileSync(path.join(out,'committed-booking.json'),JSON.stringify(report.booking,null,2));}save();
+   if(report.posts.length===1){receipt.injectedFault='Abort browser response only AFTER actual backend reply';save();return route.abort('failed');}
+   return route.fulfill({response});
+ }
+ if(!['GET','HEAD','OPTIONS'].includes(req.method())&&!allowedAuth.includes(p)&&p!=='/api/v1/bookings/preview-price'){h.record({kind:'guard',at:new Date().toISOString(),phase:h.current?.phase,path:p,message:'Unplanned write'});return route.abort();}await route.continue({headers:{...req.headers(),'x-forwarded-for':'127.0.0.70'}});
+ });
+ const run=async(spec,fn)=>{const c=await h.run(spec,fn);report.browser=h.result();save();if(c.status!=='PASS'){await page.screenshot({path:path.join(out,'FAIL-'+spec.id+'.png'),fullPage:true}).catch(()=>{});report.failedUI={id:spec.id,path:new URL(page.url()).pathname,text:(await page.locator('body').innerText()).slice(0,3000)};throw Error('Case failed: '+spec.id);}};
+ await run({id:'bootstrap',phase:'bootstrap',expected:[{kind:'http',phase:'bootstrap',method:'POST',path:'/api/v1/auth/refresh',status:401,max:1,reason:'Fresh cookie-less test user context'}]},async t=>{await page.goto(base+'/login');await page.waitForLoadState('networkidle');t.assert(await page.locator('#login-email').isVisible(),'Login form visible');});
+ await run({id:'login',phase:'authentication',responses:[{method:'POST',path:'/api/v1/auth/login',validate:x=>!!x.accessToken&&x.user.id===user.id}]},async t=>{const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/auth/login'&&r.request().method()==='POST');await page.locator('#login-email').fill(user.email);await page.locator('#login-password').fill(password);await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();const data=await(await pending).json();customerToken=data.accessToken;await page.waitForURL(u=>u.pathname.startsWith('/customer'));await page.waitForLoadState('networkidle');t.assert(data.user.id===user.id,'Correct newly-created customer');});
+ await run({id:'public-service-to-booking',route:'/explore/services/'+b.serviceId,action:'inspect real service and select from public detail'},async t=>{await page.goto(base+'/explore/services/'+b.serviceId);await page.waitForLoadState('networkidle');const button=page.getByRole('link',{name:'Đặt dịch vụ này',exact:true});t.assert(await button.isVisible(),'Bookable public service and CTA loaded');await button.click();await page.getByRole('button',{name:'Chọn chuyên viên',exact:true}).waitFor({state:'visible'});t.assert(new URL(page.url()).pathname==='/book','Public detail preserves branch/service selection');await page.screenshot({path:path.join(out,'service-selection-375.png'),fullPage:true});});
+ await run({id:'staff-and-live-slot',route:'/book/staff',action:'choose exact provider and actual future slot'},async t=>{await page.getByRole('button',{name:'Chọn chuyên viên',exact:true}).click();await page.getByRole('button',{name:new RegExp(b.staffName)}).click();await page.getByRole('button',{name:'Chọn thời gian',exact:true}).click();const dates=page.getByRole('button',{name:/tháng \d+/i});await dates.first().waitFor();let selected;for(let i=3;i<await dates.count();i++){const pending=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/bookings/available-slots');await dates.nth(i).click();const r=await pending;t.assert(r.status()===200,'Availability API succeeds');const slots=await r.json();if(!slots.slots?.length)continue;await page.getByRole('button',{name:/^\d{2}:\d{2}$/}).first().click();selected=slots.slots[0];break;}t.assert(selected&&new Date(selected.start).getTime()>Date.now()+48*3600000,'Live slot strictly future and greater48h');report.selectedSlot=selected;await page.getByRole('button',{name:'Nhập thông tin',exact:true}).click();await page.screenshot({path:path.join(out,'contact-375.png'),fullPage:true});});
+ await run({id:'contact-consent-policy',route:'/book/info',action:'fill contact, require consent, load actual booking policy',responses:[{path:'/api/v1/bookings/self-booking-policy',validate:x=>x&&typeof x==='object'}]},async t=>{await page.getByLabel('Số điện thoại',{exact:false}).fill(phone);await page.getByLabel(/Tôi đồng ý để BeautyBook/).check();const pendingPolicy=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/bookings/self-booking-policy');const pendingPrice=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/bookings/preview-price'&&r.request().method()==='POST');await page.getByRole('button',{name:/Xem lại lịch hẹn/}).click();const policyResponse=await pendingPolicy;const policy=await policyResponse.json();t.assert(policyResponse.status()===200&&policy.selfBookingAllowed,'Actual policy permits this customer');report.policy={selfBookingAllowed:policy.selfBookingAllowed,acknowledgmentRequired:policy.acknowledgmentRequired};if(policy.acknowledgmentRequired)await page.getByLabel('Tôi hiểu và tiếp tục đặt lịch').check();const priceResponse=await pendingPrice;t.assert(priceResponse.ok(),'Actual price preview succeeds');const confirm=page.getByRole('button',{name:'Xác nhận đặt lịch',exact:true}).first();await confirm.waitFor();await expect(confirm).toBeEnabled({timeout:10000});t.assert(await confirm.isEnabled(),'Policy and pricing complete before confirmation');await page.screenshot({path:path.join(out,'confirm-375.png'),fullPage:true});});
+ await run({id:'commit-response-lost',phase:'loss',expected:[
+   {kind:'network',phase:'loss',method:'POST',path:'/api/v1/bookings',message:'net::ERR_FAILED',required:true,reason:'Controlled response drop AFTER actual backend commit'},
+   {kind:'console',phase:'loss',path:'/api/v1/bookings',message:'Failed to load resource: net::ERR_FAILED',max:1,reason:'Exact browser console for controlled lost response'}
+ ]},async t=>{
+   await page.getByRole('button',{name:'Xác nhận đặt lịch',exact:true}).first().evaluate(e=>{e.click();e.click();});
+   await expect(page.getByText('Chưa xác định được kết quả đặt lịch.',{exact:false})).toBeVisible();
+   t.assert(report.posts.length===1&&report.posts[0].http===201&&!!booking?.id,'One actual commit before lost response');
+   t.assert(await db.booking.count({where:{customerId:user.customerProfile.id}})===1,'Exactly one DB booking');
+   await expect(page.getByRole('button',{name:'Xác nhận đặt lịch',exact:true}).first()).toBeDisabled();
+   t.assert(true,'No false failure/success and fresh submission disabled');
+   await page.screenshot({path:path.join(out,'unknown-after-commit-375.png')});
+ });
+ await run({id:'reload-replay-identical-journal',responses:[{method:'POST',path:'/api/v1/bookings',status:201,validate:x=>x.id===booking.id}]},async t=>{
+   await page.reload();await expect(page.getByRole('button',{name:'Kiểm tra lại yêu cầu đã gửi',exact:true})).toBeVisible();
+   t.assert(report.posts.length===1,'Reload does not blindly create another booking');
+   await page.getByRole('button',{name:'Kiểm tra lại yêu cầu đã gửi',exact:true}).click();
+   await page.waitForURL(u=>u.pathname==='/book/success');await expect(page.locator('body')).toContainText(booking.code);
+   t.assert(report.posts.length===2&&report.posts.every(r=>r.id===booking.id&&r.http===201),'Replay same saved booking');
+   t.assert(report.posts[0].key===report.posts[1].key&&report.posts[0].payloadHash===report.posts[1].payloadHash,'Identical key and body bytes');
+   t.assert(await db.booking.count({where:{customerId:user.customerProfile.id}})===1,'Replay does not duplicate');
+   await page.reload();await expect(page.locator('body')).toContainText(booking.code);
+   await page.screenshot({path:path.join(out,'same-booking-after-replay-375.png')});
+ });
+ const owner=fixture.actors.owner0, ol=await call(null,'/auth/login',{method:'POST',headers:{'content-type':'application/json','x-forwarded-for':'127.0.0.20'},body:JSON.stringify({email:owner.email,password:owner.password})});check('owner login',ol.status===200);
+ await run({id:'pending-detail-before-offline'},async t=>{
+   await page.goto(base+'/customer/appointments/'+booking.id);
+   await expect(page.locator('#main-content').getByText('Chờ xác nhận',{exact:true}).first()).toBeVisible();
+   await expect(page.locator('#main-content')).toContainText(booking.code);await page.waitForLoadState('networkidle');
+   t.assert(true,'Exact pending booking detail held');await page.screenshot({path:path.join(out,'pending-before-offline-375.png')});
+ });
+ await run({id:'sustained-offline-network-proof',phase:'offline',expected:[
+   {kind:'network',phase:'offline',method:'GET',path:'/api/v1/platform-settings/public',message:'net::ERR_INTERNET_DISCONNECTED',required:true,reason:'Positive offline fetch probe'},
+   {kind:'console',phase:'offline',path:'/api/v1/platform-settings/public',message:'Failed to load resource: net::ERR_INTERNET_DISCONNECTED',max:1,reason:'Exact offline probe console'},
+   {kind:'console',phase:'offline',path:'/node_modules/.vite/deps/socket__io-client.js',message:"WebSocket connection to 'ws://127.0.0.1:3014/socket.io/?EIO=4&transport=websocket' failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED",max:3,reason:'Exact QA socket retry failure while deliberately offline'}
+ ]},async t=>{
+   report.offline={startedAt:new Date().toISOString()};save();await context.setOffline(true);
+   try {
+     t.assert(await page.evaluate(()=>navigator.onLine)===false,'Browser reports offline');
+     const probe=await page.evaluate(async u=>{try{await fetch(u);return 'unexpected success';}catch{return 'network failed';}},api+'/platform-settings/public');
+     t.assert(probe==='network failed','Actual browser HTTP cannot reach QA server');
+     const response=await call(ol.body.accessToken,'/bookings/'+booking.id+'/status',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'CONFIRMED',note:'QA sustained offline exact new booking'})});
+     report.offline.ownerReceipt={status:response.status,statusValue:response.body.status,receivedAt:new Date().toISOString()};save();
+     t.assert(response.status===200&&(await db.booking.findUniqueOrThrow({where:{id:booking.id}})).status==='CONFIRMED','Server committed while browser offline');
+     await page.waitForTimeout(2500);
+     await expect(page.locator('#main-content').getByText('Chờ xác nhận',{exact:true}).first()).toBeVisible();
+     t.assert(true,'Held browser remains stale while transport disconnected');await page.screenshot({path:path.join(out,'held-offline-pending-375.png')});
+   }catch(error){await context.setOffline(false);throw error;}
+ });
+ await run({id:'held-recovery-no-navigation',responses:[{method:'GET',path:'/api/v1/bookings/'+booking.id,validate:x=>x.id===booking.id&&x.status==='CONFIRMED'}]},async t=>{
+   report.offline.restoreStartedAt=new Date().toISOString();await context.setOffline(false);report.offline.restoredAt=new Date().toISOString();save();
+   await expect(page.locator('#main-content').getByText('Đã xác nhận',{exact:true}).first()).toBeVisible({timeout:15000});
+   await expect(page.locator('#main-content')).toContainText(booking.code);report.offline.observedAt=new Date().toISOString();save();
+   t.assert(await page.evaluate(()=>navigator.onLine)===true,'Transport restored');
+   t.assert(true,'Same held detail refetched latest server status without navigation or reload');
+   await page.screenshot({path:path.join(out,'held-recovered-375.png')});
+ });
+ const cleanup=await call(customerToken,'/bookings/'+booking.id+'/status',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({status:'CANCELLED',note:'QA transport cleanup exact new booking; preserve history'})});
+ report.cleanup={status:cleanup.status,id:booking.id,at:new Date().toISOString()};save();check('cleanup retained cancelled QA history',cleanup.status===200&&(await db.booking.findUniqueOrThrow({where:{id:booking.id}})).status==='CANCELLED');
+ for(const width of[375,1440])await run({id:'cancelled-after-replay-'+width},async t=>{
+   await page.setViewportSize({width,height:900});await page.reload();await expect(page.locator('#main-content').getByText('Đã hủy',{exact:true}).first()).toBeVisible();await expect(page.locator('#main-content')).toContainText(booking.code);
+   t.assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');await page.screenshot({path:path.join(out,'cancelled-'+width+'.png')});
+ });
+ report.browser=h.result();check('strict complete customer UI cases',report.browser.exitCode===0);
+ }catch(error){report.fatal={message:error.message?.startsWith('Case failed')?error.message:'Controlled booking QA failed; no raw secret dump'};throw error;}finally{if(h)report.browser=h.result();if(browser)await browser.close();await db.$disconnect();report.exitCode=report.fatal||report.checks.some(c=>c.status==='FAIL')||report.browser?.exitCode?1:0;fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({out,booking:report.booking,exitCode:report.exitCode}));process.exitCode=report.exitCode;}})().catch(()=>{console.error('TRANSPORT_QA_FAILED; inspect scoped evidence, do not blindly rerun create');process.exitCode=1;});

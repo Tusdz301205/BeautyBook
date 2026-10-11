@@ -1,3 +1,4 @@
+import { schedulerSocketUrl } from '../../../utils/socketEndpoint';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { CalendarDays, Clock3, MapPin, Search, UserRound } from 'lucide-react';
@@ -6,6 +7,7 @@ import { bindSchedulerSocketEvents } from '../../../utils/schedulerSocketEvents'
 import { formatBookingWallDate as asDate, formatBookingWallTime as asTime } from '../../../utils/bookingWallTime';
 import { BOOKING_STATUSES, BOOKING_STATUS_LIST, labelToEnum } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
+import { captureSessionGeneration, isSessionGenerationCurrent } from '../../../utils/sessionGeneration';
 import { Badge, Button, Card, EmptyState, ErrorState, Field, Input, Select, Skeleton } from '../../ui';
 
 import OperationalTiming, { OperationalClock } from './OperationalTiming';
@@ -51,7 +53,8 @@ export default function SchedulerListView({ branchId, branchIds = [], zone = 'sa
   useOperationalRefresh(load);
   useEffect(() => {
     if (!accessToken || !branchKey) return;
-    const socket = io(import.meta.env.VITE_WS_URL || window.location.origin, {
+    let active = true;
+    const socket = io(schedulerSocketUrl(), {
       transports: ['websocket', 'polling'],
       auth: (callback) => callback({ token: useAuthStore.getState().accessToken }),
     });
@@ -61,19 +64,22 @@ export default function SchedulerListView({ branchId, branchIds = [], zone = 'sa
     };
     const authFailed = () => { clearScopedData(); setError('Phiên hoặc quyền truy cập lịch đã thay đổi. Vui lòng tải lại hoặc đăng nhập lại.'); };
     const authorizationChanged = async () => {
+      if (!active) return;
+      const lease = captureSessionGeneration();
       clearScopedData();
       const epoch = authorizationEpoch.current;
+      const current = () => active && epoch === authorizationEpoch.current && isSessionGenerationCurrent(lease);
       try {
-        const result = await refreshSession();
-        if (epoch !== authorizationEpoch.current) return;
-        if (!useAuthStore.getState().setSession(result)) authFailed();
+        const result = await refreshSession(lease);
+        if (!current()) return;
+        if (!useAuthStore.getState().setSession(result, lease)) authFailed();
       } catch {
-        if (epoch !== authorizationEpoch.current) return;
-        authFailed(); useAuthStore.getState().clearSession();
+        if (!current()) return;
+        authFailed(); useAuthStore.getState().clearSession(lease);
       }
     };
-    const unbind = bindSchedulerSocketEvents(socket, { refresh: load, clearScopedData, authFailed, authorizationChanged });
-    return () => { unbind(); socket.disconnect(); };
+    const unbind = bindSchedulerSocketEvents(socket, { refresh: load, clearScopedData, authFailed, authorizationChanged, coalesceRefresh: true });
+    return () => { active = false; unbind(); socket.disconnect(); };
   }, [accessToken, branchKey, load]);
   useEffect(() => { if (zone !== 'admin') return; Promise.all([servicesApi.getCategories(), servicesApi.getAll(branchId)]).then(([categoryRows, serviceRows]) => { setCategories(Array.isArray(categoryRows) ? categoryRows : []); setServices(Array.isArray(serviceRows) ? serviceRows : serviceRows?.data || []); }).catch(() => { setCategories([]); setServices([]); }); }, [branchId, zone]);
   const apply = (event) => { event.preventDefault(); setPagination((value) => ({ ...value, page: 1 })); setFilters(draft); };

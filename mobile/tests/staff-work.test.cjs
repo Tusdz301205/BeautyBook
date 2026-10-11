@@ -14,6 +14,8 @@ function load(name, modules = {}) {
   return module.exports;
 }
 const model = load('workModel');
+// Design tokens are a pure module; load them for real so card styles evaluate.
+const theme = load('../../theme/index');
 const item = (extra = {}) => ({ id: 'item-a', bookingId: 'booking-uuid', bookingCode: 'BB123', staffId: 'staff-a', branchId: 'branch', businessId: 'business',
   status: 'SCHEDULED', bookingStatus: 'CHECKED_IN', revision: 3, canStart: true, canComplete: false, itemStartAt: '2026-10-05T03:00:00Z', ...extra });
 const api = () => {
@@ -66,21 +68,21 @@ function cardHarness() {
   const timeModel = load('../../utils/bookingOperationalTime');
   const timeHook = load('../../hooks/useOperationalTime', { react: React, 'react-native': {}, '../utils/bookingOperationalTime': timeModel });
   const card = load('WorkCard', { react: React, 'react-native': { View: 'View', Text: 'Text', Pressable: 'Pressable', StyleSheet: { create: x => x } },
-    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '../OperationPrimitives': { OperationButton: 'OperationButton' }, './workModel': model,
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../constants/colors': { colors: {} }, '../../theme': theme, '../OperationPrimitives': { OperationButton: 'OperationButton' }, './workModel': model,
     '../../hooks/useOperationalTime': timeHook, '../../utils/bookingOperationalTime': timeModel });
   const nodes = tree => tree == null || typeof tree === 'boolean' ? [] : Array.isArray(tree) ? tree.flatMap(nodes)
     : typeof tree !== 'object' ? [tree] : typeof tree.type === 'function' ? nodes(tree.type({ ...tree.props, children: tree.children })) : [tree, ...tree.children.flatMap(nodes)];
   const render = extra => nodes(card.default({ item: item({ customer: { fullName: 'Nguyễn Thị Ngọc Ánh với tên đầy đủ rất dài' }, serviceNameSnapshot: 'Chăm sóc tóc chuyên sâu với mô tả dài', branch: { name: 'Chi nhánh', timezone: 'Asia/Bangkok' }, durationMinutes: 30 }), staffId: 'staff-a', serverNow: Date.now(), receivedAt: Date.now(), ...extra }));
   return { card, nodes, render };
 }
-test('actual card Nhận khách and Hoàn tất labels keep START/COMPLETE payload and pre-arrival safety', () => {
+test('actual card Bắt đầu dịch vụ and Hoàn tất dịch vụ labels keep START/COMPLETE payload and pre-arrival safety', () => {
   const h = cardHarness(), calls = [];
   const next = h.render({ onAction: (item, action) => calls.push(action) });
   const button = next.find(n => n?.type === 'OperationButton');
-  assert.equal(button.props.label, 'Nhận khách'); button.props.onPress();
+  assert.equal(button.props.label, 'Bắt đầu dịch vụ'); button.props.onPress();
   const current = h.render({ item: item({ status: 'IN_PROGRESS', canComplete: true, customer: { fullName: 'Khách' }, branch: { name: 'A' } }), variant: 'current', onAction: (item, action) => calls.push(action) });
   const complete = current.find(n => n?.type === 'OperationButton');
-  assert.equal(complete.props.label, 'Hoàn tất'); complete.props.onPress();
+  assert.equal(complete.props.label, 'Hoàn tất dịch vụ'); complete.props.onPress();
   assert.deepEqual(calls, ['START', 'COMPLETE']);
   const waiting = h.render({ item: item({ bookingStatus: 'CONFIRMED', canStart: true, customer: { fullName: 'Khách' }, branch: { name: 'A' } }), onAction() {} });
   assert.ok(!waiting.some(n => n?.type === 'OperationButton'));

@@ -1,12 +1,14 @@
+import { normalizeNameSearch } from '../../utils/nameSearch';
 import { useEffect, useMemo, useState } from 'react';
 import { Building2, Clock3, Eye, ImagePlus, LayoutGrid, List, Pencil, Plus, Search, Sparkles, Trash2, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { branchesApi, servicesApi } from '../../api/apiClient';
+import { branchesApi, mediaApi, servicesApi } from '../../api/apiClient';
 import { useAuthStore } from '../../store/authStore';
 import { Badge, Button, Card, Dialog, Drawer, EmptyState, ErrorState, Field, Input, MetricCard, Page, PageHeader, Select, Skeleton, Textarea } from '../../components/ui';
 import { FileUpload } from '../../components/media/FileUpload';
 import { HomeMedia } from '../../components/public/HomeMedia';
 import { getServiceFallbackMedia } from '../../config/homeMedia';
+import { uploadedMediaUrl } from '../../utils/mediaUrl';
 
 const emptyForm = { name: '', description: '', price: '', durationMinutes: '', canonicalServiceId: '', keywords: '', status: 'ACTIVE', branchId: '' };
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')} ₫`;
@@ -74,26 +76,42 @@ function ServiceFormDialog({ service, canonicals, branches, selectedBranch, open
   </Dialog>;
 }
 
-function ServiceMediaDialog({ service, onClose }) {
-  const branchService = service?.branchAvailability?.find((item) => item.branchServiceId);
-  const [image, setImage] = useState(null);
+function ServiceMediaDialog({ service, onClose, onChanged }) {
+  const offerings = (service?.branchAvailability || []).filter((item) => item.branchServiceId);
+  const [branchId, setBranchId] = useState('');
+  const branchService = offerings.find((item) => item.branchId === branchId) || offerings[0];
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
-
+  const [error, setError] = useState('');
+  const [removing, setRemoving] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => { setBranchId(''); }, [service?.id]);
   useEffect(() => {
     let active = true;
-    if (!branchService?.branchServiceId) { setImage(null); return undefined; }
+    setImages([]); setError('');
+    if (!branchService?.branchServiceId) return () => { active = false; };
     setLoading(true);
     servicesApi.getById(branchService.branchServiceId)
-      .then((detail) => { if (active) setImage(detail?.images?.[0]?.media || null); })
-      .catch((error) => { if (active) toast.error(error.message || 'Không thể tải ảnh dịch vụ'); })
+      .then((detail) => { if (active) setImages(detail?.images || []); })
+      .catch((requestError) => { if (active) setError(requestError.message || 'Không thể tải ảnh dịch vụ'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [branchService?.branchServiceId]);
-
-  return <Dialog open={Boolean(service)} onClose={onClose} title="Ảnh dịch vụ" description={`${service?.name || ''}${branchService?.branchName ? ` · ${branchService.branchName}` : ''}`}>
-    {branchService?.branchServiceId
-      ? loading ? <Skeleton rows={3} /> : <FileUpload entityType="SERVICE_IMAGE" entityId={branchService.branchServiceId} businessId={service.businessId} branchId={branchService.branchId} value={image} label="Ảnh đại diện dịch vụ" onUploaded={setImage} onRemoved={() => setImage(null)} />
-      : <p className="text-sm leading-6 text-[var(--bb-muted)]">Hãy áp dụng dịch vụ cho ít nhất một chi nhánh trước khi tải ảnh.</p>}
+  }, [branchService?.branchServiceId, refresh]);
+  const changed = () => { setRefresh((value) => value + 1); void onChanged?.(); };
+  const remove = async (mediaId) => {
+    if (removing) return;
+    setRemoving(mediaId);
+    try { await mediaApi.remove(mediaId); changed(); toast.success('Đã gỡ ảnh'); }
+    catch (requestError) { toast.error(requestError.message); }
+    finally { setRemoving(''); }
+  };
+  return <Dialog open={Boolean(service)} onClose={onClose} title="Ảnh dịch vụ" description={service?.name || ''}>
+    {offerings.length > 0 && <Field label="Chi nhánh áp dụng ảnh"><Select value={branchService?.branchId || ''} onChange={(event) => setBranchId(event.target.value)}>{offerings.map((item) => <option key={item.branchId} value={item.branchId}>{item.branchName}</option>)}</Select></Field>}
+    {branchService ? loading ? <Skeleton rows={3} /> : error ? <ErrorState message={error} onRetry={() => setRefresh((value) => value + 1)} /> : <div className="space-y-4">
+      <p className="text-sm text-[var(--bb-muted)]">Ảnh thuộc dịch vụ tại chi nhánh đã chọn. Thêm ảnh sẽ giữ lại các ảnh hiện có; ảnh đầu tiên được dùng làm đại diện.</p>
+      <div className="grid grid-cols-2 gap-3">{images.map((image, index) => <figure key={image.id} className="min-w-0 rounded-xl border border-[var(--bb-border)] p-2"><img src={uploadedMediaUrl(image.media?.url)} alt={'Ảnh dịch vụ ' + (service?.name || '')} width="240" height="180" className="aspect-[4/3] w-full rounded-lg object-cover" /><figcaption className="mt-2 break-words text-xs">{index === 0 ? 'Ảnh đại diện' : 'Ảnh trong bộ sưu tập'}</figcaption><Button variant="ghost" size="sm" disabled={Boolean(removing)} onClick={() => remove(image.media.id)}>Gỡ ảnh</Button></figure>)}</div>
+      <FileUpload key={branchService.branchServiceId} entityType="SERVICE_IMAGE" entityId={branchService.branchServiceId} businessId={service.businessId} branchId={branchService.branchId} append label="Thêm ảnh dịch vụ" onUploaded={changed} disabled={Boolean(removing)} />
+    </div> : <p className="text-sm leading-6 text-[var(--bb-muted)]">Hãy áp dụng dịch vụ cho ít nhất một chi nhánh trước khi tải ảnh.</p>}
   </Dialog>;
 }
 
@@ -127,7 +145,7 @@ function ServiceActions({ service, selectedBranch, canCatalogEdit, canBranchEdit
 
 function ServiceCard({ service, selectedBranch, actions }) {
   return <Card className={`flex min-h-72 flex-col border transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${service.status === 'ACTIVE' ? 'border-zinc-200' : 'border-amber-200'} p-5`}>
-    <HomeMedia fallbackSrc={getServiceFallbackMedia(service)} fallbackAlt={`Hình minh họa dịch vụ ${service.name}`} ratio="16 / 10" label="Ảnh dịch vụ" className="mb-4 w-full" />
+    <HomeMedia src={uploadedMediaUrl(service.primaryImageUrl)} alt={`Ảnh dịch vụ ${service.name}`} fallbackSrc={getServiceFallbackMedia(service)} fallbackAlt={`Hình minh họa dịch vụ ${service.name}`} ratio="16 / 10" label="Ảnh dịch vụ" className="mb-4 w-full" />
     <div className="flex items-start justify-between gap-3"><span className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]"><Sparkles size={18} /></span><Badge tone={service.status === 'ACTIVE' ? 'success' : 'neutral'}>{service.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm ngưng cấp doanh nghiệp'}</Badge></div>
     <button type="button" className="mt-4 text-left" onClick={() => actions.onDetail(service)}><h2 className="font-bold text-[var(--bb-ink)]">{service.name}</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">{service.canonicalService?.name || 'Chưa phân loại'}</p></button>
     {service.description && <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--bb-ink-soft)]">{service.description}</p>}
@@ -138,7 +156,7 @@ function ServiceCard({ service, selectedBranch, actions }) {
 }
 
 function ServicesTable({ services, selectedBranch, actions }) {
-  return <Card className="overflow-x-auto"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Giá</th><th className="px-4 py-3">Thời lượng</th>{selectedBranch === 'ALL' ? <><th className="px-4 py-3">Hoạt động</th><th className="px-4 py-3">Tạm ngưng</th><th className="px-4 py-3">Chưa áp dụng</th></> : <th className="px-4 py-3">Trạng thái tại chi nhánh</th>}<th className="px-4 py-3">Hành động</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{services.map((service) => { const branchState = service.branchAvailability?.[0]; return <tr key={service.id} className="align-top"><td className="px-4 py-4"><div className="flex min-w-[250px] items-center gap-3"><HomeMedia fallbackSrc={getServiceFallbackMedia(service)} fallbackAlt={`Hình minh họa dịch vụ ${service.name}`} ratio="1 / 1" label="Ảnh dịch vụ" className="w-16 shrink-0 overflow-hidden rounded-lg" /><div><button className="font-bold hover:text-[var(--bb-brand-strong)]" onClick={() => actions.onDetail(service)}>{service.name}</button><p className="mt-1 text-xs text-[var(--bb-muted)]">{service.canonicalService?.name || 'Chưa phân loại'}</p></div></div></td><td className="px-4 py-4 font-semibold tabular-nums">{money(service.price)}</td><td className="px-4 py-4">{service.durationMinutes} phút</td>{selectedBranch === 'ALL' ? <><td className="px-4 py-4">{service.branchCoverage?.active || 0}</td><td className="px-4 py-4">{service.branchCoverage?.paused || 0}</td><td className="px-4 py-4">{service.branchCoverage?.notApplied || 0}</td></> : <td className="px-4 py-4"><Badge tone={availabilityTone[branchState?.status]}>{availabilityLabel[branchState?.status]}</Badge></td>}<td className="px-4 py-4"><ServiceActions service={service} selectedBranch={selectedBranch} {...actions} /></td></tr>; })}</tbody></table></Card>;
+  return <Card className="overflow-x-auto"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-[var(--bb-surface-subtle)] text-xs uppercase tracking-wide text-[var(--bb-muted)]"><tr><th className="px-4 py-3">Dịch vụ</th><th className="px-4 py-3">Giá</th><th className="px-4 py-3">Thời lượng</th>{selectedBranch === 'ALL' ? <><th className="px-4 py-3">Hoạt động</th><th className="px-4 py-3">Tạm ngưng</th><th className="px-4 py-3">Chưa áp dụng</th></> : <th className="px-4 py-3">Trạng thái tại chi nhánh</th>}<th className="px-4 py-3">Hành động</th></tr></thead><tbody className="divide-y divide-[var(--bb-border)]">{services.map((service) => { const branchState = service.branchAvailability?.[0]; return <tr key={service.id} className="align-top"><td className="px-4 py-4"><div className="flex min-w-[250px] items-center gap-3"><HomeMedia src={uploadedMediaUrl(service.primaryImageUrl)} alt={`Ảnh dịch vụ ${service.name}`} fallbackSrc={getServiceFallbackMedia(service)} fallbackAlt={`Hình minh họa dịch vụ ${service.name}`} ratio="1 / 1" label="Ảnh dịch vụ" className="w-16 shrink-0 overflow-hidden rounded-lg" /><div><button className="font-bold hover:text-[var(--bb-brand-strong)]" onClick={() => actions.onDetail(service)}>{service.name}</button><p className="mt-1 text-xs text-[var(--bb-muted)]">{service.canonicalService?.name || 'Chưa phân loại'}</p></div></div></td><td className="px-4 py-4 font-semibold tabular-nums">{money(service.price)}</td><td className="px-4 py-4">{service.durationMinutes} phút</td>{selectedBranch === 'ALL' ? <><td className="px-4 py-4">{service.branchCoverage?.active || 0}</td><td className="px-4 py-4">{service.branchCoverage?.paused || 0}</td><td className="px-4 py-4">{service.branchCoverage?.notApplied || 0}</td></> : <td className="px-4 py-4"><Badge tone={availabilityTone[branchState?.status]}>{availabilityLabel[branchState?.status]}</Badge></td>}<td className="px-4 py-4"><ServiceActions service={service} selectedBranch={selectedBranch} {...actions} /></td></tr>; })}</tbody></table></Card>;
 }
 
 const emptyVariant = { code: '', name: '', priceType: 'FIXED', price: '', maxPrice: '', durationMinutes: '', maxDurationMinutes: '', bufferBeforeMinutes: 0, bufferAfterMinutes: 0 };
@@ -179,7 +197,7 @@ export function SalonServices() {
   useEffect(() => { loadReference().catch((e) => setError(e.message)); }, []);
   useEffect(() => { loadServices(branch); }, [branch]);
 
-  const filtered = useMemo(() => services.filter((service) => { const query = search.trim().toLocaleLowerCase('vi'); const branchState = service.branchAvailability?.[0]?.status; return (!query || service.name?.toLocaleLowerCase('vi').includes(query)) && (serviceType === 'ALL' || (serviceType === 'UNCLASSIFIED' ? !service.canonicalServiceId : service.canonicalServiceId === serviceType)) && (status === 'ALL' || (branch === 'ALL' ? service.status === status : branchState === status)); }), [services, search, serviceType, status, branch]);
+  const filtered = useMemo(() => services.filter((service) => { const query = normalizeNameSearch(search); const branchState = service.branchAvailability?.[0]?.status; return (!query || normalizeNameSearch(service.name).includes(query)) && (serviceType === 'ALL' || (serviceType === 'UNCLASSIFIED' ? !service.canonicalServiceId : service.canonicalServiceId === serviceType)) && (status === 'ALL' || (branch === 'ALL' ? service.status === status : branchState === status)); }), [services, search, serviceType, status, branch]);
   const availability = async (service, item, action) => { setBusy(`${service.id}-${action}`); try { await servicesApi.setBranchAvailability(service.id, item.branchId, action); toast.success(action === 'pause' ? 'Đã tạm ngưng tại chi nhánh' : action === 'apply' ? 'Đã áp dụng cho chi nhánh' : 'Đã kích hoạt lại tại chi nhánh'); await loadServices(); } catch (e) { toast.error(e.message || 'Không thể cập nhật chi nhánh'); } finally { setBusy(''); } };
   const archive = async () => { if (!archiveTarget) return; setBusy(`archive-${archiveTarget.id}`); try { await servicesApi.archiveCatalog(archiveTarget.id); toast.success('Đã lưu trữ dịch vụ; lịch sử đặt lịch được giữ nguyên'); setArchiveTarget(null); setDetail(null); await loadServices(); } catch (e) { toast.error(e.message || 'Không thể lưu trữ dịch vụ'); } finally { setBusy(''); } };
   const actions = { canCatalogEdit, canBranchEdit, onEdit: setEditor, onDetail: setDetail, onMedia: setMediaTarget, onAvailability: availability, busy };
@@ -193,7 +211,7 @@ export function SalonServices() {
     <Card className="p-4"><div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_220px_220px_180px_auto]"><Field label="Tìm dịch vụ"><div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 text-[var(--bb-muted)]" size={16} /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tên dịch vụ" /></div></Field><Field label="Chi nhánh"><Select value={branch} onChange={(e) => { setBranch(e.target.value); setStatus('ALL'); }}><option value="ALL">Tất cả chi nhánh</option>{branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field><Field label="Loại dịch vụ trên BeautyBook"><Select searchable searchPlaceholder="Tìm loại dịch vụ" value={serviceType} onChange={(e) => setServiceType(e.target.value)}><option value="ALL">Tất cả loại dịch vụ</option><option value="UNCLASSIFIED">Chưa phân loại</option>{canonicals.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field><Field label="Trạng thái"><Select value={status} onChange={(e) => setStatus(e.target.value)}><option value="ALL">Tất cả</option><option value="ACTIVE">Hoạt động</option>{branch === 'ALL' ? <option value="INACTIVE">Tạm ngưng cấp doanh nghiệp</option> : <><option value="PAUSED">Tạm ngưng</option><option value="NOT_APPLIED">Chưa áp dụng</option></>}</Select></Field><div className="flex items-end"><div className="flex rounded-xl border border-[var(--bb-border)] p-1"><Button size="icon" variant={view === 'grid' ? 'primary' : 'ghost'} aria-label="Xem dạng thẻ" onClick={() => setView('grid')}><LayoutGrid size={17} /></Button><Button size="icon" variant={view === 'table' ? 'primary' : 'ghost'} aria-label="Xem dạng bảng" onClick={() => setView('table')}><List size={17} /></Button></div></div></div></Card>
     {loading ? <Card className="p-5"><Skeleton rows={7} /></Card> : error ? <Card><ErrorState message={error} onRetry={() => loadServices()} /></Card> : filtered.length === 0 ? <Card><EmptyState icon={Sparkles} title="Không có dịch vụ phù hợp" description={services.length ? 'Thử đổi bộ lọc hoặc từ khóa.' : 'Chưa có dịch vụ trong phạm vi quản lý.'} action={canCreate && !services.length ? <Button onClick={() => setEditor({})}>Thêm dịch vụ đầu tiên</Button> : null} /></Card> : view === 'grid' ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map((service) => <ServiceCard key={service.id} service={service} selectedBranch={branch} actions={actions} />)}</div> : <ServicesTable services={filtered} selectedBranch={branch} actions={actions} />}
     <ServiceFormDialog service={editor?.id ? editor : null} canonicals={canonicals} branches={branches} selectedBranch={branch} open={editor !== null} onClose={() => setEditor(null)} onSaved={async () => { setEditor(null); await loadServices(); }} />
-    <ServiceMediaDialog service={mediaTarget} onClose={() => setMediaTarget(null)} />
+    <ServiceMediaDialog service={mediaTarget} onClose={() => setMediaTarget(null)} onChanged={() => loadServices()} />
     <ServiceDrawer service={detail} canBranchEdit={canBranchEdit} canCatalogEdit={canCatalogEdit} busy={busy} onClose={() => setDetail(null)} onEdit={setEditor} onAvailability={availability} onArchive={canArchive ? setArchiveTarget : undefined} />
     <Dialog open={Boolean(archiveTarget)} onClose={() => setArchiveTarget(null)} title="Lưu trữ dịch vụ?" description={archiveTarget?.name} footer={<><Button variant="secondary" onClick={() => setArchiveTarget(null)}>Giữ lại</Button><Button variant="danger" loading={busy === `archive-${archiveTarget?.id}`} onClick={archive}>Lưu trữ</Button></>}><p className="text-sm leading-6 text-[var(--bb-muted)]">Dịch vụ sẽ ngừng nhận lịch mới tại mọi chi nhánh. Toàn bộ lịch hẹn và dữ liệu lịch sử vẫn được giữ nguyên.</p></Dialog>
   </Page>;

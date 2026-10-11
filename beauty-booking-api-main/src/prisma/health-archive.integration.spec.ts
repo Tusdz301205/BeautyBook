@@ -1,4 +1,6 @@
 import { Pool } from 'pg';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Prisma } from '@prisma/client';
 
 const enabled = process.env.RUN_POSTGRES_INTEGRATION === '1';
@@ -17,7 +19,9 @@ const tables = ['sensitive_consents', 'booking_health_records', 'health_record_a
   });
   test('generated Prisma exposes no retired table/model', () => {
     expect(Prisma.dmmf.datamodel.models.filter(m => tables.includes(m.dbName ?? ''))).toEqual([]);
-    expect(Prisma.dmmf.datamodel.models).toHaveLength(121);
+    const schema = readFileSync(resolve(__dirname, '../../prisma/schema.prisma'), 'utf8');
+    const declaredModels = [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map(match => match[1]).sort();
+    expect(Prisma.dmmf.datamodel.models.map(model => model.name).sort()).toEqual(declaredModels);
   });
   test('both original consent records retain their customer reference', async () => {
     const { rows } = await pool.query(`SELECT count(*)::int count FROM archive_health_20260919.sensitive_consents c JOIN public.customer_profiles p ON p.id=c.customer_id WHERE c.id IS NOT NULL AND c.granted_at IS NOT NULL AND c.policy_version IS NOT NULL`);

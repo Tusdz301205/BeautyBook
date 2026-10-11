@@ -12,15 +12,18 @@ import {
 import toast from 'react-hot-toast';
 import { businessApi } from '../../api/apiClient';
 import { FileUpload } from '../../components/media/FileUpload';
-import { statusLabel } from '../../utils/displayLabels';
+import { documentChecklist } from '../../utils/registrationIntent';
+import { documentLabel, statusLabel } from '../../utils/displayLabels';
 import { useAuthStore } from '../../store/authStore';
 import {
   BUSINESS_FIELD_LIMITS,
   businessErrorField,
   isInternalBusinessDraftName,
   normalizeBusinessPhone,
+  requiredBusinessDocuments,
   toBusinessOnboardingError,
   validateBusinessIdentity,
+  validateLegalIdentity,
   validateBusinessType,
   validateDocuments,
   validCompletedSteps,
@@ -62,6 +65,8 @@ const identityDefaults = {
 
 const draftDefaults = {
   businessType: '',
+  legalSubjectType: '',
+  representativeIdentityType: '',
   completedSteps: [],
 };
 
@@ -86,7 +91,7 @@ const statusTone = {
 };
 
 const localKey = 'beautybook-business-onboarding-recovery-v2';
-const defaultOnboardingConfig = { businessTypes: [], requiredDocuments: [], requirePhoneVerification: false, phoneVerified: true };
+const defaultOnboardingConfig = { businessTypes: [], legalSubjects: [], representativeIdentityTypes: [], requiredDocuments: [], requirePhoneVerification: false, phoneVerified: true };
 
 function slugify(value) {
   return value
@@ -176,6 +181,7 @@ export default function BusinessOnboarding() {
   const [dirty, setDirty] = useState(false);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
   const [awaitingStatus, setAwaitingStatus] = useState(false);
+  const requiredDocuments = requiredBusinessDocuments(config, draft);
   const hydrated = useRef(false);
   const submitLock = useRef(false);
   const nextLock = useRef(false);
@@ -206,6 +212,8 @@ export default function BusinessOnboarding() {
     setDraft({
       ...draftDefaults,
       businessType: value.onboardingData?.businessType || '',
+      legalSubjectType: value.onboardingData?.legalSubjectType || '',
+      representativeIdentityType: value.onboardingData?.representativeIdentityType || '',
       completedSteps: (value.onboardingData?.completedSteps || []).filter((item) => item <= 4),
     });
     setDocuments(value.legalDocuments?.length ? value.legalDocuments : [emptyDocument()]);
@@ -296,7 +304,10 @@ export default function BusinessOnboarding() {
       }),
     };
     writeSafeRecovery(recoveryKey, identity, nextDraft, nextStep);
-    const saveErrors = validateDocuments(documents, []);
+    const saveErrors = { ...validateDocuments(documents, []), ...validateLegalIdentity(identity, nextDraft, config) };
+    // Preserve untouched legacy identifiers in drafts without guessing a type.
+    if (business && !nextDraft.legalSubjectType && identity.taxCode === (business.owner?.taxCode || '')) delete saveErrors.legalSubjectType;
+    if (business && !nextDraft.representativeIdentityType && identity.identityCardNumber === (business.owner?.identityCardNumber || '')) delete saveErrors.representativeIdentityType;
     if (!business && (!identity.name.trim() || !identity.slug.trim())) saveErrors.name = 'Nhập tên thương hiệu và đường dẫn trước khi lưu hồ sơ.';
     if (uploadsInProgress > 0) saveErrors.upload = 'Đợi tải tệp hoàn tất trước khi lưu hồ sơ.';
     if (Object.keys(saveErrors).length) {
@@ -365,13 +376,13 @@ export default function BusinessOnboarding() {
       return message ? { businessType: message } : {};
     }
     if (target === 2) {
-      const errors = validateBusinessIdentity(identity);
+      const errors = validateBusinessIdentity(identity, draft, config);
       if (config.requirePhoneVerification && !config.phoneVerified) {
         errors.phoneVerification = 'Số điện thoại tài khoản chưa được xác minh. Hãy xác minh trước khi gửi hồ sơ.';
       }
       return errors;
     }
-    if (target === 3) return validateDocuments(documents, config.requiredDocuments);
+    if (target === 3) return validateDocuments(documents, requiredDocuments);
     return {};
   };
 
@@ -485,6 +496,14 @@ export default function BusinessOnboarding() {
     setDirty(true);
   };
 
+  const updateRegistration = (key) => (event) => {
+    formRevision.current += 1;
+    const value = event.target.value;
+    setDraft(current => ({ ...current, [key]: value, completedSteps: current.completedSteps.filter(item => item < 2) }));
+    setValidationErrors(current => { const next = { ...current }; delete next[key]; delete next.taxCode; delete next.identityCardNumber; return next; });
+    setDirty(true);
+  };
+
   const updateDocument = (index, patch) => {
     formRevision.current += 1;
     setDocuments((current) => current.map((item, itemIndex) =>
@@ -523,11 +542,18 @@ export default function BusinessOnboarding() {
         ) : null}
       />
 
+      <Card className="p-5" aria-label="Giấy tờ cần nộp">
+        <h2 className="font-bold">Giấy tờ cần chuẩn bị trước khi gửi hồ sơ</h2>
+        <p className="mt-1 text-sm text-[var(--bb-muted)]">PDF, tối đa 10 MB mỗi tệp. Chọn đúng loại giấy tờ và nhập tên tài liệu. Giấy tờ chỉ được xem bởi người có quyền; mỗi lần thay tệp được lưu thành phiên bản mới.</p>
+        {requiredDocuments.length ? <ul className="mt-3 space-y-2">{documentChecklist(documents, requiredDocuments).map(({ type, complete }) => <li key={type} className="flex flex-wrap items-center justify-between gap-2"><span>{documentLabel(type)}</span><Badge tone={complete ? 'success' : 'warning'}>{complete ? 'Đã có tệp' : 'Chưa có tệp'}</Badge></li>)}</ul> : <p className="mt-3 text-sm">Chính sách hiện tại không yêu cầu loại giấy tờ bắt buộc.</p>}
+        <p className="mt-3 text-xs text-[var(--bb-muted)]">Tải đủ tệp chưa đồng nghĩa với giấy tờ đã được xác minh.</p>
+      </Card>
+
       {business && (
         <InlineNotice tone={business.status === 'REJECTED' ? 'danger' : business.status === 'NEED_MORE_INFO' ? 'warning' : 'info'}>
           <span className="flex flex-wrap items-center gap-2">
             Trạng thái doanh nghiệp
-            <Badge tone={statusTone[business.status]}>{business.status}</Badge>
+            <Badge tone={statusTone[business.status]}>{statusLabel(business.status)}</Badge>
             {business.reviewNote && <strong>Phản hồi: {business.reviewNote}</strong>}
           </span>
         </InlineNotice>
@@ -624,12 +650,30 @@ export default function BusinessOnboarding() {
 
             {step === 2 && (
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <InlineNotice tone="info">Loại chủ thể pháp lý độc lập với loại dịch vụ. Đúng định dạng không đồng nghĩa đã xác minh danh tính hoặc đăng ký thuế.</InlineNotice>
+                  {business && !draft.legalSubjectType && <p className="mt-2 text-sm">Hồ sơ cũ chưa có phân loại pháp lý. Thông tin đã lưu được giữ nguyên; hãy chọn đúng loại trước khi gửi lại hồ sơ.</p>}
+                </div>
+                <Field label="Loại chủ thể pháp lý" required error={validationErrors.legalSubjectType}>
+                  <Select id="onboarding-legalSubjectType" value={draft.legalSubjectType} onChange={updateRegistration('legalSubjectType')} disabled={busy === 'submit'}>
+                    <option value="">Chọn theo giấy tờ đăng ký</option>
+                    {(config.legalSubjects || []).map(item => <option key={item.code} value={item.code}>{item.label}</option>)}
+                  </Select>
+                  <p className="mt-1 text-xs text-[var(--bb-muted)]">{config.legalSubjects?.find(item => item.code === draft.legalSubjectType)?.hint}</p>
+                </Field>
+                <Field label="Loại giấy tờ định danh người đại diện" error={validationErrors.representativeIdentityType}>
+                  <Select id="onboarding-representativeIdentityType" value={draft.representativeIdentityType} onChange={updateRegistration('representativeIdentityType')} disabled={busy === 'submit'}>
+                    <option value="">Chọn nếu nhập số giấy tờ</option>
+                    {(config.representativeIdentityTypes || []).map(item => <option key={item.code} value={item.code}>{item.label}</option>)}
+                  </Select>
+                  <p className="mt-1 text-xs text-[var(--bb-muted)]">{config.representativeIdentityTypes?.find(item => item.code === draft.representativeIdentityType)?.hint}</p>
+                </Field>
                 {[
                   ['name', 'Tên thương hiệu'],
                   ['slug', 'Đường dẫn BeautyBook'],
                   ['companyName', 'Tên pháp nhân'],
                   ['taxCode', 'Mã số thuế'],
-                  ['identityCardNumber', 'Số CCCD người đại diện'],
+                  ['identityCardNumber', draft.representativeIdentityType === 'FOREIGN_PASSPORT' ? 'Số hộ chiếu người đại diện' : 'Số định danh người đại diện'],
                   ['contactEmail', 'Email liên hệ'],
                   ['contactPhone', 'Điện thoại'],
                   ['addressLine', 'Địa chỉ đăng ký'],
@@ -657,7 +701,7 @@ export default function BusinessOnboarding() {
             {step === 3 && (
               <div>
                 <h2 className="font-bold">Giấy tờ xác minh pháp nhân</h2>
-                <p className="mt-1 text-sm text-[var(--bb-muted)]">Tệp private, đúng tenant và mỗi lần thay thế sẽ tạo một version mới.</p>
+                <p className="mt-1 text-sm text-[var(--bb-muted)]">Giấy tờ được bảo vệ theo quyền truy cập. Mỗi lần thay tệp sẽ lưu một phiên bản mới.</p>
                 <div className="mt-4 space-y-4">
                   {documents.map((document, index) => (
                     <article key={document.id || index} className="grid gap-3 rounded-xl border border-[var(--bb-border)] p-4 sm:grid-cols-2">
@@ -669,7 +713,7 @@ export default function BusinessOnboarding() {
                           onChange={(event) => updateDocument(index, { documentType: event.target.value })}
                         >
                           <option value="BUSINESS_LICENSE">Giấy phép kinh doanh</option>
-                          <option value="OWNER_ID_CARD">CCCD người đại diện</option>
+                          <option value="OWNER_ID_CARD">Giấy tờ định danh người đại diện</option>
                           <option value="TAX_DOCUMENT">Tài liệu thuế</option>
                           <option value="OTHER">Tài liệu khác</option>
                         </Select>
@@ -728,6 +772,7 @@ export default function BusinessOnboarding() {
                   <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Loại hình dịch vụ</dt><dd className="mt-1 font-bold">{config.businessTypes.find((item) => item.code === draft.businessType)?.label || 'Chưa chọn'}</dd></div>
                   <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Thương hiệu</dt><dd className="mt-1 font-bold">{identity.name}</dd></div>
                   <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Pháp nhân</dt><dd className="mt-1 font-bold">{identity.companyName}</dd></div>
+                  <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Loại chủ thể pháp lý</dt><dd className="mt-1 font-bold">{config.legalSubjects?.find(item => item.code === draft.legalSubjectType)?.label || 'Chưa bổ sung'}</dd></div>
                   <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Mã số thuế</dt><dd className="mt-1 font-bold">{identity.taxCode}</dd></div>
                   <div><dt className="text-xs font-bold uppercase text-[var(--bb-muted)]">Tài liệu hợp lệ</dt><dd className="mt-1 font-bold">{legalPayload().length}</dd></div>
                   {[

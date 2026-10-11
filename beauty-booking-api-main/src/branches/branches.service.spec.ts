@@ -16,16 +16,16 @@ const branchState = {} as any;
 
 describe('Branch review while awaiting supplemental information', () => {
   function setup() {
-    const branch = { id: 'branch', reviewStatus: 'NEED_MORE_INFO', business: { status: 'APPROVED' }, reviewRequests: [{ id: 'request' }] };
-    const tx = { branchReviewRequest: { update: jest.fn() }, branchReviewEvent: { create: jest.fn() }, branchDocument: { updateMany: jest.fn() } };
+    const branch = { id: 'branch', businessId: 'business', name: 'QA branch', updatedAt: new Date('2026-01-01'), reviewStatus: 'NEED_MORE_INFO', business: { status: 'APPROVED' }, reviewRequests: [{ id: 'request' }] };
+    const tx = { branchReviewRequest: { update: jest.fn() }, branchReviewEvent: { create: jest.fn().mockResolvedValue({id:'event'}) }, branchDocument: { updateMany: jest.fn() }, userRole: {findMany: jest.fn().mockResolvedValue([])}, notificationOutbox:{create:jest.fn()} };
     const prisma = { branch: { findFirst: jest.fn().mockResolvedValue(branch) }, $transaction: jest.fn(fn => fn(tx)) };
-    const state = { transition: jest.fn().mockResolvedValue({ transitioned: true, branch: { ...branch, reviewStatus: 'REJECTED' } }) };
+    const state = { transition: jest.fn(async (_id, _action, _actor, _reason, callback) => {const updated={...branch,reviewStatus:'REJECTED'};await callback(tx,branch,updated);return {transitioned:true,branch:updated};}) };
     return { service: new BranchesService(prisma as any, settings as any, state as any), prisma, state, tx };
   }
   test('platform rejection resolves supplemental request and preserves document/event history', async () => {
     const { service, tx, state } = setup();
     expect((await service.review('branch', 'REJECT', 'Documents insufficient', 'admin')).reviewStatus).toBe('REJECTED');
-    expect(state.transition).toHaveBeenCalledWith('branch', 'REJECT', 'admin', 'Documents insufficient');
+    expect(state.transition).toHaveBeenCalledWith('branch', 'REJECT', 'admin', 'Documents insufficient', expect.any(Function));
     expect(tx.branchReviewRequest.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'request' }, data: expect.objectContaining({ status: 'REJECTED', resolvedAt: expect.any(Date) }) }));
     expect(tx.branchReviewEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ fromStatus: 'NEED_MORE_INFO', toStatus: 'REJECTED', action: 'REJECT' }) }));
     expect(tx.branchDocument.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'REJECTED' } }));
@@ -118,6 +118,7 @@ describe('BranchesService marketplace listing', () => {
 
   test('groups active public services by category and paginates them', async () => {
     const prisma = {
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'service-1' }]),
       branch: { findFirst: jest.fn().mockResolvedValue({ id: 'branch-1' }) },
       branchServiceOffering: {
         findMany: jest.fn().mockResolvedValue([
@@ -142,7 +143,7 @@ describe('BranchesService marketplace listing', () => {
     });
 
     expect(prisma.branchServiceOffering.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ branchId: 'branch-1', status: 'ACTIVE', deletedAt: null }),
+      where: expect.objectContaining({ branchId: 'branch-1', status: 'ACTIVE', deletedAt: null, id: { in: ['service-1'] } }),
       skip: 0,
       take: 10,
     }));

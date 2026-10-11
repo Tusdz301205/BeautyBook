@@ -33,6 +33,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test:notifications": "node --test --test-isolation=none tests/notification-requests.test.cjs",
     "export:android": "expo export --platform android",
     "test:live:catalog": "node tests/live-catalog-smoke.mjs && node tests/live-booking-entry.mjs"
   },

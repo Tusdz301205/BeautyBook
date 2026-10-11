@@ -164,8 +164,9 @@ describe('ChangeRequestsService committed invalidations', () => {
     };
     let committed = false;
     const tx: any = {
+      userRole:{findMany:jest.fn().mockResolvedValue([])}, notificationOutbox:{createMany:jest.fn()},
       staffProfile: { findMany: jest.fn().mockResolvedValue([{ id: 'staff-1', userId: 'staff-user-1' }, { id: 'staff-2', userId: 'staff-user-2' }]) },
-      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockResolvedValue({}) },
+      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockResolvedValue({id:'assignment-event'}) },
       $queryRaw: jest.fn().mockResolvedValue([]),
       appointmentChangeRequest: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -176,6 +177,7 @@ describe('ChangeRequestsService committed invalidations', () => {
       bookingViolationEvent: { findUnique: jest.fn().mockResolvedValue(null) },
       cancellationPolicy: { findUnique: jest.fn().mockResolvedValue(null) },
       booking: {
+        findUniqueOrThrow:jest.fn().mockResolvedValue({branchId:'branch-1',branch:{businessId:'business-1'}}),
         findUnique: jest.fn().mockResolvedValue(booking),
         update: jest.fn(async ({ data }) => { Object.assign(booking, data); return booking; }),
       },

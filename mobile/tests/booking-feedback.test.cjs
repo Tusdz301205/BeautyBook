@@ -9,6 +9,16 @@ class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status; }
 }
 
+// Pure presentation helpers (design tokens, booking-zone clock) are loaded for real.
+function pureModule(file) {
+  const module = { exports: {} };
+  const js = ts.transpileModule(readFileSync(path.join(__dirname, '../src', file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  vm.runInNewContext(js, { module, exports: module.exports, Intl, Date, Number }, { filename: file });
+  return module.exports;
+}
+const theme = pureModule('theme/index.ts');
+const bookingClock = pureModule('utils/bookingClock.ts');
+
 // Execute the real screen handlers/JSX with a small hook harness. Mount effects and
 // native layout are deliberately outside these tests; no API or runtime is started.
 function screenHarness(file, { create = async () => ({ id: 'saved' }), preview = async () => ({ finalAmount: 100 }), booking } = {}) {
@@ -43,7 +53,7 @@ function screenHarness(file, { create = async () => ({ id: 'saved' }), preview =
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@expo/vector-icons': { Ionicons: 'Ionicons' },
     '@react-navigation/native': { usePreventRemove: enabled => { preventRemove = enabled; } },
-    '../constants/colors': { colors: {} }, '../data/catalogModels': { formatCurrency: value => `${value} đ` },
+    '../constants/colors': { colors: {} }, '../theme': theme, '../utils/bookingClock': bookingClock, '../data/catalogModels': { formatCurrency: value => `${value} đ` },
     '../components/SelectListSheet': { default: 'SelectListSheet' },
     '../context/BookingsContext': { useBookings: () => ({ addBooking: async (body, key) => { calls.push({ body: structuredClone(body), key }); return create(body, key); }, getBooking: () => booking }) },
     '../api/bookings': { bookingsApi: { previewPrice: preview } },

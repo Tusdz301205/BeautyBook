@@ -8,6 +8,7 @@ import { assertItemDuration, assertItemPrice, MAX_BOOKING_ITEM_PRICE } from './b
 import { BOOKING_TIMING_AUDIT_INCLUDE, withBookingTiming } from './booking-actual-timing';
 import { SchedulerGateway } from '../scheduler/scheduler.gateway';
 import { emitCommittedBookingUpdates } from './booking-realtime';
+import { queueProviderReassignment } from './booking-provider-notifications';
 
 type ItemAction = 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';
 
@@ -241,7 +242,10 @@ export class BookingItemsService {
         });
       }
       const after = await tx.bookingService.findUniqueOrThrow({ where: { id: itemId }, include: { staff: { select: { userId: true } } } });
-      await this.recordAdjustment(tx, item, actorId, input.action, input.reason, before, this.snapshot(after), amountDelta);
+      const adjustment = await this.recordAdjustment(tx, item, actorId, input.action, input.reason, before, this.snapshot(after), amountDelta);
+      if (input.action === 'REASSIGN' && input.staffId) await queueProviderReassignment(tx, {
+        bookingId, itemId, eventId: adjustment.id, previousStaffId: item.staffId, nextStaffId: input.staffId,
+      });
       if (amountDelta !== 0) await this.applyAmountDelta(tx, item.booking, itemId, actorId, amountDelta, input.reason);
       return this.detail(tx, bookingId);
     }, { conflictMessage: 'Dịch vụ vừa được chỉnh sửa; vui lòng tải lại và thử lại' });
@@ -286,7 +290,7 @@ export class BookingItemsService {
 
   private async recordAdjustment(tx: Prisma.TransactionClient, item: any, actorId: string, action: ItemAction | 'ADD', reason: string, before: any, after: any, amountDelta: number) {
     const version = await tx.bookingServiceAdjustment.count({ where: { bookingServiceId: item.id } }) + 1;
-    await tx.bookingServiceAdjustment.create({
+    return tx.bookingServiceAdjustment.create({
       data: {
         bookingServiceId: item.id,
         bookingId: item.bookingId,

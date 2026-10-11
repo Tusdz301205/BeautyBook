@@ -25,6 +25,7 @@ const mixed: AuthUser = {
 function fixture() {
   return {
     branch: {
+      findUniqueOrThrow: jest.fn(({ where }: { where: { id: string } }) => Promise.resolve({ id: where.id, businessId: where.id.startsWith('owned-') ? 'owned' : 'other', timezone: 'Asia/Ho_Chi_Minh' })),
       findUnique: jest.fn(({ where }: { where: { id: string } }) => Promise.resolve({ businessId: where.id.startsWith('owned-') ? 'owned' : 'other' })),
       findMany: jest.fn().mockResolvedValue([{ id: 'owned-one' }, { id: 'owned-two' }]),
     },
@@ -129,12 +130,13 @@ describe('management scopes after retiring Manager', () => {
 
   it('staff cannot read another profile or its commission through an unrelated owner role', async () => {
     const db = fixture();
-    const service = { findOne: jest.fn().mockResolvedValue({ id: 'profile' }), getCommission: jest.fn().mockResolvedValue([]) };
+    const service = { findOne: jest.fn().mockResolvedValue({ id: 'profile' }), findMine: jest.fn().mockResolvedValue({ id: 'profile' }), getCommission: jest.fn().mockResolvedValue([]) };
     const controller = new StaffController(service as never, db as never, {} as never);
     await expect(controller.findOne('profile', mixed)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(controller.getCommission('profile', undefined, undefined, mixed)).rejects.toBeInstanceOf(ForbiddenException);
     db.staffProfile.findUnique.mockResolvedValue({ branchId: 'staff-only', userId: mixed.id });
     await expect(controller.findOne('profile', mixed)).resolves.toEqual({ id: 'profile' });
+    expect(service.findMine).toHaveBeenCalledWith(mixed.id, mixed);
     await expect(controller.getCommission('profile', undefined, undefined, mixed)).resolves.toEqual([]);
   });
 

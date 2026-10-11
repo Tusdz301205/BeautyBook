@@ -1,3 +1,4 @@
+import { normalizeNameSearch } from '../../utils/nameSearch';
 import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, CheckCircle2, ChevronDown, Inbox, LoaderCircle, Search, X } from 'lucide-react';
 import { STATUS_LABELS } from '../../utils/displayLabels';
@@ -77,9 +78,9 @@ export const Select = React.forwardRef(({
   const selected = options.find((option) => option.value === selectedValue);
   const showSearch = searchable ?? options.length >= 8;
   const visibleOptions = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('vi-VN');
+    const normalizedQuery = normalizeNameSearch(query);
     if (!normalizedQuery) return options;
-    return options.filter((option) => option.label.toLocaleLowerCase('vi-VN').includes(normalizedQuery));
+    return options.filter((option) => normalizeNameSearch(option.label).includes(normalizedQuery));
   }, [options, query]);
 
   useImperativeHandle(forwardedRef, () => triggerRef.current);

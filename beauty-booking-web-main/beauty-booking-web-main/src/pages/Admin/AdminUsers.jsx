@@ -63,7 +63,7 @@ export function AdminUsers() {
   const toggleSuspension = async (reason) => {
     if (!actionTarget) return;
     try {
-      await usersApi.suspend(actionTarget.id, reason);
+      await usersApi.suspend(actionTarget.id, { reason, isActive: !actionTarget.isActive, expectedIsActive: actionTarget.isActive, acknowledgeImpact: false });
       toast.success(actionTarget.isActive ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
       setActionTarget(null); setSelected(null); fetchUsers();
     } catch (requestError) { toast.error(requestError.message || 'Không thể cập nhật tài khoản'); }

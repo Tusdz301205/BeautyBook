@@ -1,96 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import VenueMap from '../components/VenueMap';
 
 import { HomeStackParamList } from '../navigation/HomeStack';
-import { colors } from '../constants/colors';
-import { formatCurrency } from '../data/catalogModels';
+import { colors, elevation, layout, radius, space, type } from '../theme';
+import { formatCurrency, servicePriceLabel } from '../data/catalogModels';
 import BannerCarousel from '../components/home/BannerCarousel';
-import SectionCard from '../components/home/SectionCard';
 import ComboCard from '../components/home/ComboCard';
 import { useFavorites } from '../context/FavoritesContext';
 import { useBranchDetail } from '../hooks/useBranchDetail';
+import { AppButton, EmptyState, IconButton, LoadingState, Notice, Segmented } from '../ui';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'VenueDetail'>;
 
-type TabKey = 'info' | 'services' | 'offers' | 'reviews';
+type TabKey = 'services' | 'info' | 'offers' | 'reviews';
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'info', label: 'Thông tin' },
-  { key: 'services', label: 'Dịch vụ' },
-  { key: 'offers', label: 'Ưu đãi' },
-  { key: 'reviews', label: 'Đánh giá' },
-];
-
-const RATING_BUCKETS = [
-  { label: '5 sao', min: 4.5, max: 5.1, color: colors.ratingGreen, face: '😄' },
-  { label: '4 sao', min: 3.5, max: 4.5, color: colors.bookingTag, face: '🙂' },
-  { label: '3 sao', min: 2.5, max: 3.5, color: colors.orange, face: '😐' },
-  { label: '1–2 sao', min: 0, max: 2.5, color: colors.discountRed, face: '🙁' },
-];
-
-type ActionKey = 'call' | 'chat' | 'favorite';
-
-const ACTION_ICONS: { key: ActionKey; active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'call', active: 'call', inactive: 'call-outline' },
-  { key: 'chat', active: 'chatbubble', inactive: 'chatbubble-outline' },
-  { key: 'favorite', active: 'heart', inactive: 'heart-outline' },
+const SCORE_ROWS = [
+  { label: '5', min: 4.5, max: 5.1 },
+  { label: '4', min: 3.5, max: 4.5 },
+  { label: '3', min: 2.5, max: 3.5 },
+  { label: '2', min: 1.5, max: 2.5 },
+  { label: '1', min: 0, max: 1.5 },
 ];
 
 export default function VenueDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const requestedServiceId = route.params.serviceId;
   const requestedIds = route.params.serviceIds ?? (requestedServiceId ? [requestedServiceId] : []);
-  const [activeTab, setActiveTab] = useState<TabKey>(requestedIds.length || route.params.rebooking ? 'services' : 'info');
+  // Booking intent comes first: services is the default tab.
+  const [activeTab, setActiveTab] = useState<TabKey>('services');
   const [quantities, setQuantities] = useState<Record<string, number>>(Object.fromEntries(requestedIds.map(id => [id, 1])));
   useEffect(() => {
     setQuantities(Object.fromEntries(requestedIds.map(id => [id, 1])));
-    setActiveTab(requestedIds.length || route.params.rebooking ? 'services' : 'info');
+    setActiveTab('services');
   }, [route.params.venueId, requestedServiceId, route.params.serviceIds, route.params.rebooking]);
-  const [activeActions, setActiveActions] = useState<Record<ActionKey, boolean>>({
-    call: false,
-    chat: false,
-    favorite: false,
-  });
   const { isFavorite, toggleFavorite } = useFavorites();
-  const {
-    venue,
-    serviceGroups,
-    staff,
-    combos: similarCombos,
-    reviews: remoteReviews,
-    isLoading,
-    error,
-    extrasError,
-    reload,
-  } = useBranchDetail(route.params.venueId);
-
-  const toggleAction = (key: ActionKey) => {
-    setActiveActions((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+  const { venue, serviceGroups, staff, combos: similarCombos, reviews, isLoading, error, extrasError, reload } = useBranchDetail(route.params.venueId);
 
   if (isLoading && !venue) {
-    return (
-      <View style={styles.notFound}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.notFoundText}>Đang tải chi tiết địa điểm...</Text>
-      </View>
-    );
+    return <View style={styles.screen}><LoadingState message="Đang tải chi tiết cơ sở…" /></View>;
   }
 
   if (!venue) {
     return (
-      <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>{error || 'Không tìm thấy địa điểm này'}</Text>
-        <TouchableOpacity onPress={() => void reload()}>
-          <Text style={styles.servicePrice}>Thử lại</Text>
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.goBack()} style={{ padding: 16 }}><Text style={styles.servicePrice}>Quay lại</Text></TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" onPress={() => navigation.getParent()?.navigate('TimKiem')} style={{ padding: 16 }}><Text style={styles.servicePrice}>Tìm cơ sở khác</Text></TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.backRow}><IconButton icon="chevron-back" label="Quay lại" onPress={() => navigation.goBack()} /></View>
+        <EmptyState icon="storefront-outline" title="Chưa mở được cơ sở này" message={error || 'Không tìm thấy cơ sở.'} actionLabel="Thử lại" onAction={() => void reload()} secondaryLabel="Tìm cơ sở khác" onSecondary={() => navigation.getParent()?.navigate('TimKiem')} />
+      </SafeAreaView>
     );
   }
 
@@ -98,715 +57,264 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
   const phone = venue.phone || '';
   const bannerSlides = (venue.imageUrls ?? []).map((imageUri, index) => ({ id: `${venue.id}-${index}`, imageUri }));
   const photoUrls = venue.imageUrls ?? [];
-  const reviews = remoteReviews;
   const allServices = serviceGroups.flatMap((group) => group.items);
   const selectedServices = allServices.filter((item) => (quantities[item.id] ?? 0) > 0);
   const primaryService = selectedServices[0];
-  const bookingServiceIds = selectedServices.length ? selectedServices.map((item) => item.id) : primaryService ? [primaryService.id] : [];
-  const displayRating = reviews.length
-    ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length
-    : venue.rating;
+  const bookingServiceIds = selectedServices.map((item) => item.id);
+  // Never show a rating that the API has not backed with reviews.
+  const reviewAverage = reviews.length ? reviews.reduce((sum, review) => sum + review.score, 0) / reviews.length : venue.rating > 0 ? venue.rating : null;
+  const selectedTotal = selectedServices.reduce((sum, item) => sum + item.price, 0);
+  const variablePrice = selectedServices.some((item) => item.priceKind && item.priceKind !== 'fixed');
   const latitude = Number(venue.latitude);
   const longitude = Number(venue.longitude);
-  const hasCoordinates = Number.isFinite(latitude)
-    && Number.isFinite(longitude)
-    && latitude >= -90
-    && latitude <= 90
-    && longitude >= -180
-    && longitude <= 180
-    && (latitude !== 0 || longitude !== 0);
+  const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 && (latitude !== 0 || longitude !== 0);
 
   const openGoogleMaps = () => {
     const query = hasCoordinates ? `${latitude},${longitude}` : venue.address;
     void Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`);
   };
-
+  const call = () => { if (phone) void Linking.openURL(`tel:${phone.replace(/\s+/g, '')}`); };
   const openZalo = async () => {
-    if (!phone) {
-      Alert.alert('Chưa có số Zalo', 'Cơ sở chưa cập nhật số điện thoại để liên hệ qua Zalo.');
-      return;
-    }
-    const zaloPhone = phone.replace(/[^0-9]/g, '');
-    try {
-      await Linking.openURL(`https://zalo.me/${zaloPhone}`);
-    } catch {
-      Alert.alert('Không thể mở Zalo', 'Vui lòng kiểm tra Zalo hoặc trình duyệt trên thiết bị.');
-    }
+    if (!phone) return;
+    try { await Linking.openURL(`https://zalo.me/${phone.replace(/[^0-9]/g, '')}`); }
+    catch { Alert.alert('Không thể mở Zalo', 'Vui lòng kiểm tra Zalo hoặc trình duyệt trên thiết bị.'); }
   };
+  const toggleService = (id: string) => setQuantities((prev) => ({ ...prev, [id]: prev[id] ? 0 : 1 }));
 
-  const adjustQuantity = (id: string, delta: number) => {
-    setQuantities((prev) => ({ ...prev, [id]: Math.min(1, Math.max(0, (prev[id] ?? 0) + delta)) }));
+  const book = () => {
+    if (!primaryService) return;
+    navigation.navigate('Booking', {
+      branchId: venue.id,
+      shopName: venue.name,
+      addresses: [venue.address],
+      service: {
+        id: primaryService.id,
+        name: selectedServices.length > 1 ? `${primaryService.name} và ${selectedServices.length - 1} dịch vụ khác` : primaryService.name,
+        duration: primaryService.duration,
+        price: selectedTotal || primaryService.price,
+        originalPrice: selectedTotal || primaryService.price,
+      },
+      serviceIds: bookingServiceIds,
+      staffOptions: staff,
+    });
   };
 
   return (
     <View style={styles.screen}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {!!extrasError && <Text accessibilityRole="alert" style={[styles.serviceIntro, { padding: 16 }]}>{extrasError}</Text>}
-        <View style={styles.bannerWrap}>
-          {bannerSlides.length > 0 ? (
-            <BannerCarousel slides={bannerSlides} height={260} style={styles.banner} imageBorderRadius={0} gap={0} />
-          ) : (
-            <View style={styles.noBanner}><Ionicons name="storefront-outline" size={34} color={colors.primary} /><Text style={styles.noBannerText}>Cơ sở chưa cập nhật ảnh</Text></View>
-          )}
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Quay lại"
-            style={[styles.backButton, { top: insets.top + 12 }]}
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-          >
-            <Ionicons name="chevron-back" size={22} color={colors.white} />
-          </TouchableOpacity>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} stickyHeaderIndices={[2]}>
+        <View>
+          {bannerSlides.length > 0
+            ? <BannerCarousel slides={bannerSlides} height={240} label={`Ảnh ${venue.name}`} />
+            : <View style={[styles.noBanner, { paddingTop: insets.top }]}><Ionicons accessible={false} name="storefront-outline" size={30} color={colors.primary} /><Text style={styles.noBannerText}>Cơ sở chưa cập nhật ảnh</Text></View>}
+          <IconButton icon="chevron-back" label="Quay lại" variant="scrim" onPress={() => navigation.goBack()} style={[styles.back, { top: insets.top + space.sm }]} />
         </View>
 
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={styles.headerTitleBlock}>
-              <Text style={styles.category}>{category.toUpperCase()}</Text>
-              <Text style={styles.venueName}>{venue.name}</Text>
-            </View>
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingBadgeText}>{displayRating.toFixed(1)}</Text>
-            </View>
+          <Text style={styles.category}>{category}</Text>
+          <Text accessibilityRole="header" style={styles.venueName}>{venue.name}</Text>
+          <View style={styles.metaRow}>
+            {reviewAverage !== null
+              ? <View style={styles.rating}><Ionicons accessible={false} name="star" size={14} color={colors.warning} /><Text style={styles.ratingText}>{reviewAverage.toFixed(1)}</Text>{reviews.length ? <Text style={styles.ratingCount}>· {reviews.length} đánh giá</Text> : null}</View>
+              : <Text style={styles.metaText}>Chưa có đánh giá</Text>}
           </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
-            {TABS.map((tab) => (
-              <TouchableOpacity key={tab.key} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.key }} style={styles.tabItem} onPress={() => setActiveTab(tab.key)}>
-                <Text numberOfLines={1} style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
-                {activeTab === tab.key && <View style={styles.tabIndicator} />}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View style={styles.infoLine}><Ionicons accessible={false} name="location-outline" size={16} color={colors.secondaryText} /><Text style={styles.infoLineText}>{venue.address}</Text></View>
+          <View style={styles.infoLine}><Ionicons accessible={false} name="time-outline" size={16} color={colors.secondaryText} /><Text style={styles.infoLineText}>Hôm nay: {venue.openingHours}</Text></View>
+          <View style={styles.actions}>
+            <QuickAction icon="call-outline" label="Gọi" onPress={call} disabled={!phone} />
+            <QuickAction icon="chatbubble-ellipses-outline" label="Zalo" onPress={() => void openZalo()} disabled={!phone} />
+            <QuickAction icon="navigate-outline" label="Chỉ đường" onPress={openGoogleMaps} />
+          </View>
+          {!phone ? <Text style={styles.caption}>Cơ sở chưa cập nhật số điện thoại.</Text> : null}
         </View>
 
-        {activeTab === 'info' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.sectionTitle}>THÔNG TIN</Text>
-            <View style={styles.infoRow}>
-              <Ionicons name="map-outline" size={18} color={colors.textGray} />
-              <Text style={styles.infoText}>Địa chỉ: {venue.address}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="time-outline" size={18} color={colors.textGray} />
-              <Text style={styles.infoText}>Giờ mở cửa: {venue.openingHours}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="call-outline" size={18} color={colors.textGray} />
-              <Text style={styles.infoText}>Điện thoại: {phone || 'Chưa cập nhật'}</Text>
-            </View>
+        <View style={styles.tabsWrap}>
+          <Segmented value={activeTab} onChange={setActiveTab} options={[{ key: 'services', label: 'Dịch vụ' }, { key: 'info', label: 'Thông tin' }, { key: 'offers', label: 'Ưu đãi' }, { key: 'reviews', label: 'Đánh giá' }]} />
+        </View>
 
-            {hasCoordinates ? (
-              <View style={styles.mapContainer}>
-                <VenueMap latitude={latitude} longitude={longitude} title={venue.name} description={venue.address} onPress={openGoogleMaps} />
-                <TouchableOpacity style={styles.directionsButton} onPress={openGoogleMaps} activeOpacity={0.85}>
-                  <Ionicons name="navigate" size={16} color={colors.white} />
-                  <Text style={styles.directionsText}>Chỉ đường</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity style={styles.mapPlaceholder} onPress={openGoogleMaps} activeOpacity={0.8}>
-                <Ionicons name="location" size={32} color={colors.primary} />
-                <Text style={styles.mapPlaceholderText}>Xem địa chỉ trên Google Maps</Text>
-              </TouchableOpacity>
-            )}
+        <View style={styles.body}>
+          {extrasError ? <Notice tone="warning" message={extrasError} style={styles.notice} /> : null}
 
-            <Text style={[styles.sectionTitle, styles.sectionSpacingTop]}>HÌNH ẢNH</Text>
-            <View style={styles.photoGrid}>
-              {photoUrls.map((url, index) => (
-                <Image key={index} source={{ uri: url }} style={styles.photoItem} resizeMode="cover" />
+          {activeTab === 'services' && (
+            <View>
+              {requestedIds.some(id => !allServices.some(item => item.id === id)) ? <Notice tone="warning" message="Dịch vụ bạn chọn không còn ở cơ sở này. Hãy chọn dịch vụ khác bên dưới." style={styles.notice} /> : null}
+              {route.params.rebooking ? <Notice tone="info" message="Giá và thời lượng dưới đây là thông tin hiện tại. Chọn lại dịch vụ nếu cần, sau đó chọn chuyên viên và giờ mới." style={styles.notice} /> : null}
+              {allServices.length === 0 ? <EmptyState icon="cut-outline" title="Chưa có dịch vụ nhận lịch" message="Cơ sở chưa mở dịch vụ để đặt trực tuyến." /> : <Text style={styles.hint}>Chọn một hoặc nhiều dịch vụ để đặt lịch.</Text>}
+              {serviceGroups.map((group) => (
+                <View key={group.name} style={styles.group}>
+                  <Text accessibilityRole="header" style={styles.groupTitle}>{group.name} <Text style={styles.groupCount}>· {group.items.length}</Text></Text>
+                  {group.items.map((item) => {
+                    const selected = Boolean(quantities[item.id]);
+                    const saved = isFavorite(item.id);
+                    return (
+                      <View key={item.id} style={[styles.service, selected && styles.serviceSelected]}>
+                        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={`${item.name}, ${item.duration}, ${servicePriceLabel(item)}`} onPress={() => toggleService(item.id)} style={styles.serviceMain}>
+                          <Ionicons accessible={false} name={selected ? 'checkbox' : 'square-outline'} size={24} color={selected ? colors.primary : colors.borderStrong} />
+                          <View style={styles.flex}>
+                            <Text style={styles.serviceName}>{item.name}</Text>
+                            <Text style={styles.serviceMeta}>{item.duration}</Text>
+                            <Text style={styles.servicePrice}>{servicePriceLabel(item)}</Text>
+                          </View>
+                        </Pressable>
+                        <IconButton icon={saved ? 'heart' : 'heart-outline'} label={saved ? `Bỏ lưu ${item.name}` : `Lưu ${item.name}`} selected={saved} color={colors.primary} onPress={() => void toggleFavorite(item.id)} />
+                      </View>
+                    );
+                  })}
+                </View>
               ))}
-              {photoUrls.length === 0 && <Text style={styles.infoText}>Địa điểm chưa cập nhật hình ảnh.</Text>}
             </View>
-          </View>
-        )}
+          )}
 
-        {activeTab === 'services' && (
-          <View style={styles.tabContent}>
-            <Text style={styles.serviceIntro}>Bấm chọn dịch vụ để đặt lịch</Text>
-            {requestedIds.some(id => !allServices.some(item => item.id === id)) && (
-              <Text style={styles.serviceIntro}>Dịch vụ bạn chọn không còn ở cơ sở này. Hãy chọn dịch vụ khác bên dưới.</Text>
-            )}
-            {route.params.rebooking && <Text style={styles.serviceIntro}>Giá và thời lượng dưới đây là thông tin hiện tại. Chọn lại dịch vụ nếu cần, sau đó chọn chuyên viên và giờ mới.</Text>}
-            {allServices.length === 0 && <Text style={styles.infoText}>Cơ sở chưa có dịch vụ đang nhận lịch.</Text>}
+          {activeTab === 'info' && (
+            <View style={styles.infoTab}>
+              <InfoRow icon="location-outline" label="Địa chỉ" value={venue.address} />
+              <InfoRow icon="time-outline" label="Giờ mở cửa hôm nay" value={venue.openingHours || 'Chưa cập nhật'} />
+              <InfoRow icon="call-outline" label="Điện thoại" value={phone || 'Chưa cập nhật'} />
+              {hasCoordinates ? (
+                <View style={styles.map}>
+                  <VenueMap latitude={latitude} longitude={longitude} title={venue.name} description={venue.address} onPress={openGoogleMaps} />
+                </View>
+              ) : null}
+              <AppButton variant="outline" icon="navigate-outline" label="Mở chỉ đường" onPress={openGoogleMaps} />
+              <Text accessibilityRole="header" style={styles.subTitle}>Hình ảnh</Text>
+              {photoUrls.length ? (
+                <View style={styles.photoGrid}>
+                  {photoUrls.map((url, index) => <Image key={url + index} source={{ uri: url }} style={styles.photo} resizeMode="cover" accessibilityLabel={`Ảnh ${venue.name} ${index + 1}`} />)}
+                </View>
+              ) : <Text style={styles.metaText}>Cơ sở chưa cập nhật hình ảnh.</Text>}
+            </View>
+          )}
 
-            {serviceGroups.map((group) => (
-              <View key={group.name}>
-                <View style={styles.groupHeader}>
-                  <Text style={styles.groupHeaderText}>{group.name}</Text>
-                  <View style={styles.groupHeaderRight}>
-                    <Text style={styles.groupHeaderCount}>{group.items.length} dịch vụ</Text>
-                    <Ionicons name="chevron-down" size={16} color={colors.primary} />
+          {activeTab === 'offers' && (
+            similarCombos.length > 0
+              ? <View style={styles.offerList}>{similarCombos.map((combo) => <ComboCard key={combo.id} combo={combo} width="100%" onPress={() => navigation.push('ComboDetail', { comboId: combo.id })} />)}</View>
+              : <EmptyState icon="gift-outline" title="Chưa có gói ưu đãi" message="Cơ sở chưa có gói dịch vụ đang áp dụng." />
+          )}
+
+          {activeTab === 'reviews' && (
+            reviews.length === 0 ? <EmptyState icon="chatbubbles-outline" title="Chưa có đánh giá" message="Bạn có thể đánh giá sau khi lịch hẹn hoàn thành." /> : (
+              <View>
+                <View style={styles.reviewSummary}>
+                  <View style={styles.reviewScore}>
+                    <Text style={styles.reviewAverage}>{(reviewAverage ?? 0).toFixed(1)}</Text>
+                    <Text style={styles.metaText}>{reviews.length} đánh giá</Text>
+                  </View>
+                  <View style={styles.flex}>
+                    {SCORE_ROWS.map((row) => {
+                      const count = reviews.filter((r) => r.score >= row.min && r.score < row.max).length;
+                      return (
+                        <View key={row.label} accessible accessibilityLabel={`${row.label} sao: ${count} đánh giá`} style={styles.barRow}>
+                          <Text style={styles.barLabel}>{row.label}★</Text>
+                          <View style={styles.barTrack}><View style={[styles.barFill, { width: `${(count / reviews.length) * 100}%` }]} /></View>
+                          <Text style={styles.barCount}>{count}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
-                {group.items.map((item) => (
-                  <View key={item.id} style={styles.serviceRow}>
-                    <View style={styles.serviceInfo}>
-                      <Text style={styles.serviceName}>{item.name}</Text>
-                      <Text style={styles.serviceDuration}>{item.duration}</Text>
-                      <Text style={styles.servicePrice}>{formatCurrency(item.price)}</Text>
-                      <TouchableOpacity accessibilityLabel={`Lưu dịch vụ ${item.name}`} onPress={() => void toggleFavorite(item.id)} style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6 }}>
-                        <Ionicons name={isFavorite(item.id) ? 'heart' : 'heart-outline'} size={17} color={colors.primary} />
-                        <Text style={{ color: colors.primary, fontWeight: '600' }}>{isFavorite(item.id) ? 'Đã lưu' : 'Lưu dịch vụ'}</Text>
-                      </TouchableOpacity>
+                <Text style={styles.caption}>Đánh giá được gửi sau lịch hẹn đã hoàn thành.</Text>
+                {reviews.map((review) => (
+                  <View key={review.id} style={styles.reviewCard}>
+                    <View style={styles.reviewHead}>
+                      <Text style={styles.reviewer}>{review.reviewerName}</Text>
+                      <View style={styles.rating}><Ionicons accessible={false} name="star" size={13} color={colors.warning} /><Text style={styles.ratingText}>{review.score.toFixed(1)}</Text></View>
                     </View>
-                    <TouchableOpacity accessibilityRole="checkbox" accessibilityLabel={`Chọn dịch vụ ${item.name}`} accessibilityState={{ checked: !!quantities[item.id] }} style={[styles.stepperButton, { minWidth: 80, minHeight: 48 }]} onPress={() => adjustQuantity(item.id, quantities[item.id] ? -1 : 1)}><Text style={styles.servicePrice}>{quantities[item.id] ? 'Đã chọn' : 'Chọn'}</Text></TouchableOpacity>
+                    <Text style={styles.caption}>{review.date}</Text>
+                    {review.text ? <Text style={styles.reviewText}>{review.text}</Text> : null}
                   </View>
                 ))}
               </View>
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'offers' && similarCombos.length > 0 && (
-          <SectionCard style={styles.offersSection}>
-            <Text style={styles.similarTitle}>☀️ ƯU ĐÃI TƯƠNG TỰ</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
-              {similarCombos.map((combo) => (
-                <ComboCard
-                  key={combo.id}
-                  combo={combo}
-                  onPress={() => navigation.push('ComboDetail', { comboId: combo.id })}
-                />
-              ))}
-            </ScrollView>
-          </SectionCard>
-        )}
-
-        {activeTab === 'reviews' && (
-          <View style={styles.tabContent}>
-            <View style={styles.ratingBucketsRow}>
-              {RATING_BUCKETS.map((bucket) => {
-                const count = reviews.filter((r) => r.score >= bucket.min && r.score < bucket.max).length;
-                return (
-                  <View key={bucket.label} style={[styles.bucketBox, { borderColor: bucket.color }]}>
-                    <Text style={styles.bucketFace}>{bucket.face}</Text>
-                    <Text style={[styles.bucketRange, { color: bucket.color }]}>{bucket.label}</Text>
-                    <Text style={styles.bucketCount}>({count})</Text>
-                  </View>
-                );
-              })}
-            </View>
-            <Text style={styles.reviewSummary}>{reviews.length} đánh giá • bình luận</Text>
-            <Text style={styles.reviewHint}>Bạn có thể đánh giá sau khi lịch hẹn hoàn thành.</Text>
-
-            {reviews.map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  <View style={styles.reviewBookedRow}>
-                    <Ionicons name="calendar-outline" size={14} color={colors.ratingGreen} />
-                    <Text style={styles.reviewBookedText}>Đã đặt lịch</Text>
-                    <View style={styles.reviewScoreBadge}>
-                      <Text style={styles.reviewScoreText}>{review.score.toFixed(1)}</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="flag-outline" size={16} color={colors.discountRed} />
-                </View>
-                <Text style={styles.reviewerLine}>
-                  <Text style={styles.reviewerName}>{review.reviewerName}</Text> • {review.date}
-                </Text>
-                <Text style={styles.reviewText}>{review.text}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+            )
+          )}
+        </View>
       </ScrollView>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomBar}>
-        {ACTION_ICONS.map((action) => {
-          const isActive = action.key === 'favorite' ? !!primaryService && isFavorite(primaryService.id) : activeActions[action.key];
-          return (
-            <TouchableOpacity
-              key={action.key}
-              style={styles.iconButton}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (action.key === 'favorite') {
-                  if (primaryService) void toggleFavorite(primaryService.id);
-                } else if (action.key === 'call') {
-                  if (phone) Linking.openURL(`tel:${phone.replace(/\s+/g, '')}`);
-                } else if (action.key === 'chat') {
-                  void openZalo();
-                } else {
-                  toggleAction(action.key);
-                }
-              }}
-            >
-              <Ionicons
-                name={isActive ? action.active : action.inactive}
-                size={30}
-                color={isActive ? colors.primary : colors.textBody}
-              />
-            </TouchableOpacity>
-          );
-        })}
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !primaryService }}
-          style={styles.bookButton}
-          activeOpacity={0.85}
-          disabled={!primaryService}
-          onPress={() => {
-            if (!primaryService) return;
-            const selectedTotal = selectedServices.reduce((sum, item) => sum + item.price, 0);
-            navigation.navigate('Booking', {
-              branchId: venue.id,
-              shopName: venue.name,
-              addresses: [venue.address],
-              service: {
-                id: primaryService.id,
-                name: selectedServices.length > 1 ? `${primaryService.name} và ${selectedServices.length - 1} dịch vụ khác` : primaryService.name,
-                duration: primaryService.duration,
-                price: selectedTotal || primaryService.price,
-                originalPrice: selectedTotal || primaryService.price,
-              },
-              serviceIds: bookingServiceIds,
-              staffOptions: staff,
-            });
-          }}
-        >
-          <Text style={styles.bookButtonText}>{selectedServices.length ? `Đặt lịch (${selectedServices.length})` : 'Chọn dịch vụ'}</Text>
-        </TouchableOpacity>
+        <View style={styles.flex}>
+          <Text style={styles.bottomLabel}>{selectedServices.length ? `${selectedServices.length} dịch vụ đã chọn` : 'Chưa chọn dịch vụ'}</Text>
+          {selectedServices.length ? <Text style={styles.bottomPrice}>Tạm tính {variablePrice ? 'từ ' : ''}{formatCurrency(selectedTotal)}</Text> : <Text style={styles.caption}>Giá cuối cùng được xác nhận khi đặt lịch</Text>}
+        </View>
+        <AppButton label={selectedServices.length ? 'Tiếp tục đặt lịch' : 'Chọn dịch vụ'} disabled={!primaryService} onPress={book} style={styles.bookButton} />
       </SafeAreaView>
+    </View>
+  );
+}
 
+function QuickAction({ icon, label, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: Boolean(disabled) }} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.quick, pressed && { backgroundColor: colors.surfacePressed }, disabled && styles.quickDisabled]}>
+      <Ionicons accessible={false} name={icon} size={20} color={disabled ? colors.disabledText : colors.primary} />
+      <Text style={[styles.quickLabel, disabled && { color: colors.disabledText }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function InfoRow({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Ionicons accessible={false} name={icon} size={20} color={colors.secondaryText} />
+      <View style={styles.flex}><Text style={styles.caption}>{label}</Text><Text style={styles.infoValue}>{value}</Text></View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  noBanner: { height: 210, backgroundColor: '#EEE2E1', alignItems: 'center', justifyContent: 'center', gap: 9 },
-  noBannerText: { color: colors.textBody, fontSize: 13 },
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notFoundText: {
-    color: colors.textGray,
-    fontSize: 15,
-  },
-  bannerWrap: {
-    position: 'relative',
-  },
-  banner: {
-    marginHorizontal: 0,
-  },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  header: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 16,
-  },
-  headerTitleBlock: {
-    flex: 1,
-  },
-  category: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textGray,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-  },
-  venueName: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textDark,
-  },
-  ratingBadge: {
-    backgroundColor: colors.ratingGreen,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  ratingBadgeText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 17,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tabItem: {
-    minWidth: 70,
-    paddingHorizontal: 6,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  tabLabel: {
-    fontSize: 14,
-    color: colors.textGray,
-    fontWeight: '600',
-  },
-  tabLabelActive: {
-    color: colors.primary,
-  },
-  tabIndicator: {
-    marginTop: 8,
-    height: 3,
-    width: '100%',
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  tabContent: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.textGray,
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  sectionSpacingTop: {
-    marginTop: 24,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.textBody,
-    lineHeight: 22,
-  },
-  mapPlaceholder: {
-    height: 160,
-    borderRadius: 16,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  mapPlaceholderText: {
-    color: colors.textGray,
-    fontSize: 14,
-  },
-  mapContainer: {
-    height: 180,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: colors.background,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  directionsButton: {
-    position: 'absolute',
-    right: 10,
-    bottom: 10,
-    minHeight: 38,
-    borderRadius: 19,
-    paddingHorizontal: 14,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    shadowColor: colors.black,
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
-  },
-  directionsText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  amenitiesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  amenitiesDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginBottom: 12,
-  },
-  amenitiesDetailText: {
-    color: colors.primary,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  amenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  amenityItem: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  photoItem: {
-    width: '32%',
-    height: 105,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  serviceIntro: {
-    fontSize: 16,
-    color: colors.textBody,
-    marginBottom: 4,
-  },
-  servicePromo: {
-    fontSize: 15,
-    color: colors.orange,
-    fontWeight: '600',
-    marginBottom: 16,
-  },
-  groupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 4,
-  },
-  groupHeaderText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  groupHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  groupHeaderCount: {
-    fontSize: 14,
-    color: colors.primary,
-  },
-  serviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: 12,
-  },
-  serviceInfo: {
-    flex: 1,
-    minWidth: 0,
-    gap: 4,
-  },
-  serviceNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  serviceName: {
-    fontSize: 16,
-    color: colors.textDark,
-    fontWeight: '600',
-  },
-  serviceDuration: {
-    fontSize: 14,
-    color: colors.textGray,
-  },
-  servicePrice: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  stepperButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperButtonAdd: {
-    backgroundColor: colors.primaryLight,
-  },
-  stepperValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textDark,
-    minWidth: 16,
-    textAlign: 'center',
-  },
-  offersSection: {
-    marginTop: 16,
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  similarTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textDark,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  similarList: {
-    paddingHorizontal: 20,
-    gap: 12,
-    paddingVertical: 6,
-  },
-  ratingBucketsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  bucketBox: {
-    flex: 1,
-    marginHorizontal: 3,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    gap: 2,
-  },
-  bucketFace: {
-    fontSize: 26,
-    marginBottom: 2,
-  },
-  bucketRange: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  bucketCount: {
-    fontSize: 13,
-    color: colors.textGray,
-  },
-  reviewSummary: {
-    fontSize: 15,
-    color: colors.textGray,
-    marginBottom: 16,
-  },
-  reviewHint: {
-    color: colors.textGray,
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 16,
-  },
-  reviewCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  reviewBookedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  reviewBookedText: {
-    fontSize: 14,
-    color: colors.ratingGreen,
-    fontWeight: '600',
-  },
-  reviewScoreBadge: {
-    backgroundColor: colors.ratingGreen,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  reviewScoreText: {
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  reviewerLine: {
-    fontSize: 14,
-    color: colors.textGray,
-    marginBottom: 6,
-  },
-  reviewerName: {
-    fontWeight: '700',
-    color: colors.textDark,
-  },
-  reviewText: {
-    fontSize: 15,
-    color: colors.textBody,
-    lineHeight: 21,
-  },
-  bottomBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  iconButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bookButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 24,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  bookButtonText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 17,
-    letterSpacing: 0.5,
-  },
+  screen: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, minWidth: 0 },
+  backRow: { paddingHorizontal: space.xs },
+  scrollContent: { paddingBottom: space.xxl },
+  noBanner: { height: 160, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', gap: space.sm },
+  noBannerText: { ...type.secondary, color: colors.secondary },
+  back: { position: 'absolute', left: space.md },
+  header: { backgroundColor: colors.surface, paddingHorizontal: layout.gutter, paddingTop: space.lg, paddingBottom: space.lg, gap: space.xs, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  category: { ...type.overline, color: colors.primary },
+  venueName: { ...type.h1 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: space.xs, marginBottom: space.xs },
+  metaText: { ...type.secondary },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: colors.warningSoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, alignSelf: 'flex-start' },
+  ratingText: { ...type.caption, fontWeight: '700', color: colors.warning },
+  ratingCount: { ...type.caption, color: colors.warning },
+  infoLine: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, marginTop: space.xs },
+  infoLineText: { ...type.secondary, color: colors.body, flex: 1 },
+  actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
+  quick: { flex: 1, minHeight: layout.touch + 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: colors.surface },
+  quickDisabled: { backgroundColor: colors.disabledSurface, borderColor: colors.disabledSurface },
+  quickLabel: { ...type.caption, fontWeight: '600', color: colors.primary },
+  caption: { ...type.caption, marginTop: space.xs },
+  tabsWrap: { backgroundColor: colors.background, paddingHorizontal: layout.gutter, paddingVertical: space.md },
+  body: { paddingHorizontal: layout.gutter },
+  notice: { marginBottom: space.md },
+  hint: { ...type.secondary, marginBottom: space.sm },
+  group: { marginTop: space.md },
+  groupTitle: { ...type.h3, marginBottom: space.sm },
+  groupCount: { ...type.secondary },
+  service: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginBottom: space.sm, paddingRight: space.xs },
+  serviceSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  serviceMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: space.md, padding: space.md, minHeight: 72 },
+  serviceName: { ...type.bodyStrong },
+  serviceMeta: { ...type.secondary },
+  servicePrice: { ...type.price, color: colors.primary, marginTop: 2 },
+  infoTab: { gap: space.md },
+  infoRow: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start', backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
+  infoValue: { ...type.body, color: colors.heading },
+  map: { height: 180, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  subTitle: { ...type.h3, marginTop: space.sm },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  photo: { width: '31.5%', aspectRatio: 1, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  offerList: { gap: space.md },
+  reviewSummary: { flexDirection: 'row', gap: space.lg, alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: space.lg },
+  reviewScore: { alignItems: 'center', minWidth: 72 },
+  reviewAverage: { ...type.numeric },
+  barRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 20 },
+  barLabel: { ...type.caption, width: 24 },
+  barTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  barFill: { height: 6, backgroundColor: colors.warning },
+  barCount: { ...type.caption, width: 24, textAlign: 'right', fontVariant: ['tabular-nums'] },
+  reviewCard: { backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md, marginTop: space.md },
+  reviewHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
+  reviewer: { ...type.bodyStrong, flex: 1 },
+  reviewText: { ...type.body, marginTop: space.sm },
+  bottomBar: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: space.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, ...elevation.raised },
+  bottomLabel: { ...type.secondaryStrong, color: colors.heading },
+  bottomPrice: { ...type.price, color: colors.primary },
+  bookButton: { minWidth: 168 },
 });

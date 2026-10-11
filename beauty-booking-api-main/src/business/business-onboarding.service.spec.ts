@@ -1,3 +1,4 @@
+import { LEGAL_SUBJECT_CATALOG, REPRESENTATIVE_IDENTITY_CATALOG } from './legal-registration';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
@@ -15,6 +16,7 @@ describe('BusinessOnboardingService state machine', () => {
     const service = new BusinessOnboardingService({ user: { findUnique: jest.fn() } } as any, settings);
     await expect(service.getOnboardingConfig('owner-1')).resolves.toEqual({
       businessTypes: BUSINESS_TYPE_CATALOG.filter((item) => item.active).map(({ code, label }) => ({ code, label })),
+      legalSubjects: LEGAL_SUBJECT_CATALOG, representativeIdentityTypes: REPRESENTATIVE_IDENTITY_CATALOG,
       requiredDocuments: ['BUSINESS_LICENSE', 'OWNER_ID_CARD'],
       requirePhoneVerification: false,
       phoneVerified: true,
@@ -132,7 +134,7 @@ describe('BusinessOnboardingService state machine', () => {
     const auditCreate = jest.fn().mockResolvedValue({ id: 'audit-1' });
     const prisma = {
       business: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'biz-1', status: 'PENDING_REVIEW', documents: [] }),
+        findUnique: jest.fn().mockResolvedValue({ id: 'biz-1', name: 'QA business', owner: {userId:'owner-user',user:{isActive:true,deletedAt:null}}, status: 'PENDING_REVIEW', documents: [] }),
         updateMany: update,
         findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'biz-1', status: 'APPROVED' }),
       },
@@ -142,6 +144,7 @@ describe('BusinessOnboardingService state machine', () => {
         business: { updateMany: update, findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'biz-1', status: 'APPROVED' }) },
         businessReviewEvent: { create: businessReviewEventCreate },
         businessDocument: { update: jest.fn() },
+        userRole: {findMany:jest.fn().mockResolvedValue([])}, notificationOutbox: {create:jest.fn()},
         documentReviewEvent: { create: jest.fn() },
       })),
     } as unknown as PrismaService;

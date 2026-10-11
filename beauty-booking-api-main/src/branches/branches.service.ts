@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { businessOwnerRecipientIds } from '../common/utils/notify';
+import { foldNameSql, nameSearchPattern } from '../common/utils/name-search';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { ALL_TENANTS, assertBranchAccess, restrictToRoles, resolveBranchIdsForUser, resolveBusinessIdsForUser } from '../common/utils/multi-tenancy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
@@ -90,14 +92,20 @@ export class BranchesService {
     }
 
     if (districtId) where.districtId = districtId;
-    if (area) {
-      where.district = {
-        OR: [
-          { name: { contains: area, mode: 'insensitive' } },
-          { province: { name: { contains: area, mode: 'insensitive' } } },
-        ],
-      };
+    if (area?.trim()) {
+      const districts = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT d.id FROM districts d JOIN provinces p ON p.id = d.province_id
+        WHERE ${foldNameSql(Prisma.sql`d.name`)} LIKE ${nameSearchPattern(area)}
+          OR ${foldNameSql(Prisma.sql`p.name`)} LIKE ${nameSearchPattern(area)}`);
+      // Keep districtId as a separate AND constraint; never replace the exact ID filter.
+      where.district = { id: { in: districts.map((row) => row.id) } };
     }
+    const serviceText = serviceQuery?.trim();
+    const matchedServiceIds = serviceText
+      ? await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+          SELECT s.id FROM services s WHERE s.deleted_at IS NULL
+          AND ${foldNameSql(Prisma.sql`s.name`)} LIKE ${nameSearchPattern(serviceText)}`)
+      : null;
 
     const minPrice = Number(query?.minPrice);
     const maxPrice = Number(query?.maxPrice);
@@ -105,7 +113,7 @@ export class BranchesService {
       deletedAt: null,
       ...(!includeNonPublic ? { status: 'ACTIVE' } : {}),
       ...(categoryId ? { categoryId } : {}),
-      ...(serviceQuery ? { name: { contains: serviceQuery, mode: 'insensitive' } } : {}),
+      ...(matchedServiceIds ? { id: { in: matchedServiceIds.map((row) => row.id) } } : {}),
       ...((Number.isFinite(minPrice) && minPrice >= 0) || (Number.isFinite(maxPrice) && maxPrice >= 0)
         ? { price: {
             ...(Number.isFinite(minPrice) && minPrice >= 0 ? { gte: minPrice } : {}),
@@ -113,15 +121,16 @@ export class BranchesService {
           } }
         : {}),
     };
-    if (categoryId || serviceQuery || Object.keys(matchedServiceWhere.price ?? {}).length) {
+    if (categoryId || serviceText || Object.keys(matchedServiceWhere.price ?? {}).length) {
       where.services = { some: matchedServiceWhere };
     }
 
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { business: { name: { contains: search, mode: 'insensitive' } } },
-      ];
+    if (search?.trim()) {
+      const matched = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT b.id FROM branches b JOIN businesses business ON business.id = b.business_id
+        WHERE b.deleted_at IS NULL AND (${foldNameSql(Prisma.sql`b.name`)} LIKE ${nameSearchPattern(search)}
+          OR ${foldNameSql(Prisma.sql`business.name`)} LIKE ${nameSearchPattern(search)})`);
+      where.id = { in: matched.map((row) => row.id) };
     }
 
     const branches = await this.prisma.branch.findMany({
@@ -510,8 +519,13 @@ export class BranchesService {
       status: 'ACTIVE',
       deletedAt: null,
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.search?.trim() ? { name: { contains: query.search.trim(), mode: 'insensitive' } } : {}),
     };
+    if (query.search?.trim()) {
+      const matches = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT s.id FROM services s WHERE s.branch_id = ${branch.id}
+        AND s.deleted_at IS NULL AND ${foldNameSql(Prisma.sql`s.name`)} LIKE ${nameSearchPattern(query.search)}`);
+      where.id = { in: matches.map((row) => row.id) };
+    }
     const [services, total] = await Promise.all([
       this.prisma.branchServiceOffering.findMany({
         where,
@@ -1241,6 +1255,10 @@ export class BranchesService {
     targetStep?: number,
     deadline?: string,
   ) {
+    if (!['APPROVE', 'REQUEST_INFO', 'REJECT'].includes(decision)) throw new BadRequestException('Quyết định xét duyệt không hợp lệ');
+    if (reason !== undefined && typeof reason !== 'string') throw new BadRequestException('Lý do xét duyệt không hợp lệ');
+    reason = reason?.trim();
+    if (decision !== 'APPROVE' && !reason) throw new BadRequestException('Cần ghi rõ lý do và nội dung cần bổ sung');
     const branch = await this.prisma.branch.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -1271,10 +1289,12 @@ export class BranchesService {
         ? 'NEED_MORE_INFO'
         : 'REJECTED';
     const transitionAction = decision === 'APPROVE' ? 'APPROVE' : decision === 'REQUEST_INFO' ? 'REQUEST_INFO' : 'REJECT';
-    const state = await this.branchState.transition(id, transitionAction, actorId, reason?.trim() || `Platform ${decision.toLowerCase()} hồ sơ chi nhánh`);
-    if (!state.transitioned || !('branch' in state)) throw new ConflictException('Không thể đổi trạng thái chi nhánh khi còn lịch bị ảnh hưởng chưa xử lý');
-    const reviewed = await this.prisma.$transaction(async (tx) => {
-      const updated = state.branch!;
+    const state = await this.branchState.transition(id, transitionAction, actorId,
+      reason || `Platform ${decision.toLowerCase()} hồ sơ chi nhánh`, async (tx, current) => {
+      // State, request, documents, history and result delivery commit together.
+      if (current.reviewStatus !== branch.reviewStatus || current.updatedAt.getTime() !== branch.updatedAt.getTime()) {
+        throw new ConflictException('Hồ sơ chi nhánh vừa thay đổi; vui lòng tải lại');
+      }
       if (branch.reviewRequests[0]) {
         await tx.branchReviewRequest.update({
           where: { id: branch.reviewRequests[0].id },
@@ -1285,7 +1305,7 @@ export class BranchesService {
           },
         });
       }
-      await tx.branchReviewEvent.create({
+      const event = await tx.branchReviewEvent.create({
         data: {
           branchId: id,
           actorId: actorId || null,
@@ -1307,9 +1327,21 @@ export class BranchesService {
               : 'REJECTED',
         },
       });
-      return updated;
+      const recipients = await businessOwnerRecipientIds(tx, current.businessId);
+      const title = decision === 'APPROVE' ? 'Hồ sơ chi nhánh đã được duyệt'
+        : decision === 'REQUEST_INFO' ? 'Hồ sơ chi nhánh cần bổ sung' : 'Hồ sơ chi nhánh bị từ chối';
+      for (const userId of recipients) await tx.notificationOutbox.create({ data: {
+        userId, type: 'SYSTEM', severity: decision === 'APPROVE' ? 'INFO' : 'WARNING', title,
+        body: `${current.name}. ${reason || 'Mở hồ sơ chi nhánh để xem trạng thái.'}`,
+        targetType: 'BRANCH', targetId: id, actionUrl: `/salon/branches/${id}/setup`,
+        metadata: { businessId: current.businessId, branchId: id, reviewEventId: event.id, decision },
+        dedupeKey: `branch-review:${event.id}:${userId}`,
+      } });
     });
-    return reviewed;
+    if (!state.transitioned || !('branch' in state) || ('alreadyApplied' in state && state.alreadyApplied)) {
+      throw new ConflictException('Không thể xét duyệt hồ sơ đã thay đổi');
+    }
+    return state.branch;
   }
 
   async publish(id: string, actorId: string) {

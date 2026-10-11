@@ -34,6 +34,7 @@ import { bookingsApi, branchesApi, paymentsApi, reportsApi, reviewsApi, services
 import { Badge, Card, EmptyState, ErrorState, Field, InlineNotice, Input, MetricCard, Page, PageHeader, Select, Skeleton } from '../../components/ui';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeBooking } from '../../utils/bookingCalendar.adapter';
+import { FINANCE_WORKSPACE_ENABLED } from '../../config/featureAvailability';
 
 const TONES = { PENDING: 'warning', CONFIRMED: 'info', CHECKED_IN: 'info', IN_PROGRESS: 'brand', COMPLETED: 'success', CANCELLED: 'danger', NO_SHOW: 'neutral', EXPIRED: 'neutral' };
 const LABELS = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', EXPIRED: 'Hết hạn giữ chỗ' };
@@ -61,7 +62,7 @@ export function SalonOverview() {
   const can = useAuthStore((state) => state.can);
   const roles = useMemo(() => new Set([...(user?.roles || []), ...(user?.scopes || []).map((scope) => scope.code)]), [user]);
   const owner = roles.has('BUSINESS_OWNER');
-  const financeAllowed = can('payment:read:tenant') || can('report:revenue:tenant');
+  const financeAllowed = FINANCE_WORKSPACE_ENABLED && (can('payment:read:tenant') || can('report:revenue:tenant'));
   const [from, setFrom] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [to, setTo] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [branches, setBranches] = useState([]);

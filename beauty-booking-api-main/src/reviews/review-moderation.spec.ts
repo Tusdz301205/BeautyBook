@@ -41,11 +41,12 @@ describe('Review moderation lifecycle', () => {
     const prisma: any = {
       review: { findUnique: jest.fn().mockResolvedValue({ ...review, status: 'HIDDEN' }) },
       userRole: { findFirst: jest.fn().mockResolvedValue(null) },
+      $queryRaw: jest.fn().mockResolvedValue([{ id: 'review-1' }]),
       reviewAppeal: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({ id: 'appeal-1', status: 'PENDING' }) },
       reviewModerationEvent: { create: jest.fn() },
     };
     prisma.$transaction = jest.fn(async (operation: (tx: any) => unknown) => operation(prisma));
-    await new ReviewsService(prisma as PrismaService, settings).appeal('review-1', 'customer-user', 'Nội dung không vi phạm');
+    await new ReviewsService(prisma as PrismaService, settings).appeal('review-1', {id:'customer-user',email:'qa@example.test',roles:['CUSTOMER'],scopes:[{code:'CUSTOMER'}],sessionType:'customer'}, 'Nội dung không vi phạm');
     expect(prisma.reviewAppeal.create).toHaveBeenCalled();
     expect(prisma.reviewModerationEvent.create).toHaveBeenCalledWith({ data: expect.objectContaining({ action: 'APPEAL_SUBMITTED' }) });
   });

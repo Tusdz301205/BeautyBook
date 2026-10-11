@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertCustomerPrincipal } from '../auth/account-separation';
@@ -12,6 +13,25 @@ import { can } from '../common/utils/policy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
 import { businessOwnerRecipientIds } from '../common/utils/notify';
+
+export function assertReviewCreationInput(input: unknown): void {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Nội dung đánh giá phải là đối tượng JSON');
+  const data = input as Record<string, unknown>;
+  if (typeof data.bookingId !== 'string' || !data.bookingId.trim()) throw new BadRequestException('bookingId là bắt buộc');
+  if (!Number.isInteger(data.overallRating) || Number(data.overallRating) < 1 || Number(data.overallRating) > 5) throw new BadRequestException('Điểm đánh giá phải là số nguyên từ 1 đến 5');
+  if (data.comment != null && typeof data.comment !== 'string') throw new BadRequestException('Nội dung đánh giá phải là văn bản');
+  if (data.isAnonymous != null && typeof data.isAnonymous !== 'boolean') throw new BadRequestException('Lựa chọn ẩn danh phải là true hoặc false');
+  if (data.serviceRatings != null && !Array.isArray(data.serviceRatings)) throw new BadRequestException('Đánh giá dịch vụ phải là danh sách');
+  if (Array.isArray(data.serviceRatings)) for (const entry of data.serviceRatings) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new BadRequestException('Thông tin đánh giá dịch vụ không hợp lệ');
+    const rating = entry as Record<string, unknown>;
+    if (typeof rating.bookingServiceId !== 'string' || !rating.bookingServiceId.trim()) throw new BadRequestException('Dịch vụ đánh giá là bắt buộc');
+    if (!Number.isInteger(rating.rating) || Number(rating.rating) < 1 || Number(rating.rating) > 5) throw new BadRequestException('Điểm dịch vụ phải là số nguyên từ 1 đến 5');
+    if (rating.staffId != null && (typeof rating.staffId !== 'string' || !rating.staffId.trim())) throw new BadRequestException('Nhân viên đánh giá không hợp lệ');
+    if (rating.comment != null && typeof rating.comment !== 'string') throw new BadRequestException('Nhận xét dịch vụ phải là văn bản');
+  }
+}
+
 
 type ReviewerIdentity = {
   isAnonymous: boolean;
@@ -291,6 +311,7 @@ export class ReviewsService {
     }>;
   }, actor: AuthUser) {
     assertCustomerPrincipal(actor);
+    assertReviewCreationInput(data);
     const policy = await this.platformSettings.getEffective();
     const comment = data.comment?.trim() ?? '';
     if (comment.length < policy.reviewMinLength) {
@@ -365,8 +386,10 @@ export class ReviewsService {
   }
 
   async report(reviewId: string, reporterId: string, input: { reason: string; category?: string; severity?: string }) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Thông tin báo cáo không hợp lệ');
+    if (input.category != null && typeof input.category !== 'string' || input.severity != null && typeof input.severity !== 'string') throw new BadRequestException('Phân loại báo cáo không hợp lệ');
     const reason = input.reason;
-    if (!reason?.trim()) throw new BadRequestException('Lý do báo cáo là bắt buộc');
+    if (typeof reason !== 'string' || !reason.trim()) throw new BadRequestException('Lý do báo cáo là bắt buộc');
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
       select: {
@@ -479,7 +502,7 @@ export class ReviewsService {
     reason: string,
     user: AuthUser,
   ) {
-    if (!reasonCode?.trim() || !reason?.trim()) throw new BadRequestException('Mã lý do và nội dung quyết định là bắt buộc');
+    if (typeof reasonCode !== 'string' || typeof reason !== 'string' || !reasonCode.trim() || !reason.trim()) throw new BadRequestException('Mã lý do và nội dung quyết định là bắt buộc');
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
       select: { id: true, status: true, customer: { select: { userId: true } }, booking: { select: { branch: { select: { id: true, businessId: true } } } } },
@@ -514,24 +537,27 @@ export class ReviewsService {
     });
   }
 
-  async appeal(reviewId: string, appellantId: string, reason: string) {
-    if (!reason?.trim()) throw new BadRequestException('Lý do khiếu nại là bắt buộc');
-    const review = await this.prisma.review.findUnique({
-      where: { id: reviewId },
-      select: { id: true, status: true, customer: { select: { userId: true } }, booking: { select: { branch: { select: { businessId: true } } } } },
-    });
-    if (!review) throw new NotFoundException('Đánh giá không tồn tại');
-    const businessAccess = await this.prisma.userRole.findFirst({
-      where: { userId: appellantId, businessId: review.booking.branch.businessId, role: { code: { in: ['BUSINESS_OWNER'] } } },
-      select: { id: true },
-    });
-    if (review.customer.userId !== appellantId && !businessAccess) throw new ForbiddenException('Không có quyền khiếu nại đánh giá này');
-    const pending = await this.prisma.reviewAppeal.findFirst({ where: { reviewId, status: 'PENDING' }, select: { id: true } });
-    if (pending) throw new BadRequestException('Đánh giá đã có khiếu nại đang chờ xử lý');
+  async appeal(reviewId: string, user: AuthUser, reason: string) {
+    if (typeof reason !== 'string' || !reason.trim()) throw new BadRequestException('Lý do khiếu nại là bắt buộc');
     return this.prisma.$transaction(async (tx) => {
-      const appeal = await tx.reviewAppeal.create({ data: { reviewId, appellantId, reason: reason.trim() } });
+      // All submissions and decisions serialize on the review, without changing history.
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM reviews WHERE id = ${reviewId} FOR UPDATE`);
+      const review = await tx.review.findUnique({
+        where: { id: reviewId },
+        select: { id: true, status: true, customer: { select: { userId: true } }, booking: { select: { branch: { select: { id: true, businessId: true } } } } },
+      });
+      if (!review) throw new NotFoundException('Đánh giá không tồn tại');
+      const authorAccess = review.customer.userId === user.id
+        && can(user, 'review:create:self', { ownerId: review.customer.userId });
+      const ownerAccess = can(user, 'review:moderate:tenant', {
+        tenantId: review.booking.branch.businessId, branchId: review.booking.branch.id,
+      });
+      if (!authorAccess && !ownerAccess) throw new ForbiddenException('Không có quyền khiếu nại đánh giá này');
+      const pending = await tx.reviewAppeal.findFirst({ where: { reviewId, status: 'PENDING' }, select: { id: true } });
+      if (pending) throw new ConflictException('Đánh giá đã có khiếu nại đang chờ xử lý');
+      const appeal = await tx.reviewAppeal.create({ data: { reviewId, appellantId: user.id, reason: reason.trim() } });
       await tx.reviewModerationEvent.create({ data: {
-        reviewId, actorId: appellantId, action: 'APPEAL_SUBMITTED',
+        reviewId, actorId: user.id, action: 'APPEAL_SUBMITTED',
         fromStatus: review.status, toStatus: review.status,
         reasonCode: 'APPEAL', reason: reason.trim(),
       } });
@@ -540,20 +566,30 @@ export class ReviewsService {
   }
 
   async resolveAppeal(appealId: string, approve: boolean, resolution: string, user: AuthUser) {
-    if (!resolution?.trim()) throw new BadRequestException('Kết luận khiếu nại là bắt buộc');
+    if (typeof approve !== 'boolean') throw new BadRequestException('Quyết định khiếu nại phải là true hoặc false');
+    if (typeof resolution !== 'string' || !resolution.trim()) throw new BadRequestException('Kết luận khiếu nại là bắt buộc');
     if (!can(user, 'review:moderate:platform')) throw new ForbiddenException('Không có quyền xử lý khiếu nại');
     return this.prisma.$transaction(async (tx) => {
       const appeal = await tx.reviewAppeal.findUnique({ where: { id: appealId } });
       if (!appeal || appeal.status !== 'PENDING') throw new BadRequestException('Khiếu nại không còn chờ xử lý');
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM reviews WHERE id = ${appeal.reviewId} FOR UPDATE`);
       const review = await tx.review.findUniqueOrThrow({ where: { id: appeal.reviewId } });
-      const nextStatus = approve ? 'APPROVED' : review.status;
-      if (approve) await tx.review.update({ where: { id: review.id }, data: { status: 'APPROVED' } });
-      const updated = await tx.reviewAppeal.update({ where: { id: appealId }, data: {
+      const claimed = await tx.reviewAppeal.updateMany({ where: { id: appealId, status: 'PENDING' }, data: {
         status: approve ? 'APPROVED' : 'REJECTED', reviewedBy: user.id, resolution: resolution.trim(), reviewedAt: new Date(),
       } });
+      if (claimed.count !== 1) throw new ConflictException('Khiếu nại vừa được xử lý; vui lòng tải lại.');
+      const nextStatus = approve ? 'APPROVED' : review.status;
+      if (approve) await tx.review.update({ where: { id: review.id }, data: { status: 'APPROVED' } });
+      const updated = await tx.reviewAppeal.findUniqueOrThrow({ where: { id: appealId } });
       await tx.reviewModerationEvent.create({ data: {
         reviewId: review.id, actorId: user.id, action: approve ? 'APPEAL_APPROVED' : 'APPEAL_REJECTED',
         fromStatus: review.status, toStatus: nextStatus, reasonCode: 'APPEAL_DECISION', reason: resolution.trim(),
+      } });
+      await tx.notification.create({ data: {
+        userId: appeal.appellantId, type: 'SYSTEM', severity: approve ? 'SUCCESS' : 'INFO',
+        title: approve ? 'Khiếu nại đánh giá đã được chấp nhận' : 'Khiếu nại đánh giá đã được xử lý',
+        body: 'Mở mục đánh giá để xem kết quả xử lý khiếu nại của bạn.',
+        targetType: 'REVIEW', targetId: review.id,
       } });
       return updated;
     });

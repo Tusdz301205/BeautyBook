@@ -18,9 +18,10 @@ describe('Bulk provider assignment preserves execution identity', () => {
     const item = { id: 'item', bookingId: 'booking', serviceId: 'service', status: 'SCHEDULED' as const, revision: 3, staffId: 'provider-old',
       itemStartAt: new Date('2099-01-01T01:00:00Z'), itemEndAt: new Date('2099-01-01T01:30:00Z'), durationMinutes: 30 };
     const booking = { id: 'booking', status: 'CONFIRMED' as const, appointmentDate: new Date('2099-01-01'), appointmentStartTime: new Date('1970-01-01T08:00:00Z'), appointmentEndTime: new Date('1970-01-01T08:30:00Z'), bookingServices: [item] };
-    const tx = { $queryRaw: jest.fn().mockResolvedValue([]), booking: { findUnique: jest.fn().mockResolvedValue(booking), update: jest.fn().mockResolvedValue(booking) },
+    const tx = { $queryRaw: jest.fn().mockResolvedValue([]), booking: { findUnique: jest.fn().mockResolvedValue(booking), findUniqueOrThrow:jest.fn().mockResolvedValue({branchId:'branch',branch:{businessId:'business'}}), update: jest.fn().mockResolvedValue(booking) },
+      userRole:{findMany:jest.fn().mockResolvedValue([])}, notificationOutbox:{createMany:jest.fn()},
       staffProfile: { findMany: jest.fn().mockResolvedValue([{ id: 'provider-old', userId: 'old-user' }, { id: 'provider-new', userId: 'new-user' }]) },
-      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(2), create: jest.fn().mockResolvedValue({}) }, bookingStatusHistory: { create: jest.fn().mockResolvedValue({}) } };
+      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(2), create: jest.fn().mockResolvedValue({id:'assignment-event'}) }, bookingStatusHistory: { create: jest.fn().mockResolvedValue({}) } };
     const prisma = { booking: { findUnique: jest.fn().mockResolvedValue(booking) }, $transaction: jest.fn(async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx)) };
     const service = new BookingsService(prisma as never, {} as never, { notifyBookingUpdated: jest.fn() } as never, {} as never, {} as never);
     await service.assignStaff('booking', 'provider-new', 'owner');
@@ -34,6 +35,22 @@ describe('Bulk provider assignment preserves execution identity', () => {
       afterSnapshot: { status: 'SCHEDULED', staffId: 'provider-new', staffUserId: 'new-user', revision: 4 }, amountDelta: 0 } });
     const history: unknown = (tx.bookingStatusHistory.create.mock.calls as readonly (readonly unknown[])[])[0][0];
     expect(history).toMatchObject({ data: { changedBy: 'owner' } });
+  });
+  it('a realtime failure after bulk commit does not turn a saved assignment into an API failure', async () => {
+    jest.spyOn(validation, 'validateStaffForService').mockResolvedValue(undefined);
+    jest.spyOn(validation, 'assertNoOverlap').mockResolvedValue(undefined);
+    const item = { id: 'item', bookingId: 'booking', serviceId: 'service', status: 'SCHEDULED', revision: 1, staffId: 'old', durationMinutes: 30,
+      itemStartAt: new Date('2099-01-01T01:00:00Z'), itemEndAt: new Date('2099-01-01T01:30:00Z') };
+    const booking = { id: 'booking', branchId: 'branch', status: 'CONFIRMED', appointmentDate: new Date('2099-01-01'),
+      appointmentStartTime: new Date('1970-01-01T08:00:00Z'), appointmentEndTime: new Date('1970-01-01T08:30:00Z'), bookingServices: [item] };
+    const tx: any = { $queryRaw: jest.fn(), booking: { findUnique: jest.fn().mockResolvedValue(booking), update: jest.fn().mockResolvedValue(booking),
+      findUniqueOrThrow: jest.fn().mockResolvedValue({ branchId: 'branch', branch: { businessId: 'business' } }) },
+      staffProfile: { findMany: jest.fn().mockResolvedValue([]) }, userRole: { findMany: jest.fn() }, notificationOutbox: { createMany: jest.fn() },
+      bookingServiceAdjustment: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockResolvedValue({ id: 'event' }) }, bookingStatusHistory: { create: jest.fn() } };
+    const prisma: any = { booking: { findUnique: jest.fn().mockResolvedValue(booking) }, $transaction: jest.fn(fn => fn(tx)) };
+    const gateway = { notifyBookingUpdated: jest.fn(() => { throw Error('QA websocket transport fault'); }) };
+    await expect(new BookingsService(prisma, {} as never, gateway as never, {} as never, {} as never).assignStaff('booking', 'new', 'owner')).resolves.toBe(booking);
+    expect(tx.booking.update).toHaveBeenCalledTimes(1); expect(tx.bookingServiceAdjustment.create).toHaveBeenCalledTimes(1);
   });
   it('a service that completes between initial read and locked reread is not reassigned', async () => {
     jest.spyOn(validation, 'validateStaffForService').mockResolvedValue(undefined);

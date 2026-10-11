@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radius, space, type } from '../../theme';
 import { ownerOperationsApi } from '../../api/ownerOperations';
 import type { OwnerActualTimeCorrection, OwnerBooking, OwnerScope } from '../../types/ownerOperations';
 import { useOperationalTime } from '../../hooks/useOperationalTime';
@@ -37,17 +39,22 @@ export function ActualTimeCorrection({ booking, item, scope, blocked, run }: {
       ]);
     } catch (e) { setError(e instanceof Error ? e.message : 'Kiểm tra các trường thời gian.'); }
   };
+  const field = (label: string, value: string, onChange: (value: string) => void, placeholder: string) => <View style={local.field}>
+    <Text style={styles.label}>{label}</Text>
+    <TextInput style={styles.input} accessibilityLabel={label} placeholder={placeholder} placeholderTextColor={colors.disabledText} keyboardType="numbers-and-punctuation" value={value} onChangeText={onChange} editable={!blocked} />
+  </View>;
   return <View style={styles.group}>
-    <OperationButton secondary label={open ? 'Ẩn hiệu chỉnh thời gian' : 'Bổ sung / hiệu chỉnh thời gian thực tế'} disabled={blocked} onPress={() => setOpen(value => !value)} />
-    {open && <><Heading>Thời gian phục vụ thực tế</Heading><Meta>Múi giờ {booking.timezone}. Chỉ nhập mốc đã xác minh; không lấy giờ dự kiến để đoán.</Meta>
-      <OperationButton secondary label={unknown ? 'Thời gian: chưa biết' : 'Không biết chính xác thời gian'} disabled={blocked} onPress={() => setUnknown(value => !value)} />
+    <OperationButton secondary icon="time-outline" label={open ? 'Ẩn hiệu chỉnh thời gian' : 'Bổ sung / hiệu chỉnh thời gian thực tế'} disabled={blocked} onPress={() => setOpen(value => !value)} />
+    {open && <View style={local.panel}><Heading>Thời gian phục vụ thực tế</Heading><Meta>Múi giờ {booking.timezone}. Chỉ nhập mốc đã xác minh; không lấy giờ dự kiến để đoán.</Meta>
+      <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: unknown, disabled: blocked }} disabled={blocked} onPress={() => setUnknown(value => !value)} style={local.check}>
+        <Ionicons accessible={false} name={unknown ? 'checkbox' : 'square-outline'} size={24} color={unknown ? colors.primary : colors.borderStrong} />
+        <Text style={local.checkText}>Không biết chính xác thời gian thực tế</Text>
+      </Pressable>
       {unknown ? <Body>Dịch vụ được ghi hoàn tất; bắt đầu / kết thúc thực tế giữ chưa biết.</Body> : <>
-        <TextInput style={styles.input} accessibilityLabel="Ngày bắt đầu thực tế" placeholder="Ngày bắt đầu · YYYY-MM-DD" value={startDay} onChangeText={setStartDay} editable={!blocked} />
-        <TextInput style={styles.input} accessibilityLabel="Giờ bắt đầu thực tế" placeholder="Giờ bắt đầu · HH:mm" value={startTime} onChangeText={setStartTime} editable={!blocked} />
-        <TextInput style={styles.input} accessibilityLabel="Ngày hoàn tất thực tế" placeholder="Ngày hoàn tất · YYYY-MM-DD" value={endDay} onChangeText={setEndDay} editable={!blocked} />
-        <TextInput style={styles.input} accessibilityLabel="Giờ hoàn tất thực tế" placeholder="Giờ hoàn tất · HH:mm" value={endTime} onChangeText={setEndTime} editable={!blocked} />
+        <View style={local.pair}>{field('Ngày bắt đầu thực tế', startDay, setStartDay, 'YYYY-MM-DD')}{field('Giờ bắt đầu thực tế', startTime, setStartTime, 'HH:mm')}</View>
+        <View style={local.pair}>{field('Ngày hoàn tất thực tế', endDay, setEndDay, 'YYYY-MM-DD')}{field('Giờ hoàn tất thực tế', endTime, setEndTime, 'HH:mm')}</View>
       </>}
-      <Note value={reason} onChange={setReason} />{error && <OperationState message={error} />}
+      <Note value={reason} onChange={setReason} label="Lý do hiệu chỉnh (bắt buộc)" />{error && <OperationState tone="error" message={error} />}
       <OperationButton label="Kiểm tra và lưu hiệu chỉnh" disabled={blocked || !reason.trim()} onPress={save} />
       <OperationButton secondary label="Xem lịch sử hiệu chỉnh" disabled={blocked || historyBusy} busy={historyBusy} onPress={() => { void loadHistory(); }} />
       {history?.map(entry => <View key={entry.id} style={styles.group}><Heading>Hiệu chỉnh lần {entry.version}</Heading>
@@ -56,6 +63,14 @@ export function ActualTimeCorrection({ booking, item, scope, blocked, run }: {
         <Body>Sau: {formatServiceTimestamp(entry.actualStartedAt, booking.timezone) ?? 'Chưa biết'} → {formatServiceTimestamp(entry.actualCompletedAt, booking.timezone) ?? 'Chưa biết'}</Body>
         <Meta>Lý do: {entry.reason}</Meta></View>)}
       {history && !history.length && <Meta>Chưa có lần hiệu chỉnh nào.</Meta>}
-    </>}
+    </View>}
   </View>;
 }
+
+const local = StyleSheet.create({
+  panel: { gap: space.sm, padding: space.md, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  check: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: space.md },
+  checkText: { ...type.body, color: colors.heading, flex: 1 },
+  pair: { flexDirection: 'row', gap: space.sm },
+  field: { flex: 1, minWidth: 0, gap: space.xs },
+});

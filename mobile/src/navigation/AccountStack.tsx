@@ -4,7 +4,6 @@ import AccountScreen from '../screens/AccountScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import FormsScreen from '../screens/FormsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SupportScreen from '../screens/SupportScreen';
 import AddressFormScreen from '../screens/AddressFormScreen';
@@ -15,7 +14,6 @@ export type AccountStackParamList = {
   Favorites: undefined;
   Messages: undefined;
   Profile: undefined;
-  Forms: undefined;
   Settings: undefined;
   Support: undefined;
   AddressForm: { addressType: 'home' | 'work' };
@@ -31,7 +29,6 @@ export default function AccountStack() {
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
       <Stack.Screen name="Messages" component={MessagesScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
-      <Stack.Screen name="Forms" component={FormsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
       <Stack.Screen name="AddressForm" component={AddressFormScreen} />

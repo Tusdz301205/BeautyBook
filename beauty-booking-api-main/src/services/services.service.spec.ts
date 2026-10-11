@@ -143,3 +143,18 @@ describe('ServicesService branch availability', () => {
     expect(update).not.toHaveBeenCalled();
   });
 });
+
+describe('workspace media projection', () => {
+  it('returns uploaded primary media from the selected accessible branch, not another branch', async () => {
+    const branch = { id: 'branch-a', name: 'Chi nhánh A', businessId: 'biz-a' };
+    const prisma = {
+      branch: { findMany: jest.fn().mockResolvedValue([branch]) },
+      businessService: { findMany: jest.fn().mockResolvedValue([{ id: 'catalog-a', businessId: 'biz-a', basePrice: 100, baseDurationMinutes: 30, branchServices: [{ id: 'offering-a', branchId: 'branch-a', status: 'ACTIVE', bookable: true, price: 100, images: [{ media: { id: 'image-a', url: '/api/v1/media/public/image-a' } }], _count: { staffServices: 1, bookingServices: 0 } }] }]) },
+    };
+    const rows = await new ServicesService(prisma as never).findWorkspace(['branch-a', 'branch-b'], 'branch-a');
+    expect(prisma.branch.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['branch-a'] }, deletedAt: null } }));
+    expect(rows[0].primaryImageUrl).toBe('/api/v1/media/public/image-a');
+    expect(rows[0].branchAvailability[0].primaryImageUrl).toBe('/api/v1/media/public/image-a');
+    expect(prisma.businessService.findMany).toHaveBeenCalledWith(expect.objectContaining({ include: expect.objectContaining({ branchServices: expect.objectContaining({ include: expect.objectContaining({ images: expect.objectContaining({ take: 1 }) }) }) }) }));
+  });
+});

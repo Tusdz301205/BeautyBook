@@ -48,6 +48,8 @@ test('@smoke failed latest draft save never submits an older draft id; success r
     contentType: 'application/json',
     body: JSON.stringify({
       businessTypes: [{ code: 'SPA', label: 'Spa' }],
+      legalSubjects: [{code:'ORGANIZATION_10',label:'Doanh nghiệp / tổ chức độc lập',pattern:'^[0-9]{10}$',hint:'10 chữ số'}],
+      representativeIdentityTypes: [],
       requiredDocuments: [],
       requirePhoneVerification: false,
     }),
@@ -86,7 +88,9 @@ test('@smoke failed latest draft save never submits an older draft id; success r
 
   await page.locator('#onboarding-name').fill('Tiệm Demo');
   await page.locator('#onboarding-companyName').fill('Công ty Demo');
-  await page.locator('#onboarding-taxCode').fill('MST-TEST');
+  await page.locator('#onboarding-legalSubjectType').click();
+  await page.getByRole('option', { name: 'Doanh nghiệp / tổ chức độc lập', exact: true }).click();
+  await page.locator('#onboarding-taxCode').fill('0123456789');
   await page.locator('#onboarding-addressLine').fill('Quận 1, TP.HCM');
   await page.locator('#onboarding-legalRepresentative').fill('Chủ thử');
   await page.locator('#onboarding-contactPhone').fill('0912 345 678');
@@ -110,3 +114,44 @@ test('@smoke failed latest draft save never submits an older draft id; success r
   await expect.poll(() => submitCalls).toBe(1);
   expect(mineCalls).toBeGreaterThanOrEqual(2);
 });
+
+for (const width of [375, 768, 1024, 1440]) {
+  test(`@responsive transitional tax checklist follows legal subject at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const business = { ...structuredClone(initialBusiness), name: 'Tiệm QA giấy tờ thuế', addressLine: 'Địa chỉ QA',
+      onboardingStep: 2, onboardingData: { businessType: 'SPA', legalSubjectType: 'LEGACY_DEPENDENT_10', completedSteps: [1] },
+      owner: { companyName: 'Công ty QA', taxCode: '0123456789', identityCardNumber: null } };
+    const pageErrors = [];
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await page.route('**/api/v1/**', route => {
+      const pathname = new URL(route.request().url()).pathname;
+      let body = {};
+      if (pathname === '/api/v1/auth/refresh') body = { accessToken: 'mock-tax-ui-token', user: {
+        id: 'mock-owner-tax-ui', email: 'owner@example.test', fullName: 'Chủ thử', phone: '+84912345678',
+        sessionType: 'salon', roles: ['BUSINESS_OWNER'], permissions: ['business:create:self'],
+        scopes: [{ code: 'BUSINESS_OWNER', businessId: business.id }] } };
+      else if (pathname === '/api/v1/business/onboarding/mine') body = business;
+      else if (pathname === '/api/v1/business/onboarding/config') body = {
+        businessTypes: [{ code: 'SPA', label: 'Spa' }], requiredDocuments: [], requirePhoneVerification: false,
+        legalSubjects: [{ code: 'LEGACY_DEPENDENT_10', label: 'Đơn vị phụ thuộc mã số thuế chuyển tiếp', pattern: '^[0-9]{10}$', hint: '10 chữ số' },
+          { code: 'ORGANIZATION_10', label: 'Doanh nghiệp / tổ chức độc lập', pattern: '^[0-9]{10}$', hint: '10 chữ số' }],
+        representativeIdentityTypes: [] };
+      else if (pathname.endsWith('/onboarding')) body = { ...business, ...route.request().postDataJSON() };
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.goto('/salon/onboarding');
+    await expect(page.getByRole('heading', { name: 'Đăng ký BeautyBook Business' })).toBeVisible();
+    const checklist = page.getByLabel('Giấy tờ cần nộp');
+    await expect(checklist).toContainText('Tài liệu thuế');
+    await expect(checklist).toContainText('Chưa có tệp');
+    await expect(checklist).not.toContainText('không yêu cầu');
+    await page.locator('#onboarding-legalSubjectType').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`transitional-tax-${width}.png`) });
+    await page.locator('#onboarding-legalSubjectType').click();
+    await page.getByRole('option', { name: 'Doanh nghiệp / tổ chức độc lập', exact: true }).click();
+    await expect(checklist).not.toContainText('Tài liệu thuế');
+    await expect(checklist).toContainText('không yêu cầu');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(pageErrors).toEqual([]);
+  });
+}

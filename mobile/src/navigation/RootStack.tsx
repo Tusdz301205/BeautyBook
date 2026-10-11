@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 import RootTabs, { RootTabParamList } from './RootTabs';
-import OtpVerifyScreen from '../screens/OtpVerifyScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -20,7 +19,6 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<RootTabParamList> | undefined;
   Operations: undefined;
   UnsupportedWorkspace: undefined;
-  OtpVerify: { contact: string };
   Login: { returnTo?: AuthReturnTo } | undefined;
   Register: { returnTo?: AuthReturnTo } | undefined;
   ForgotPassword: undefined;
@@ -36,7 +34,6 @@ export default function RootStack() {
   return (
     <Stack.Navigator key={shell} screenOptions={{ headerShown: false }}>
       {shell === 'CUSTOMER' ? <Stack.Screen name="MainTabs" component={RootTabs} /> : shell === 'UNSUPPORTED' ? <Stack.Screen name="UnsupportedWorkspace" component={UnsupportedWorkspace} /> : <Stack.Screen name="Operations" component={OperationsNavigator} />}
-      <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

@@ -1,4 +1,4 @@
-import { colors } from '../constants/colors';
+import { bookingTone, tones, type Tone } from '../theme';
 import { BookingStatus, ConfirmedBooking } from '../context/BookingsContext';
 
 export type AppointmentStatus = BookingStatus;
@@ -19,32 +19,35 @@ export interface Appointment {
   imageUri: string;
 }
 
-export const STATUS_META: Record<AppointmentStatus, { label: string; color: string; background: string }> = {
-  upcoming: { label: 'Sắp tới', color: colors.reviewTag, background: '#E3F3FC' },
-  completed: { label: 'Hoàn thành', color: colors.ratingGreen, background: '#E7F7E9' },
-  cancelled: { label: 'Đã hủy', color: colors.discountRed, background: '#FBE2E6' },
+export interface StatusMeta { label: string; tone: Tone; icon: string; color: string; background: string }
+
+const meta = (label: string, tone: Tone, icon: string): StatusMeta => ({ label, tone, icon, color: tones[tone].fg, background: tones[tone].bg });
+
+export const STATUS_META: Record<AppointmentStatus, StatusMeta> = {
+  upcoming: meta('Sắp tới', 'info', 'calendar-outline'),
+  completed: meta('Hoàn thành', bookingTone.COMPLETED.tone, bookingTone.COMPLETED.icon),
+  cancelled: meta('Đã hủy', bookingTone.CANCELLED.tone, bookingTone.CANCELLED.icon),
 };
 
-export function bookingStatusMeta(status: AppointmentStatus, rawStatus?: string) {
-  switch (rawStatus) {
-    case 'PENDING':
-      return { label: 'Chờ cơ sở xác nhận', color: colors.reviewTag, background: '#E3F3FC' };
-    case 'CONFIRMED':
-      return { label: 'Đã xác nhận', color: colors.reviewTag, background: '#E3F3FC' };
-    case 'CHECKED_IN':
-      return { label: 'Đã đến cơ sở', color: colors.ratingGreen, background: '#E7F7E9' };
-    case 'IN_PROGRESS':
-      return { label: 'Đang thực hiện', color: colors.primary, background: colors.primaryLight };
-    case 'EXPIRED':
-      return { label: 'Hết hạn xác nhận', color: colors.textGray, background: colors.background };
-    case 'REJECTED':
-      return { label: 'Cơ sở từ chối', color: colors.discountRed, background: '#FBE2E6' };
-    case 'NO_SHOW':
-      return { label: 'Không đến', color: colors.discountRed, background: '#FBE2E6' };
-    default:
-      return STATUS_META[status];
-  }
+const RAW_LABELS: Record<string, string> = {
+  PENDING: 'Chờ cơ sở xác nhận',
+  CONFIRMED: 'Đã xác nhận',
+  CHECKED_IN: 'Đã đến cơ sở',
+  IN_PROGRESS: 'Đang thực hiện',
+  EXPIRED: 'Hết hạn xác nhận',
+  REJECTED: 'Cơ sở từ chối',
+  NO_SHOW: 'Không đến',
+};
+
+/** Every backend status keeps a distinct label; tone and icon repeat the meaning for non-colour readers. */
+export function bookingStatusMeta(status: AppointmentStatus, rawStatus?: string): StatusMeta {
+  const label = rawStatus ? RAW_LABELS[rawStatus] : undefined;
+  const look = rawStatus ? bookingTone[rawStatus] : undefined;
+  return label && look ? meta(label, look.tone, look.icon) : STATUS_META[status];
 }
+
+/** A past appointment the salon has not resolved is not completed and not a no-show. */
+export const OVERDUE_META: StatusMeta = meta('Quá giờ hẹn · chờ cập nhật', 'warning', 'alert-circle-outline');
 
 const WEEKDAY_FULL = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 

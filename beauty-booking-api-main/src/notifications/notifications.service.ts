@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { NotificationSeverity, NotificationType } from '@prisma/client';
+import { Prisma, type NotificationSeverity, type NotificationType } from '@prisma/client';
+import { foldNameSql, nameSearchPattern, normalizeNameSearch } from '../common/utils/name-search';
 
 @Injectable()
 export class NotificationsService {
@@ -23,6 +24,12 @@ export class NotificationsService {
   ) {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
+    if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new BadRequestException('Phân trang thông báo không hợp lệ.');
+    }
+    if (options?.state && !['all', 'unread', 'read'].includes(options.state)) {
+      throw new BadRequestException('Bộ lọc trạng thái không hợp lệ.');
+    }
     const skip = (page - 1) * limit;
 
     const where: any = { userId };
@@ -36,20 +43,28 @@ export class NotificationsService {
       'REVIEW_REMINDER', 'SALON_VIOLATION_ALERT',
     ];
     const severities: readonly string[] = ['INFO', 'SUCCESS', 'WARNING', 'CRITICAL'];
+    if (options?.type && !notificationTypes.includes(options.type)) throw new BadRequestException('Loại thông báo không hợp lệ.');
+    if (options?.severity && !severities.includes(options.severity)) throw new BadRequestException('Mức độ thông báo không hợp lệ.');
     if (options?.type && notificationTypes.includes(options.type)) where.type = options.type;
     if (options?.severity && severities.includes(options.severity)) where.severity = options.severity;
+    if (options?.search != null && typeof options.search !== 'string') throw new BadRequestException('Từ khóa tìm thông báo phải là văn bản.');
     const search = options?.search?.trim().slice(0, 120);
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { body: { contains: search, mode: 'insensitive' } },
-      ];
+    if (normalizeNameSearch(search)) {
+      const pattern = nameSearchPattern(search);
+      const matches = await this.prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT n.id FROM notifications n
+        WHERE n.user_id = ${userId} AND (
+          ${foldNameSql(Prisma.sql`n.title`)} LIKE ${pattern}
+          OR ${foldNameSql(Prisma.sql`COALESCE(n.body, '')`)} LIKE ${pattern}
+        )`);
+      // Never drop the account or exact filters, even when the lookup is empty.
+      where.id = { in: matches.map(row => row.id) };
     }
 
     const [notifications, total, unreadCount] = await Promise.all([
       this.prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take: limit,
         include: {
