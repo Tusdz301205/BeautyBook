@@ -8,13 +8,13 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootTabParamList } from '../navigation/RootTabs';
 import { HoatDongStackParamList } from '../navigation/HoatDongStack';
 import { TAB_BAR_CLEARANCE } from '../navigation/CustomTabBar';
-import { colors, layout, radius, space, type } from '../theme';
+import { colors, layout, radius, space, type, fw } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import { useAppointments } from '../hooks/useAppointments';
 import { Appointment, apptTimestamp, bookingStatusMeta, formatGroupHeader, getCountdownLabel, groupByDate, isPastUpcoming } from '../data/appointments';
 import AppointmentCard from '../components/AppointmentCard';
 import { useBookings } from '../context/BookingsContext';
-import { AppButton, EmptyState, LoadingState, Notice, ScreenHeader, Segmented, StatusPill } from '../ui';
+import { AppButton, BrandGradient, EmptyState, LoadingState, Notice, ScreenHeader, Segmented, StatusPill } from '../ui';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<HoatDongStackParamList, 'HoatDongMain'>,
@@ -71,13 +71,13 @@ export default function LichHenScreen({ navigation }: Props) {
   const empty = SUB_TAB_EMPTY[subTab];
   return (
     <View style={styles.screen}>
-      <ScreenHeader large title="Lịch hẹn" right={<AppButton compact variant="tonal" icon="calendar-number-outline" label="Theo lịch" accessibilityLabel="Xem lịch hẹn theo tháng" onPress={() => navigation.navigate('CalendarView')} />} />
+      <ScreenHeader brand title="Lịch hẹn" right={<AppButton compact variant="onDark" icon="calendar-number-outline" label="Theo lịch" accessibilityLabel="Xem lịch hẹn theo tháng" onPress={() => navigation.navigate('CalendarView')} />} />
       <Segmented style={styles.segment} value={subTab} onChange={setSubTab} options={[{ key: 'upcoming', label: 'Sắp tới' }, { key: 'history', label: 'Lịch sử' }]} />
 
       {isLoading && appointments.length === 0 ? <LoadingState message="Đang tải lịch hẹn…" /> : subAppointments.length === 0 ? (
         error
-          ? <EmptyState icon="cloud-offline-outline" title="Không tải được lịch hẹn" message={error} actionLabel="Thử lại" onAction={() => void reload()} />
-          : <EmptyState icon={empty.icon} title={empty.title} message={empty.subtitle} actionLabel={subTab === 'upcoming' ? 'Tìm dịch vụ' : undefined} onAction={() => navigation.navigate('TimKiem')} />
+          ? <EmptyState icon="cloud-offline-outline" tone="warning" title="Không tải được lịch hẹn" message={error} actionLabel="Thử lại" onAction={() => void reload()} />
+          : <EmptyState icon={empty.icon} tone={subTab === 'upcoming' ? 'request' : 'neutral'} title={empty.title} message={empty.subtitle} actionLabel={subTab === 'upcoming' ? 'Tìm dịch vụ' : undefined} onAction={() => navigation.navigate('TimKiem')} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -104,7 +104,7 @@ function HeroCard({ item, countdown, onPress, onDirections }: { item: Appointmen
   const meta = bookingStatusMeta(item.status, item.rawStatus);
   const active = ['CHECKED_IN', 'IN_PROGRESS'].includes(item.rawStatus || '');
   return (
-    <View style={styles.hero}>
+    <BrandGradient decor style={styles.hero}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${item.rawStatus === 'PENDING' ? 'Yêu cầu chờ xác nhận' : 'Lịch hẹn kế tiếp'}: ${item.comboTitle} tại ${item.shopName}, ${item.date} lúc ${item.time}, ${meta.label}. Xem chi tiết`} onPress={onPress} style={({ pressed }) => [styles.heroBody, pressed && styles.heroPressed]}>
         <View style={styles.heroHead}>
           <Text style={styles.heroEyebrow}>{item.rawStatus === 'PENDING' ? 'Yêu cầu chờ xác nhận' : 'Lịch hẹn kế tiếp'}</Text>
@@ -121,23 +121,23 @@ function HeroCard({ item, countdown, onPress, onDirections }: { item: Appointmen
         <AppButton compact variant="onDark" icon="navigate-outline" label="Chỉ đường" onPress={onDirections} style={styles.flex} />
         <AppButton compact variant="onDark" iconRight="chevron-forward" label="Chi tiết" onPress={onPress} style={styles.flex} />
       </View>
-    </View>
+    </BrandGradient>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
-  segment: { marginHorizontal: layout.gutter, marginBottom: space.sm },
+  segment: { marginHorizontal: layout.gutter, marginTop: space.lg, marginBottom: space.sm },
   content: { paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: TAB_BAR_CLEARANCE + space.lg },
   notice: { marginBottom: space.md },
-  hero: { backgroundColor: colors.secondary, borderRadius: radius.lg, marginBottom: space.xxl, overflow: 'hidden' },
+  hero: { borderRadius: radius.xl, marginBottom: space.xxl },
   heroBody: { padding: space.lg, gap: space.sm },
-  heroPressed: { backgroundColor: '#2E1A27' },
+  heroPressed: { backgroundColor: 'rgba(42,18,48,0.25)' },
   heroHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
-  heroEyebrow: { ...type.overline, color: colors.secondarySoft },
-  countdown: { ...type.caption, fontWeight: '700', color: colors.secondary, backgroundColor: colors.secondarySoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, overflow: 'hidden' },
-  heroTitle: { ...type.h2, color: colors.white },
+  heroEyebrow: { ...type.overline, color: colors.accentFill },
+  countdown: { ...type.caption, ...fw.bold, color: colors.secondary, backgroundColor: colors.secondarySoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, overflow: 'hidden' },
+  heroTitle: { ...type.h1, fontSize: 23, lineHeight: 31, color: colors.white },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   heroMeta: { ...type.secondary, color: colors.secondarySoft, flex: 1 },
   heroPrice: { ...type.price, color: colors.white, marginTop: space.xs },

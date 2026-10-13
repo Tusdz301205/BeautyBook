@@ -15,14 +15,14 @@ import { OwnerBookingDetail, OwnerImpactDetail, OwnerRequestDetail } from './Own
 export type OwnerTabParams = { TongQuan: undefined; VanHanh: undefined; ThongBao: undefined; TaiKhoan: undefined };
 export type OwnerStackParams = {
   OwnerHome: NavigatorScreenParams<OwnerTabParams> | undefined;
-  OwnerRequest: { id: string };
-  OwnerImpact: { id: string };
+  OwnerRequest: { id: string; fromNotification?: true };
+  OwnerImpact: { id: string; fromNotification?: true };
   OwnerBooking: { id: string; fromNotification?: true };
 };
 const Tab = createBottomTabNavigator<OwnerTabParams>(), Stack = createNativeStackNavigator<OwnerStackParams>();
 function Notifications() {
   const navigation = useNavigation<NativeStackNavigationProp<OwnerStackParams>>();
-  return <OperationsNotifications onOpenBooking={id => navigation.navigate('OwnerBooking', { id, fromNotification: true })} onOpenImpact={id => navigation.navigate('OwnerImpact', { id })} />;
+  return <OperationsNotifications onOpenBooking={id => navigation.navigate('OwnerBooking', { id, fromNotification: true })} onOpenImpact={id => navigation.navigate('OwnerImpact', { id, fromNotification: true })} />;
 }
 const TABS: TabConfig = {
   TongQuan: { label: 'Tổng quan', icon: 'grid-outline', activeIcon: 'grid' },

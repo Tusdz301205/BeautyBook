@@ -5,7 +5,7 @@ import { useOperations } from '../OperationsContext';
 import { OperationButton, OperationState } from '../OperationPrimitives';
 import { Body, Card, DesktopLink, Heading } from './OwnerUI';
 
-const stateLabels: Record<string, string> = { DRAFT: 'Hồ sơ nháp', PENDING: 'Đang chờ duyệt', PENDING_REVIEW: 'Đang chờ duyệt', NEED_MORE_INFO: 'Cần bổ sung thông tin', APPROVED: 'Đã được duyệt', REJECTED: 'Chưa được duyệt', SUSPENDED: 'Đang bị tạm ngưng', INACTIVE: 'Chưa hoạt động' };
+const stateLabels: Record<string, string> = { ACTIVE: 'Đang hoạt động', DRAFT: 'Hồ sơ nháp', PENDING: 'Đang chờ duyệt', PENDING_REVIEW: 'Đang chờ duyệt', NEED_MORE_INFO: 'Cần bổ sung thông tin', APPROVED: 'Đã được duyệt', REJECTED: 'Chưa được duyệt', SUSPENDED: 'Đang bị tạm ngưng', INACTIVE: 'Chưa hoạt động' };
 export default function OwnerSetupState() {
   const { user } = useAuth(); const operations = useOperations();
   const [attempt, setAttempt] = useState(0);
@@ -21,6 +21,7 @@ export default function OwnerSetupState() {
     return () => { alive = false; };
   }, [key, operations.businessId]);
   const visible = result?.key === key ? result : null;
-  if (operations.businessId && visible?.value?.status === 'APPROVED' && !visible.value.restricted) return null;
-  return <Card><Heading>Hồ sơ doanh nghiệp</Heading>{!visible ? <Body>Đang kiểm tra trạng thái hồ sơ…</Body> : visible.error ? <OperationState message="Chưa đọc được trạng thái hồ sơ từ máy chủ." onRetry={() => setAttempt(value => value + 1)} /> : visible.value ? <><Body>{visible.value.name}</Body><Body>{stateLabels[visible.value.status] || `Trạng thái: ${visible.value.status || 'Chưa có dữ liệu'}`}</Body>{visible.value.restricted && <Body>Doanh nghiệp đang bị hạn chế nhận lịch.</Body>}</> : <Body>Máy chủ chưa ghi nhận hồ sơ doanh nghiệp. Tiếp tục thiết lập trên phiên bản quản trị.</Body>}<DesktopLink /><OperationButton secondary label="Kiểm tra lại hồ sơ" onPress={() => setAttempt(value => value + 1)} /></Card>;
+  // The backend treats APPROVED and ACTIVE as operating businesses (see bookings.service); nothing to set up.
+  if (operations.businessId && ['APPROVED', 'ACTIVE'].includes(visible?.value?.status ?? '') && !visible?.value?.restricted) return null;
+  return <Card><Heading>Hồ sơ doanh nghiệp</Heading>{!visible ? <Body>Đang kiểm tra trạng thái hồ sơ…</Body> : visible.error ? <OperationState message="Chưa tải được trạng thái hồ sơ." onRetry={() => setAttempt(value => value + 1)} /> : visible.value ? <><Body>{visible.value.name}</Body><Body>{stateLabels[visible.value.status] || 'Trạng thái hồ sơ chưa xác định. Kiểm tra trên phiên bản quản trị.'}</Body>{visible.value.restricted && <Body>Doanh nghiệp đang bị hạn chế nhận lịch.</Body>}</> : <Body>Chưa có hồ sơ doanh nghiệp. Tiếp tục thiết lập trên phiên bản quản trị.</Body>}<DesktopLink /><OperationButton secondary label="Kiểm tra lại hồ sơ" onPress={() => setAttempt(value => value + 1)} /></Card>;
 }

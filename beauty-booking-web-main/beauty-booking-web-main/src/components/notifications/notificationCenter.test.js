@@ -170,6 +170,12 @@ test('staff list stays permission-sensitive; zone-only pages add no invented per
   }
 });
 
+test('historical ownership notification links cannot reopen retired product screens', () => {
+  assert.equal(allowedNotificationUrl('/salon/incoming-ownership', 'salon', () => true), '');
+  assert.equal(allowedNotificationUrl('/admin/ownership', 'platform', () => true), '');
+  assert.equal(allowedNotificationUrl('/admin/ownership?id=old-transfer', 'platform', () => true), '');
+});
+
 test('every allowlisted PermissionGate mirrors current App.jsx route permissions', () => {
   const source = readFileSync(new URL('../../App.jsx', import.meta.url), 'utf8');
   for (const [zone, prefix, start, end] of [

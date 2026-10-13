@@ -18,7 +18,7 @@ const FAQS = [
   { question: 'Vì sao lịch của tôi đang “Chờ cơ sở xác nhận”?', answer: 'Một số cơ sở cần xác nhận trước khi lịch có hiệu lực. Trạng thái sẽ cập nhật trong tab Lịch hẹn.' },
   {
     question: 'Ưu đãi áp dụng như thế nào?',
-    answer: 'Khuyến mãi tự động và mã voucher hợp lệ được hệ thống tính trong phần xem lại giá khi đặt lịch. Giá được kiểm tra lại khi bạn gửi.',
+    answer: 'Ưu đãi và mã giảm giá hợp lệ được áp dụng khi xem lại đặt lịch. Giá được kiểm tra lại khi bạn gửi.',
   },
   { question: 'Tôi muốn đăng ký cho doanh nghiệp của mình?', answer: 'Đăng ký và quản trị doanh nghiệp thực hiện trên phiên bản web BeautyBook. Ứng dụng này dành cho khách hàng, nhân viên và chủ doanh nghiệp đã được cấp tài khoản.' },
 ];

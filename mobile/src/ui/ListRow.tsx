@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, layout, radius, space, type } from '../theme';
+import { colors, layout, radius, space, type, fw } from '../theme';
 
 type Props = {
   label: string;
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
   divider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   icon: { width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, minWidth: 0 },
-  label: { ...type.bodyStrong, fontWeight: '500' },
+  label: { ...type.bodyStrong, ...fw.medium },
   detail: { ...type.secondary, marginTop: 2 },
   value: { ...type.secondary, maxWidth: '45%', textAlign: 'right' },
 });

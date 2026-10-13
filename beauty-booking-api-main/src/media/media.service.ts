@@ -16,6 +16,7 @@ import type { UploadMediaDto } from './dto/media.dto';
 import { auditLog } from '../common/utils/audit';
 import { canAccessStoredMedia } from './media-access';
 import { validateImageContent } from './image-content';
+import { validatePdfContent } from './pdf-content';
 
 type IncomingFile = { originalname: string; mimetype: string; size: number; buffer: Buffer };
 
@@ -65,7 +66,8 @@ export class MediaService {
 
     const scope = await this.resolveScope(user, input);
     // Decode only after authorization, before any file or DB write.
-    if (kind !== 'pdf') await validateImageContent(file.buffer);
+    if (kind === 'pdf') await validatePdfContent(file.buffer);
+    else await validateImageContent(file.buffer);
     const now = new Date();
     const storageKey = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${randomUUID()}${allowed.extension}`;
     const destination = this.safePath(storageKey);
@@ -216,7 +218,7 @@ export class MediaService {
       });
       if (!target) throw new NotFoundException('Tài khoản không tồn tại');
       if (input.businessId || input.branchId) {
-        throw new BadRequestException('Ảnh đại diện không mang scope của cơ sở');
+        throw new BadRequestException('Ảnh đại diện không cần thông tin doanh nghiệp hoặc chi nhánh.');
       }
       return { businessId: null, branchId: null };
     }

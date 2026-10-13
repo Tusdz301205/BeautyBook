@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { bookingTone, colors, layout, radius, space, tones, type, type Tone } from '../../theme';
+import { bookingTone, colors, layout, radius, space, tones, type, type Tone, fw } from '../../theme';
 import { useOperations } from '../OperationsContext';
 import { OperationButton, OperationState, BranchPicker } from '../OperationPrimitives';
 import { dateInZone } from '../../utils/operationSession';
@@ -55,15 +55,18 @@ export function BookingSummary({ booking }: { booking: OwnerBooking }) {
       <Ionicons accessible={false} name="time-outline" size={16} color={colors.secondaryText} />
       <Text style={styles.time}>{momentLabel(booking.start, booking.timezone)} – {momentLabel(booking.end, booking.timezone)}</Text>
     </View>
-    <Text style={styles.caption}>Ngày hẹn {booking.date} · múi giờ {booking.timezone}</Text>
+    <Text style={styles.caption}>Ngày hẹn {viDate(booking.date)} · {zoneLabel(booking.timezone)}</Text>
   </View>;
 }
 export function DesktopLink() {
   const url = operationsWebUrl();
   const [failed, setFailed] = useState(false);
-  return <View style={styles.group}>{url ? <OperationButton secondary icon="open-outline" label="Tiếp tục trên phiên bản quản trị" onPress={() => { setFailed(false); void Linking.openURL(url).catch(() => setFailed(true)); }} /> : <Meta>Chưa cấu hình địa chỉ phiên bản quản trị.</Meta>}{failed && <OperationState tone="error" message="Chưa mở được phiên bản quản trị. Vui lòng thử lại." />}</View>;
+  return <View style={styles.group}>{url ? <OperationButton secondary icon="open-outline" label="Tiếp tục trên phiên bản quản trị" onPress={() => { setFailed(false); void Linking.openURL(url).catch(() => setFailed(true)); }} /> : <Meta>Chưa mở được trang quản trị. Hãy liên hệ quản lý.</Meta>}{failed && <OperationState tone="error" message="Chưa mở được phiên bản quản trị. Vui lòng thử lại." />}</View>;
 }
-const viDate = (value: string) => validDate(value) ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}` : value;
+/** Branch calendar date (YYYY-MM-DD) shown the Vietnamese way; unknown shapes pass through. */
+export const viDate = (value: string) => validDate(value) ? `${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}` : value;
+/** Reader-friendly zone label; the IANA id is kept only for zones without a common name. */
+export const zoneLabel = (timezone: string) => timezone === 'Asia/Ho_Chi_Minh' ? 'giờ Việt Nam (GMT+7)' : `múi giờ ${timezone}`;
 /** Branch + date context in one compact row, so “what needs a decision” stays near the top. */
 export function OwnerFilters() {
   const operations = useOperations();
@@ -124,7 +127,7 @@ export const styles = StyleSheet.create({
   group: { gap: space.sm, marginBottom: space.md },
   list: { paddingHorizontal: layout.gutter, paddingBottom: space.xxxl },
   tag: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: 3 },
-  tagText: { ...type.caption, fontWeight: '600' },
+  tagText: { ...type.caption, ...fw.semibold },
   summary: { gap: space.xs },
   summaryHead: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.sm, justifyContent: 'space-between' },
   summaryName: { ...type.h3, flexShrink: 1 },

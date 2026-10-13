@@ -11,7 +11,7 @@ export default function SectionHeader({ title, subtitle, actionLabel, onAction, 
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
       {actionLabel && onAction ? (
-        <Pressable accessibilityRole="button" onPress={onAction} hitSlop={4} style={styles.action}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${actionLabel}: ${title}`} onPress={onAction} hitSlop={4} style={styles.action}>
           <Text style={styles.actionText}>{actionLabel}</Text>
           <Ionicons accessible={false} name="chevron-forward" size={16} color={colors.primary} />
         </Pressable>

@@ -170,7 +170,7 @@ export function AcceptInvitation() {
     }
   };
   return (
-    <AuthShell mode="invitation" eyebrow="Lời mời nhân viên" title="Hoàn tất tài khoản" description="Vai trò và phạm vi truy cập được lấy từ lời mời, không phải từ biểu mẫu này.">
+    <AuthShell mode="invitation" eyebrow="Lời mời nhân viên" title="Hoàn tất tài khoản" description="Bạn sẽ nhận quyền truy cập theo lời mời.">
       {!token ? <div className="bb-auth-alert" role="alert">Liên kết lời mời không hợp lệ hoặc thiếu token.</div> : loadingContext ? (
         <div className="bb-auth-loading" role="status">Đang kiểm tra lời mời…</div>
       ) : done ? (

@@ -15,7 +15,7 @@ type Props = {
 };
 
 export default function Chip({ label, selected, onPress, onRemove, icon, accessibilityLabel, disabled, role = 'button' }: Props) {
-  const fg = disabled ? colors.disabledText : selected ? colors.onSecondary : colors.heading;
+  const fg = disabled ? colors.disabledText : selected ? colors.onPrimary : colors.heading;
   return (
     <View style={[styles.chip, selected ? styles.selected : styles.idle, disabled && styles.disabled]}>
       <Pressable
@@ -41,7 +41,7 @@ export default function Chip({ label, selected, onPress, onRemove, icon, accessi
 const styles = StyleSheet.create({
   chip: { minHeight: 40, borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
   idle: { backgroundColor: colors.surface, borderColor: colors.borderStrong },
-  selected: { backgroundColor: colors.secondary, borderColor: colors.secondary },
+  selected: { backgroundColor: colors.primary, borderColor: colors.primary },
   disabled: { backgroundColor: colors.disabledSurface, borderColor: colors.disabledSurface },
   main: { minHeight: layout.touch - 8, flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, paddingHorizontal: space.md + 2, paddingVertical: space.xs },
   label: { ...type.secondaryStrong },

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { HomeStackParamList } from '../navigation/HomeStack';
-import { colors, elevation, layout, radius, space, type } from '../theme';
+import { colors, elevation, layout, radius, space, type, fw } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import ComboCard from '../components/home/ComboCard';
 import BannerCarousel from '../components/home/BannerCarousel';
@@ -127,14 +127,14 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: space.sm, marginTop: space.xs },
   price: { ...type.numeric, fontSize: 24, color: colors.primary },
   original: { ...type.secondary, textDecorationLine: 'line-through' },
-  badge: { ...type.caption, fontWeight: '700', color: colors.accent, backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, overflow: 'hidden' },
+  badge: { ...type.caption, ...fw.bold, color: colors.accent, backgroundColor: colors.accentSoft, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, overflow: 'hidden' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, marginTop: space.xs },
   meta: { ...type.secondary, flex: 1 },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: space.lg, marginTop: space.md, gap: space.sm },
   sectionTitle: { ...type.h3 },
   gutter: { marginHorizontal: layout.gutter },
   stepRow: { flexDirection: 'row', gap: space.md, alignItems: 'flex-start' },
-  stepIndex: { width: 24, height: 24, borderRadius: 12, textAlign: 'center', ...type.caption, lineHeight: 24, fontWeight: '700', color: colors.secondary, backgroundColor: colors.secondarySoft, overflow: 'hidden' },
+  stepIndex: { width: 24, height: 24, borderRadius: 12, textAlign: 'center', ...type.caption, lineHeight: 24, ...fw.bold, color: colors.secondary, backgroundColor: colors.secondarySoft, overflow: 'hidden' },
   stepText: { ...type.body, flex: 1 },
   termRow: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   termText: { ...type.body, flex: 1 },

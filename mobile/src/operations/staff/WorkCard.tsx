@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, layout, radius, space, tones, type, type Tone } from '../../theme';
+import { colors, layout, radius, space, tones, type, type Tone, fw } from '../../theme';
 import { useOperationalTime } from '../../hooks/useOperationalTime';
 import { operationalTimeLabel } from '../../utils/bookingOperationalTime';
 import { OperationButton } from '../OperationPrimitives';
@@ -110,10 +110,10 @@ const styles = StyleSheet.create({
   active: { borderColor: '#E3C3D2', borderLeftWidth: 4, borderLeftColor: colors.primary, backgroundColor: colors.primarySoft },
   customer: { ...type.h2 },
   primaryCustomer: { ...type.display },
-  service: { ...type.body, color: colors.body, fontWeight: '500' },
+  service: { ...type.body, color: colors.body, ...fw.medium },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   state: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', flexShrink: 1, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: space.xs },
-  stateLabel: { ...type.caption, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  stateLabel: { ...type.caption, fontSize: 13, ...fw.semibold, flexShrink: 1 },
   warning: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs + 2, alignSelf: 'flex-start', borderRadius: radius.sm, backgroundColor: tones.warning.bg, paddingHorizontal: space.sm, paddingVertical: space.xs },
   warningText: { ...type.secondaryStrong, color: tones.warning.fg, flexShrink: 1 },
   planned: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: space.xs + 2 },
@@ -121,11 +121,11 @@ const styles = StyleSheet.create({
   meta: { ...type.secondary, flexShrink: 1 },
   elapsed: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 },
   timing: { ...type.clock, fontSize: 17, color: colors.primary },
-  timingUnknown: { color: colors.secondaryText, fontWeight: '500' },
+  timingUnknown: { color: colors.secondaryText, ...fw.medium },
   open: { minHeight: layout.touch, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: space.xs, borderRadius: radius.sm, paddingRight: space.sm },
   link: { ...type.secondaryStrong, color: colors.primary },
   row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, paddingHorizontal: space.md, marginBottom: space.sm, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  timeColumn: { width: 56, flexShrink: 0, alignSelf: 'flex-start', paddingTop: 2 },
+  timeColumn: { minWidth: 56, flexShrink: 0, alignSelf: 'flex-start', paddingTop: 2 },
   clock: { ...type.clock },
   clockMuted: { ...type.clock, color: colors.secondaryText },
   rowContent: { flex: 1, gap: space.xs },

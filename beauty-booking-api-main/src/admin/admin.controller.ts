@@ -1,8 +1,7 @@
-import { Body, Controller, Get, Patch, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { TrustSnapshotService } from './trust-snapshot.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -20,7 +19,6 @@ import { businessTypeLabel } from '../business/business-onboarding.service';
  */
 @Controller('admin')
 @UseGuards(RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class AdminController {
   constructor(
     private readonly trustSnapshotService: TrustSnapshotService,

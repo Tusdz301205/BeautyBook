@@ -8,7 +8,6 @@ import {
   Body,
   Query,
   UseGuards,
-  UseInterceptors,
   BadRequestException,
 } from '@nestjs/common';
 import { VouchersAdminService } from './vouchers-admin.service';
@@ -16,7 +15,6 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { AuditAction } from '@prisma/client';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -26,7 +24,6 @@ import { CreateVoucherDto, UpdateVoucherDto } from './dto/campaign.dto';
 
 @Controller('vouchers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class VouchersController {
   constructor(private readonly vouchersService: VouchersAdminService) {}
 
@@ -65,7 +62,7 @@ export class VouchersController {
       throw new BadRequestException('code, name, discountType, totalQuantity là bắt buộc');
     }
     if (!isPlatformRole(user) && !body.businessId) {
-      throw new BadRequestException('Tenant voucher phải có businessId');
+      throw new BadRequestException('Chọn doanh nghiệp phát hành voucher.');
     }
     return this.vouchersService.create(
       body,

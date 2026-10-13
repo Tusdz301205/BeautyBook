@@ -6,6 +6,7 @@ import { authApi } from '../api/auth';
 import AuthField from '../components/AuthField';
 import AuthResult from '../components/AuthResult';
 import AuthScreenLayout from '../components/AuthScreenLayout';
+import { editorial } from '../components/editorialArt';
 import { space } from '../theme';
 import { AppButton, Notice } from '../ui';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -39,7 +40,7 @@ export default function ResetPasswordScreen({ navigation, route }: Props) {
   };
 
   return (
-    <AuthScreenLayout title="Đặt lại mật khẩu" subtitle="Tạo mật khẩu mới để tiếp tục sử dụng tài khoản BeautyBook." onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}>
+    <AuthScreenLayout image={editorial.authRecovery} title="Đặt lại mật khẩu" onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}>
       {completed ? (
         <AuthResult icon="checkmark" title="Đổi mật khẩu thành công" message="Các phiên cũ đã được thu hồi. Hãy đăng nhập lại bằng mật khẩu mới." actionLabel="Đăng nhập" onAction={() => navigation.replace('Login')} />
       ) : (

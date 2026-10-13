@@ -21,10 +21,10 @@ type Props = {
 
 const palette: Record<ButtonVariant, { bg: string; pressed: string; fg: string; border?: string }> = {
   primary: { bg: colors.primary, pressed: colors.primaryPressed, fg: colors.onPrimary },
-  tonal: { bg: colors.primarySoft, pressed: '#EED6E2', fg: colors.primary },
+  tonal: { bg: colors.primarySoft, pressed: '#F7CFDD', fg: colors.primary },
   outline: { bg: colors.surface, pressed: colors.surfacePressed, fg: colors.primary, border: colors.primary },
   ghost: { bg: 'transparent', pressed: colors.surfacePressed, fg: colors.primary },
-  danger: { bg: colors.error, pressed: '#82211B', fg: colors.white },
+  danger: { bg: colors.error, pressed: '#861D15', fg: colors.white },
   dangerOutline: { bg: colors.surface, pressed: colors.errorSoft, fg: colors.error, border: colors.error },
   onDark: { bg: colors.white, pressed: colors.secondarySoft, fg: colors.secondary },
 };

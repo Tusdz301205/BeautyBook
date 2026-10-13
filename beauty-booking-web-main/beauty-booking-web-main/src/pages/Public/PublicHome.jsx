@@ -38,18 +38,18 @@ const emptyFilters = Object.freeze({
 
 const bookingSteps = [
   ['01', 'Chọn cơ sở và dịch vụ', 'So sánh thông tin, mức giá và những dịch vụ đang nhận lịch.'],
-  ['02', 'Chọn chuyên viên và giờ', 'Hệ thống kiểm tra giờ mở cửa, năng lực dịch vụ và các lịch đã giữ chỗ.'],
+  ['02', 'Chọn chuyên viên và giờ', 'Chọn chuyên viên và khung giờ còn trống phù hợp với bạn.'],
   ['03', 'Xác nhận thông tin', 'Kiểm tra lại chi tiết trước khi gửi yêu cầu đặt lịch.'],
   ['04', 'Theo dõi lịch hẹn', 'Đăng nhập để xem trạng thái và quản lý các lịch hẹn của riêng bạn.'],
 ];
 
 const benefits = [
-  [BadgeCheck, 'Cơ sở đủ điều kiện nhận lịch', 'Danh sách công khai chỉ trả về chi nhánh đang hoạt động, có dịch vụ và nhân viên khả dụng.'],
-  [Search, 'Tìm theo nhu cầu thật', 'Lọc theo tên cơ sở, dịch vụ, nhóm dịch vụ, khu vực và khoảng giá.'],
+  [BadgeCheck, 'Cơ sở đủ điều kiện nhận lịch', 'Khám phá các cơ sở đang nhận lịch với dịch vụ phù hợp.'],
+  [Search, 'Tìm theo nhu cầu', 'Lọc theo tên cơ sở, dịch vụ, nhóm dịch vụ, khu vực và khoảng giá.'],
   [Clock3, 'Kiểm tra lịch trước khi xác nhận', 'Giờ trống được xác định sau khi bạn chọn dịch vụ và chuyên viên.'],
   [ShieldCheck, 'Đánh giá đã kiểm duyệt', 'Điểm đánh giá trên thẻ cơ sở chỉ tổng hợp từ các đánh giá đã được duyệt.'],
-  [UserRoundCheck, 'Chọn người thực hiện', 'Luồng đặt lịch cho phép chọn chuyên viên phù hợp với dịch vụ đã chọn.'],
-  [CalendarCheck, 'Một luồng đặt lịch xuyên suốt', 'Lựa chọn của bạn được giữ xuyên suốt các bước cho tới màn hình xác nhận.'],
+  [UserRoundCheck, 'Chọn người thực hiện', 'Chọn chuyên viên phù hợp với dịch vụ bạn cần.'],
+  [CalendarCheck, 'Đặt lịch từng bước', 'Xem lại cơ sở, dịch vụ và thời gian trước khi xác nhận.'],
 ];
 
 function asList(response) {
@@ -217,7 +217,7 @@ function CategorySection({ categories, loading, error, retry }) {
       <SectionHeading
         kicker="Tìm theo nhu cầu"
         title="Bắt đầu từ dịch vụ bạn muốn"
-        description="Các nhóm bên dưới được tải trực tiếp từ danh mục dịch vụ đang có trong hệ thống."
+
         action={<Link className="bb-home-text-link" to="/explore">Xem tất cả <ArrowRight size={16} /></Link>}
       />
       {loading ? <LoadingTiles count={4} className="bb-home-category-grid" /> : error ? (
@@ -311,7 +311,7 @@ function EstablishmentSection({ branches, loading, error, retry }) {
       <SectionHeading
         kicker="Cơ sở nổi bật"
         title="Khám phá địa điểm làm đẹp phù hợp với bạn"
-        description="Các cơ sở bên dưới đã được duyệt, đang hoạt động và đủ điều kiện nhận lịch trong dữ liệu công khai hiện tại."
+
         action={<Link className="bb-home-text-link" to="/explore">Xem tất cả cơ sở <ArrowRight size={16} /></Link>}
       />
       {loading ? (
@@ -382,8 +382,8 @@ function SalonSection({ branches, loading, error, retry, exploreMode = false, ki
         kicker={kicker || (exploreMode ? 'Kết quả theo dịch vụ' : 'Dịch vụ được quan tâm trên BeautyBook')}
         title={title || (exploreMode ? 'Dịch vụ phù hợp với nhu cầu của bạn' : 'Bắt đầu từ điều bạn muốn làm')}
         description={description || (exploreMode
-          ? (loading ? 'Đang tìm trong các dịch vụ thực sự có thể đặt.' : `${branches.length} lựa chọn dịch vụ phù hợp trong dữ liệu hiện tại.`)
-          : 'Mỗi kết quả là một dịch vụ có giá, thời lượng, chi nhánh và nhân sự đang nhận lịch.')}
+          ? (loading ? 'Đang tìm dịch vụ…' : `${branches.length} kết quả`)
+          : undefined)}
         action={!exploreMode ? <Link className="bb-home-text-link" to="/explore">Khám phá thêm <ArrowRight size={16} /></Link> : null}
       />
       {loading ? <LoadingTiles count={exploreMode ? 6 : 3} className="bb-home-salon-grid" /> : error ? (
@@ -409,8 +409,8 @@ function AvailabilitySection() {
     <section className="bb-home-availability">
       <div className="bb-home-availability__copy">
         <p className="bb-home-kicker">Lịch phù hợp với bạn</p>
-        <h2>Giờ trống chỉ xuất hiện sau những lựa chọn đúng.</h2>
-        <p>BeautyBook kiểm tra giờ mở cửa và xung đột lịch sau khi bạn chọn cơ sở, dịch vụ và chuyên viên. Vì vậy trang chủ không hiển thị giờ trống ước lượng.</p>
+        <h2>Chọn dịch vụ, tìm giờ phù hợp.</h2>
+        <p>Chọn cơ sở, dịch vụ và chuyên viên để xem giờ còn trống.</p>
         <Link className="bb-home-text-link" to="/explore">Chọn cơ sở trước <ArrowRight size={16} /></Link>
       </div>
       <HomeMedia
@@ -429,7 +429,7 @@ function HowItWorks() {
       <SectionHeading
         kicker="Một hành trình rõ ràng"
         title="Từ ý định đến lịch hẹn, trong bốn nhịp"
-        description="Mỗi bước dẫn tới đúng màn hình trong quy trình đặt lịch hiện có."
+
       />
       <ol className="bb-home-process__list">
         {bookingSteps.map(([number, title, text]) => (
@@ -449,7 +449,7 @@ function BenefitsSection() {
       <SectionHeading
         kicker="Đặt lịch với sự an tâm"
         title="Thông tin vừa đủ để bạn quyết định"
-        description="Không thêm con số quảng cáo; chỉ trình bày những gì hệ thống đang thực sự kiểm tra và hỗ trợ."
+
       />
       <div className="bb-home-benefits__grid">
         {benefits.map(([Icon, title, text], index) => (
@@ -614,7 +614,7 @@ export default function PublicHome({ exploreMode = false }) {
             <div className="bb-home-boundary">
               <p className="bb-home-kicker">BeautyBook Explore</p>
               <h1>Tìm đúng dịch vụ, rồi chọn nơi phù hợp.</h1>
-              <p>Kết quả chỉ gồm dịch vụ tại chi nhánh đã được duyệt, đang hoạt động và có chuyên viên nhận lịch.</p>
+
             </div>
           </section>
           <div className="bb-home-boundary bb-explore-search-wrap">
@@ -643,7 +643,6 @@ export default function PublicHome({ exploreMode = false }) {
                 <Link className="bb-home-button bb-home-button--primary" to="/explore">Khám phá dịch vụ <ArrowRight size={16} /></Link>
                 <Link className="bb-home-text-link" to="/book">Bắt đầu đặt lịch</Link>
               </div>
-              <p className="bb-home-hero__note"><ShieldCheck size={16} aria-hidden="true" /> Chỉ hiển thị cơ sở đang đủ điều kiện nhận đặt lịch.</p>
             </div>
             <div className="bb-home-hero__visual">
               <HomeMedia
@@ -662,7 +661,7 @@ export default function PublicHome({ exploreMode = false }) {
           <CategorySection categories={categories} loading={categoriesLoading} error={categoriesError} retry={loadCategories} />
           <EstablishmentSection branches={establishments} loading={establishmentsLoading} error={establishmentsError} retry={loadEstablishments} />
           <SalonSection branches={branches} loading={branchesLoading} error={branchesError} retry={loadBranches} savedIds={savedIds} onToggleSaved={toggleSaved} />
-          <SalonSection branches={newBranches} loading={newBranchesLoading} error={newBranchesError} retry={loadNewBranches} kicker="Thêm lựa chọn" title="Dịch vụ cho lần hẹn tiếp theo" description="Các lựa chọn khác đang đủ điều kiện nhận lịch trong dữ liệu công khai hiện tại." savedIds={savedIds} onToggleSaved={toggleSaved} />
+          <SalonSection branches={newBranches} loading={newBranchesLoading} error={newBranchesError} retry={loadNewBranches} kicker="Thêm lựa chọn" title="Dịch vụ cho lần hẹn tiếp theo" savedIds={savedIds} onToggleSaved={toggleSaved} />
           <AvailabilitySection />
           <HowItWorks />
           <BenefitsSection />

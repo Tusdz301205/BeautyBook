@@ -29,7 +29,9 @@ export default function OperationsAccount() {
   }, [key, revision, mode, canWorkAsStaff, branchId, date]);
   const visibleWork = work?.key === key ? work : null;
   const web = operationsWebUrl();
-  const roleLabel = mode === 'OWNER' ? 'Chủ doanh nghiệp' : staffProfile?.professionalTitle || 'Nhân viên';
+  // A profile title that is only a system role code (e.g. "STAFF") is not shown to people.
+  const title = staffProfile?.professionalTitle?.trim();
+  const roleLabel = mode === 'OWNER' ? 'Chủ doanh nghiệp' : title && !/^[A-Z_]+$/.test(title) ? title : 'Nhân viên';
   const branchLabel = branches.find(branch => branch.id === branchId)?.name || 'Tất cả chi nhánh có quyền';
   return <OperationPage title="Tài khoản">
     <ScrollView contentContainerStyle={styles.content}>
@@ -58,16 +60,15 @@ export default function OperationsAccount() {
             : visibleWork.error ? <OperationState tone="warning" message="Chưa tải được công việc. Vui lòng trở lại Hôm nay để thử lại." />
               : visibleWork.names.length ? visibleWork.names.map(name => <Text key={name} style={styles.bullet}>• {name}</Text>)
                 : <Text style={styles.text}>Chưa có dịch vụ được giao trong ngày đã chọn.</Text>}
-        <Text style={styles.note}>Theo lịch được giao, không phải danh mục chuyên môn hoặc toàn bộ dịch vụ của cơ sở.</Text>
       </View>}
 
       <View style={styles.card}>
         <Text accessibilityRole="header" style={styles.cardTitle}>Phiên bản quản trị web</Text>
         <Text style={styles.text}>Thiết lập, tài chính và ngoại lệ phức tạp được xử lý trên web.</Text>
-        {web ? <OperationButton label="Mở phiên bản quản trị web" icon="open-outline" secondary onPress={() => void Linking.openURL(web)} /> : <Text style={styles.note}>Chưa cấu hình địa chỉ phiên bản quản trị web.</Text>}
+        {web ? <OperationButton label="Mở phiên bản quản trị web" icon="open-outline" secondary onPress={() => void Linking.openURL(web)} /> : <Text style={styles.note}>Chưa mở được trang quản trị web. Hãy liên hệ quản lý.</Text>}
       </View>
 
-      <Text style={styles.note}>Đổi doanh nghiệp cần đăng nhập lại để máy chủ cấp đúng phiên làm việc. Tài khoản vận hành không dùng để đặt lịch cá nhân.</Text>
+      <Text style={styles.note}>Đăng xuất rồi đăng nhập lại để đổi doanh nghiệp. Đặt lịch cá nhân bằng tài khoản khách hàng.</Text>
       <OperationButton label="Đổi doanh nghiệp / đăng xuất" icon="log-out-outline" secondary danger onPress={() => void logout()} />
     </ScrollView>
   </OperationPage>;

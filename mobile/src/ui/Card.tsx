@@ -25,7 +25,7 @@ export default function Card({ children, onPress, tone = 'surface', padded = tru
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
-      style={({ pressed }) => [...base, pressed && { backgroundColor: tone === 'plum' ? '#2E1A27' : tone === 'surface' ? colors.surfacePressed : colors.secondarySoft }, style]}
+      style={({ pressed }) => [...base, pressed && { backgroundColor: tone === 'plum' ? '#2B0E35' : tone === 'surface' ? colors.surfacePressed : colors.secondarySoft }, style]}
     >
       {children}
     </Pressable>

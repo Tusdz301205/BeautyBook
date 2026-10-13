@@ -133,8 +133,56 @@ export class BranchesService {
       where.id = { in: matched.map((row) => row.id) };
     }
 
+    let pageBranchIds: string[] | undefined;
+    let ratingByBranch: Map<string, number> | undefined;
+    if (sort === 'rating' || sort === 'price_asc' || sort === 'price_desc' || sort === 'popular') {
+      // Prisma cannot order a branch by its filtered service min/max or review
+      // average. Keep the exact eligibility predicate, fetch only candidate IDs,
+      // and aggregate in the DB before slicing. This is O(C) lightweight rows
+      // and O(C log C) sorting, with no candidate cap or off-page card hydration.
+      const candidates = await this.prisma.branch.findMany({ where, select: { id: true } });
+      const candidateIds = candidates.map(branch => branch.id);
+      if (!candidateIds.length) return [];
+      const metricByBranch = new Map<string, number>();
+      if (sort === 'rating') {
+        ratingByBranch = await this.listingRatings(candidateIds);
+        // Match the existing displayed rating precision and zero default.
+        for (const [id, rating] of ratingByBranch) metricByBranch.set(id, Math.round(rating * 10) / 10);
+      } else if (sort === 'popular') {
+        const counts = await this.prisma.booking.groupBy({
+          by: ['branchId'],
+          where: { branchId: { in: candidateIds }, deletedAt: null },
+          _count: { _all: true },
+        });
+        // Use the same nondeleted booking count as the marketplace projection.
+        for (const row of counts) metricByBranch.set(row.branchId, row._count._all);
+      } else {
+        const prices = await this.prisma.branchServiceOffering.groupBy({
+          by: ['branchId'],
+          where: { ...matchedServiceWhere, branchId: { in: candidateIds } },
+          _min: { price: true },
+          _max: { price: true },
+        });
+        for (const row of prices) {
+          const price = sort === 'price_asc' ? row._min.price : row._max.price;
+          if (price !== null) metricByBranch.set(row.branchId, Number(price));
+        }
+      }
+      const isPrice = sort === 'price_asc' || sort === 'price_desc';
+      candidateIds.sort((left, right) => {
+        const a = metricByBranch.get(left) ?? (isPrice ? null : 0);
+        const b = metricByBranch.get(right) ?? (isPrice ? null : 0);
+        // Empty matched prices stay null and sort last in both directions.
+        const difference = a === null ? (b === null ? 0 : 1)
+          : b === null ? -1 : sort === 'price_asc' ? a - b : b - a;
+        return difference || (left < right ? -1 : left > right ? 1 : 0);
+      });
+      pageBranchIds = candidateIds.slice((page - 1) * limit, page * limit);
+      if (!pageBranchIds.length) return [];
+    }
+
     const branches = await this.prisma.branch.findMany({
-      where,
+      where: pageBranchIds ? { ...where, AND: [{ id: { in: pageBranchIds } }] } : where,
       include: {
         business: { select: { id: true, name: true, status: true, description: true } },
         district: {
@@ -166,29 +214,18 @@ export class BranchesService {
           },
         },
       },
-      orderBy: sort === 'popular' ? { bookings: { _count: 'desc' } } : { createdAt: 'desc' },
-      skip: (page - 1) * limit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      skip: pageBranchIds ? undefined : (page - 1) * limit,
       take: limit,
     });
 
-    // Aggregate only the current page in PostgreSQL. Never hydrate all
-    // bookings/reviews merely to calculate marketplace cards.
-    const branchIds = branches.map((branch) => branch.id);
-    const ratingRows = branchIds.length
-      ? await this.prisma.$queryRaw<Array<{ branchId: string; rating: unknown }>>(Prisma.sql`
-          SELECT b.branch_id AS "branchId", AVG(r.overall_rating)::numeric(4,2) AS rating
-          FROM bookings b
-          JOIN reviews r ON r.booking_id = b.id
-          WHERE b.branch_id IN (${Prisma.join(branchIds)})
-            AND b.deleted_at IS NULL
-            AND r.deleted_at IS NULL
-            AND r.status = 'APPROVED'
-          GROUP BY b.branch_id
-        `)
-      : [];
-    const ratingByBranch = new Map(
-      ratingRows.map((row) => [row.branchId, Number(row.rating) || 0]),
-    );
+    if (pageBranchIds) {
+      const position = new Map(pageBranchIds.map((id, index) => [id, index]));
+      branches.sort((left, right) => position.get(left.id)! - position.get(right.id)!);
+    }
+    // Reuse the candidate aggregate for rating sort; all other sorts aggregate
+    // ratings only for the final page. Bookings/reviews are never hydrated.
+    const pageRatings = ratingByBranch ?? await this.listingRatings(branches.map(branch => branch.id));
 
     const result = branches.map((b) => ({
       id: b.id,
@@ -201,7 +238,7 @@ export class BranchesService {
       categoryServiceCount: b._count.services,
       district: `${b.district?.name || ''}, ${b.district?.province?.name || ''}`,
       districtId: b.districtId,
-      rating: Math.round((ratingByBranch.get(b.id) ?? 0) * 10) / 10,
+      rating: Math.round((pageRatings.get(b.id) ?? 0) * 10) / 10,
       services: b._count.services,
       bookings: b._count.bookings,
       minPrice: b.services.length ? Math.min(...b.services.map((service) => Number(service.price))) : null,
@@ -221,10 +258,23 @@ export class BranchesService {
         })),
       status: b.status,
     }));
-    if (sort === 'rating') return result.sort((a, b) => b.rating - a.rating);
-    if (sort === 'price_asc') return result.sort((a, b) => (a.minPrice ?? Infinity) - (b.minPrice ?? Infinity));
-    if (sort === 'price_desc') return result.sort((a, b) => (b.maxPrice ?? -1) - (a.maxPrice ?? -1));
     return result;
+  }
+
+  private async listingRatings(branchIds: string[]) {
+    const rows = branchIds.length
+      ? await this.prisma.$queryRaw<Array<{ branchId: string; rating: unknown }>>(Prisma.sql`
+          SELECT b.branch_id AS "branchId", AVG(r.overall_rating)::numeric(4,2) AS rating
+          FROM bookings b
+          JOIN reviews r ON r.booking_id = b.id
+          WHERE b.branch_id IN (${Prisma.join(branchIds)})
+            AND b.deleted_at IS NULL
+            AND r.deleted_at IS NULL
+            AND r.status = 'APPROVED'
+          GROUP BY b.branch_id
+        `)
+      : [];
+    return new Map(rows.map(row => [row.branchId, Number(row.rating) || 0]));
   }
 
   async findAccessible(user: AuthUser) {

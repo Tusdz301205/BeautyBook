@@ -135,7 +135,7 @@ function Directory() {
   };
 
   return <div className="space-y-5">
-    <PageHeader eyebrow="Đối tác BeautyBook" title="Doanh nghiệp & chi nhánh" description="Theo dõi pháp nhân trước, sau đó đi sâu vào từng địa điểm vận hành." />
+    <PageHeader eyebrow="Đối tác BeautyBook" title="Doanh nghiệp & chi nhánh" />
     <div className="inline-flex rounded-xl border border-[var(--bb-border)] bg-white p-1" role="tablist" aria-label="Loại hồ sơ">
       <button type="button" role="tab" aria-selected={entity === 'business'} onClick={() => changeEntity('business')} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold ${entity === 'business' ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}><Building2 size={16} />Doanh nghiệp</button>
       <button type="button" role="tab" aria-selected={entity === 'branch'} onClick={() => changeEntity('branch')} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold ${entity === 'branch' ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}><Store size={16} />Chi nhánh</button>

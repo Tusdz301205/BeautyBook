@@ -5,7 +5,7 @@ import { colors, type } from '../theme';
 export const stackScreenOptions: NativeStackNavigationOptions = {
   headerTintColor: colors.heading,
   headerStyle: { backgroundColor: colors.background },
-  headerTitleStyle: { fontSize: type.h3.fontSize, fontWeight: type.h3.fontWeight, color: colors.heading },
+  headerTitleStyle: { fontSize: type.h3.fontSize, fontFamily: type.h3.fontFamily, color: colors.heading },
   headerShadowVisible: false,
   headerBackButtonDisplayMode: 'minimal',
   contentStyle: { backgroundColor: colors.background },

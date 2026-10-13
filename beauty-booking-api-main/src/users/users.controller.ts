@@ -8,7 +8,6 @@ import {
   Delete,
   Body,
   UseGuards,
-  UseInterceptors,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
@@ -16,7 +15,6 @@ import { UsersService } from './users.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -28,7 +26,6 @@ import { SuspendUserDto } from './dto/suspend-user.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 

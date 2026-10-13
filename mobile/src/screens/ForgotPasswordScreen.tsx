@@ -6,6 +6,7 @@ import { authApi } from '../api/auth';
 import AuthField from '../components/AuthField';
 import AuthResult from '../components/AuthResult';
 import AuthScreenLayout from '../components/AuthScreenLayout';
+import { editorial } from '../components/editorialArt';
 import { space } from '../theme';
 import { AppButton, Notice } from '../ui';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -37,7 +38,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   };
 
   return (
-    <AuthScreenLayout title="Quên mật khẩu" subtitle="Nhập email đã đăng ký. BeautyBook sẽ gửi liên kết đặt lại mật khẩu nếu tài khoản tồn tại." onBack={() => navigation.goBack()}>
+    <AuthScreenLayout image={editorial.authRecovery} title="Quên mật khẩu" subtitle="Nhập email đã đăng ký. BeautyBook sẽ gửi liên kết đặt lại mật khẩu nếu tài khoản tồn tại." onBack={() => navigation.goBack()}>
       {sent ? (
         <AuthResult icon="mail-open-outline" title="Kiểm tra hộp thư của bạn" message="Yêu cầu đã được tiếp nhận. Liên kết đặt lại mật khẩu có hiệu lực trong 30 phút." actionLabel="Về trang đăng nhập" onAction={() => navigation.navigate('Login')} />
       ) : (

@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useNotificationRequests } from '../hooks/useNotificationRequests';
 import type { ApiNotification } from '../api/notifications';
-import { colors, layout, radius, space, type } from '../theme';
+import { colors, layout, radius, space, type, fw } from '../theme';
 import { operationNotificationTarget } from '../utils/operationNotifications';
 import { useOperations } from './OperationsContext';
 import { OperationButton, OperationPage, OperationState } from './OperationPrimitives';
@@ -22,7 +22,7 @@ export default function OperationsNotifications({ onOpenBooking, onOpenImpact }:
     else Alert.alert(notification.title, notification.body || 'Thông báo này không có thao tác trên mobile.');
   }, () => setMarkError({ requests, message: 'Chưa đánh dấu được thông báo. Bạn có thể thử lại.' }));
 
-  return <OperationPage title="Thông báo" subtitle={data ? `${data.unreadCount} chưa đọc · theo tài khoản, không lọc theo chi nhánh` : 'Theo tài khoản, không lọc theo chi nhánh'}>
+  return <OperationPage title="Thông báo" subtitle={data ? `${data.unreadCount} chưa đọc` : undefined}>
     <FlatList data={data?.data ?? []} keyExtractor={item => item.id} refreshing={busy} onRefresh={refresh} contentContainerStyle={styles.list}
       ListHeaderComponent={error ? <OperationState tone="error" message={error} onRetry={refresh} /> : null}
       ListEmptyComponent={<OperationState message={busy ? 'Đang tải thông báo…' : error ? 'Chưa có dữ liệu.' : 'Chưa có thông báo.'} />}
@@ -46,8 +46,8 @@ const styles = StyleSheet.create({
   unread: { borderColor: '#E3C3D2', backgroundColor: colors.primarySoft },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 7 },
   dotRead: { backgroundColor: 'transparent' },
-  title: { ...type.bodyStrong, fontWeight: '500' },
-  titleUnread: { fontWeight: '700' },
+  title: { ...type.bodyStrong, ...fw.medium },
+  titleUnread: { ...fw.bold },
   body: { ...type.secondary, color: colors.body, marginTop: 2 },
   time: { ...type.caption, marginTop: space.xs },
   footer: { gap: space.sm, paddingVertical: space.lg },

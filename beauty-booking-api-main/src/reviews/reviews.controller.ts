@@ -7,7 +7,6 @@ import {
   Body,
   Query,
   UseGuards,
-  UseInterceptors,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -18,7 +17,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertBranchAccess, assertBusinessAccess } from '../common/utils/multi-tenancy';
@@ -31,7 +29,6 @@ import { AuditAction } from '@prisma/client';
 
 @Controller('reviews')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class ReviewsController {
   constructor(
     private readonly reviewsService: ReviewsService,

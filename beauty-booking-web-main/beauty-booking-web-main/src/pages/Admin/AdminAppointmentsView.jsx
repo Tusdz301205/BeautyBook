@@ -135,15 +135,6 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
   const title = zone === 'salon'
     ? staffOnly ? 'Lịch của tôi' : owner ? 'Lịch hẹn toàn doanh nghiệp'  : receptionist ? 'Lịch hẹn tại quầy' : 'Lịch hẹn vận hành'
     : 'Quản lý lịch hẹn';
-  const description = zone === 'salon'
-    ? staffOnly
-      ? 'Chỉ hiển thị các lịch đã được phân công cho bạn; bộ lọc nhân viên được khóa theo hồ sơ hiện tại.'
-      : receptionist
-      ? 'Tiếp nhận khách, xác nhận lịch hẹn và theo dõi hoạt động tại chi nhánh được cấp.'
-        : owner
-          ? 'Theo dõi lịch hẹn trên toàn doanh nghiệp hoặc lọc theo từng chi nhánh.'
-          : 'Theo dõi lịch hẹn, trạng thái và phân công nhân viên trong phạm vi chi nhánh được cấp.'
-    : 'Theo dõi công suất, trạng thái và phân công nhân viên theo thời gian thực.';
 
   return (
     <div className="flex min-h-[calc(100vh-5rem)] flex-col bg-[#f7f6f3]">
@@ -152,7 +143,6 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-pink-700">{staffOnly ? 'Cá nhân' : receptionist ? 'Quầy lễ tân' : owner ? 'Toàn doanh nghiệp' : 'Vận hành'}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-950">{title}</h1>
-            <p className="mt-1 text-sm text-zinc-500">{description}</p>
           </div>
 
           <div className="grid w-full gap-2 sm:grid-cols-2 xl:flex xl:w-auto">

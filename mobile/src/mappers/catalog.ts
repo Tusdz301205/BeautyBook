@@ -20,6 +20,7 @@ import type {
 
 export type RemoteVenue = Venue & {
   businessId: string;
+  reviewCount?: number;
   branchName?: string;
   phone?: string;
   latitude?: number;
@@ -32,6 +33,8 @@ export type RemoteServiceItem = ServiceItem & {
   branchId: string;
   originalPrice: number;
   categoryId?: string;
+  /** Category label from the search row; drives the colour family only. */
+  categoryName?: string;
 };
 
 export type RemoteCombo = Combo & {
@@ -105,7 +108,9 @@ export function mapBranchDetail(branch: ApiBranchDetail): RemoteVenue {
       : todayHours
         ? `${formatTime(todayHours.openTime)} - ${formatTime(todayHours.closeTime)}`
         : 'Chưa cập nhật',
-    rating: 0,
+    // Aggregates computed by the API for this branch; absent stats stay “no rating”.
+    rating: numberValue(branch.stats?.averageRating),
+    reviewCount: numberValue(branch.stats?.totalReviews),
     tag: 'Booking',
     distanceKm: 0,
     hasHourlyPromo: false,
@@ -147,7 +152,15 @@ export function groupServices(services: ApiService[] = []): ServiceGroup[] {
 }
 
 export function mapStaff(staff: ApiBranchDetail['staff'] = []): StaffMember[] {
-  return staff.map((item) => ({ id: item.id, name: item.fullName }));
+  return staff.map((item) => ({
+    id: item.id,
+    name: item.fullName,
+    title: item.professionalTitle || item.position || undefined,
+    specialties: item.specialties?.filter(Boolean),
+    avatarUrl: item.avatarUrl || undefined,
+    rating: numberValue(item.rating),
+    ratingCount: numberValue(item.ratingCount),
+  }));
 }
 
 export function mapCombo(combo: ApiCombo, branch?: ApiBranchSummary | ApiBranchDetail | RemoteVenue): RemoteCombo {
@@ -225,6 +238,7 @@ export function groupSearchRows(rows: ApiSearchService[]): SearchVenue[] {
       duration: `${row.durationMinutes} phút`,
       price: numberValue(row.price),
       originalPrice: numberValue(row.price),
+      categoryName: row.categoryName ?? undefined,
     });
     venue.reviewCount = Math.max(venue.reviewCount, numberValue(row.reviewCount));
     venue.rating = Math.max(venue.rating, numberValue(row.rating));

@@ -23,13 +23,20 @@ IconButton.displayName = 'IconButton';
 
 export function Field({ label, required, hint, error, children, className = '' }) {
   const id = useId();
-  const control = React.isValidElement(children) ? React.cloneElement(children, {
-    id: children.props.id || id,
+  const nodes = React.Children.toArray(children);
+  const controlIndex = nodes.findIndex((child) => React.isValidElement(child) && (
+    [Input, Select, Textarea, 'input', 'select', 'textarea'].includes(child.type)
+  ));
+  const primaryIndex = controlIndex >= 0 ? controlIndex : nodes.length === 1 && React.isValidElement(nodes[0]) ? 0 : -1;
+  const primary = nodes[primaryIndex];
+  const control = primary ? React.cloneElement(primary, {
+    id: primary.props.id || id,
     'aria-required': required || undefined,
     'aria-invalid': Boolean(error),
     'aria-describedby': error ? `${id}-error` : hint ? `${id}-hint` : undefined,
-  }) : children;
-  return <label htmlFor={control?.props?.id || id} className={cx('bb-field grid gap-1.5 text-sm font-medium text-[var(--bb-ink)]', className)}><span>{label}{required && <span className="ml-1 text-[var(--bb-danger)]" aria-hidden="true">*</span>}{required && <span className="bb-sr-only"> (bắt buộc)</span>}</span>{control}{hint && !error && <span id={`${id}-hint`} className="min-h-[1lh] text-xs font-normal text-[var(--bb-muted)]">{hint}</span>}{error && <span id={`${id}-error`} role="alert" className="min-h-[1lh] text-xs font-normal text-[var(--bb-danger)]">{error}</span>}{!hint && !error && <span aria-hidden="true" className="min-h-[1lh] text-xs">&nbsp;</span>}</label>;
+  }) : null;
+  const content = nodes.map((child, index) => index === primaryIndex ? control : child);
+  return <label htmlFor={control?.props?.id || id} className={cx('bb-field grid gap-1.5 text-sm font-medium text-[var(--bb-ink)]', className)}><span>{label}{required && <span className="ml-1 text-[var(--bb-danger)]" aria-hidden="true">*</span>}{required && <span className="bb-sr-only"> (bắt buộc)</span>}</span>{content}{hint && !error && <span id={`${id}-hint`} className="min-h-[1lh] text-xs font-normal text-[var(--bb-muted)]">{hint}</span>}{error && <span id={`${id}-error`} role="alert" className="min-h-[1lh] text-xs font-normal text-[var(--bb-danger)]">{error}</span>}{!hint && !error && <span aria-hidden="true" className="min-h-[1lh] text-xs">&nbsp;</span>}</label>;
 }
 
 const controlClass = 'bb-control min-h-11 w-full rounded-[var(--bb-radius-control)] border border-[var(--bb-border)] bg-white px-3 text-sm text-[var(--bb-ink)] outline-2 outline-transparent placeholder:text-zinc-400 focus-visible:border-[var(--bb-focus)] focus-visible:outline-[var(--bb-focus)] focus-visible:outline-offset-1 disabled:cursor-not-allowed disabled:bg-[var(--bb-surface-subtle)] disabled:text-[var(--bb-muted)]';

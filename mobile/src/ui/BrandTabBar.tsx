@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { colors, space, type } from '../theme';
+import { colors, elevation, space, type } from '../theme';
 
 export type TabConfig = Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; activeIcon: keyof typeof Ionicons.glyphMap }>;
 
@@ -24,8 +24,9 @@ export default function BrandTabBar({ state, navigation, insets, config, hiddenR
         };
         return (
           <Pressable key={route.key} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={onPress} style={styles.tab}>
-            <View style={[styles.indicator, active && styles.indicatorActive]}>
-              <Ionicons accessible={false} name={active ? item.activeIcon : item.icon} size={22} color={active ? colors.primary : colors.secondaryText} />
+            {/* Keyed so Android rebuilds the rounded background when the tab changes (it kept square corners otherwise). */}
+            <View key={active ? 'on' : 'off'} style={[styles.indicator, active && styles.indicatorActive]}>
+              <Ionicons accessible={false} name={active ? item.activeIcon : item.icon} size={21} color={active ? colors.onPrimary : colors.secondaryText} />
             </View>
             <Text style={[styles.label, { color: active ? colors.primary : colors.secondaryText }]}>{item.label}</Text>
           </Pressable>
@@ -36,9 +37,9 @@ export default function BrandTabBar({ state, navigation, insets, config, hiddenR
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: space.xs + 2 },
+  bar: { flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: space.sm, ...elevation.raised },
   tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 2, paddingHorizontal: 2 },
-  indicator: { width: 56, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  indicatorActive: { backgroundColor: colors.primarySoft },
+  indicator: { width: 56, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', backgroundColor: colors.surface },
+  indicatorActive: { backgroundColor: colors.primary },
   label: { ...type.tab, textAlign: 'center' },
 });

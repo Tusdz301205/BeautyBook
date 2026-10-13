@@ -95,7 +95,7 @@ export function workError(error: unknown): { message: string; removeData: boolea
   const status = (error as { status?: number })?.status;
   const code = (error as { payload?: { code?: string } })?.payload?.code;
   if (code === 'STAFF_PROFILE_REQUIRED') return { message: 'Hồ sơ nhân viên chưa được liên kết hoặc không còn hoạt động. Hãy liên hệ quản lý.', removeData: true };
-  if (status === 401 || status === 403) return { message: 'Bạn không còn quyền xem công việc trong ngữ cảnh này.', removeData: true };
+  if (status === 401 || status === 403) return { message: 'Bạn không còn quyền xem công việc này.', removeData: true };
   if (status === 404) return { message: 'Công việc không còn được giao cho bạn hoặc không còn tồn tại.', removeData: true };
   if (status === 400 || status === 409) {
     const detail = error instanceof Error ? error.message : (error as { message?: unknown })?.message;

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AccountStackParamList } from '../navigation/AccountStack';
-import { colors, layout, space, type } from '../theme';
+import { colors, layout, space } from '../theme';
 import { useAddresses } from '../context/AddressContext';
 import { usersApi } from '../api/users';
 import { AppButton, ScreenHeader, TextField } from '../ui';
@@ -40,7 +40,6 @@ export default function AddressFormScreen({ route, navigation }: Props) {
       <ScreenHeader title={meta.title} onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.hint}>Địa chỉ được lưu vào hồ sơ tài khoản của bạn.</Text>
           <TextField label={meta.title} value={value} onChangeText={setValue} placeholder={meta.placeholder} multiline textContentType="fullStreetAddress" />
           <AppButton label={isSaving ? 'Đang lưu…' : 'Lưu địa chỉ'} loading={isSaving} onPress={() => void handleSave()} />
         </ScrollView>
@@ -53,5 +52,4 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: { paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: space.xxxl },
-  hint: { ...type.secondary, marginBottom: space.lg },
 });

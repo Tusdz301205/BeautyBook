@@ -206,7 +206,7 @@ function ReviewList({ data }) {
   const rows = data?.data || data?.ratings || [];
   const average = data?.summary?.averageRating ?? data?.averageRating;
   const total = data?.summary?.totalReviews ?? data?.totalRatings ?? rows.length;
-  if (!rows.length) return <div className="bb-detail-empty"><Star size={21} /><p>Chưa có đánh giá đã được duyệt.</p></div>;
+  if (!rows.length) return <div className="bb-detail-empty"><Star size={21} /><p>Chưa có đánh giá.</p></div>;
   return (
     <div>
       <div className="bb-detail-rating"><Star size={22} className="fill-current" /><strong>{Number(average || 0).toFixed(1)}</strong><span>{total} lượt đánh giá</span></div>
@@ -274,7 +274,7 @@ export function PublicBranchDetail({ preview = false }) {
   return <PublicShell preview={preview}><DetailState loading={loading} error={error} retry={load}>{branch ? <article className="bb-detail-document">
     <DetailHero type="cơ sở" eyebrow="Cơ sở làm đẹp" title={branch.name} description={branch.business?.description || 'Thông tin giới thiệu đang được cơ sở cập nhật.'} media={firstMedia(branch.images)} mediaAlt={`Không gian tại ${branch.name}`} fallbackMedia={getBranchFallbackMedia(branch)} fallbackAlt={`Ảnh minh họa nhóm dịch vụ tại ${branch.name}`} facts={[{ label: 'Thương hiệu', value: branch.business?.name }, { label: 'Địa chỉ', value: address }]} bookingTo={`/book?branchId=${branch.id}`} bookingLabel="Đặt lịch tại cơ sở" />
     <BookingDock to={`/book?branchId=${branch.id}`} label="Chọn dịch vụ" title={branch.name} meta={address} />
-    <Section index={1} eyebrow="Thông tin ghé thăm" title="Một địa chỉ, mọi thông tin cần thiết" intro="Giờ hoạt động được lấy trực tiếp từ hồ sơ cơ sở."><div className="bb-detail-address"><MapPin size={20} /><div><strong>{address || 'Địa chỉ đang cập nhật'}</strong><span>{branch.business?.name}</span></div></div><div className="bb-detail-hours">{branch.workingHours?.length ? branch.workingHours.map((row) => <div key={row.id || row.dayOfWeek}><strong>{days[row.dayOfWeek]}</strong><span>{row.isClosed ? 'Đóng cửa' : `${clock(row.openTime)} – ${clock(row.closeTime)}`}</span></div>) : <div className="bb-detail-empty"><Clock3 size={21} /><p>Giờ mở cửa đang được cập nhật.</p></div>}</div></Section>
+    <Section index={1} eyebrow="Thông tin ghé thăm" title="Một địa chỉ, mọi thông tin cần thiết" intro="Giờ hoạt động"><div className="bb-detail-address"><MapPin size={20} /><div><strong>{address || 'Địa chỉ đang cập nhật'}</strong><span>{branch.business?.name}</span></div></div><div className="bb-detail-hours">{branch.workingHours?.length ? branch.workingHours.map((row) => <div key={row.id || row.dayOfWeek}><strong>{days[row.dayOfWeek]}</strong><span>{row.isClosed ? 'Đóng cửa' : `${clock(row.openTime)} – ${clock(row.closeTime)}`}</span></div>) : <div className="bb-detail-empty"><Clock3 size={21} /><p>Giờ mở cửa đang được cập nhật.</p></div>}</div></Section>
     <Section index={2} eyebrow="Danh mục" title={preview ? 'Dịch vụ trong bản xem trước' : 'Dịch vụ đang nhận lịch'}><ServiceDirectory services={branch.services} savedIds={savedIds} onToggleSaved={toggleSaved} preview={preview} /></Section>
     <Section index={3} eyebrow="Đội ngũ" title="Chọn người phù hợp" className="bb-detail-section--staff"><StaffDirectory staff={branch.staff} /></Section>
     <Section index={4} eyebrow="Không gian" title="Hình ảnh do cơ sở cung cấp"><Gallery images={branch.images} label={`Hình ảnh ${branch.name}`} /></Section>

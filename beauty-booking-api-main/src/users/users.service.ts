@@ -332,7 +332,7 @@ export class UsersService {
         branchId: input.branchId ?? null,
       },
     });
-    if (existing) throw new ConflictException('Role đã được gán trong scope này');
+    if (existing) throw new ConflictException('Tài khoản đã có vai trò này tại doanh nghiệp hoặc chi nhánh được chọn.');
 
     const assigned = await this.prisma.userRole.create({
       data: {
@@ -534,17 +534,17 @@ export class UsersService {
     if (branchId && businessId) {
       const branchBusinessId = await resolveBusinessIdByBranch(this.prisma, branchId);
       if (branchBusinessId !== businessId) {
-        throw new ForbiddenException('Branch không thuộc business đã chọn');
+        throw new ForbiddenException('Chi nhánh không thuộc doanh nghiệp đã chọn.');
       }
     }
     if (actor.roles.includes('PLATFORM_ADMIN')) {
       return;
     }
     if (!actor.roles.includes('BUSINESS_OWNER') || !businessId) {
-      throw new ForbiddenException('Tenant role assignment requires BUSINESS_OWNER scope');
+      throw new ForbiddenException('Bạn chưa có quyền phân công nhân sự cho doanh nghiệp này.');
     }
     if (!branchRoles.includes(roleCode)) {
-      throw new ForbiddenException('Owner chỉ được gán role nhân sự chi nhánh');
+      throw new ForbiddenException('Chủ doanh nghiệp chỉ được phân công vai trò nhân sự của chi nhánh.');
     }
     await assertBusinessAccess(this.prisma, restrictToRoles(actor, ['BUSINESS_OWNER']), businessId);
   }

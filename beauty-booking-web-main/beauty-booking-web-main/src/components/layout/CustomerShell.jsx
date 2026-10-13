@@ -137,12 +137,13 @@ export function CustomerShell({ children }) {
   const accountActive = accountOpen || accountRoutes.some((route) => location.pathname.startsWith(route));
   const closeAccount = () => setAccountOpen(false);
   const signOut = async () => {
-    await logout();
+    const pending = logout();
     navigate('/login', { replace: true });
+    await pending;
   };
 
   return (
-    <div className="bb-customer-shell min-h-screen bg-[var(--bb-canvas)] text-[var(--bb-ink)]">
+    <div className="bb-customer-shell min-h-screen bg-[var(--bb-canvas)] pb-[calc(4rem+1px+env(safe-area-inset-bottom))] text-[var(--bb-ink)] md:pb-0">
       <a href="#main-content" className="bb-sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:shadow-lg">
         Bỏ qua điều hướng
       </a>

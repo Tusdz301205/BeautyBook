@@ -66,7 +66,7 @@ export function OperationsProvider({ children }: { children: React.ReactNode }) 
       fail: reason => {
         if (!active || identityRef.current !== identity) return;
         if (reason instanceof ApiError && [401, 403].includes(reason.status)) { setBranches([]); setProfile(null); }
-        setError(reason instanceof ApiError && reason.status === 0 ? 'Đang mất kết nối. Kết nối lại để cập nhật công việc.' : 'Chưa tải được ngữ cảnh làm việc. Vui lòng thử lại.');
+        setError(reason instanceof ApiError && reason.status === 0 ? 'Đang mất kết nối. Kết nối lại để cập nhật công việc.' : 'Chưa tải được thông tin làm việc. Vui lòng thử lại.');
         setLoading(false); bump();
       },
     });

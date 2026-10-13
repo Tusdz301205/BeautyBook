@@ -2,6 +2,8 @@
 
 Ngày: 09/10/2026 · Nhánh: `feat/mobile-berry-clarity-redesign` · Đề xuất gốc: [design-proposals/beautybook-mobile/2026-10-09-de-xuat-berry-clarity-v1.md](../../design-proposals/beautybook-mobile/2026-10-09-de-xuat-berry-clarity-v1.md)
 
+> Cập nhật 11/10/2026: bảng màu, chữ và hình ảnh mô tả dưới đây đã được thay bằng [Berry Bloom](REDESIGN-BERRY-BLOOM.md). Phần cấu trúc mã và hành vi hiển thị vẫn đúng.
+
 ## Tóm tắt
 
 Một thương hiệu, ba mật độ. Berry `#8D315B` là màu hành động duy nhất; nền ngà `#FBF7F3`, mực `#2A1F26`, mận `#3A2232` cho bề mặt nhấn. Trạng thái dùng bảng màu riêng và luôn có **icon + chữ**. Font hệ thống (Roboto/SF), không thêm dependency.

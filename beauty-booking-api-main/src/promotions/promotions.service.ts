@@ -31,7 +31,7 @@ export class PromotionsService {
 
     if (filters?.businessId) {
       if (!allowedIds.includes(ALL_TENANTS) && !allowedIds.includes(filters.businessId)) {
-        throw new ForbiddenException('Không có quyền xem campaign của tenant này');
+        throw new ForbiddenException('Bạn không có quyền xem chương trình khuyến mãi này.');
       }
       where.businessLinks = {
         some: { businessId: filters.businessId },
@@ -382,7 +382,7 @@ export class PromotionsService {
       this.prisma.combo.count({ where: { id: { in: comboIds }, businessId } }),
     ]);
     if (branchCount !== branchIds.length || serviceCount !== serviceIds.length || comboCount !== comboIds.length) {
-      throw new ForbiddenException('Campaign chứa branch/service ngoài tenant');
+      throw new ForbiddenException('Chương trình khuyến mãi có chi nhánh hoặc dịch vụ không thuộc doanh nghiệp.');
     }
   }
 

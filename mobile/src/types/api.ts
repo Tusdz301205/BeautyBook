@@ -16,8 +16,9 @@ export interface ApiStaff {
   professionalTitle?: string;
   position?: string;
   avatarUrl?: string | null;
-  rating?: number;
-  ratingCount?: number;
+  bio?: string | null;
+  rating?: number | null;
+  ratingCount?: number | null;
   averageRating?: number;
   specialties?: string[];
 }
@@ -107,6 +108,8 @@ export interface ApiBranchDetail {
     closeTime?: string;
   }>;
   images?: Array<{ id?: string; sortOrder?: number; media: ApiMedia }>;
+  /** Branch aggregates computed by the API (rating over all reviews of this branch). */
+  stats?: { totalServices?: number; totalStaff?: number; averageRating?: number | string | null; totalReviews?: number | string | null };
   services?: ApiService[];
   staff?: ApiStaff[];
 }

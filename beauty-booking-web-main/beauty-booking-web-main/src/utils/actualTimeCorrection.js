@@ -21,7 +21,7 @@ export function actualTimeCorrectionPayload(form, { expectedRevision, timezone, 
   } catch { throw new Error('Chưa có múi giờ chi nhánh hợp lệ. Tải lại chi tiết trước khi lưu.'); }
   if (!start || !end) throw new Error('Giờ thực tế không hợp lệ hoặc không xác định được trong múi giờ chi nhánh.');
   if (start >= end) throw new Error('Giờ bắt đầu thực tế phải trước giờ kết thúc thực tế.');
-  if (!Number.isFinite(now)) throw new Error('Chưa có thời gian máy chủ. Tải lại chi tiết trước khi lưu.');
+  if (!Number.isFinite(now)) throw new Error('Chưa xác minh được giờ hiện tại. Tải lại chi tiết trước khi lưu.');
   if (start.getTime() > now || end.getTime() > now) throw new Error('Thời gian thực tế không được ở tương lai.');
   return { ...payload, actualStartedAt: start.toISOString(), actualCompletedAt: end.toISOString() };
 }
@@ -39,6 +39,6 @@ export async function submitActualTimeCorrection({ send, refresh, payload }) {
   }
   try { await refresh(); }
   catch (error) {
-    throw new Error('Máy chủ đã ghi nhận hiệu chỉnh nhưng chưa tải được chi tiết mới. Tải lại chi tiết để kiểm tra trước khi thực hiện thao tác khác.', { cause: error });
+    throw new Error('Đã lưu hiệu chỉnh nhưng chưa tải được chi tiết mới. Tải lại chi tiết để kiểm tra trước khi thực hiện thao tác khác.', { cause: error });
   }
 }

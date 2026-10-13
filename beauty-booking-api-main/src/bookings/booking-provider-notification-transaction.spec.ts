@@ -12,7 +12,7 @@ describe('item reassignment delivery is part of the mutation transaction', () =>
       staff: { userId: 'old-user' }, booking: { id: 'booking', status: 'CONFIRMED', branchId: 'branch' } };
     const tx: any = { $queryRaw: jest.fn(),
       bookingService: { findFirst: jest.fn().mockResolvedValueOnce(item).mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({count:1}), findUniqueOrThrow: jest.fn().mockResolvedValue({...item,staffId:'new',revision:2,staff:{userId:'new-user'}}) },
-      booking: {findUniqueOrThrow:jest.fn().mockResolvedValue({branchId:'branch',branch:{businessId:'business'}})},
+      booking: {findUnique:jest.fn().mockResolvedValue({status:'CONFIRMED',pendingExpiresAt:null,bookingServices:[{status:'SCHEDULED'}]}),findUniqueOrThrow:jest.fn().mockResolvedValue({branchId:'branch',branch:{businessId:'business'}})},
       bookingServiceAdjustment: {count:jest.fn().mockResolvedValue(0),create:jest.fn().mockResolvedValue({id:'event'})},
       staffProfile:{findMany:jest.fn().mockResolvedValue([{id:'old',userId:'old-user'},{id:'new',userId:'new-user'}])},
       userRole:{findMany:jest.fn().mockResolvedValue([{userId:'old-user'},{userId:'new-user'}])},

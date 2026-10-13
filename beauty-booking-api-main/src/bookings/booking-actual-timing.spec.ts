@@ -81,7 +81,9 @@ describe('Actual execution is a projection of persisted service audit facts', ()
 
 describe('Terminal item operational guards retain revision and financial policy', () => {
   test.each(['COMPLETED', 'SKIPPED', 'CANCELLED'])('REASSIGN on %s rejects without revision/audit changes', async (status) => {
-    const tx = { $queryRaw: jest.fn().mockResolvedValue([]), bookingService: {
+    const tx = { $queryRaw: jest.fn().mockResolvedValue([]), booking: {
+      findUnique: jest.fn().mockResolvedValue({ status: 'IN_PROGRESS', pendingExpiresAt: null, bookingServices: [{ status }] }),
+    }, bookingService: {
       findFirst: jest.fn().mockResolvedValue({ id: 'item', bookingId: 'booking', status, revision: 3, priceAtBooking: 100,
         booking: { status: 'IN_PROGRESS' } }), updateMany: jest.fn(),
     } };

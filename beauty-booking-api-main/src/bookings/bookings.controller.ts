@@ -13,7 +13,6 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  UseInterceptors,
   Optional,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -26,7 +25,6 @@ import { Public } from '../common/decorators/public.decorator';
 import { RequireScope } from '../common/decorators/scope.decorator';
 import { RequirePermission, ActualTimeDelegation } from '../common/decorators/permission.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
@@ -75,7 +73,6 @@ type CustomerBookingServiceView = Prisma.BookingServiceGetPayload<{
  */
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class BookingsController {
   constructor(
     private readonly bookingsService: BookingsService,
@@ -697,6 +694,7 @@ export class BookingsController {
             comment: true,
             status: true,
             createdAt: true,
+            _count: { select: { refs_ReviewAppeal_reviewId: { where: { status: 'PENDING' } } } },
           },
         },
         changeRequests: {
@@ -711,7 +709,12 @@ export class BookingsController {
       ],
     });
     const serverNow = new Date();
-    return { data: bookings.map((booking) => withBookingTiming(booking, serverNow)) };
+    return { data: bookings.map((booking) => {
+      const timed = withBookingTiming(booking, serverNow);
+      if (!booking.review) return timed;
+      const { _count, ...review } = booking.review;
+      return { ...timed, review: { ...review, hasPendingAppeal: _count.refs_ReviewAppeal_reviewId > 0 } };
+    }) };
   }
 
   /**

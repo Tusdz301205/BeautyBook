@@ -8,7 +8,6 @@ import {
   Body,
   Query,
   UseGuards,
-  UseInterceptors,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -19,7 +18,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { RequirePermission } from '../common/decorators/permission.decorator';
 import { Audited } from '../common/decorators/audit.decorator';
-import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertBranchAccess, assertBusinessAccess, restrictToRoles } from '../common/utils/multi-tenancy';
@@ -30,7 +28,6 @@ import { CreatePromotionDto, UpdatePromotionDto } from './dto/campaign.dto';
 
 @Controller('promotions')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@UseInterceptors(AuditInterceptor)
 export class PromotionsController {
   constructor(
     private readonly promotionsService: PromotionsService,
@@ -115,7 +112,7 @@ export class PromotionsController {
     }
     const ownerBusinessId = isPlatformRole(user) ? null : body.businessIds?.[0];
     if (!isPlatformRole(user) && !ownerBusinessId) {
-      throw new BadRequestException('Tenant promotion phải có businessIds');
+      throw new BadRequestException('Chọn doanh nghiệp áp dụng khuyến mãi.');
     }
     return this.promotionsService.create(
       body,

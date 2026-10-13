@@ -189,16 +189,16 @@ export class ServicesService {
     },
   ) {
     await this.assertCanonicalExists(id, false);
-    if (data.parentId === id) throw new BadRequestException('Canonical không thể là cha của chính nó');
+    if (data.parentId === id) throw new BadRequestException('Nhóm dịch vụ không thể là nhóm cha của chính nó.');
     if (data.parentId) await this.assertCanonicalExists(data.parentId);
     if (data.status === 'MERGED') {
       if (!data.replacementCanonicalId || data.replacementCanonicalId === id) {
-        throw new BadRequestException('Canonical MERGED phải có canonical thay thế khác chính nó');
+        throw new BadRequestException('Chọn nhóm dịch vụ khác để gộp vào.');
       }
       await this.assertCanonicalExists(data.replacementCanonicalId);
     }
     if (data.status && data.status !== 'MERGED' && data.replacementCanonicalId) {
-      throw new BadRequestException('Chỉ canonical MERGED mới có canonical thay thế');
+      throw new BadRequestException('Chỉ chọn nhóm thay thế khi gộp nhóm dịch vụ.');
     }
     return this.prisma.canonicalService.update({
       where: { id },
@@ -418,6 +418,16 @@ export class ServicesService {
         category."name" AS "categoryName",
         resolved."id" AS "canonicalServiceId",
         resolved."name" AS "canonicalServiceName",
+        (
+          SELECT media."url"
+          FROM "service_images" image
+          JOIN "media_files" media ON media."id" = image."media_id"
+          WHERE image."service_id" = offering."id"
+            AND media."visibility" = 'PUBLIC'
+            AND media."file_type" = 'IMAGE'
+          ORDER BY image."sort_order" ASC, image."id" ASC
+          LIMIT 1
+        ) AS "imageUrl",
         COALESCE(rating."average_rating", 0) AS "rating",
         COALESCE(rating."review_count", 0) AS "reviewCount",
         COALESCE(staff."staff_count", 0) AS "availableStaffCount",
@@ -472,6 +482,15 @@ export class ServicesService {
           AND profile."is_bookable" = TRUE
           AND profile."public_visible" = TRUE
           AND profile."deleted_at" IS NULL
+          AND (
+            profile."user_id" IS NULL
+            OR EXISTS (
+              SELECT 1 FROM "users" account
+              WHERE account."id" = profile."user_id"
+                AND account."is_active" = TRUE
+                AND account."deleted_at" IS NULL
+            )
+          )
       ) staff ON TRUE
       WHERE offering."deleted_at" IS NULL
         AND offering."status" = 'ACTIVE'

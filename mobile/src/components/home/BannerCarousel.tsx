@@ -43,6 +43,6 @@ export default function BannerCarousel({ slides, height = 240, style, imageBorde
 }
 
 const styles = StyleSheet.create({
-  counter: { position: 'absolute', right: space.md, bottom: space.md, backgroundColor: 'rgba(42,31,38,0.72)', borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: 3 },
+  counter: { position: 'absolute', right: space.md, bottom: space.xxxl + space.xs, backgroundColor: 'rgba(42,18,48,0.72)', borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: 3 },
   counterText: { ...type.caption, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
 });

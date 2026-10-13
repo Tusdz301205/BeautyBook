@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, space, type } from '../theme';
+import { colors, radius, space, tones, type } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import { Appointment, OVERDUE_META, bookingStatusMeta, isPastUpcoming } from '../data/appointments';
 import { AppButton, StatusPill } from '../ui';
@@ -23,9 +23,9 @@ export default function AppointmentCard({ item, onPress, onRebook }: Props) {
         onPress={onPress}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}
       >
-        <View style={styles.timeCol}>
-          <Text style={styles.time}>{item.time}</Text>
-          <Text style={styles.date}>{item.date.slice(0, 5)}</Text>
+        <View style={[styles.timeCol, { backgroundColor: tones[meta.tone].bg }]}>
+          <Text numberOfLines={1} style={[styles.time, { color: tones[meta.tone].fg }]}>{item.time}</Text>
+          <Text style={[styles.date, { color: tones[meta.tone].fg }]}>{item.date.slice(0, 5)}</Text>
         </View>
         <View style={styles.body}>
           <StatusPill label={meta.label} tone={meta.tone} icon={meta.icon} />
@@ -48,13 +48,14 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginBottom: space.md, overflow: 'hidden' },
   main: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg },
   pressed: { backgroundColor: colors.surfacePressed },
-  timeCol: { width: 52, alignSelf: 'flex-start', paddingTop: 2 },
+  // Grows with the font scale so the clock never breaks mid-time.
+  timeCol: { minWidth: 60, paddingHorizontal: space.sm, minHeight: 60, alignSelf: 'flex-start', borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingVertical: space.sm },
   time: { ...type.clock },
   date: { ...type.caption },
   body: { flex: 1, minWidth: 0, gap: space.xs },
   service: { ...type.h3 },
   meta: { ...type.secondary, flexShrink: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  price: { ...type.price, marginTop: 2 },
+  price: { ...type.price, color: colors.primary, marginTop: 2 },
   footer: { borderTopWidth: 1, borderTopColor: colors.divider, paddingHorizontal: space.lg, paddingVertical: space.sm, alignItems: 'flex-end' },
 });

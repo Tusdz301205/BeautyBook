@@ -50,7 +50,7 @@ export function useWorkActions({ identity, fresh, staffId, reload, refresh }: {
       { text: 'Quay lại', style: 'cancel' }, { text: 'Hoàn tất dịch vụ', onPress: () => { void send(); } },
     ]);
     else if (Date.parse(item.serverNow) > Date.parse(item.itemStartAt ?? '')) Alert.alert('Bắt đầu muộn?',
-      `${item.serviceNameSnapshot} · ${item.customer.fullName}. Giờ bắt đầu thực tế được ghi từ máy chủ; giờ dự kiến giữ nguyên. Kiểm tra các dịch vụ kế tiếp với quầy/quản lý. Máy chủ sẽ từ chối nếu đụng lịch của khách khác hoặc ngoài giờ mở cửa.`, [
+      `${item.serviceNameSnapshot} · ${item.customer.fullName}. Giờ bắt đầu thực tế sẽ được ghi nhận; giờ dự kiến giữ nguyên. Kiểm tra lịch tiếp theo với quầy hoặc quản lý. Không thể bắt đầu nếu trùng lịch khách khác hoặc ngoài giờ mở cửa.`, [
         { text: 'Quay lại', style: 'cancel' }, { text: 'Bắt đầu dịch vụ', onPress: () => { void send(); } },
       ]);
     else void send();

@@ -1,12 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ownershipVersionsReady, savedServiceBookingPath } from './businessCompletionRules.js';
+import { savedServiceBookingPath } from './businessCompletionRules.js';
 import { sanitizeApiErrorMessage, toUserFacingRequestError } from './requestError.js';
 
-test('ownership approval is ready only after both versions are verified', () => {
-  assert.equal(ownershipVersionsReady({ legalEntityVersion: { verificationStatus: 'VERIFIED' }, payoutAccountVersion: { verificationStatus: 'PENDING' } }), false);
-  assert.equal(ownershipVersionsReady({ legalEntityVersion: { verificationStatus: 'VERIFIED' }, payoutAccountVersion: { verificationStatus: 'VERIFIED' } }), true);
-});
 
 test('saved service never creates a dead booking link when unavailable', () => {
   assert.equal(savedServiceBookingPath({ available: false, offering: { id: 'service-1', branchId: 'branch-1' } }), null);
@@ -16,7 +12,7 @@ test('saved service never creates a dead booking link when unavailable', () => {
 test('server errors are never exposed as a raw English message', () => {
   assert.equal(
     sanitizeApiErrorMessage(500, 'Internal server error'),
-    'Máy chủ đang gặp sự cố tạm thời. Vui lòng thử lại sau.',
+    'Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.',
   );
   const result = toUserFacingRequestError({ status: 500, message: 'Internal server error' }, 'Không thể tải lịch hẹn');
   assert.equal(result.title, 'Không thể tải lịch hẹn');

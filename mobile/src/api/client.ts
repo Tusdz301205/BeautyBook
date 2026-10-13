@@ -101,7 +101,7 @@ export async function refreshAccessToken(): Promise<string | null> {
         }),
       });
     } catch (error) {
-      throw new ApiError('Không kết nối được để làm mới phiên. Vui lòng thử lại.', 0, error);
+      throw new ApiError('Chưa kết nối được để tiếp tục. Vui lòng thử lại.', 0, error);
     }
     const payload = await parseResponse(response) as ApiAuthResponse | undefined;
     if (generation !== sessionGeneration) return null;
@@ -112,10 +112,10 @@ export async function refreshAccessToken(): Promise<string | null> {
         unauthorizedHandler?.();
         return null;
       }
-      throw new ApiError('Chưa làm mới được phiên. Vui lòng thử lại.', response.status, payload);
+      throw new ApiError('Chưa thể tiếp tục. Vui lòng thử lại.', response.status, payload);
     }
     if (!payload?.accessToken || !payload.user) {
-      throw new ApiError('Phản hồi làm mới phiên không hợp lệ.', 502, payload);
+      throw new ApiError('Chưa xác minh được phiên đăng nhập. Vui lòng thử lại.', 502, payload);
     }
     // Rotation keeps the session generation; callers in this session may retry.
     accessToken = payload.accessToken;
@@ -135,7 +135,7 @@ export async function apiRequest<T>(
   init: RequestInit = {},
   retryOnUnauthorized = true,
 ): Promise<T> {
-  if (!API_BASE_URL) throw new ApiError('Chưa cấu hình máy chủ cho bản thử nghiệm này.', 0);
+  if (!API_BASE_URL) throw new ApiError('Ứng dụng chưa thể kết nối. Vui lòng liên hệ hỗ trợ.', 0);
   const generation = sessionGeneration;
   const sentToken = accessToken;
   const headers = new Headers(init.headers);

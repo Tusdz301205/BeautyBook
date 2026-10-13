@@ -66,7 +66,7 @@ export function mapKnownPrismaError(code: string): SafeDatabaseError {
   return {
     statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
     error: 'Internal Server Error',
-    message: 'Máy chủ không thể xử lý yêu cầu vào lúc này.',
+    message: 'Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.',
     code: 'DATABASE_ERROR',
   };
 }

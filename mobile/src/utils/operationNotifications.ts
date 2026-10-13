@@ -6,6 +6,6 @@ export function operationNotificationTarget(notification: ApiNotification, mode:
   // Provider outboxes omit the live booking relation. This ID is only a
   // navigation hint; the destination still fetches through its authorized API.
   if (notification.targetType === 'BOOKING' && notification.targetId && UUID.test(notification.targetId)) return { kind: 'BOOKING', id: notification.targetId };
-  if (mode === 'OWNER' && notification.targetType === 'OperationalImpactCase' && notification.targetId && UUID.test(notification.targetId)) return { kind: 'IMPACT', id: notification.targetId };
+  if (mode === 'OWNER' && (notification.targetType === 'OPERATIONAL_IMPACT' || notification.targetType === 'OperationalImpactCase') && notification.targetId && UUID.test(notification.targetId)) return { kind: 'IMPACT', id: notification.targetId };
   return null;
 }

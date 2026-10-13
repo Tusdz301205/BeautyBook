@@ -13,6 +13,10 @@ import { BookingPolicyNotice } from '../../components/customer/BookingPolicyNoti
 import { beginBookingSubmission, canReplayBookingSubmission, readBookingSubmission, submitBookingSubmission } from '../../utils/bookingSubmission';
 
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
+// Format only after submission classification; preserve the original error for replay safety.
+const bookingErrorMessage = (error) => /idempotency/i.test(error?.message || '')
+  ? 'Không thể xử lý yêu cầu đặt lịch này. Vui lòng tải lại trang và kiểm tra lịch hẹn trước khi thử lại.'
+  : error?.message;
 
 export default function BookingConfirm() {
   const navigate = useNavigate();
@@ -119,7 +123,7 @@ export default function BookingConfirm() {
       } else if (/nhân viên (này không còn khả dụng|phù hợp trong khung giờ)|không còn nhân viên phù hợp trong khung giờ/i.test(error.message || '')) {
         toast.error('Một hoặc nhiều khung giờ vừa có người đặt. Vui lòng kiểm tra lại.');
         navigate('/book/time');
-      } else if (error.status) toast.error(error.message || 'Yêu cầu đặt lịch bị từ chối');
+      } else if (error.status) toast.error(bookingErrorMessage(error) || 'Yêu cầu đặt lịch bị từ chối');
       else setSubmissionError('Không thể lưu trạng thái yêu cầu trên thiết bị. Vui lòng kiểm tra trình duyệt trước khi gửi.');
     } finally { submittingRef.current = false; setSubmitting(false); }
   };

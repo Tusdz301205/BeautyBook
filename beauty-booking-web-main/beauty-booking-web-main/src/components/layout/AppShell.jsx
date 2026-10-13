@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { BarChart3, Bell, Building2, CalendarCheck, ChevronRight, ClipboardCheck, CreditCard, FileClock, Gift, LayoutDashboard, LogOut, Menu, ShieldCheck, Sparkles, Star, Store, Tag, UserCog, Users, X } from 'lucide-react';
+import { BarChart3, Bell, CalendarCheck, ChevronRight, ClipboardCheck, CreditCard, FileClock, Gift, LayoutDashboard, LogOut, Menu, ShieldCheck, Sparkles, Star, Store, Tag, UserCog, Users, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { businessApi } from '../../api/apiClient';
 import { FINANCE_WORKSPACE_ENABLED } from '../../config/featureAvailability';
@@ -8,7 +8,7 @@ import { IconButton, cx } from '../ui';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 
 const zoneMeta = {
-  platform: { base: '/admin', eyebrow: 'BeautyBook Platform', title: 'Trung tâm vận hành' },
+  platform: { base: '/admin', eyebrow: 'Quản trị BeautyBook', title: 'Trung tâm vận hành' },
   salon: { base: '/salon', eyebrow: 'BeautyBook Business', title: 'Không gian cơ sở' },
   customer: { base: '/customer', eyebrow: 'BeautyBook', title: 'Tài khoản của bạn' },
 };
@@ -34,7 +34,6 @@ const navigation = {
     ['profile', 'Hồ sơ cơ sở', Store, ['branch:update:tenant']],
     ['onboarding', 'Đăng ký doanh nghiệp', ClipboardCheck, ['business:create:self', 'business:update:tenant']],
     ['account', 'Tài khoản', UserCog],
-    ['incoming-ownership', 'Lời mời chuyển chủ', Building2],
     ['security', 'Bảo mật', ShieldCheck],
   ],
   platform: [
@@ -45,7 +44,6 @@ const navigation = {
     ['payments', 'Tài chính & hoàn tiền', CreditCard, ['payment:read:platform']],
     ['reports', 'Báo cáo', BarChart3, ['report:overview:platform', 'report:revenue:platform', 'report:user_growth:platform']],
     ['reviews', 'Kiểm duyệt đánh giá', Star, ['review:moderate:platform']],
-    ['ownership', 'Chuyển quyền sở hữu', Building2, ['business:review:platform']],
     ['notifications', 'Thông báo', Bell, ['notification:read:self']],
   ],
 };
@@ -53,8 +51,8 @@ const navigation = {
 const roleLabels = { PLATFORM_ADMIN: 'Quản trị hệ thống', BUSINESS_OWNER: 'Chủ doanh nghiệp', RECEPTIONIST: 'Lễ tân', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng' };
 
 const roleNavigation = {
-  STAFF: new Set(['appointments', 'notifications', 'account', 'security', 'incoming-ownership']),
-  RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security', 'incoming-ownership']),
+  STAFF: new Set(['appointments', 'notifications', 'account', 'security']),
+  RECEPTIONIST: new Set(['appointments', 'operations', 'staff', 'payments', 'notifications', 'account', 'security']),
 };
 
 const roleSpaceTitles = {
@@ -77,6 +75,8 @@ function resolveMainRole(user, zone) {
 export function AppShell({ zone, children }) {
   const unread = useUnreadNotifications();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarRef = useRef(null);
+  const menuTriggerRef = useRef(null);
   const [ownerRestricted, setOwnerRestricted] = useState(false);
   const [businessApproved, setBusinessApproved] = useState(false);
   const navigate = useNavigate();
@@ -113,7 +113,7 @@ export function AppShell({ zone, children }) {
 
   const items = useMemo(() => navigation[zone].filter(([path, , , permissions]) => {
     if (path === 'payments' && !FINANCE_WORKSPACE_ENABLED) return false;
-    if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security', 'incoming-ownership'].includes(path)) return false;
+    if (ownerRestricted && !['onboarding', 'notifications', 'account', 'security'].includes(path)) return false;
     if (businessApproved && path === 'onboarding') return false;
     if (permissions && !permissions.some((code) => can(code))) return false;
     return !!mainRole && (!roleNavigation[mainRole] || roleNavigation[mainRole].has(path));
@@ -121,20 +121,58 @@ export function AppShell({ zone, children }) {
   const navLabel = (path, label) => mainRole === 'BUSINESS_OWNER' ? ownerLabels[path] || label : mainRole === 'STAFF' && path === 'appointments' ? 'Lịch hẹn của tôi' : label;
   const initials = (user?.fullName || user?.email || 'BB').split(/\s+/).filter(Boolean).slice(-2).map((part) => part[0]).join('').toUpperCase();
 
-  useEffect(() => { if (!mobileOpen) return undefined; const close = (event) => event.key === 'Escape' && setMobileOpen(false); document.addEventListener('keydown', close); document.body.style.overflow = 'hidden'; return () => { document.removeEventListener('keydown', close); document.body.style.overflow = ''; }; }, [mobileOpen]);
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    if (desktop.matches) { setMobileOpen(false); return undefined; }
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const focusable = () => [...(sidebarRef.current?.querySelectorAll('a[href], button:not([disabled]), [tabindex="0"]') || [])]
+      .filter((element) => element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
+    focusable()[0]?.focus();
+    const keydown = (event) => {
+      if (event.key === 'Escape') { setMobileOpen(false); return; }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) { event.preventDefault(); return; }
+      const first = items[0], last = items[items.length - 1];
+      const outside = !sidebarRef.current?.contains(document.activeElement);
+      if (outside || event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+    };
+    const resize = (event) => { if (event.matches) setMobileOpen(false); };
+    desktop.addEventListener('change', resize);
+    document.addEventListener('keydown', keydown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      desktop.removeEventListener('change', resize);
+      document.removeEventListener('keydown', keydown);
+      document.body.style.overflow = previousOverflow;
+      const trigger = menuTriggerRef.current?.querySelector('button');
+      if (!desktop.matches && trigger) trigger.focus();
+      else if (previousFocus?.isConnected && previousFocus.getClientRects().length && getComputedStyle(previousFocus).visibility !== 'hidden') previousFocus.focus();
+    };
+  }, [mobileOpen]);
   const signOut = async () => {
-    await logout();
+    const pending = logout();
     navigate('/login', { replace: true, state: { workspace: zone === 'admin' ? 'PLATFORM' : 'SALON' } });
+    await pending;
   };
 
   return <div className={`bb-app-shell bb-app-shell--${zone} min-h-screen bg-[var(--bb-canvas)] text-[var(--bb-ink)] lg:grid lg:grid-cols-[272px_minmax(0,1fr)]`}>
     <a href="#main-content" className="bb-sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:shadow-lg">Bỏ qua điều hướng</a>
     {mobileOpen && <button className="fixed inset-0 z-[var(--z-sticky)] bg-[var(--color-overlay)] lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Đóng menu" />}
-    <aside className={cx('bb-app-sidebar fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-[min(86vw,304px)] flex-col border-r border-white/10 bg-zinc-950 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0', mobileOpen ? 'translate-x-0' : '-translate-x-full')} aria-label="Điều hướng chính">
+    <aside ref={sidebarRef} onTransitionEnd={(event) => {
+      if (event.target === event.currentTarget && ['transform', 'translate'].includes(event.propertyName) && mobileOpen && !window.matchMedia('(min-width: 1024px)').matches && !event.currentTarget.contains(document.activeElement)) {
+        event.currentTarget.querySelector('button:not([disabled]), a[href]')?.focus();
+      }
+    }} className={cx('bb-app-sidebar fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-[min(86vw,304px)] flex-col border-r border-white/10 bg-zinc-950 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0', mobileOpen ? 'translate-x-0 visible' : '-translate-x-full invisible lg:visible')} aria-label="Điều hướng chính">
       <div className="flex min-h-20 items-center gap-3 border-b border-white/10 px-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--bb-brand)]"><Sparkles size={19} /></span><div className="min-w-0"><p className="bb-display truncate text-lg font-bold">BeautyBook</p><p className="truncate text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{meta.eyebrow}</p></div><IconButton label="Đóng menu" className="ml-auto text-zinc-300 hover:bg-white/10 hover:text-white lg:hidden" onClick={() => setMobileOpen(false)}><X size={19} /></IconButton></div>
       <nav className="bb-scrollbar flex-1 space-y-1 overflow-y-auto p-3">{items.map(([path, label, Icon]) => <NavLink key={path || 'home'} end={!path} to={path ? `${meta.base}/${path}` : meta.base} onClick={() => setMobileOpen(false)} className={({ isActive }) => cx('group flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white', isActive && 'bg-white/10 text-white')}><Icon size={18} aria-hidden="true" /><span className="min-w-0 flex-1 break-words py-2 leading-snug">{navLabel(path, label)}</span><ChevronRight size={14} className="shrink-0 opacity-0 transition-opacity group-hover:opacity-70" /></NavLink>)}</nav>
       <div className="border-t border-white/10 p-3"><button onClick={signOut} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"><LogOut size={18} />Đăng xuất</button></div>
     </aside>
-    <div className="min-w-0"><header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-[var(--bb-border)] bg-white/95 px-3 backdrop-blur sm:px-5 lg:px-8"><IconButton label="Mở menu" className="lg:hidden" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton><div className="min-w-0 flex-1"><p className="break-words text-sm font-bold leading-snug sm:text-base"><span className="sm:hidden">{zone === 'platform' ? 'Quản trị BeautyBook' : meta.title}</span><span className="hidden sm:inline">{meta.title}</span></p><p className="hidden truncate text-xs text-[var(--bb-muted)] sm:block">{roleLabels[mainRole] || mainRole || 'Tài khoản BeautyBook'}</p></div>{zone !== 'customer' && <span className="relative"><IconButton label={unread ? `Thông báo: ${unread} chưa đọc` : "Mở thông báo"} onClick={() => navigate(`${meta.base}/notifications`)}><Bell size={19} /></IconButton>{unread > 0 && <span aria-hidden="true" className="pointer-events-none absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" />}</span>}<button onClick={() => navigate(`${meta.base}/${zone === 'salon' ? 'account' : 'profile'}`)} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 text-left hover:bg-[var(--bb-surface-subtle)]"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span><span className="hidden max-w-44 sm:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Chưa cập nhật'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">{user?.email}</span></span></button></header><main id="main-content" tabIndex="-1" className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main></div>
+    <div className="min-w-0"><header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-[var(--bb-border)] bg-white/95 px-3 backdrop-blur sm:px-5 lg:px-8"><span ref={menuTriggerRef} className="inline-flex lg:hidden"><IconButton label="Mở menu" onClick={() => setMobileOpen(true)}><Menu size={21} /></IconButton></span><div className="min-w-0 flex-1"><p className="break-words text-sm font-bold leading-snug sm:text-base"><span className="sm:hidden">{zone === 'platform' ? 'Quản trị BeautyBook' : meta.title}</span><span className="hidden sm:inline">{meta.title}</span></p><p className="hidden truncate text-xs text-[var(--bb-muted)] sm:block">{roleLabels[mainRole] || mainRole || 'Tài khoản BeautyBook'}</p></div>{zone !== 'customer' && <span className="relative"><IconButton label={unread ? `Thông báo: ${unread} chưa đọc` : "Mở thông báo"} onClick={() => navigate(`${meta.base}/notifications`)}><Bell size={19} /></IconButton>{unread > 0 && <span aria-hidden="true" className="pointer-events-none absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" />}</span>}<button onClick={() => navigate(`${meta.base}/${zone === 'salon' ? 'account' : 'profile'}`)} className="flex min-h-11 items-center gap-2 rounded-lg px-1.5 text-left hover:bg-[var(--bb-surface-subtle)]"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--bb-brand-soft)] text-xs font-bold text-[var(--bb-brand-strong)]">{initials}</span><span className="hidden max-w-44 sm:block"><span className="block truncate text-xs font-bold">{user?.fullName || 'Chưa cập nhật'}</span><span className="block truncate text-[11px] text-[var(--bb-muted)]">{user?.email}</span></span></button></header><main id="main-content" tabIndex="-1" className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">{children}</main></div>
   </div>;
 }

@@ -12,12 +12,12 @@ const count = (value: unknown): number => {
   return value;
 };
 function assertScope(scope: OwnerScope) {
-  if (!ownsBusiness(scope)) throw new ApiError('Không có quyền chủ doanh nghiệp trong phiên này.', 403);
+  if (!ownsBusiness(scope)) throw new ApiError('Bạn không có quyền quản lý doanh nghiệp này.', 403);
   if (scope.branchId && !ownerBranches(scope).some(branch => branch.id === scope.branchId)) throw new ApiError('Chi nhánh ngoài phạm vi.', 403);
 }
 function assertResource(scope: OwnerScope, businessId: string, branchId: string | null) {
   assertScope(scope);
-  if (!permitsResource(scope, businessId, branchId)) throw new ApiError('Tài nguyên ngoài phạm vi phiên.', 403);
+  if (!permitsResource(scope, businessId, branchId)) throw new ApiError('Bạn không có quyền truy cập mục này.', 403);
 }
 function uuid(value: string) {
   if (!isUuid(value)) throw new ApiError('Định danh không hợp lệ.', 404);

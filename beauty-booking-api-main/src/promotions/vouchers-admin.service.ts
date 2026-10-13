@@ -338,7 +338,7 @@ export class VouchersAdminService {
         select: { id: true },
       });
       if (!related) {
-        throw new ForbiddenException('Khách hàng chưa có quan hệ với tenant của voucher');
+        throw new ForbiddenException('Khách hàng chưa được ghi nhận tại doanh nghiệp phát hành voucher này.');
       }
     }
 

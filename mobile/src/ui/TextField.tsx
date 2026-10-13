@@ -1,7 +1,7 @@
 import React, { forwardRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, layout, radius, space, type } from '../theme';
+import { colors, layout, radius, space, type, fw } from '../theme';
 
 type Props = TextInputProps & {
   label: string;
@@ -50,7 +50,7 @@ export default TextField;
 const styles = StyleSheet.create({
   wrapper: { marginBottom: space.lg },
   label: { ...type.secondaryStrong, color: colors.heading, marginBottom: space.xs + 2 },
-  optional: { ...type.secondary, fontWeight: '400' },
+  optional: { ...type.secondary, ...fw.regular },
   box: { minHeight: layout.inputMinHeight, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, paddingLeft: space.md + 2, flexDirection: 'row', alignItems: 'center', gap: space.sm },
   multiline: { alignItems: 'flex-start', minHeight: 104 },
   focused: { borderColor: colors.primary, borderWidth: 2 },

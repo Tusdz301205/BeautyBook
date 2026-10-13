@@ -235,7 +235,7 @@ export function SalonProfile() {
               <div className="flex items-start gap-4">
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--bb-brand-soft)] text-[var(--bb-brand-strong)]"><Building2 size={22} /></span>
                 <div>
-                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold">{business.name}</h2><Badge tone="success">Doanh nghiệp: {business.status}</Badge></div>
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-xl font-bold">{business.name}</h2><Badge tone={reviewTone[business.status] || 'neutral'}>Doanh nghiệp: {reviewLabel[business.status] || 'Chưa cập nhật'}</Badge></div>
                   <p className="mt-2 text-sm text-[var(--bb-muted)]">{business.contactEmail} · {business.contactPhone}</p>
                   <p className="mt-1 text-sm text-[var(--bb-muted)]">{business.addressLine}</p>
                 </div>
@@ -255,7 +255,7 @@ export function SalonProfile() {
           )}
 
           {!branches.length ? (
-            <Card><EmptyState icon={Store} title="Chưa có chi nhánh" description="Tạo chi nhánh đầu tiên bằng biểu mẫu riêng; hồ sơ doanh nghiệp không chứa cấu hình vận hành của chi nhánh." action={create ? <Link to="/salon/branches/new"><Button>Thêm chi nhánh</Button></Link> : null} /></Card>
+            <Card><EmptyState icon={Store} title="Chưa có chi nhánh" description="Tạo chi nhánh đầu tiên để thiết lập dịch vụ, đội ngũ và giờ hoạt động." action={create ? <Link to="/salon/branches/new"><Button>Thêm chi nhánh</Button></Link> : null} /></Card>
           ) : (
             <section>
               <div className="mb-3"><h2 className="text-lg font-bold">Danh sách chi nhánh</h2><p className="mt-1 text-sm text-[var(--bb-muted)]">Mỗi chi nhánh có trạng thái xét duyệt, vận hành và điều kiện nhận lịch riêng.</p></div>

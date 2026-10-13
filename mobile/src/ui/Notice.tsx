@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { radius, space, tones, type } from '../theme';
+import { colors, radius, space, tones, type } from '../theme';
 import AppButton from './AppButton';
 
 type NoticeTone = 'info' | 'warning' | 'error' | 'success' | 'neutral' | 'brand';
@@ -47,6 +47,6 @@ const styles = StyleSheet.create({
   icon: { marginTop: 2 },
   flex: { flex: 1, minWidth: 0, gap: space.xs },
   title: { ...type.secondaryStrong },
-  message: { ...type.secondary, color: '#3F353B' },
+  message: { ...type.secondary, color: colors.body },
   action: { alignSelf: 'flex-start' },
 });

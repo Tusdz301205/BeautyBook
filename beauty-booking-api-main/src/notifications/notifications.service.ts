@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, type NotificationSeverity, type NotificationType } from '@prisma/client';
 import { foldNameSql, nameSearchPattern, normalizeNameSearch } from '../common/utils/name-search';
+import { presentNotificationBody, presentedNotificationBodySql } from '../common/utils/review-report-labels';
 
 @Injectable()
 export class NotificationsService {
@@ -55,7 +56,7 @@ export class NotificationsService {
         SELECT n.id FROM notifications n
         WHERE n.user_id = ${userId} AND (
           ${foldNameSql(Prisma.sql`n.title`)} LIKE ${pattern}
-          OR ${foldNameSql(Prisma.sql`COALESCE(n.body, '')`)} LIKE ${pattern}
+          OR ${foldNameSql(Prisma.sql`COALESCE(${presentedNotificationBodySql()}, '')`)} LIKE ${pattern}
         )`);
       // Never drop the account or exact filters, even when the lookup is empty.
       where.id = { in: matches.map(row => row.id) };
@@ -83,7 +84,7 @@ export class NotificationsService {
     ]);
 
     return {
-      data: notifications,
+      data: notifications.map(notification => ({ ...notification, body: presentNotificationBody(notification) })),
       pagination: {
         page,
         limit,

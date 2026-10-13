@@ -15,7 +15,7 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-const backgrounds = { plain: 'transparent', tonal: colors.primarySoft, scrim: 'rgba(42,31,38,0.55)', surface: colors.surface };
+const backgrounds = { plain: 'transparent', tonal: colors.primarySoft, scrim: 'rgba(42,18,48,0.5)', surface: colors.surface };
 
 export default function IconButton({ icon, label, onPress, variant = 'plain', color, selected, disabled, style }: Props) {
   const tint = color ?? (variant === 'scrim' ? colors.white : colors.heading);
@@ -27,7 +27,7 @@ export default function IconButton({ icon, label, onPress, variant = 'plain', co
       disabled={disabled}
       onPress={onPress}
       hitSlop={4}
-      style={({ pressed }) => [styles.base, { backgroundColor: pressed ? (variant === 'scrim' ? 'rgba(42,31,38,0.75)' : colors.surfacePressed) : backgrounds[variant] }, variant === 'surface' && styles.border, style]}
+      style={({ pressed }) => [styles.base, { backgroundColor: pressed ? (variant === 'scrim' ? 'rgba(42,18,48,0.72)' : colors.surfacePressed) : backgrounds[variant] }, variant === 'surface' && styles.border, style]}
     >
       <Ionicons name={icon} size={layout.iconLg} color={disabled ? colors.disabledText : tint} />
     </Pressable>

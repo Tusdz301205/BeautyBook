@@ -15,8 +15,8 @@ export default function UnsupportedWorkspace() {
     <View style={styles.content}>
       <View style={styles.icon}><Ionicons accessible={false} name="desktop-outline" size={30} color={colors.secondary} /></View>
       <Text accessibilityRole="header" style={styles.title}>Không gian làm việc trên web</Text>
-      <Text style={styles.body}>{user?.roles.includes('RECEPTIONIST') ? 'Tài khoản lễ tân sử dụng phiên bản quản trị web. Mobile hiện dành cho khách hàng, nhân viên và chủ doanh nghiệp.' : 'Tài khoản này chưa có quyền làm việc phù hợp trên mobile, hoặc quyền đã hết hạn. Vui lòng dùng phiên bản web hoặc liên hệ người quản lý.'}</Text>
-      {url ? <OperationButton label="Mở phiên bản web" icon="open-outline" onPress={() => void Linking.openURL(url)} /> : <Text style={styles.note}>Chưa cấu hình địa chỉ phiên bản web.</Text>}
+      <Text style={styles.body}>{user?.roles.includes('RECEPTIONIST') ? 'Dùng phiên bản quản trị web để làm việc với tài khoản lễ tân.' : 'Tài khoản này chưa có quyền làm việc trên ứng dụng. Dùng phiên bản web hoặc liên hệ quản lý.'}</Text>
+      {url ? <OperationButton label="Mở phiên bản web" icon="open-outline" onPress={() => void Linking.openURL(url)} /> : <Text style={styles.note}>Chưa mở được phiên bản web. Hãy liên hệ quản lý.</Text>}
       <OperationButton secondary label="Đăng xuất" icon="log-out-outline" onPress={() => void logout()} />
     </View>
   </SafeAreaView>;

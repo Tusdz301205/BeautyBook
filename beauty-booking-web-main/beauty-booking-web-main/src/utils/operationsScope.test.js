@@ -23,16 +23,16 @@ test('operational branch selector excludes staff-only grants and derives the sel
 
 test('receptionist only receives operator access and no owner-only operations tab', () => {
   const rights = operationsRights(mixed, operationsContext(mixed, branches, 'counter'));
-  assert.deepEqual(rights, { owner: false, operator: true, impact: false, ownership: false });
+  assert.deepEqual(rights, { owner: false, operator: true, impact: false });
   assert.equal(operationsTab('impact', rights), '');
   assert.equal(operationsTab('ownership', rights), '');
 });
 
-test('owner receives impact and ownership operations inside the owned business', () => {
+test('owner retains impact operations but the retired ownership tab falls back to impact', () => {
   const rights = operationsRights(mixed, operationsContext(mixed, branches, 'owned-two'));
-  assert.deepEqual(rights, { owner: true, operator: true, impact: true, ownership: true });
+  assert.deepEqual(rights, { owner: true, operator: true, impact: true });
   assert.equal(operationsTab('impact', rights), 'impact');
-  assert.equal(operationsTab('ownership', rights), 'ownership');
+  assert.equal(operationsTab('ownership', rights), 'impact');
 });
 
 test('expired or retired scopes cannot render stale panels or select stale branches', () => {
@@ -50,7 +50,7 @@ test('a new owner without a branch keeps business-level operations without inven
   assert.equal(context.businessId, 'owned');
   assert.equal(context.branchId, '');
   assert.equal(rights.impact, true);
-  assert.equal(rights.ownership, true);
+  assert.equal(Object.hasOwn(rights, 'ownership'), false);
 });
 
 test('missing permissions hide owner actions even when the owner role exists', () => {
@@ -59,7 +59,7 @@ test('missing permissions hide owner actions even when the owner role exists', (
   assert.equal(rights.owner, true);
   assert.equal(rights.operator, true);
   assert.equal(rights.impact, false);
-  assert.equal(rights.ownership, false);
+  assert.equal(Object.hasOwn(rights, 'ownership'), false);
 });
 
 function apiFixture() {
@@ -70,7 +70,7 @@ function apiFixture() {
 test('receptionist loader sends no owner-only operations requests', async () => {
   const api = apiFixture();
   const result = await loadOperationsData(mixed, operationsContext(mixed, branches, 'counter'), api);
-  assert.deepEqual(result, { impacts: [], transfers: [], versions: null });
+  assert.deepEqual(result, { impacts: [] });
   for (const group of Object.values(api)) for (const fn of Object.values(group)) assert.equal(fn.mock.callCount(), 0);
 });
 
@@ -85,8 +85,10 @@ test('owner requests use the actual selected business and filter impact rows by 
   const api = apiFixture();
   api.impactApi.list = mock.fn(async () => [{ id: 'a', businessId: 'owned' }, { id: 'b', businessId: 'other' }]);
   const result = await loadOperationsData(mixed, operationsContext(mixed, branches, 'owned-two'), api);
-  assert.deepEqual(api.ownershipApi.list.mock.calls[0].arguments, ['owned']);
-  assert.deepEqual(api.ownershipApi.versions.mock.calls[0].arguments, ['owned']);
+  assert.equal(api.impactApi.list.mock.callCount(), 1);
+  assert.deepEqual(api.impactApi.list.mock.calls[0].arguments, []);
+  assert.equal(api.ownershipApi.list.mock.callCount(), 0);
+  assert.equal(api.ownershipApi.versions.mock.callCount(), 0);
   assert.deepEqual(result.impacts.map((row) => row.id), ['a']);
   assert.deepEqual(operationRows([{ id: 'a', businessId: 'owned' }, { id: 'b', businessId: 'other' }], { businessId: 'owned' }, 'business').map((row) => row.id), ['a']);
 });

@@ -6,6 +6,7 @@ import { authApi } from '../api/auth';
 import AuthField from '../components/AuthField';
 import AuthResult from '../components/AuthResult';
 import AuthScreenLayout from '../components/AuthScreenLayout';
+import { editorial } from '../components/editorialArt';
 import { space } from '../theme';
 import { AppButton, LoadingState, Notice } from '../ui';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -39,7 +40,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   }, [route.params?.token]);
 
   return (
-    <AuthScreenLayout title="Xác minh email" subtitle="Hoàn tất xác minh để bảo vệ tài khoản BeautyBook của bạn." onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}>
+    <AuthScreenLayout image={editorial.authRecovery} title="Xác minh email" onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Login')}>
       {status === 'loading' ? <LoadingState message="Đang xác minh email…" style={styles.loading} /> : status === 'success' ? (
         <AuthResult icon="checkmark" title="Email đã được xác minh" actionLabel="Đăng nhập" onAction={() => navigation.replace('Login')} />
       ) : (

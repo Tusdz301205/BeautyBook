@@ -28,6 +28,7 @@ import { customerCancellationMode } from './customer-cancellation-policy';
 import { recordBookingViolation } from './booking-violation-policy';
 import { SchedulerGateway } from '../scheduler/scheduler.gateway';
 import { assertMobileOwnerWithoutFinance } from './mobile-owner-finance-guard';
+import { assertPendingHoldAllowsScheduling } from './pending-hold-guard';
 
 @Injectable()
 export class ChangeRequestsService {
@@ -128,6 +129,7 @@ export class ChangeRequestsService {
         'Lịch hẹn không còn ở trạng thái cho phép gửi yêu cầu thay đổi',
       );
     }
+    if (['RESCHEDULE', 'STAFF_CHANGE'].includes(body.requestType)) assertPendingHoldAllowsScheduling(booking);
 
     if (requestedByType === 'CUSTOMER' && body.requestType === 'RESCHEDULE') {
       const policy = await this.platformSettings.getEffective();
@@ -260,6 +262,7 @@ export class ChangeRequestsService {
     if (req.status !== 'PENDING') {
       throw new BadRequestException('Yêu cầu đã xử lý');
     }
+    if (['RESCHEDULE', 'STAFF_CHANGE'].includes(req.requestType)) assertPendingHoldAllowsScheduling(req.booking);
     if (req.expiresAt <= new Date()) {
       const expired = await this.prisma.appointmentChangeRequest.updateMany({
         where: { id: reqId, status: 'PENDING' },
@@ -336,6 +339,22 @@ export class ChangeRequestsService {
     const updated = await withSerializableTransaction(this.prisma, async (tx) => {
       // Consistent lock order with request creation/no-show: booking first.
       await tx.$queryRaw`SELECT 1 FROM bookings WHERE id = ${req.bookingId} FOR UPDATE`;
+      const lockedBooking = await tx.booking.findUnique({
+        where: { id: req.bookingId },
+        include: {
+          bookingServices: true,
+          branch: { select: { id: true, businessId: true } },
+        },
+      });
+      if (!lockedBooking) {
+        throw new NotFoundException('Không tìm thấy lịch hẹn');
+      }
+      if (['RESCHEDULE', 'STAFF_CHANGE'].includes(req.requestType)) assertPendingHoldAllowsScheduling(lockedBooking);
+      if (!['PENDING', 'CONFIRMED'].includes(lockedBooking.status)) {
+        throw new ConflictException(
+          'Lịch hẹn đã sang trạng thái không còn cho phép thay đổi yêu cầu này',
+        );
+      }
       const claimed = await tx.appointmentChangeRequest.updateMany({
         where: { id: reqId, status: 'PENDING', expiresAt: { gt: new Date() } },
         data: {
@@ -347,21 +366,6 @@ export class ChangeRequestsService {
       });
       if (claimed.count !== 1) {
         throw new ConflictException('Yêu cầu đã hết hạn hoặc được xử lý bởi người khác');
-      }
-      const lockedBooking = await tx.booking.findUnique({
-        where: { id: req.bookingId },
-        include: {
-          bookingServices: true,
-          branch: { select: { id: true, businessId: true } },
-        },
-      });
-      if (!lockedBooking) {
-        throw new NotFoundException('Không tìm thấy lịch hẹn');
-      }
-      if (!['PENDING', 'CONFIRMED'].includes(lockedBooking.status)) {
-        throw new ConflictException(
-          'Lịch hẹn đã sang trạng thái không còn cho phép thay đổi yêu cầu này',
-        );
       }
 
       const transactionClient = tx as unknown as PrismaService;

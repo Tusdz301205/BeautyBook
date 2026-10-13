@@ -53,6 +53,7 @@ import { BOOKING_TIMING_AUDIT_INCLUDE, bookingItemActualTiming, withBookingTimin
 import { staffBookingView } from './staff-booking-view';
 import { assertMobileOwnerWithoutFinance } from './mobile-owner-finance-guard';
 import { emitCommittedBookingUpdate, emitCommittedBookingUpdates } from './booking-realtime';
+import { assertPendingHoldAllowsScheduling } from './pending-hold-guard';
 
 type BookingTimelineItem = {
   id: string;
@@ -474,6 +475,7 @@ export class BookingsService {
         appointmentDate: true,
         appointmentStartTime: true,
         appointmentEndTime: true,
+        pendingExpiresAt: true,
         totalAmount: true,
         finalAmount: true,
         voucherId: true,
@@ -498,6 +500,7 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+    if (mappedStatus === 'CONFIRMED') assertPendingHoldAllowsScheduling(existing);
     this.assertMutableScheduleStatus(existing.status);
 
     if (
@@ -587,6 +590,17 @@ export class BookingsService {
     const updatedBooking = await withSerializableTransaction(
       this.prisma,
       async (tx) => {
+        if (mappedStatus === 'CONFIRMED') {
+          await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
+          const locked = await tx.booking.findUnique({
+            where: { id },
+            select: { status: true, deletedAt: true, pendingExpiresAt: true, bookingServices: { select: { status: true } } },
+          });
+          if (!locked || locked.deletedAt || locked.status !== existing.status) {
+            throw new ConflictException('Lịch hẹn vừa thay đổi, vui lòng tải lại và thử lại');
+          }
+          assertPendingHoldAllowsScheduling(locked);
+        }
         if (mobileOwnerV1 && ['CANCELLED', 'REJECTED'].includes(mappedStatus)) {
           await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${id} FOR UPDATE`;
           await assertMobileOwnerWithoutFinance(tx, id);
@@ -1978,6 +1992,17 @@ export class BookingsService {
     date: string; // ISO date YYYY-MM-DD
     variantSelections?: Record<string, string>;
   }, leadContext?: BookingLeadContext) {
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date);
+    const day = dateMatch ? new Date(`${params.date}T00:00:00.000Z`) : null;
+    if (!day || Number(dateMatch?.[1]) < 1 || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== params.date) {
+      throw new BadRequestException('Ngày chọn lịch không hợp lệ.');
+    }
+    const selections = params.variantSelections;
+    if (selections != null && (typeof selections !== 'object' || Array.isArray(selections) ||
+        Object.entries(selections).some(([serviceId, variantId]) =>
+          !params.serviceIds.includes(serviceId) || typeof variantId !== 'string' || !variantId.trim()))) {
+      throw new BadRequestException('Lựa chọn biến thể dịch vụ không hợp lệ.');
+    }
     await this.expirePendingHolds(params.branchId);
     const SLOT_STEP_MIN = 30;
     const branchReady = await this.prisma.branch.findFirst({
@@ -2027,15 +2052,8 @@ export class BookingsService {
     if (totalDuration <= 0) {
       throw new BadRequestException('Tổng thời lượng dịch vụ phải > 0');
     }
+    assertValidDuration(totalDuration);
 
-    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date);
-    if (!dateMatch) {
-      throw new BadRequestException('date không hợp lệ');
-    }
-    const day = new Date(
-      Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3])),
-    );
-    if (Number.isNaN(day.getTime())) throw new BadRequestException('date không hợp lệ');
     const dayOfWeek = day.getUTCDay();
     const [holiday, specialDay, branchWorkingHour] = await Promise.all([
       this.prisma.branchHoliday.findUnique({
@@ -2252,6 +2270,7 @@ export class BookingsService {
       },
     });
     if (!existing) throw new NotFoundException('Không tìm thấy lịch hẹn');
+    assertPendingHoldAllowsScheduling(existing);
     assertUnstartedBookingItems(existing.bookingServices);
     const existingInterval = toBookingInterval(
       existing.appointmentDate,
@@ -2306,6 +2325,7 @@ export class BookingsService {
         },
       });
       if (!locked) throw new NotFoundException('Không tìm thấy lịch hẹn');
+      assertPendingHoldAllowsScheduling(locked);
       this.assertMutableScheduleStatus(locked.status);
 
       assertUnstartedBookingItems(locked.bookingServices);
@@ -2423,6 +2443,7 @@ export class BookingsService {
       include: { bookingServices: true },
     });
     if (!bookingExisting) throw new NotFoundException('Booking not found');
+    assertPendingHoldAllowsScheduling(bookingExisting);
     this.assertMutableScheduleStatus(bookingExisting.status);
     const activeItems = bookingExisting.bookingServices.filter((item) =>
       ['SCHEDULED', 'IN_PROGRESS'].includes(item.status),
@@ -2474,6 +2495,7 @@ export class BookingsService {
           include: { bookingServices: true },
         });
         if (!locked) throw new NotFoundException('Booking not found');
+        assertPendingHoldAllowsScheduling(locked);
         this.assertMutableScheduleStatus(locked.status);
         const lockedActiveItems = locked.bookingServices.filter((item) =>
           ['SCHEDULED', 'IN_PROGRESS'].includes(item.status),
@@ -2574,6 +2596,7 @@ export class BookingsService {
       include: { bookingServices: true },
     });
     if (!bookingExisting) throw new NotFoundException('Booking not found');
+    assertPendingHoldAllowsScheduling(bookingExisting);
     this.assertMutableScheduleStatus(bookingExisting.status);
     if (bookingExisting.bookingServices.some(item => item.status !== 'SCHEDULED')) {
       throw new ConflictException('Chỉ phân công hàng loạt khi mọi dịch vụ chưa bắt đầu. Dùng thao tác từng dịch vụ để giữ lịch sử thực hiện.');
@@ -2609,6 +2632,7 @@ export class BookingsService {
           include: { bookingServices: true },
         });
         if (!locked) throw new NotFoundException('Booking not found');
+        assertPendingHoldAllowsScheduling(locked);
         this.assertMutableScheduleStatus(locked.status);
         if (locked.bookingServices.some(item => item.status !== 'SCHEDULED')) {
           throw new ConflictException('Dịch vụ đã bắt đầu hoặc kết thúc; không được ghi đè phân công hàng loạt.');

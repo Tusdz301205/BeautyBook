@@ -11,7 +11,7 @@ export async function assertActualTimeGrantOwner(db: Pick<Prisma.TransactionClie
   if (user.sessionType !== 'salon' || (user.workspace && user.workspace !== 'SALON') ||
       (user.businessId && user.businessId !== businessId) ||
       !canOnResource(user, ACTUAL_TIME_CORRECT_PERMISSION, { businessId })) {
-    throw new ForbiddenException('Chỉ chủ doanh nghiệp đúng phạm vi được cấp quyền đính chính');
+    throw new ForbiddenException('Bạn chưa có quyền cấp phép hiệu chỉnh thời gian cho doanh nghiệp này.');
   }
   const now = new Date();
   const role = await db.userRole.findFirst({ where: { userId: user.id, businessId, branchId: null,
@@ -52,6 +52,6 @@ export async function assertActualTimeCorrectionPermission(db: PermissionReader,
   if (!grant || grant.userId !== user.id ||
       grant.revokedAt || (grant.expiresAt && grant.expiresAt <= now) ||
       grant.businessId !== resource.businessId || (grant.branchId && grant.branchId !== resource.branchId)) {
-    throw new ForbiddenException('Yêu cầu quyền booking.actual_time.correct được cấp trong phạm vi còn hiệu lực');
+    throw new ForbiddenException('Bạn chưa được cấp quyền hiệu chỉnh thời gian cho chi nhánh này.');
   }
 }

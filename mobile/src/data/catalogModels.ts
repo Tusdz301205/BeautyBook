@@ -59,6 +59,12 @@ export interface ServiceGroup {
 export interface StaffMember {
   id: string;
   name: string;
+  /** Public profile fields from the branch detail API; all optional. */
+  title?: string;
+  specialties?: string[];
+  avatarUrl?: string;
+  rating?: number;
+  ratingCount?: number;
 }
 
 export interface Review {
@@ -77,4 +83,14 @@ export function servicePriceLabel(item: Pick<ServiceItem, 'price' | 'priceKind' 
   if (item.priceKind === 'quote') return 'Cần tư vấn';
   if (!Number.isFinite(item.price) || item.price <= 0) return 'Liên hệ cơ sở';
   return item.priceKind === 'from' ? `Từ ${formatCurrency(item.price)}` : formatCurrency(item.price);
+}
+
+/** Display order only: groups and services the customer arrived with lead the list; everything else keeps its order. */
+export function leadWithRequested<T extends { id: string }, G extends { items: T[] }>(groups: G[], requestedIds: string[]): G[] {
+  if (requestedIds.length === 0) return groups;
+  const wanted = new Set(requestedIds);
+  const rank = (items: T[]) => Number(items.some((item) => wanted.has(item.id)));
+  return groups
+    .map((group) => ({ ...group, items: [...group.items].sort((a, b) => rank([b]) - rank([a])) }))
+    .sort((a, b) => rank(b.items) - rank(a.items));
 }

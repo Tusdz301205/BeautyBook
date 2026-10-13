@@ -1,47 +1,80 @@
 /**
- * Berry Clarity design tokens. Pure TypeScript (no React Native imports) so
- * Node tests can load it directly. Contrast values are documented in
- * design-proposals/beautybook-mobile/2026-10-09-de-xuat-berry-clarity-v1.md §6.
+ * Berry Bloom design tokens. Pure TypeScript (no React Native imports) so Node
+ * tests can load it directly. Contrast ratios (WCAG 2.x relative luminance) are
+ * recorded in mobile/docs/REDESIGN-BERRY-BLOOM.md.
+ *
+ * Colour roles:
+ *  - berry  = action + selection (CTA, selected chip/date/slot/tab)
+ *  - plum   = brand surfaces (hero headers, next-appointment card)
+ *  - peach / lavender / sage / gold / sky = supporting families with a fixed
+ *    meaning (service families and booking states), never random per card.
  */
 
 const palette = {
-  berry: '#8D315B',
-  berryPressed: '#70254A',
-  berrySoft: '#F7E8EF',
-  plum: '#3A2232',
-  plumSoft: '#E9D5DF',
-  coral: '#A8472F',
-  coralSoft: '#FBEAE4',
-  sage: '#3F6B5A',
-  ivory: '#FBF7F3',
+  berry: '#B4235F',
+  berryPressed: '#8C1848',
+  berrySoft: '#FCE4EC',
+  berryTint: '#FFF1F6',
+  plum: '#3A1446',
+  plumMid: '#5E1F66',
+  plumSoft: '#EBD6F0',
+  peach: '#A63A1B',
+  peachFill: '#FFB59C',
+  peachSoft: '#FFE8DE',
+  lavender: '#5236A6',
+  lavenderFill: '#BCA9F3',
+  lavenderSoft: '#EDE7FD',
+  sage: '#1F6B4A',
+  sageFill: '#9BD6BA',
+  sageSoft: '#E0F4EA',
+  gold: '#7A5200',
+  goldFill: '#F6BD4F',
+  goldSoft: '#FFF1D1',
+  sky: '#1F5C8A',
+  skySoft: '#E3F0FB',
+  teal: '#17685C',
+  tealSoft: '#DDF3EE',
+  blush: '#FFF8F5',
   white: '#FFFFFF',
-  ink: '#2A1F26',
-  inkBody: '#4A3F46',
-  inkSecondary: '#6B5F66',
-  inkDisabled: '#857980',
-  line: '#E7DCD8',
-  lineStrong: '#8C7F86',
-  divider: '#EFE7E3',
-  muted: '#F3ECE7',
-  mutedStrong: '#EFE8E5',
+  ink: '#2A1230',
+  inkBody: '#4A3550',
+  inkSecondary: '#6D5873',
+  inkDisabled: '#8C7A90',
+  line: '#EFDDE3',
+  lineStrong: '#93798A',
+  divider: '#F3E6EA',
+  muted: '#F8EEF0',
+  pressed: '#F6E6EC',
+  disabledSurface: '#EFE6EB',
 };
 
 export const colors = {
   primary: palette.berry,
   primaryPressed: palette.berryPressed,
   primarySoft: palette.berrySoft,
+  primaryTint: palette.berryTint,
   onPrimary: palette.white,
   secondary: palette.plum,
+  secondaryMid: palette.plumMid,
   secondarySoft: palette.plumSoft,
   onSecondary: palette.white,
-  accent: palette.coral,
-  accentSoft: palette.coralSoft,
+  accent: palette.peach,
+  accentFill: palette.peachFill,
+  accentSoft: palette.peachSoft,
+  lavender: palette.lavender,
+  lavenderFill: palette.lavenderFill,
+  lavenderSoft: palette.lavenderSoft,
   sage: palette.sage,
+  sageFill: palette.sageFill,
+  sageSoft: palette.sageSoft,
+  gold: palette.gold,
+  goldFill: palette.goldFill,
+  goldSoft: palette.goldSoft,
 
-  background: palette.ivory,
+  background: palette.blush,
   surface: palette.white,
   surfaceMuted: palette.muted,
-  surfacePressed: palette.muted,
+  surfacePressed: palette.pressed,
   border: palette.line,
   borderStrong: palette.lineStrong,
   divider: palette.divider,
@@ -50,49 +83,46 @@ export const colors = {
   body: palette.inkBody,
   secondaryText: palette.inkSecondary,
   disabledText: palette.inkDisabled,
-  disabledSurface: palette.mutedStrong,
+  disabledSurface: palette.disabledSurface,
 
-  success: '#2E6A47',
-  successSoft: '#E4F2E8',
-  warning: '#7A4E0A',
-  warningSoft: '#FBF0DA',
-  error: '#A12A22',
-  errorSoft: '#FBE7E4',
-  info: '#255A86',
-  infoSoft: '#E6EFF8',
+  success: palette.sage,
+  successSoft: palette.sageSoft,
+  warning: palette.gold,
+  warningSoft: palette.goldSoft,
+  error: '#A8261C',
+  errorSoft: '#FDE7E5',
+  info: palette.sky,
+  infoSoft: palette.skySoft,
 
-  overlay: 'rgba(42,31,38,0.48)',
-  scrim: 'rgba(42,31,38,0.62)',
-  skeleton: palette.mutedStrong,
+  overlay: 'rgba(42,18,48,0.52)',
+  scrim: 'rgba(42,18,48,0.66)',
+  skeleton: palette.disabledSurface,
 
   white: palette.white,
   black: '#000000',
+};
 
-  // Legacy aliases kept so untouched modules keep compiling with new values.
-  primaryLight: palette.berrySoft,
-  orange: '#7A4E0A',
-  discountRed: '#A12A22',
-  ratingGreen: '#2E6A47',
-  bookingTag: '#2E6A47',
-  reviewTag: '#255A86',
-  textDark: palette.ink,
-  textBody: palette.inkBody,
-  textGray: palette.inkSecondary,
-  textMuted: palette.inkDisabled,
-  card: palette.white,
+/** Gradient stops (start → end). Used for brand surfaces only, never behind body text below AA. */
+export const gradients = {
+  brand: ['#3A1446', '#7B1D62', '#B4235F'] as const,
+  dusk: ['#5E1F66', '#3A1446'] as const,
+  bloom: ['#B4235F', '#8A2590'] as const,
+  sunrise: ['#FFB59C', '#F58FB0'] as const,
+  blush: ['#FFE8DE', '#FCE4EC'] as const,
+  lilac: ['#EDE7FD', '#FCE4EC'] as const,
 };
 
 export type Tone = 'neutral' | 'brand' | 'info' | 'success' | 'warning' | 'danger' | 'request' | 'arrived';
 
 export const tones: Record<Tone, { fg: string; bg: string; border: string }> = {
-  neutral: { fg: '#5E545A', bg: '#EEE8E6', border: '#D9CFCC' },
-  brand: { fg: palette.berry, bg: palette.berrySoft, border: '#E3C3D2' },
-  info: { fg: '#255A86', bg: '#E6EFF8', border: '#C3D6EA' },
-  success: { fg: '#2E6A47', bg: '#E4F2E8', border: '#C2DFCB' },
-  warning: { fg: '#7A4E0A', bg: '#FBF0DA', border: '#EBD3A4' },
-  danger: { fg: '#A12A22', bg: '#FBE7E4', border: '#EDC1BB' },
-  request: { fg: '#55468A', bg: '#EEEAF8', border: '#D3CBEB' },
-  arrived: { fg: '#1F6B5C', bg: '#E0F2ED', border: '#BADFD4' },
+  neutral: { fg: '#5A4A5E', bg: '#F1E8EE', border: '#DFD0DA' },
+  brand: { fg: '#A61E5A', bg: palette.berrySoft, border: '#F3BFD3' },
+  info: { fg: palette.sky, bg: palette.skySoft, border: '#BCD8F0' },
+  success: { fg: palette.sage, bg: palette.sageSoft, border: '#B5E0C9' },
+  warning: { fg: palette.gold, bg: palette.goldSoft, border: '#F0D48F' },
+  danger: { fg: '#A8261C', bg: '#FDE7E5', border: '#F3BDB8' },
+  request: { fg: palette.lavender, bg: palette.lavenderSoft, border: '#CFC2F5' },
+  arrived: { fg: palette.teal, bg: palette.tealSoft, border: '#B0E0D6' },
 };
 
 /** Booking lifecycle → tone + icon. Colour is never the only signal. */
@@ -108,9 +138,32 @@ export const bookingTone: Record<string, { tone: Tone; icon: string }> = {
   NO_SHOW: { tone: 'danger', icon: 'alert-circle-outline' },
 };
 
+export type FamilyKey = 'hair' | 'nails' | 'skin' | 'spa' | 'glow' | 'brow';
+
+/** Service families: one fixed tint per kind of care, so colour helps recognition. */
+export const families: Record<FamilyKey, { fg: string; soft: string; fill: string; icon: string; stops: readonly [string, string] }> = {
+  hair: { fg: palette.lavender, soft: palette.lavenderSoft, fill: palette.lavenderFill, icon: 'cut-outline', stops: ['#D9CCFA', '#F3C6E3'] },
+  nails: { fg: '#A61E5A', soft: palette.berrySoft, fill: '#F59ABB', icon: 'color-palette-outline', stops: ['#FBC4D8', '#FFD9C9'] },
+  skin: { fg: palette.peach, soft: palette.peachSoft, fill: palette.peachFill, icon: 'water-outline', stops: ['#FFD3C2', '#FFE7B8'] },
+  spa: { fg: palette.sage, soft: palette.sageSoft, fill: palette.sageFill, icon: 'leaf-outline', stops: ['#BFE6D2', '#DCEBFA'] },
+  glow: { fg: palette.gold, soft: palette.goldSoft, fill: palette.goldFill, icon: 'sparkles-outline', stops: ['#FBE2A6', '#FFD3C2'] },
+  brow: { fg: palette.sky, soft: palette.skySoft, fill: '#9CC8EE', icon: 'eye-outline', stops: ['#C9E1F7', '#E3DAFB'] },
+};
+
+/** Deterministic family from a Vietnamese/English category or service name. */
+export function familyOf(name?: string | null): FamilyKey {
+  const label = (name ?? '').toLocaleLowerCase('vi-VN');
+  if (/mi\b|mày|môi|trang điểm|makeup|lash|brow|phun|xăm/.test(label)) return 'brow';
+  if (/tóc|gội|hair|barber|râu|uốn|nhuộm|duỗi/.test(label)) return 'hair';
+  if (/móng|nail|gel|sơn/.test(label)) return 'nails';
+  if (/spa|massage|mát-xa|mát xa|thư giãn|body|xông|dưỡng sinh/.test(label)) return 'spa';
+  if (/da\b|da |facial|skin|mụn|trị liệu|chăm sóc mặt|peel/.test(label)) return 'skin';
+  return 'glow';
+}
+
 export const space = { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, huge: 40 };
 
-export const radius = { sm: 8, md: 12, lg: 16, xl: 20, sheet: 24, pill: 999 };
+export const radius = { sm: 8, md: 12, lg: 18, xl: 24, sheet: 28, pill: 999 };
 
 export const layout = {
   gutter: 16,
@@ -128,30 +181,54 @@ export const layout = {
   iconLg: 24,
 };
 
+/**
+ * Brand typefaces (loaded in App.tsx): Fraunces for display, Be Vietnam Pro for
+ * everything else — the same pairing as the web (docs/design.md). Each weight is
+ * its own family, so styles pick a family and never set fontWeight (which would
+ * synthesise a second bold on top of the real one).
+ */
+export const fonts = {
+  regular: 'BeVietnamPro_400Regular',
+  medium: 'BeVietnamPro_500Medium',
+  semibold: 'BeVietnamPro_600SemiBold',
+  bold: 'BeVietnamPro_700Bold',
+  display: 'Fraunces_600SemiBold',
+};
+
+/** Weight overrides for inline use: `{ ...type.caption, ...fw.semibold }`. */
+export const fw = {
+  regular: { fontFamily: fonts.regular },
+  medium: { fontFamily: fonts.medium },
+  semibold: { fontFamily: fonts.semibold },
+  bold: { fontFamily: fonts.bold },
+  display: { fontFamily: fonts.display },
+};
+
 const tabular = ['tabular-nums'] as ('tabular-nums')[];
 
 export const type = {
-  display: { fontSize: 28, lineHeight: 34, fontWeight: '700' as const, letterSpacing: -0.3, color: colors.heading },
-  h1: { fontSize: 24, lineHeight: 30, fontWeight: '700' as const, letterSpacing: -0.2, color: colors.heading },
-  h2: { fontSize: 20, lineHeight: 26, fontWeight: '700' as const, color: colors.heading },
-  h3: { fontSize: 17, lineHeight: 23, fontWeight: '600' as const, color: colors.heading },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' as const, color: colors.body },
-  bodyStrong: { fontSize: 16, lineHeight: 24, fontWeight: '600' as const, color: colors.heading },
-  secondary: { fontSize: 14, lineHeight: 20, fontWeight: '400' as const, color: colors.secondaryText },
-  secondaryStrong: { fontSize: 14, lineHeight: 20, fontWeight: '600' as const, color: colors.body },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' as const, letterSpacing: 0.2, color: colors.secondaryText },
-  overline: { fontSize: 12, lineHeight: 16, fontWeight: '700' as const, letterSpacing: 0.4, color: colors.secondaryText },
-  button: { fontSize: 16, lineHeight: 22, fontWeight: '600' as const },
-  tab: { fontSize: 12, lineHeight: 16, fontWeight: '600' as const, letterSpacing: 0.1 },
-  numeric: { fontSize: 26, lineHeight: 32, fontWeight: '700' as const, letterSpacing: -0.2, color: colors.heading, fontVariant: tabular },
-  clock: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const, color: colors.heading, fontVariant: tabular },
-  price: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const, color: colors.heading, fontVariant: tabular },
+  display: { fontFamily: fonts.display, fontSize: 30, lineHeight: 38, letterSpacing: -0.2, color: colors.heading },
+  h1: { fontFamily: fonts.display, fontSize: 26, lineHeight: 34, letterSpacing: -0.1, color: colors.heading },
+  h2: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 28, color: colors.heading },
+  h3: { fontFamily: fonts.semibold, fontSize: 17, lineHeight: 24, color: colors.heading },
+  body: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24, color: colors.body },
+  bodyStrong: { fontFamily: fonts.semibold, fontSize: 16, lineHeight: 24, color: colors.heading },
+  secondary: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.secondaryText },
+  secondaryStrong: { fontFamily: fonts.semibold, fontSize: 14, lineHeight: 21, color: colors.body },
+  caption: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 17, letterSpacing: 0.1, color: colors.secondaryText },
+  overline: { fontFamily: fonts.bold, fontSize: 12, lineHeight: 17, letterSpacing: 0.5, color: colors.secondaryText },
+  button: { fontFamily: fonts.semibold, fontSize: 16, lineHeight: 22 },
+  tab: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16 },
+  numeric: { fontFamily: fonts.bold, fontSize: 26, lineHeight: 34, letterSpacing: -0.2, color: colors.heading, fontVariant: tabular },
+  clock: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.heading, fontVariant: tabular },
+  price: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.heading, fontVariant: tabular },
 };
 
 export const elevation = {
-  card: { shadowColor: palette.ink, shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
-  raised: { shadowColor: palette.ink, shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: -2 }, elevation: 8 },
+  card: { shadowColor: palette.plum, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  raised: { shadowColor: palette.plum, shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: -3 }, elevation: 10 },
+  float: { shadowColor: palette.plum, shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
 };
 
-export const theme = { colors, tones, bookingTone, space, radius, layout, type, elevation };
+export const theme = { colors, gradients, tones, bookingTone, families, familyOf, space, radius, layout, fonts, fw, type, elevation };
 export default theme;

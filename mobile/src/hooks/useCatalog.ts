@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { combosApi } from '../api/combos';
 import { branchesApi } from '../api/branches';
 import { servicesApi } from '../api/services';
-import { groupSearchRows, mapCategory, mapCombo, RemoteCombo, RemoteVenue } from '../mappers/catalog';
+import { groupSearchRows, mapCategory, mapCombo, RemoteCombo, SearchVenue } from '../mappers/catalog';
 import type { Category } from '../data/catalogModels';
 
 export function useCatalog(location?: string) {
-  const [venues, setVenues] = useState<RemoteVenue[]>([]);
+  const [venues, setVenues] = useState<SearchVenue[]>([]);
   const [combos, setCombos] = useState<RemoteCombo[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -41,7 +41,7 @@ export function useCatalog(location?: string) {
       });
       setVenues(searchVenues.map((venue) => ({ ...venue, imageUrls: photosById.get(venue.id) ?? [] })));
     } catch (reason) {
-      if (requestRef.current === requestId) setError(reason instanceof Error ? reason.message : 'Không tải được dữ liệu trang chủ');
+      if (requestRef.current === requestId) setError(reason instanceof Error ? reason.message : 'Không tải được trang khám phá');
     } finally {
       if (requestRef.current === requestId) setLoading(false);
     }

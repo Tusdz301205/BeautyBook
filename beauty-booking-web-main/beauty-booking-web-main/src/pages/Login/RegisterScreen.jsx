@@ -118,7 +118,7 @@ export function RegisterScreen({ accountType = 'CUSTOMER' }) {
           [/email/i, 'email'], [/điện thoại|phone/i, 'phone'],
           [/mật khẩu|password/i, 'password'], [/họ tên|fullName/i, 'fullName'],
         ].find(([pattern]) => pattern.test(error.message || ''))?.[1] : null;
-        const message = !error.status ? 'Chưa thể kết nối máy chủ. Kiểm tra kết nối rồi thử lại.'
+        const message = !error.status ? 'Chưa thể kết nối. Kiểm tra kết nối mạng rồi thử lại.'
           : error.status === 429 ? 'Bạn đang thao tác quá nhanh. Đợi một lát rồi thử lại.'
             : field && /^(Email|Số điện thoại|Mật khẩu|Họ tên)/i.test(error.message) ? error.message
               : 'Chưa thể tạo tài khoản. Kiểm tra thông tin và thử lại sau.';

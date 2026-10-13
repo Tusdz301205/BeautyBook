@@ -10,6 +10,8 @@ import type { Prisma } from '@prisma/client';
 import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
 import { toBookingInterval } from '../common/utils/booking-datetime';
 import { SchedulerGateway } from '../scheduler/scheduler.gateway';
+import { impactProviderRecipientIds } from './impact-provider-recipients';
+import { assertPendingHoldAllowsScheduling } from '../bookings/pending-hold-guard';
 
 type TransferBooking = Pick<Prisma.BookingGetPayload<{ include: { bookingServices: true } }>, 'id' | 'branchId' | 'bookingServices'>;
 
@@ -115,13 +117,8 @@ export class ImpactService {
         throw new BadRequestException('Resolution không hợp lệ');
       }
 
-      const replacementStaff = input.replacementStaffId
-        ? await this.prisma.staffProfile.findUnique({ where: { id: input.replacementStaffId }, select: { userId: true } })
-        : null;
-      const salonUserIds = new Set(
-        booking.bookingServices.map((row) => row.staff?.userId).filter((id): id is string => Boolean(id)),
-      );
-      if (replacementStaff?.userId) salonUserIds.add(replacementStaff.userId);
+      const staffIds = booking.bookingServices.map((row) => row.staffId).filter((id): id is string => Boolean(id));
+      if (input.replacementStaffId) staffIds.push(input.replacementStaffId);
       const resolutionLabels: Record<typeof input.resolution, string> = {
         REASSIGN: 'đổi nhân viên phụ trách',
         RESCHEDULE: 'đổi thời gian thực hiện',
@@ -130,35 +127,6 @@ export class ImpactService {
         APPROVED_EXCEPTION: 'giữ nguyên theo ngoại lệ đã được phê duyệt',
       };
       const label = resolutionLabels[input.resolution];
-      const outboxRows: Prisma.NotificationOutboxCreateManyInput[] = [{
-        userId: booking.customer.userId,
-        type: 'SYSTEM',
-        severity: input.resolution === 'CANCEL_REFUND' ? 'WARNING' : 'INFO',
-        title: `Lịch hẹn ${booking.bookingCode} đã được cập nhật`,
-        body: `Cơ sở đã ${label}. Lý do: ${input.reason.trim()}`,
-        targetType: 'BOOKING',
-        targetId: booking.id,
-        actionUrl: `/customer/appointments/${booking.id}`,
-        relatedBookingId: booking.id,
-        metadata: { impactCaseId: caseId, impactItemId: itemId, resolution: input.resolution },
-        dedupeKey: `impact:${caseId}:${itemId}:${input.resolution}:customer:${booking.customer.userId}`,
-      }];
-      for (const salonUserId of salonUserIds) {
-        outboxRows.push({
-          userId: salonUserId,
-          type: 'SYSTEM',
-          severity: 'INFO',
-          title: `Phân công lịch ${booking.bookingCode} đã thay đổi`,
-          body: `Phương án xử lý: ${label}.`,
-          targetType: 'BOOKING',
-          targetId: booking.id,
-          actionUrl: `/salon/appointments?bookingId=${encodeURIComponent(booking.id)}`,
-          relatedBookingId: booking.id,
-          metadata: { impactCaseId: caseId, impactItemId: itemId, resolution: input.resolution },
-          dedupeKey: `impact:${caseId}:${itemId}:${input.resolution}:salon:${salonUserId}`,
-        });
-      }
-
       await withSerializableTransaction(this.prisma, async (tx) => {
         const updated = await tx.operationalImpactItem.updateMany({
           where: { id: itemId, caseId, status: 'PROCESSING' },
@@ -174,6 +142,38 @@ export class ImpactService {
           },
         });
         if (updated.count !== 1) throw new ConflictException('Booking ảnh hưởng vừa được xử lý bởi thao tác khác');
+        const outboxRows: Prisma.NotificationOutboxCreateManyInput[] = [{
+          userId: booking.customer.userId,
+          type: 'SYSTEM',
+          severity: input.resolution === 'CANCEL_REFUND' ? 'WARNING' : 'INFO',
+          title: `Lịch hẹn ${booking.bookingCode} đã được cập nhật`,
+          body: `Cơ sở đã ${label}. Lý do: ${input.reason.trim()}`,
+          targetType: 'BOOKING',
+          targetId: booking.id,
+          actionUrl: `/customer/appointments/${booking.id}`,
+          relatedBookingId: booking.id,
+          metadata: { impactCaseId: caseId, impactItemId: itemId, resolution: input.resolution },
+          dedupeKey: `impact:${caseId}:${itemId}:${input.resolution}:customer:${booking.customer.userId}`,
+        }];
+        const salonUserIds = await impactProviderRecipientIds(tx, impact.businessId, staffIds);
+        for (const salonUserId of salonUserIds) {
+          if (salonUserId === booking.customer.userId) continue;
+          outboxRows.push({
+            userId: salonUserId,
+            type: 'SYSTEM',
+            severity: 'INFO',
+            title: 'Thông tin công việc đã được cập nhật',
+            body: `Phương án xử lý: ${label}.`,
+            targetType: 'BOOKING',
+            targetId: booking.id,
+            actionUrl: `/salon/appointments?bookingId=${encodeURIComponent(booking.id)}`,
+            // A provider may lose booking access after reassignment or offboarding.
+            // Keep only an ID hint and let the destination authorize a fresh read.
+            metadata: { impactCaseId: caseId, impactItemId: itemId, resolution: input.resolution },
+            dedupeKey: `impact:${caseId}:${itemId}:${input.resolution}:salon:${salonUserId}`,
+          });
+        }
+
         await tx.notificationOutbox.createMany({ data: outboxRows, skipDuplicates: true });
         await tx.auditLog.create({
           data: {
@@ -248,6 +248,7 @@ export class ImpactService {
       if (!current || current.branchId !== booking.branchId || !['PENDING', 'CONFIRMED'].includes(current.status) || current.deletedAt) {
         throw new ConflictException('Lịch hẹn đã thay đổi hoặc không còn được chuyển chi nhánh');
       }
+      assertPendingHoldAllowsScheduling(current);
       if (current.bookingServices.length !== booking.bookingServices.length ||
         current.bookingServices.some((row) => !booking.bookingServices.some((old) => old.id === row.id && old.revision === row.revision && old.status === row.status)) ||
         current.bookingServices.some((row) => row.status !== 'SCHEDULED')) {

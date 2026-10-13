@@ -82,7 +82,7 @@ export function CustomerAppointmentDetail() {
   if (error || !booking) return <Page className="max-w-4xl"><Link to="/customer/appointments" className="mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)]"><ArrowLeft size={16} />Quay lại lịch hẹn</Link><Card><ErrorState message={error || 'Không tìm thấy lịch hẹn'} onRetry={load} /></Card></Page>;
   return <Page className="max-w-6xl">
     <Link to="/customer/appointments" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline"><ArrowLeft size={16} />Lịch hẹn của tôi</Link>
-    <PageHeader eyebrow={`Mã lịch ${booking.bookingCode || '—'}`} title={booking.branch?.business?.name || booking.branch?.name || 'Chi tiết lịch hẹn'} description="Thông tin dưới đây được lấy trực tiếp từ hồ sơ lịch hẹn của bạn." actions={<Badge tone={TONES[booking.status] || 'neutral'}>{LABELS[booking.status] || booking.status}</Badge>} />
+    <PageHeader eyebrow={`Mã lịch ${booking.bookingCode || '—'}`} title={booking.branch?.business?.name || booking.branch?.name || 'Chi tiết lịch hẹn'} actions={<Badge tone={TONES[booking.status] || 'neutral'}>{LABELS[booking.status] || booking.status}</Badge>} />
 
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
       <div className="space-y-5">

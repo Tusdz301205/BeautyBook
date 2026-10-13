@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { radius, space, tones, type, type Tone } from '../theme';
+import { radius, space, tones, type, type Tone, fw } from '../theme';
 
 type Props = { label: string; tone?: Tone; icon?: string; large?: boolean };
 
@@ -19,6 +19,6 @@ export default function StatusPill({ label, tone = 'neutral', icon, large }: Pro
 const styles = StyleSheet.create({
   pill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.xs, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: space.xs, maxWidth: '100%' },
   large: { paddingHorizontal: space.md, paddingVertical: 6 },
-  label: { ...type.caption, fontWeight: '600', flexShrink: 1 },
+  label: { ...type.caption, ...fw.semibold, flexShrink: 1 },
   largeLabel: { fontSize: 14, lineHeight: 20 },
 });

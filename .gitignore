@@ -68,6 +68,7 @@ mobile-preview/artifacts/
 /mobile-preview/
 /docs/full-system-qa/
 /docs/mobile-staff-owner/evidence/
+/mobile/docs/evidence/
 /docs/mobile-staff-owner/qa/
 /docs/mobile-staff-owner/validation.json
 /beauty-booking-api-main/scripts/qa-*.mjs

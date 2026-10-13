@@ -270,7 +270,7 @@ export default function SalonCombos() {
       <PageHeader
         eyebrow="Danh mục kinh doanh"
         title="Combo dịch vụ"
-        description="Kết hợp nhiều dịch vụ trong một lịch hẹn, với thứ tự, thời lượng và giá rõ ràng."
+
         actions={<Button onClick={() => edit()} disabled={!branchId || selectedBranch?.status !== 'ACTIVE'}><Plus size={16} />Tạo combo</Button>}
       />
       <Card className="space-y-4 p-4">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, space, type } from '../theme';
+import { colors, radius, space, type, fw } from '../theme';
 import { SheetModal } from '../ui';
 
 interface Props {
@@ -46,5 +46,5 @@ const styles = StyleSheet.create({
   selected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   pressed: { backgroundColor: colors.surfacePressed },
   text: { ...type.body, color: colors.heading, flex: 1 },
-  textSelected: { fontWeight: '600', color: colors.primary },
+  textSelected: { ...fw.semibold, color: colors.primary },
 });

@@ -136,11 +136,7 @@ export class RolesGuard implements CanActivate {
     });
 
     if (!matching) {
-      throw new ForbiddenException(
-        `Yêu cầu scope ${requirement.level}` +
-          (tenantId ? ` cho tenant ${tenantId}` : '') +
-          (branchId ? ` / branch ${branchId}` : ''),
-      );
+      throw new ForbiddenException('Bạn không có quyền thực hiện thao tác này.');
     }
   }
 }

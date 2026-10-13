@@ -32,7 +32,6 @@ export default function WriteReviewSheet({ visible, onClose, onSubmit, isSubmitt
     <SheetModal
       visible={visible}
       title="Viết đánh giá"
-      subtitle="Đánh giá giúp người khác chọn dịch vụ phù hợp."
       onClose={onClose}
       locked={isSubmitting}
       footer={<AppButton label={isSubmitting ? 'Đang gửi…' : 'Gửi đánh giá'} loading={isSubmitting} disabled={disabled} onPress={submit} />}

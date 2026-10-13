@@ -147,3 +147,18 @@ Mobile: server monotonic clock/operational labels; staff card/list/detail/API/fe
 5. Nhắc là inline vận hành; không thêm background reminder job/threshold chính thức. Vì không job mới, không claim đã test reminder downtime/multi-instance.
 6. Legacy terminal thiếu stop và release evidence có thể cần đối soát thủ công; không tạo actual end giả. Correction V1 không phục hồi lifecycle CANCELLED/NO_SHOW.
 7. Lần19h/ảnh gốc không khớp record local hiện tại; nguyên nhân phiên đó chưa xác minh đầy đủ. Không chỉnh actual hay trạng thái record mãtrùng để khớp ảnh.
+
+## 9. Quyết định bổ sung ngày 13/10/2026: hết thời gian giữ chỗ
+
+Người dùng đã chốt: **Chặn ngay khi hết hạn; muốn tiếp tục phải đặt lại**. Với lịch `PENDING` chưa có dịch vụ `IN_PROGRESS` hoặc `COMPLETED`, khi `pendingExpiresAt <= serverNow`, backend từ chối xác nhận, thêm dịch vụ, đổi nhân viên, đổi giờ, chỉnh thời lượng và chuyển chi nhánh, kể cả worker chưa kịp chuyển lịch sang `EXPIRED`. Duyệt yêu cầu đổi giờ/nhân viên cũng áp dụng chốt này trong transaction; thất bại không duyệt yêu cầu hoặc đổi lịch.
+
+Chốt đọc lịch và dịch vụ hiện tại sau khi khóa parent, dùng thời điểm server sau khóa. Trả HTTP409 với mã `PENDING_HOLD_EXPIRED` và thông báo yêu cầu đặt lại. Không suy ra hạn giữ chỗ cho lịch cũ có deadline null; không tự lấy giờ dự kiến làm bằng chứng đã phục vụ.
+
+Giữ ngoại lệ đã có khi parent có bằng chứng thực thi bằng trạng thái dịch vụ, kể cả timing `UNKNOWN`. Ngoại lệ này không bỏ các kiểm tra độc lập về lifecycle, quyền, revision và xung đột. Hủy/từ chối bình thường, `REPRICE`, `START`/`COMPLETE` và việc ghi nhận actual time giữ nguyên quy tắc hiện tại. Không thêm migration, backfill hoặc đổi policy tạo lịch qua điện thoại.
+
+Bằng chứng source/service: `report-output/bugreport-completion-20261012/pending-hold-deadline/`. Sáu ca chuyển chi nhánh bổ sung kiểm tra trước/đúng/sau deadline và clock tiến qua deadline trong lúc chờ khóa; baseline có ba failure, được giữ riêng. Full safe backend gate đạt144 suites/1539 tests; excludes integration.spec.ts. Kết quả live natural deadline được ghi riêng, không suy ra từ fake-clock unit tests.
+
+
+### Bổ sung cùng ngày: gửi yêu cầu sau deadline
+
+RESCHEDULE/STAFF_CHANGE create cũng kiểm deadline sau parent lock và ownership trước mọi request mutation/thông báo; CANCEL giữ rule cũ.16 actual-service tests (6 baseline failures) đạt; full145suites1555tests/type/build đạt. Hai actual customer requests trên lịchQA tự nhiên hết hạn trả409, không tạo request;158domain tables exact và failed audit-only đúngscope. Evidence pending-hold-live/request-create-live.json. Không suy ra native authenticated PASS: Pixel7a mới HOME/Account/login entry, bước nhập lại bị automatic approval review quota chặn.

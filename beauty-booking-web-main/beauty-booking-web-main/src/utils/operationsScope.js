@@ -10,7 +10,6 @@ export function operationsRights(user, { businessId, branchId } = {}) {
     owner,
     operator: owner || receptionist,
     impact: ownerCan('booking:update:tenant'),
-    ownership: ownerCan('business:update:tenant'),
   };
 }
 
@@ -25,7 +24,7 @@ export function operationsContext(user, accessibleBranches, preferredBranchId = 
 }
 
 export function operationsTab(requested, rights) {
-  const allowed = ['impact', 'ownership'].filter((key) => rights[key]);
+  const allowed = ['impact'].filter((key) => rights[key]);
   return allowed.includes(requested) ? requested : allowed[0] || '';
 }
 
@@ -37,13 +36,6 @@ export function operationRows(rows, context, kind = 'branch') {
 
 export async function loadOperationsData(user, context, api) {
   const rights = operationsRights(user, context);
-  const { businessId } = context;
-  const [impacts, transfers, versions] = await Promise.all([
-    rights.impact ? api.impactApi.list() : [],
-    rights.ownership ? api.ownershipApi.list(businessId) : [],
-    rights.ownership ? api.ownershipApi.versions(businessId) : null,
-  ]);
-  return {
-    impacts: operationRows(impacts, context, 'business'), transfers, versions,
-  };
+  const impacts = rights.impact ? await api.impactApi.list() : [];
+  return { impacts: operationRows(impacts, context, 'business') };
 }

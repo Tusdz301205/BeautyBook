@@ -13,6 +13,7 @@ import { can } from '../common/utils/policy';
 import { PlatformSettingsService } from '../platform-settings/platform-settings.service';
 import { auditLog } from '../common/utils/audit';
 import { businessOwnerRecipientIds } from '../common/utils/notify';
+import { REPORT_CATEGORY_LABELS, REPORT_SEVERITY_LABELS, reviewReportSummary } from '../common/utils/review-report-labels';
 
 export function assertReviewCreationInput(input: unknown): void {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Nội dung đánh giá phải là đối tượng JSON');
@@ -390,6 +391,11 @@ export class ReviewsService {
     if (input.category != null && typeof input.category !== 'string' || input.severity != null && typeof input.severity !== 'string') throw new BadRequestException('Phân loại báo cáo không hợp lệ');
     const reason = input.reason;
     if (typeof reason !== 'string' || !reason.trim()) throw new BadRequestException('Lý do báo cáo là bắt buộc');
+    if (reason.trim().length > 1000) throw new BadRequestException('Lý do báo cáo không được vượt quá 1000 ký tự');
+    const severity = (input.severity?.trim() || 'MEDIUM').toUpperCase();
+    const category = (input.category?.trim() || 'OTHER').toUpperCase();
+    if (!Object.hasOwn(REPORT_CATEGORY_LABELS, category)) throw new BadRequestException('Phân loại báo cáo không được hỗ trợ');
+    if (!Object.hasOwn(REPORT_SEVERITY_LABELS, severity)) throw new BadRequestException('Mức độ báo cáo không được hỗ trợ');
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
       select: {
@@ -403,8 +409,6 @@ export class ReviewsService {
       select: { id: true },
     });
     if (duplicate) throw new BadRequestException('Bạn đã báo cáo đánh giá này');
-    const severity = (input.severity || 'MEDIUM').toUpperCase();
-    const category = (input.category || 'OTHER').toUpperCase();
     const quarantine = ['HIGH', 'CRITICAL'].includes(severity) || ['PII', 'THREAT', 'HATE', 'SEXUAL'].includes(category);
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.reviewReport.create({ data: { reviewId, reporterId, reason: reason.trim() } });
@@ -433,7 +437,7 @@ export class ReviewsService {
         type: 'SYSTEM',
         severity: quarantine ? 'WARNING' : 'INFO',
         title: quarantine ? 'Đánh giá tạm ẩn để kiểm duyệt' : 'Đánh giá đã được báo cáo',
-        body: `Phân loại: ${category} — mức độ: ${severity}`,
+        body: reviewReportSummary(category, severity),
         targetType: 'REVIEW',
         targetId: reviewId,
         actionUrl: '/reviews',
@@ -539,6 +543,7 @@ export class ReviewsService {
 
   async appeal(reviewId: string, user: AuthUser, reason: string) {
     if (typeof reason !== 'string' || !reason.trim()) throw new BadRequestException('Lý do khiếu nại là bắt buộc');
+    if (reason.trim().length > 1000) throw new BadRequestException('Lý do khiếu nại không được vượt quá 1000 ký tự');
     return this.prisma.$transaction(async (tx) => {
       // All submissions and decisions serialize on the review, without changing history.
       await tx.$queryRaw(Prisma.sql`SELECT id FROM reviews WHERE id = ${reviewId} FOR UPDATE`);

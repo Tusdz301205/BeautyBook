@@ -1,25 +1,27 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, layout, radius, space, tones, type } from '../theme';
-import { AppButton, SheetModal } from '../ui';
+import { colors, layout, radius, space, tones, type, fw } from '../theme';
+import { AppButton, BrandGradient, SheetModal } from '../ui';
 import { useOperations } from './OperationsContext';
 
+/** Tab roots get a compact plum brand band; stacked detail screens keep the native header. */
 export function OperationPage({ title, subtitle, children, inStack = false, right }: { title: string; subtitle?: string; children: React.ReactNode; inStack?: boolean; right?: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView edges={inStack ? ['left', 'right'] : ['top', 'left', 'right']} style={styles.page}>
+    <View style={styles.page}>
       {!inStack && (
-        <View style={styles.titleRow}>
+        <BrandGradient name="dusk" decor style={[styles.band, { paddingTop: insets.top + space.md }]}>
           <View style={styles.flex}>
             <Text accessibilityRole="header" style={styles.title}>{title}</Text>
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
           {right}
-        </View>
+        </BrandGradient>
       )}
-      {children}
-    </SafeAreaView>
+      <SafeAreaView edges={['left', 'right']} style={styles.body}>{children}</SafeAreaView>
+    </View>
   );
 }
 
@@ -71,7 +73,7 @@ export function BranchPicker({ inset = true }: { inset?: boolean } = {}) {
             return (
               <Pressable key={option.id ?? 'all'} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => select(option.id)} style={[styles.option, selected && styles.optionSelected]}>
                 <Ionicons accessible={false} name={selected ? 'radio-button-on' : 'radio-button-off'} size={22} color={selected ? colors.primary : colors.borderStrong} />
-                <Text style={[styles.optionText, selected && { color: colors.primary, fontWeight: '600' }]}>{option.name}</Text>
+                <Text style={[styles.optionText, selected && { color: colors.primary, ...fw.semibold }]}>{option.name}</Text>
               </Pressable>
             );
           })}
@@ -88,9 +90,10 @@ export const opStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1, minWidth: 0 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: space.sm },
-  title: { ...type.h1 },
-  subtitle: { ...type.secondary, marginTop: 2 },
+  band: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: layout.gutter, paddingBottom: space.lg, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  body: { flex: 1, paddingTop: space.md },
+  title: { ...type.h1, color: colors.white },
+  subtitle: { ...type.secondary, color: colors.secondarySoft, marginTop: 2 },
   state: { borderRadius: radius.md, borderWidth: 1, padding: space.md, gap: space.sm, marginBottom: space.md },
   stateRow: { flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' },
   stateIcon: { marginTop: 2 },

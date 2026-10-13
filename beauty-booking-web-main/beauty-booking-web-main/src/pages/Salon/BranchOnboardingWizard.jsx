@@ -749,7 +749,7 @@ export default function BranchOnboardingWizard() {
             {step === 6 && (
               <div className="space-y-4">
                 <InlineNotice tone="info">Gói dịch vụ chỉ có thể bật khi mọi dịch vụ đang hoạt động, nhận lịch và có nhân viên phù hợp tại chi nhánh.</InlineNotice>
-                {!combos.length ? <EmptyState title="Chưa có combo tại chi nhánh" description="Tạo combo ở trạng thái chưa kích hoạt, sau đó quay lại checklist để kiểm tra." /> : (
+                {!combos.length ? <EmptyState title="Chưa có combo tại chi nhánh" description="Tạo combo ở trạng thái chưa kích hoạt, sau đó quay lại danh sách kiểm tra." /> : (
                   <div className="space-y-2">{combos.map((combo) => <div key={combo.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--bb-border)] p-4"><div><strong>{combo.name}</strong><p className="mt-1 text-xs text-[var(--bb-muted)]">{combo.comboServices?.length || 0} dịch vụ</p></div><Badge tone={combo.status === 'ACTIVE' ? 'success' : 'neutral'}>{combo.status}</Badge></div>)}</div>
                 )}
                 <Link to={`/salon/combos${branchId ? `?branchId=${branchId}` : ''}`}><Button variant="secondary">Mở quản lý combo</Button></Link>
@@ -808,7 +808,7 @@ export default function BranchOnboardingWizard() {
                     onRemoved={() => refreshBranch()}
                   />
                 )}
-                <InlineNotice tone="info">Chỉ media công khai xuất hiện ở gallery. Tài liệu KYC/private được tải ở bước kế tiếp và không có public URL.</InlineNotice>
+                <InlineNotice tone="info">Ảnh chi nhánh được hiển thị công khai. Giấy tờ xác minh nộp ở bước tiếp theo.</InlineNotice>
               </div>
             )}
 

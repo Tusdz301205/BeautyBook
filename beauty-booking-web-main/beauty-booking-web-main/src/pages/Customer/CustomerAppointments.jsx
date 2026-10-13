@@ -77,7 +77,7 @@ export function CustomerAppointments() {
     finally { setBusy(false); }
   };
   return <Page className="max-w-6xl">
-    <PageHeader eyebrow="Tài khoản khách hàng" title="Lịch hẹn của tôi" description="Theo dõi trạng thái thật của lịch và các yêu cầu thay đổi đang chờ cơ sở xử lý." />
+    <PageHeader eyebrow="Tài khoản khách hàng" title="Lịch hẹn của tôi" />
     {plans.length > 0 && <section>
       <div className="mb-3 flex items-center gap-2"><Repeat2 size={18} className="text-[var(--bb-brand-strong)]" /><h2 className="font-bold">Chuỗi lịch lặp</h2></div>
       <div className="grid gap-3 lg:grid-cols-2">{plans.map((plan) => <Card key={plan.id} className="p-4">
@@ -108,7 +108,7 @@ export function CustomerAppointments() {
 
 function AppointmentEmpty({ tab, recommendations, recommendationsLoading, recommendationsError, onBook, onExplore }) {
   const content = tab === 'upcoming'
-    ? { title: 'Dành chỗ cho lần chăm sóc tiếp theo', description: 'Bạn chưa có lịch sắp tới. Khám phá cơ sở phù hợp, chọn dịch vụ và thời gian thật trong luồng đặt lịch của BeautyBook.' }
+    ? { title: 'Dành chỗ cho lần chăm sóc tiếp theo', description: 'Bạn chưa có lịch sắp tới. Chọn cơ sở, dịch vụ và thời gian phù hợp để đặt lịch.' }
     : tab === 'completed'
       ? { title: 'Hành trình làm đẹp của bạn sẽ hiện ở đây', description: 'Khi một lịch được cơ sở hoàn thành, bạn có thể xem lại chi tiết, đặt lại dịch vụ và gửi đánh giá tại trang này.' }
       : { title: 'Không có lịch hẹn bị hủy', description: 'Đây là một trạng thái tốt. Bạn có thể tiếp tục khám phá cơ sở hoặc bắt đầu một lịch hẹn mới.' };

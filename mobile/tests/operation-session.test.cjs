@@ -117,6 +117,62 @@ test('date selection uses branch zone across midnight, year boundary and DST', (
 const notification = changes => ({ id: 'unit-notification', title: 'Unit notification', isRead: false,
   createdAt: new Date(now).toISOString(), ...changes });
 const target = (value, mode) => JSON.parse(JSON.stringify(operationNotificationTarget(notification(value), mode)));
+test('Owner routes the actual deadline worker outbox payload to its impact case', async () => {
+  // Execute the real producer with an in-memory database boundary; never start
+  // its lifecycle timer, Nest application, Prisma client, or a network runtime.
+  const filename = path.join(__dirname, '../../beauty-booking-api-main/src/operations/impact-deadline.worker.ts');
+  const source = fs.readFileSync(filename, 'utf8');
+  const module = { exports: {} };
+  const js = ts.transpileModule(source, { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, experimentalDecorators: true,
+  } }).outputText;
+  vm.runInNewContext(js, { module, exports: module.exports, Date, encodeURIComponent,
+    require: name => {
+      if (name === '@nestjs/common') return { Injectable: () => value => value, Logger: class {
+        error(message) { throw new Error(message); }
+      } };
+      if (name === '../common/utils/serializable-transaction') return {
+        withSerializableTransaction: (prisma, operation) => prisma.$transaction(operation),
+      };
+      if (name === '../common/utils/impact-notification-labels') {
+        const labelsModule = { exports: {} };
+        const labelsSource = fs.readFileSync(path.join(__dirname, '../../beauty-booking-api-main/src/common/utils/impact-notification-labels.ts'), 'utf8');
+        const labelsCode = ts.transpileModule(labelsSource, { compilerOptions: {
+          module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
+        } }).outputText;
+        vm.runInNewContext(labelsCode, { module: labelsModule, exports: labelsModule.exports,
+          require: dependency => {
+            if (dependency === '@prisma/client') return { Prisma: {} };
+            throw new Error(`Impact labels unexpectedly import ${dependency}`);
+          } });
+        return labelsModule.exports;
+      }
+      throw new Error(`Deadline producer unexpectedly imports ${name}`);
+    } }, { filename });
+  let emitted;
+  const models = {
+    operationalImpactCase: { findMany: async () => [{
+      id: impact, businessId: 'business-a', ownerId: 'owner-a', subjectType: 'STAFF', action: 'OFFBOARD',
+      reason: 'Unit overdue case', status: 'IN_PROGRESS', deadlineAt: new Date(now - 1),
+    }] },
+    business: { findUnique: async () => ({ deletedAt: null, owner: { userId: 'owner-a' } }) },
+    userRole: { findFirst: async () => ({ userId: 'owner-a' }) },
+    notificationOutbox: { findFirst: async () => null, createMany: async input => {
+      emitted = input.data;
+      return { count: input.data.length };
+    } },
+  };
+  const worker = new module.exports.ImpactDeadlineWorker({
+    ...models, $transaction: operation => operation(models),
+  });
+  await worker.enqueueOverdueWarnings();
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].targetType, 'OPERATIONAL_IMPACT');
+  assert.equal(emitted[0].targetId, impact);
+  assert.equal(emitted[0].userId, 'owner-a');
+  assert.deepEqual(target(emitted[0], 'OWNER'), { kind: 'IMPACT', id: impact });
+  assert.equal(target(emitted[0], 'STAFF'), null);
+});
 for (const mode of ['STAFF', 'OWNER']) {
   test(`${mode} routes related booking UUID and ignores actionUrl`, () => {
     assert.deepEqual(target({ relatedBooking: { id: booking }, actionUrl: 'https://untrusted.invalid/?token=forbidden' }, mode), { kind: 'BOOKING', id: booking });
@@ -151,19 +207,42 @@ for (const mode of ['STAFF', 'OWNER']) {
   });
 }
 test('impact routing is Owner-only and target-type allowlist is exact', () => {
-  assert.deepEqual(target({ targetType: 'OperationalImpactCase', targetId: impact }, 'OWNER'), { kind: 'IMPACT', id: impact });
-  assert.equal(target({ targetType: 'OperationalImpactCase', targetId: impact }, 'STAFF'), null);
-  for (const targetType of ['operationalimpactcase', 'OPERATIONAL_IMPACT', 'OperationalImpactCase ', 'Booking', 'User', null]) {
+  for (const targetType of ['OPERATIONAL_IMPACT', 'OperationalImpactCase']) {
+    for (const targetId of [impact, impact.toUpperCase()]) {
+      assert.deepEqual(target({ targetType, targetId }, 'OWNER'), { kind: 'IMPACT', id: targetId });
+      assert.equal(target({ targetType, targetId }, 'STAFF'), null);
+    }
+    for (const targetId of ['', 'BB-0096', 'https://untrusted.invalid', `${impact}?token=x`, `${impact}/edit`,
+      ` ${impact}`, `${impact} `, impact.replace(/-/g, ''), 'g'.repeat(36), null, undefined]) {
+      for (const mode of ['OWNER', 'STAFF']) assert.equal(target({ targetType, targetId, actionUrl: `/salon/operations?impactCase=${impact}` }, mode), null);
+    }
+  }
+  for (const targetType of ['operationalimpactcase', 'operational_impact', 'OPERATIONAL_IMPACT ', 'OperationalImpactCase ', 'Booking', 'User', null]) {
     assert.equal(target({ targetType, targetId: impact }, 'OWNER'), null);
   }
-  for (const targetId of ['', 'BB-0096', `${impact}?token=x`, null]) assert.equal(target({ targetType: 'OperationalImpactCase', targetId }, 'OWNER'), null);
 });
 test('related booking takes precedence over impact; invalid booking falls back only for Owner', () => {
-  const value = { relatedBooking: { id: booking }, targetType: 'OperationalImpactCase', targetId: impact };
-  for (const mode of ['STAFF', 'OWNER']) assert.deepEqual(target(value, mode), { kind: 'BOOKING', id: booking });
-  value.relatedBooking.id = 'BB-0096';
-  assert.deepEqual(target(value, 'OWNER'), { kind: 'IMPACT', id: impact });
-  assert.equal(target(value, 'STAFF'), null);
+  for (const targetType of ['OPERATIONAL_IMPACT', 'OperationalImpactCase']) {
+    const value = { relatedBooking: { id: booking }, targetType, targetId: impact };
+    for (const mode of ['STAFF', 'OWNER']) assert.deepEqual(target(value, mode), { kind: 'BOOKING', id: booking });
+    value.relatedBooking.id = 'BB-0096';
+    assert.deepEqual(target(value, 'OWNER'), { kind: 'IMPACT', id: impact });
+    assert.equal(target(value, 'STAFF'), null);
+  }
+});
+
+test('impact targets ignore untrusted actionUrl and metadata without mutating the payload', () => {
+  for (const targetType of ['OPERATIONAL_IMPACT', 'OperationalImpactCase']) {
+    for (const actionUrl of ['javascript:alert(1)', 'file:///private', 'beautybook://owner',
+      'https://untrusted.invalid', `/salon/operations?impactCase=${booking}`]) {
+      const value = notification({ targetType, targetId: impact, actionUrl, metadata: { itemUUID: booking }, body: 'private body' });
+      const before = structuredClone(value);
+      assert.deepEqual(JSON.parse(JSON.stringify(operationNotificationTarget(value, 'OWNER'))), { kind: 'IMPACT', id: impact });
+      assert.equal(operationNotificationTarget(value, 'STAFF'), null);
+      assert.deepEqual(value, before);
+      assert.equal(target({ targetType, actionUrl, metadata: { itemUUID: impact } }, 'OWNER'), null);
+    }
+  }
 });
 test('notification target projection never carries untrusted content or mutates payload', () => {
   const value = notification({ relatedBooking: { id: booking }, body: 'private body', actionUrl: 'https://untrusted.invalid' });

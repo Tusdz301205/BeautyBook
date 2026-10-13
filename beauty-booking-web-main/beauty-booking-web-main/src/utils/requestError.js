@@ -3,7 +3,7 @@ const FALLBACK_MESSAGE = 'Không thể hoàn tất yêu cầu. Vui lòng thử l
 export function sanitizeApiErrorMessage(status, message) {
   const value = typeof message === 'string' ? message.trim() : '';
   if (status >= 500 || /^internal server error$/i.test(value)) {
-    return 'Máy chủ đang gặp sự cố tạm thời. Vui lòng thử lại sau.';
+    return 'Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.';
   }
   return value || FALLBACK_MESSAGE;
 }
@@ -14,8 +14,8 @@ export function toUserFacingRequestError(error, fallbackTitle = 'Không thể t�
 
   if (!status) {
     return {
-      title: 'Không thể kết nối máy chủ',
-      message: 'Kiểm tra kết nối mạng và trạng thái máy chủ rồi thử lại.',
+      title: 'Không thể kết nối',
+      message: 'Kiểm tra kết nối mạng rồi thử lại.',
       retryable: true,
       kind: 'network',
     };
@@ -55,7 +55,7 @@ export function toUserFacingRequestError(error, fallbackTitle = 'Không thể t�
   if (status >= 500) {
     return {
       title: fallbackTitle,
-      message: 'Máy chủ đang gặp sự cố tạm thời. Vui lòng thử lại sau.',
+      message: 'Chưa thể xử lý yêu cầu. Vui lòng thử lại sau.',
       retryable: true,
       kind: 'server',
     };

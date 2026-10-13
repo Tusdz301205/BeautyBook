@@ -9,6 +9,7 @@ import { BOOKING_TIMING_AUDIT_INCLUDE, withBookingTiming } from './booking-actua
 import { SchedulerGateway } from '../scheduler/scheduler.gateway';
 import { emitCommittedBookingUpdates } from './booking-realtime';
 import { queueProviderReassignment } from './booking-provider-notifications';
+import { assertPendingHoldAllowsScheduling } from './pending-hold-guard';
 
 type ItemAction = 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';
 
@@ -34,6 +35,7 @@ export class BookingItemsService {
         include: { bookingServices: { orderBy: { sortOrder: 'asc' } } },
       });
       if (!booking) throw new NotFoundException('Không tìm thấy lịch hẹn');
+      assertPendingHoldAllowsScheduling(booking);
       if (!['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(booking.status)) {
         throw new ConflictException('Không thể thêm dịch vụ vào lịch ở trạng thái hiện tại');
       }
@@ -126,6 +128,14 @@ export class BookingItemsService {
       }
       if (!['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(item.booking.status)) {
         throw new ConflictException('Không thể sửa dịch vụ ở trạng thái lịch hiện tại');
+      }
+      if (['REASSIGN', 'RESIZE'].includes(input.action)) {
+        const parent = await tx.booking.findUnique({
+          where: { id: bookingId },
+          select: { status: true, pendingExpiresAt: true, bookingServices: { select: { status: true } } },
+        });
+        if (!parent) throw new NotFoundException('Không tìm thấy lịch hẹn');
+        assertPendingHoldAllowsScheduling(parent);
       }
       const before = this.snapshot(item);
       let data: Prisma.BookingServiceUncheckedUpdateManyInput = { revision: { increment: 1 } };

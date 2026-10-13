@@ -47,7 +47,7 @@ export default function HomeStack() {
       <Stack.Screen name="VenueDetail" component={VenueDetailScreen} />
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="AddService" component={AddServiceScreen} />
-      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+      <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} options={{ gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }

@@ -165,7 +165,7 @@ async function request(endpoint, options = {}, _isRetry = false, lease = capture
   try {
     return JSON.parse(responseText);
   } catch {
-    throw new Error('Phản hồi từ máy chủ không đúng định dạng JSON');
+    throw new Error('Chưa đọc được thông tin trả về. Vui lòng thử lại.');
   }
 }
 
@@ -904,21 +904,4 @@ export const impactApi = {
   resolve: (id, itemId, data) => request(`/operational-impacts/${id}/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   resolveBatch: (id, data) => request(`/operational-impacts/${id}/items`, { method: 'PATCH', body: JSON.stringify(data) }),
   complete: (id) => request(`/operational-impacts/${id}/complete`, { method: 'POST' }),
-};
-
-export const ownershipApi = {
-  list: (businessId) => request(`/ownership-transfers?businessId=${encodeURIComponent(businessId)}`),
-  platformQueue: () => request('/ownership-transfers/platform/pending'),
-  incoming: () => request('/ownership-transfers/pending-for-me'),
-  create: (data) => request('/ownership-transfers', { method: 'POST', body: JSON.stringify(data) }),
-  accept: (id) => request(`/ownership-transfers/${id}/accept`, { method: 'PATCH' }),
-  submitMoreInfo: (id, data) => request(`/ownership-transfers/${id}/submit-more-info`, { method: 'PATCH', body: JSON.stringify(data) }),
-  cancel: (id, reason) => request(`/ownership-transfers/${id}/cancel`, { method: 'PATCH', body: JSON.stringify({ reason }) }),
-  review: (id, data) => request(`/ownership-transfers/${id}/review`, { method: 'PATCH', body: JSON.stringify(data) }),
-  execute: (id) => request(`/ownership-transfers/${id}/execute`, { method: 'POST' }),
-  versions: (businessId) => request(`/ownership-transfers/business/${businessId}/versions`),
-  legalVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/legal-entity`, { method: 'POST', body: JSON.stringify(data) }),
-  payoutVersion: (businessId, data) => request(`/ownership-transfers/business/${businessId}/payout-account`, { method: 'POST', body: JSON.stringify(data) }),
-  verifyLegalVersion: (id, data) => request(`/ownership-transfers/platform/legal-entity/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),
-  verifyPayoutVersion: (id, data) => request(`/ownership-transfers/platform/payout-account/${id}/verify`, { method: 'PATCH', body: JSON.stringify(data) }),
 };

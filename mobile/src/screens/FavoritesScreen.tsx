@@ -35,7 +35,7 @@ export default function FavoritesScreen({ navigation }: Props) {
           data={savedItems}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
-          ListHeaderComponent={error ? <Notice tone="warning" message={`Danh sách có thể chưa mới nhất: ${error}`} style={styles.notice} /> : <Text style={styles.hint}>Dịch vụ bạn lưu trên web và mobile xuất hiện ở đây.</Text>}
+          ListHeaderComponent={error ? <Notice tone="warning" message={`Danh sách có thể chưa mới nhất: ${error}`} style={styles.notice} /> : null}
           ListEmptyComponent={<EmptyState icon="heart-outline" title="Chưa có dịch vụ đã lưu" message="Chạm biểu tượng trái tim ở một dịch vụ để lưu lại." actionLabel="Tìm dịch vụ" onAction={() => navigation.navigate('TimKiem')} />}
           renderItem={({ item }) => {
             const name = item.offering?.name || 'Dịch vụ không còn hiển thị';

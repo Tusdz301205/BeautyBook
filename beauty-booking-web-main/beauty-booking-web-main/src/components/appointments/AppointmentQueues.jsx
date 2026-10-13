@@ -126,7 +126,7 @@ export default function AppointmentQueues({ branchIds = [], branches = [], onCou
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-[var(--bb-ink)]">Trung tâm hành động</h2>
-          <p className="mt-1 text-sm text-[var(--bb-muted)]">Xác nhận lịch mới, xử lý yêu cầu thay đổi và phân công nhân viên trong phạm vi được cấp.</p>
+
         </div>
         <Button variant="secondary" size="sm" onClick={refreshAll}>
           <RefreshCw size={15} /> Tải lại

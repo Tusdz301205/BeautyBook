@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps, NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, layout, radius, space, tones, type } from '../../theme';
+import { colors, layout, radius, space, tones, type, fw } from '../../theme';
 import { IconButton } from '../../ui';
 import { formatServiceTimestamp, serviceTimingLines } from '../../utils/bookingTiming';
 import { BranchPicker, OperationButton, OperationPage, OperationState, opStyles } from '../OperationPrimitives';
@@ -29,7 +29,7 @@ function dayLabel(date: string) {
 }
 function AccessState() {
   const ops = useOperations();
-  if (ops.loading) return <OperationState message="Đang tải ngữ cảnh làm việc…" />;
+  if (ops.loading) return <OperationState message="Đang tải thông tin làm việc…" />;
   if (ops.error) return <OperationState tone="error" message={ops.error} onRetry={ops.refresh} />;
   if (!ops.staffProfile || ops.staffProfile.status !== 'ACTIVE') return <OperationState message="Hồ sơ nhân viên chưa được liên kết hoặc không còn hoạt động. Hãy liên hệ quản lý để tiếp tục." onRetry={ops.refresh} />;
   if (!ops.canWorkAsStaff) return <OperationState message="Bạn chưa có quyền thực hiện công việc trong chi nhánh này." onRetry={ops.refresh} />;
@@ -94,7 +94,7 @@ export function StaffListScreen({ navigation, agenda = false, bookingId }: { nav
         {work.error && <OperationState tone="error" message={work.error} onRetry={() => { void actions.reconcile(); }} />}
         {actions.message && <OperationState tone={actions.blocked ? 'warning' : 'neutral'} message={actions.message} onRetry={actions.blocked ? () => { void actions.reconcile(); } : undefined} />}
         {!planning && activeCount > 1 && <View style={local.parallel}><Text style={local.parallelText}>{activeCount} dịch vụ đang thực hiện song song</Text></View>}
-        {!planning && allWorkCompleted(work.items, work.fresh && !ops.loading && !ops.error) && <View style={local.done}><Text accessibilityRole="header" style={local.doneTitle}>Bạn đã hoàn thành công việc hôm nay</Text><Text style={local.meta}>Các dịch vụ đã hoàn tất vẫn ở bên dưới để bạn xem lại.</Text></View>}
+        {!planning && allWorkCompleted(work.items, work.fresh && !ops.loading && !ops.error) && <View style={local.done}><Text accessibilityRole="header" style={local.doneTitle}>Bạn đã hoàn thành công việc hôm nay</Text></View>}
       </View>}
       ListEmptyComponent={!work.loading && !work.error && day ? <OperationState message={bookingId ? 'Không có dịch vụ được giao cho bạn trong lịch này.' : agenda ? 'Bạn chưa có dịch vụ được phân công trong ngày này.' : 'Hôm nay bạn chưa có dịch vụ được phân công.'} /> : null}
       renderItem={({ item: row }) => <View>
@@ -130,9 +130,9 @@ export function StaffDetailScreen({ route }: NativeStackScreenProps<StaffWorkSta
           <Text style={local.line}>Ngày tại chi nhánh: {dayLabel(item.appointmentDate.slice(0, 10))}</Text>
           <Text style={local.line}>Giờ hẹn: {appointmentClock(item.appointmentStartTime)} – {appointmentClock(item.appointmentEndTime)}</Text></View>
         {action && <OperationButton label={actionLabel(action)} icon={action === 'START' ? 'play-outline' : 'checkmark-done-outline'} onPress={() => actions.action(item, action)} disabled={!work.fresh || actions.blocked || work.ops.loading || !!work.ops.error} busy={!!actions.busyId} />}
-        {!action && item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED'].includes(item.bookingStatus) && <OperationState message="Chờ quầy ghi nhận khách đến trước khi bắt đầu dịch vụ. Nhân viên không tự check-in khách." />}
+        {!action && item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED'].includes(item.bookingStatus) && <OperationState message="Chờ quầy xác nhận khách đã đến để bắt đầu dịch vụ." />}
       </>}
-      {!item && !work.loading && !work.error && work.ops.canWorkAsStaff && <OperationState message="Công việc không còn khả dụng trong ngữ cảnh này." onRetry={() => { void actions.reconcile(); }} />}
+      {!item && !work.loading && !work.error && work.ops.canWorkAsStaff && <OperationState message="Công việc không còn khả dụng cho tài khoản này." onRetry={() => { void actions.reconcile(); }} />}
     </ScrollView>
   </OperationPage>;
 }
@@ -147,12 +147,12 @@ const local = StyleSheet.create({
   weekLabel: { ...type.secondaryStrong, color: colors.heading },
   days: { gap: space.xs + 2, paddingHorizontal: space.xs },
   day: { width: 48, minHeight: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 2, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  daySelected: { backgroundColor: colors.secondary, borderColor: colors.secondary },
-  dayName: { ...type.caption, fontWeight: '600' },
+  daySelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayName: { ...type.caption, ...fw.semibold },
   dayNumber: { ...type.clock, fontSize: 17 },
-  daySelectedText: { color: colors.onSecondary },
+  daySelectedText: { color: colors.onPrimary },
   todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary },
-  todayDotSelected: { backgroundColor: colors.onSecondary },
+  todayDotSelected: { backgroundColor: colors.onPrimary },
   parallel: { alignSelf: 'flex-start', borderRadius: radius.pill, backgroundColor: tones.brand.bg, paddingHorizontal: space.md, paddingVertical: space.xs },
   parallelText: { ...type.secondaryStrong, color: tones.brand.fg },
   done: { padding: space.lg, gap: space.xs, backgroundColor: tones.success.bg, borderRadius: radius.lg },

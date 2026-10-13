@@ -124,13 +124,15 @@ export const useAuthStore = create(
       },
 
       logout: async () => {
-        advanceSessionGeneration();
+        const lease = advanceSessionGeneration();
         // Dispatch with the captured credential, then revoke local access now.
         // Completion has no authority to clear a subsequent login.
         const pending = get().accessToken ? authApi.logout() : Promise.resolve();
         useBookingStore.getState().reset();
         set({ user: null, accessToken: null, initialized: true });
-        await pending;
+        try { await pending; }
+        catch (error) { if (error.code !== 'STALE_SESSION') throw error; }
+        return isSessionGenerationCurrent(lease);
       },
 
       setAccessToken: (token) => { advanceSessionGeneration(); set({ accessToken: token }); },

@@ -9,6 +9,7 @@ import { normalizeBooking } from '../../../utils/bookingCalendar.adapter';
 import { bookingCapabilities, bookingItemActions } from '../../../utils/authScope';
 import { counterServicePayload, noShowAvailability } from '../../../utils/bookingAffordances';
 import { formatActualServiceTime } from '../../../utils/bookingActualTime';
+import { PENDING_HOLD_EXPIRED_MESSAGE, pendingHoldExpired, pendingHoldItemActions } from '../../../utils/pendingHold';
 import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
 import { BookingPolicyNotice } from '../../customer/BookingPolicyNotice';
 
@@ -35,6 +36,9 @@ function ItemOperation({ bookingId, branchId, item, allowedActions, cancelWholeB
     if (action !== 'REASSIGN') return;
     staffApi.getPublic(branchId, [item.id]).then((rows) => setStaff(Array.isArray(rows) ? rows : [])).catch(() => setStaff([]));
   }, [action, branchId, item.id]);
+  useEffect(() => {
+    if (action && !allowedActions.includes(action)) { setAction(''); setValue(''); }
+  }, [action, allowedActions]);
   if (!options.length) return null;
   const submit = async () => {
     if (!allowedActions.includes(action) || !reason.trim()) { toast.error('Chọn thao tác hợp lệ và nhập lý do'); return; }
@@ -105,6 +109,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
   const activeBooking = detail || booking;
 
   const clock = anchoredServerNow(activeBooking?.timingAnchor, elapsed);
+  const expiredHold = pendingHoldExpired(activeBooking?.raw, clock);
 
   useEffect(() => { setNoShowDialog(false); setNoShowConfirmed(false); }, [booking?.id]);
 
@@ -155,14 +160,14 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
   if (activeBooking.status === 'CHECKED_IN' && canProvide) nextAction = { status: 'IN_PROGRESS', label: 'Bắt đầu dịch vụ' };
   if (activeBooking.status === 'IN_PROGRESS' && !platform && capabilities.canComplete) nextAction = { status: 'COMPLETED', label: 'Hoàn thành dịch vụ' };
   const timeDecision = nextAction ? activeBooking.raw?.transitionAvailability?.[nextAction.status] : null;
-  const blockedActionReason = timeDecision?.allowed === false ? timeDecision.reason : null;
+  const blockedActionReason = expiredHold ? PENDING_HOLD_EXPIRED_MESSAGE : timeDecision?.allowed === false ? timeDecision.reason : null;
   const forceCancellable = !['CANCELLED', 'COMPLETED'].includes(activeBooking.status);
   const canCancel = !platform && capabilities.canCancel && forceCancellable;
   const canMarkNoShow = !platform && !detailLoading && Number.isFinite(clock) && noShowAvailability({ ...activeBooking, startAt: activeBooking.services.find((item) => item.itemStartAt)?.itemStartAt }, capabilities, clock);
   const activeServiceCount = activeBooking.services.filter((service) => !['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(service.status)).length;
 
   const runAction = async () => {
-    if (!nextAction) return;
+    if (!nextAction || blockedActionReason) return;
     detailSequence.current += 1;
     setBusy(true);
     try {
@@ -239,12 +244,12 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
     setBusy(true);
     try {
       await bookingsApi.forceCancel(activeBooking.id, cancelReason.trim());
-      toast.success('Đã force-cancel lịch hẹn và ghi nhận lý do');
+      toast.success('Đã hủy lịch hẹn theo ngoại lệ và ghi nhận lý do');
       setCancelDialog(false);
       onUpdated?.();
       onClose?.();
     } catch (error) {
-      toast.error(error.message || 'Không thể force-cancel lịch hẹn');
+      toast.error(error.message || 'Không thể hủy lịch hẹn theo ngoại lệ');
     } finally {
       setBusy(false);
     }
@@ -252,11 +257,11 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
 
   const footer = (
     <div className="flex w-full flex-col gap-2">
-      {platform && <p className="text-xs text-zinc-500">Platform chỉ quan sát; các thao tác vận hành do cơ sở thực hiện.</p>}
+      {platform && <p className="text-xs text-zinc-500">Quản trị viên chỉ xem lịch; cơ sở thực hiện các thao tác vận hành.</p>}
       {nextAction && !blockedActionReason && <Button className="w-full" loading={busy} onClick={runAction}>{nextAction.label}</Button>}
       {canCancel && <Button className="w-full" variant="danger" onClick={() => { setCancelReason(''); setNormalCancelDialog(true); }}>Hủy lịch</Button>}
       {canMarkNoShow && <Button className="w-full" variant="secondary" disabled={busy} onClick={() => { setNoShowConfirmed(false); setNoShowDialog(true); }}>Ghi nhận khách không đến</Button>}
-      {canForceCancel && forceCancellable && <Button className="w-full" variant="danger" onClick={openForceCancel}>Force-cancel theo ngoại lệ</Button>}
+      {canForceCancel && forceCancellable && <Button className="w-full" variant="danger" onClick={openForceCancel}>Hủy theo ngoại lệ</Button>}
     </div>
   );
 
@@ -265,6 +270,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
       <div className="space-y-6">
         <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.color}`}>{status.label}</span>
         <OperationalTiming booking={activeBooking} />
+        {expiredHold && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{PENDING_HOLD_EXPIRED_MESSAGE}</p>}
         <p className="text-xs text-zinc-600">{activeBooking.raw?.statusHistory?.some((entry) => entry.status === 'CHECKED_IN') || activeBooking.status === 'CHECKED_IN' ? 'Đã ghi nhận check-in' : 'Chưa có ghi nhận check-in'}</p>
         {detailLoading && <p role="status" className="text-xs font-medium text-zinc-500">Đang tải dữ liệu chi tiết và lịch sử...</p>}
         <section className="grid gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4 sm:grid-cols-2">
@@ -297,11 +303,11 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
                 {service.actualTimingSource === 'ACTUAL_TIME_CORRECTION' && <p className="mt-1 text-xs text-zinc-600">Thời gian thực tế đã được bổ sung / hiệu chỉnh.</p>}
                 {service.canCorrectActualTime && !detailLoading && service.bookingServiceId && <ActualTimeCorrection bookingId={activeBooking.id} item={service} timezone={activeBooking.raw?.branch?.timezone} serverNow={clock} onRefresh={() => reloadDetail({ required: true })} />}
                 {service.canCorrectActualTime && !detailLoading && service.bookingServiceId && <ActualTimeCorrectionHistory bookingId={activeBooking.id} itemId={service.bookingServiceId} revision={service.revision} timezone={activeBooking.raw?.branch?.timezone} />}
-                {!platform && service.bookingServiceId && <ItemOperation allowedActions={bookingItemActions(user, activeBooking, service)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}
+                {!platform && service.bookingServiceId && <ItemOperation allowedActions={pendingHoldItemActions(bookingItemActions(user, activeBooking, service), expiredHold)} bookingId={activeBooking.id} branchId={activeBooking.branchId} item={service} cancelWholeBooking={service.status === 'SCHEDULED' && activeServiceCount === 1} onDone={refreshDetail} />}
               </div>;
             })}
           </div>
-          {canUpdate && ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(activeBooking.status) && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
+          {canUpdate && !expiredHold && ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(activeBooking.status) && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>
         <section className="grid gap-3 sm:grid-cols-2">
           <Detail icon={Tag} label="Tổng tiền" value={money.format(activeBooking.totalAmount)} />
@@ -311,7 +317,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
         <BookingPolicyNotice policy={activeBooking.raw?.violationSummary} salon />
         {canSeeInternalNote && <Note title="Ghi chú nội bộ" value={activeBooking.internalNote} />}
         {history.length > 0 && <section><h3 className="flex items-center gap-2 text-sm font-bold text-zinc-950"><History size={16} />Lịch sử trạng thái</h3><ol className="mt-2 space-y-2">{history.map((entry) => { const entryStatus = BOOKING_STATUSES[entry.status] ?? { label: entry.status }; return <li key={entry.id} className="rounded-xl border border-zinc-200 px-4 py-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-zinc-900">{entryStatus.label}</strong><time className="text-xs text-zinc-500">{entry.createdAt ? format(new Date(entry.createdAt), 'HH:mm · dd/MM/yyyy') : '—'}</time></div>{entry.note && <p className="mt-1 text-sm text-zinc-600">{entry.note}</p>}</li>; })}</ol></section>}
-        {blockedActionReason && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{blockedActionReason}</p>}
+        {blockedActionReason && !expiredHold && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{blockedActionReason}</p>}
       </div>
     </Drawer>
     <Dialog open={noShowDialog} onClose={() => !busy && setNoShowDialog(false)} title="Xác nhận khách không đến" description="Chỉ ghi nhận sau 15 phút kể từ giờ hẹn. Khách đã báo hủy hoặc báo trễ không thuộc trường hợp này." footer={<><Button variant="secondary" disabled={busy} onClick={() => setNoShowDialog(false)}>Quay lại</Button><Button variant="danger" loading={busy} disabled={!noShowConfirmed || !canMarkNoShow} onClick={markNoShow}>Xác nhận không đến</Button></>}>
@@ -320,7 +326,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
     <Dialog open={normalCancelDialog} onClose={() => !busy && setNormalCancelDialog(false)} title="Hủy lịch hẹn" description={`Mã lịch ${activeBooking.bookingCode}. Khách hàng sẽ nhận được trạng thái và thông báo hủy.`} footer={<><Button variant="secondary" onClick={() => setNormalCancelDialog(false)} disabled={busy}>Giữ lịch</Button><Button variant="danger" loading={busy} disabled={!cancelReason.trim()} onClick={cancelBooking}>Xác nhận hủy</Button></>}>
       <Field label="Lý do hủy" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={1000} placeholder="Nhập lý do để khách hàng biết vì sao lịch bị hủy" /></Field>
     </Dialog>
-    <Dialog open={cancelDialog} onClose={() => !busy && setCancelDialog(false)} title="Force-cancel lịch hẹn" description="Ngoại lệ của Platform, luôn được ghi audit" footer={<><Button variant="secondary" onClick={() => setCancelDialog(false)} disabled={busy}>Đóng</Button><Button variant="danger" loading={busy} disabled={previewLoading || !cancelReason.trim()} onClick={forceCancel}>Xác nhận force-cancel</Button></>}>
+    <Dialog open={cancelDialog} onClose={() => !busy && setCancelDialog(false)} title="Hủy lịch hẹn theo ngoại lệ" description="Thao tác ngoại lệ của quản trị viên, luôn được ghi vào nhật ký." footer={<><Button variant="secondary" onClick={() => setCancelDialog(false)} disabled={busy}>Đóng</Button><Button variant="danger" loading={busy} disabled={previewLoading || !cancelReason.trim()} onClick={forceCancel}>Xác nhận hủy theo ngoại lệ</Button></>}>
       <div className="space-y-4">
         {previewLoading ? <p className="text-sm text-zinc-500">Đang kiểm tra ảnh hưởng...</p> : cancelPreview && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-bold">Ảnh hưởng dự kiến</p><ul className="mt-2 list-disc space-y-1 pl-5"><li>Giải phóng {cancelPreview.impact?.releasesAssignedSlots || 0} phân công dịch vụ.</li><li>{cancelPreview.impact?.hasSuccessfulPayment ? 'Lịch có giao dịch đã thanh toán.' : 'Chưa ghi nhận giao dịch đã thanh toán.'}</li><li>Hệ thống không tự hoàn tiền; {cancelPreview.impact?.requiresSeparateRefundWorkflow ? 'cần mở quy trình hoàn tiền riêng.' : 'không cần quy trình hoàn tiền.'}</li></ul></div>}
         <Field label="Lý do bắt buộc" required><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} maxLength={1000} placeholder="Nêu rõ căn cứ hỗ trợ, rủi ro hoặc tranh chấp..." /></Field>

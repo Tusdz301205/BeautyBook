@@ -58,14 +58,14 @@ describe('ImpactService branch transfer guard', () => {
 });
 
 describe('ImpactService committed transfer invalidation', () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
   function setup() {
     jest.spyOn(bookingValidation, 'validateStaffForService').mockResolvedValue(undefined);
     jest.spyOn(bookingValidation, 'assertNoOverlap').mockResolvedValue(undefined);
     const item = { id: 'item', revision: 1, status: 'SCHEDULED', durationMinutes: 60, businessServiceId: 'catalog' };
     const original = {
-      id: 'booking', branchId: 'old', status: 'CONFIRMED', deletedAt: null,
+      id: 'booking', branchId: 'old', status: 'CONFIRMED', deletedAt: null, pendingExpiresAt: null as Date | null,
       appointmentDate: new Date('2026-11-01T00:00:00Z'),
       appointmentStartTime: new Date('1970-01-01T09:00:00Z'),
       appointmentEndTime: new Date('1970-01-01T10:00:00Z'),
@@ -84,8 +84,46 @@ describe('ImpactService committed transfer invalidation', () => {
     const prisma = { $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => { const result = await callback(tx); committed = true; return result; }) } as unknown as PrismaService;
     const scheduler = { notifyBookingUpdated: jest.fn((event: Parameters<SchedulerGateway['notifyBookingUpdated']>[0]) => { expect(event.id).toBe('booking'); expect(committed).toBe(true); }) };
     const service = new ImpactService(prisma, {} as never, {} as never, {} as never, scheduler as never);
-    return { service, original, moved, scheduler, prisma };
+    return { service, original, moved, scheduler, prisma, tx };
   }
+
+  it.each([-1, 0, 1])('checks pending hold at deadline offset %s before transferring', async offset => {
+    const deadline = new Date('2026-10-13T06:00:00Z');
+    jest.useFakeTimers().setSystemTime(deadline.getTime() + offset);
+    const { service, original, moved, scheduler, tx } = setup();
+    original.status = 'PENDING'; original.pendingExpiresAt = deadline;
+    const result = (service as unknown as TransferSubject).transferBranch(original, 'new', 'staff', 'actor', 'Transfer');
+    if (offset < 0) {
+      await expect(result).resolves.toEqual(moved);
+      expect(tx.booking.updateMany).toHaveBeenCalledTimes(1);
+    } else {
+      await expect(result).rejects.toMatchObject({ response: { code: 'PENDING_HOLD_EXPIRED' } });
+      expect(tx.booking.updateMany).not.toHaveBeenCalled();
+      expect(tx.bookingService.updateMany).not.toHaveBeenCalled();
+      expect(tx.auditLog.create).not.toHaveBeenCalled();
+      expect(scheduler.notifyBookingUpdated).not.toHaveBeenCalled();
+    }
+  });
+
+  it('uses the clock after the booking lock instead of the earlier transfer snapshot', async () => {
+    const deadline = new Date('2026-10-13T06:00:00Z');
+    jest.useFakeTimers().setSystemTime(deadline.getTime() - 1);
+    const { service, original, scheduler, tx } = setup();
+    original.status = 'PENDING'; original.pendingExpiresAt = deadline;
+    tx.$queryRaw.mockImplementation(async () => { jest.setSystemTime(deadline); return []; });
+    await expect((service as unknown as TransferSubject).transferBranch(original, 'new', 'staff', 'actor', 'Transfer'))
+      .rejects.toMatchObject({ response: { code: 'PENDING_HOLD_EXPIRED' } });
+    expect(tx.booking.updateMany).not.toHaveBeenCalled();
+    expect(tx.bookingService.updateMany).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(scheduler.notifyBookingUpdated).not.toHaveBeenCalled();
+  });
+
+  it.each(['PENDING', 'CONFIRMED'])('keeps legacy null deadline and confirmed %s transfers valid', async status => {
+    const { service, original, moved } = setup(); original.status = status;
+    if (status === 'CONFIRMED') original.pendingExpiresAt = new Date('2020-01-01T00:00:00Z');
+    await expect((service as unknown as TransferSubject).transferBranch(original, 'new', 'staff', 'actor', 'Transfer')).resolves.toEqual(moved);
+  });
 
   it('invalidates both branch audiences only after commit', async () => {
     const { service, original, moved, scheduler } = setup();

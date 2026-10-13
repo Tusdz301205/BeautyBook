@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, space, tones, type } from '../theme';
+import { colors, radius, space, tones, type, fw } from '../theme';
 import { AppButton, IconButton } from '../ui';
 
 const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -120,15 +120,15 @@ const styles = StyleSheet.create({
   monthHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xs },
   monthLabel: { ...type.h3, flex: 1, textAlign: 'center' },
   weekdayRow: { flexDirection: 'row', marginBottom: space.xs },
-  weekdayLabel: { flex: 1, textAlign: 'center', ...type.caption, fontWeight: '600' },
+  weekdayLabel: { flex: 1, textAlign: 'center', ...type.caption, ...fw.semibold },
   weekRow: { flexDirection: 'row' },
   dayCell: { flex: 1, minHeight: 50, alignItems: 'center', justifyContent: 'center', paddingVertical: 2 },
   dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  dayCircleSelected: { backgroundColor: colors.secondary },
+  dayCircleSelected: { backgroundColor: colors.primary },
   dayCircleToday: { borderWidth: 1.5, borderColor: colors.primary },
   dayText: { ...type.secondaryStrong, color: colors.heading, fontVariant: ['tabular-nums'] },
-  dayTextMuted: { color: colors.disabledText, fontWeight: '400' },
-  dayTextSelected: { color: colors.onSecondary },
+  dayTextMuted: { color: colors.disabledText, ...fw.regular },
+  dayTextSelected: { color: colors.onPrimary },
   dayTextToday: { color: colors.primary },
   dotsRow: { flexDirection: 'row', gap: 3, height: 6, marginTop: 2 },
   dot: { width: 6, height: 6, borderRadius: 3 },

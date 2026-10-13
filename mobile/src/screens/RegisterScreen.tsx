@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import AuthField from '../components/AuthField';
 import AuthScreenLayout from '../components/AuthScreenLayout';
+import { editorial } from '../components/editorialArt';
 import { colors, space, type } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { AppButton, Notice } from '../ui';
@@ -52,7 +53,7 @@ export default function RegisterScreen({ navigation, route }: Props) {
   };
 
   return (
-    <AuthScreenLayout title="Tạo tài khoản" subtitle="Tài khoản khách hàng để đặt lịch và theo dõi dịch vụ của bạn." onBack={() => navigation.goBack()}>
+    <AuthScreenLayout image={editorial.authRegister} title="Tạo tài khoản" subtitle="Tài khoản khách hàng để đặt lịch và theo dõi dịch vụ của bạn." onBack={() => navigation.goBack()}>
       <AuthField label="Họ và tên" icon="person-outline" value={fullName} onChangeText={(value) => { setFullName(value); if (error) clearError(); }} placeholder="Nguyễn Thị Lan" autoCapitalize="words" autoComplete="name" textContentType="name" error={nameError} />
       <AuthField label="Email" icon="mail-outline" value={email} onChangeText={(value) => { setEmail(value); if (error) clearError(); }} placeholder="email@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} autoComplete="email" textContentType="emailAddress" error={emailError} />
       <AuthField label="Mật khẩu" icon="lock-closed-outline" password value={password} onChangeText={(value) => { setPassword(value); if (error) clearError(); }} placeholder="Tối thiểu 8 ký tự" helper="Gồm chữ hoa, chữ thường và số." autoComplete="new-password" textContentType="newPassword" error={passwordError} />

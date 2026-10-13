@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AccountStackParamList } from '../navigation/AccountStack';
-import { colors, layout, radius, space, type } from '../theme';
+import { colors, layout, radius, space, type, fw } from '../theme';
 import { useNotificationRequests } from '../hooks/useNotificationRequests';
 import { AppButton, EmptyState, IconButton, LoadingState, Notice, ScreenHeader } from '../ui';
 
@@ -66,8 +66,8 @@ const styles = StyleSheet.create({
   unread: { borderColor: '#E3C3D2', backgroundColor: colors.primarySoft },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 7 },
   dotRead: { backgroundColor: 'transparent' },
-  title: { ...type.bodyStrong, fontWeight: '500' },
-  titleUnread: { fontWeight: '700' },
+  title: { ...type.bodyStrong, ...fw.medium },
+  titleUnread: { ...fw.bold },
   body: { ...type.secondary, color: colors.body, marginTop: 2 },
   time: { ...type.caption, marginTop: space.xs },
 });

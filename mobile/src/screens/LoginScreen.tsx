@@ -72,7 +72,7 @@ export default function LoginScreen({ navigation, route }: Props) {
   const resetChallenge = () => { setBusinesses([]); setBusinessId(undefined); setWorkspace(undefined); setAvailableWorkspaces([]); };
 
   return (
-    <AuthScreenLayout title="Chào mừng trở lại" subtitle="Đăng nhập để quản lý lịch hẹn và tiếp tục với BeautyBook." onBack={() => navigation.goBack()}>
+    <AuthScreenLayout title="Chào mừng trở lại" onBack={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('MainTabs')}>
       {availableWorkspaces.length > 0 && (
         <View style={styles.challenge}>
           <Text accessibilityRole="header" style={styles.challengeTitle}>Tài khoản có nhiều không gian. Chọn nơi bạn muốn vào:</Text>

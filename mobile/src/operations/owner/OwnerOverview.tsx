@@ -1,7 +1,7 @@
 import React from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, layout, radius, space, tones, type } from '../../theme';
+import { colors, layout, radius, space, tones, type, fw } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ownerOperationsApi } from '../../api/ownerOperations';
@@ -38,19 +38,19 @@ export default function OwnerOverview() {
     ListHeaderComponent={<View>
       <OwnerFilters />
       {operations.error && <OperationState tone="error" message={operations.error} onRetry={operations.refresh} />}
-      <View style={[local.attention, needsAttention && local.attentionPending]}>
+      <View style={[local.attention, needsAttention && local.attentionPending, attentionKnown && !needsAttention && local.attentionClear]}>
         <View style={local.attentionTitle}>
           <Ionicons accessible={false} name={needsAttention ? 'flag' : attentionKnown ? 'checkmark-circle-outline' : 'sync-outline'} size={22} color={needsAttention ? colors.primary : attentionKnown ? tones.success.fg : colors.secondaryText} />
           <View style={local.flex}><Heading>{needsAttention ? 'Cần bạn xử lý' : attentionKnown ? 'Không có việc chờ xử lý' : 'Việc cần xem xét'}</Heading></View>
         </View>
         <View style={local.attentionCounts}>
-          <View style={local.attentionItem}>
+          <View style={[local.attentionItem, { backgroundColor: tones.request.bg }]}>
             {requests.loading ? <Meta>Đang cập nhật yêu cầu…</Meta> : requests.error ? <OperationState tone="error" message={requests.error} onRetry={reload} /> : <>
               <Text style={[local.attentionNumber, (requestCount ?? 0) > 0 && local.attentionNumberHot]}>{requestCount ?? '—'}</Text>
               <Meta>yêu cầu đổi / hủy đang chờ</Meta>
             </>}
           </View>
-          <View style={local.attentionItem}>
+          <View style={[local.attentionItem, { backgroundColor: tones.warning.bg }]}>
             {impacts.loading ? <Meta>Đang cập nhật ảnh hưởng…</Meta> : impacts.error ? <OperationState tone="error" message={impacts.error} onRetry={reload} /> : <>
               <Text style={[local.attentionNumber, (impactCount ?? 0) > 0 && local.attentionNumberWarn]}>{impactCount ?? '—'}</Text>
               <Meta>ảnh hưởng vận hành chưa đóng</Meta>
@@ -69,19 +69,18 @@ export default function OwnerOverview() {
           <View style={local.total}><Text style={local.number}>{data.data.bookings}</Text><Meta>Lịch hẹn</Meta></View>
           <View style={local.total}><Text style={local.number}>{data.data.completedBookings}</Text><Meta>Lịch hoàn tất</Meta></View>
         </View>
-        <Text style={local.caption}>Đếm theo lịch hẹn, không phải số dịch vụ.</Text>
         <View style={local.statuses}>{data.data.statuses.filter(status => status.count > 0).map(status => <Text key={status.status} style={local.status}>{statusLabel(status.status)} · {status.count}</Text>)}</View>
       </View>}
       <Text accessibilityRole="header" style={local.section}>Tình hình chi nhánh</Text>
     </View>}
-    ListEmptyComponent={!data.loading && !data.error ? <Card><Body>Chưa có chi nhánh được phép truy cập trong phiên hiện tại.</Body><DesktopLink /></Card> : null}
+    ListEmptyComponent={!data.loading && !data.error ? <Card><Body>Bạn chưa có quyền truy cập chi nhánh nào.</Body><DesktopLink /></Card> : null}
     renderItem={({ item }) => <View style={local.branch}>
       <View style={local.branchHead}>
         <View style={local.flex}><Heading>{item.name}</Heading><Meta>{statusLabel(operations.branches.find(branch => branch.id === item.id)?.status || '')}</Meta></View>
         {(branchAttention.get(item.id) ?? 0) > 0 && <Text style={local.branchAttention}>{branchAttention.get(item.id)} mục cần xử lý</Text>}
       </View>
       <Body>{item.bookings} lịch · {item.completedBookings} hoàn tất</Body>
-      <Meta>{item.activeProfiles} hồ sơ nhân viên hoạt động · Không phải số người đang trong ca</Meta>
+      <Meta>{item.activeProfiles} hồ sơ nhân viên đang hoạt động</Meta>
       <OperationButton label={`Xem vận hành ${item.name}`} secondary onPress={() => { operations.setBranchId(item.id); navigation.navigate('OwnerHome', { screen: 'VanHanh' }); }} />
     </View>} />
   </OperationPage>;
@@ -92,12 +91,13 @@ const local = StyleSheet.create({
   gutter: { paddingHorizontal: layout.gutter },
   list: { paddingHorizontal: layout.gutter, paddingBottom: space.xxxl },
   attention: { backgroundColor: colors.surface, padding: space.lg, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, gap: space.md, marginBottom: space.lg },
-  attentionPending: { backgroundColor: colors.primarySoft, borderColor: '#E3C3D2' },
+  attentionPending: { backgroundColor: colors.primaryTint, borderColor: colors.primary, borderWidth: 1.5 },
+  attentionClear: { backgroundColor: tones.success.bg, borderColor: tones.success.border },
   attentionTitle: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   attentionCounts: { flexDirection: 'row', gap: space.md },
-  attentionItem: { flex: 1, minWidth: 0, gap: 2 },
+  attentionItem: { flex: 1, minWidth: 0, gap: 2, borderRadius: radius.md, padding: space.md },
   attentionNumber: { ...type.numeric, color: colors.heading },
-  attentionNumberHot: { color: colors.primary },
+  attentionNumberHot: { color: tones.request.fg },
   attentionNumberWarn: { color: tones.warning.fg },
   day: { gap: space.sm, padding: space.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: space.md },
   totals: { flexDirection: 'row', gap: space.lg },
@@ -105,9 +105,9 @@ const local = StyleSheet.create({
   number: { ...type.numeric },
   caption: { ...type.caption },
   statuses: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  status: { ...type.caption, fontWeight: '600', color: colors.body, backgroundColor: colors.surfaceMuted, paddingHorizontal: space.sm + 2, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' },
+  status: { ...type.caption, ...fw.semibold, color: colors.body, backgroundColor: colors.surfaceMuted, paddingHorizontal: space.sm + 2, paddingVertical: space.xs, borderRadius: radius.pill, overflow: 'hidden' },
   section: { ...type.overline, marginTop: space.md, marginBottom: space.xs },
   branch: { padding: space.lg, gap: space.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.lg, marginTop: space.md },
   branchHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  branchAttention: { ...type.caption, fontWeight: '700', color: colors.primary, backgroundColor: colors.primarySoft, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: space.xs, overflow: 'hidden' },
+  branchAttention: { ...type.caption, ...fw.bold, color: colors.primary, backgroundColor: colors.primarySoft, borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: space.xs, overflow: 'hidden' },
 });

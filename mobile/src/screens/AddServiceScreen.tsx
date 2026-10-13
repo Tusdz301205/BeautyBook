@@ -51,7 +51,7 @@ export default function AddServiceScreen({ route, navigation }: Props) {
         <EmptyState icon="cloud-offline-outline" title="Không tải được dịch vụ" message={error} actionLabel="Thử lại" onAction={() => setAttempt((value) => value + 1)} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <Text style={styles.hint}>Dịch vụ thêm được đặt cùng lịch hẹn. Giá cuối cùng được hệ thống tính ở bước xem lại.</Text>
+          <Text style={styles.hint}>Xem tổng giá cùng các dịch vụ đã chọn ở bước tiếp theo.</Text>
           {serviceGroups.map((group) => (
             <View key={group.name} style={styles.group}>
               <Text accessibilityRole="header" style={styles.groupTitle}>{group.name} <Text style={styles.groupCount}>· {group.items.length}</Text></Text>

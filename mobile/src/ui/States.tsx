@@ -1,16 +1,30 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, space, type } from '../theme';
+import { colors, radius, space, tones, type, type Tone } from '../theme';
 import AppButton from './AppButton';
 
-export function EmptyState({ icon = 'sparkles-outline', title, message, actionLabel, onAction, secondaryLabel, onSecondary, style }: {
-  icon?: keyof typeof Ionicons.glyphMap; title: string; message?: string | null; actionLabel?: string; onAction?: () => void;
+/** Layered tinted medallion: gives empty/error states colour and warmth without a stock illustration. */
+export function Medallion({ icon, tone = 'brand', size = 88 }: { icon: keyof typeof Ionicons.glyphMap; tone?: Tone; size?: number }) {
+  const palette = tones[tone];
+  return (
+    <View accessible={false} style={{ width: size + 28, height: size + 12, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={[styles.petal, { width: size * 0.62, height: size * 0.62, backgroundColor: colors.accentSoft, left: 0, top: 0 }]} />
+      <View style={[styles.petal, { width: size * 0.5, height: size * 0.5, backgroundColor: colors.lavenderSoft, right: 0, bottom: 0 }]} />
+      <View style={[styles.core, { width: size, height: size, borderRadius: size / 2, backgroundColor: palette.bg, borderColor: colors.surface }]}>
+        <Ionicons name={icon} size={Math.round(size * 0.4)} color={palette.fg} />
+      </View>
+    </View>
+  );
+}
+
+export function EmptyState({ icon = 'sparkles-outline', tone = 'brand', title, message, actionLabel, onAction, secondaryLabel, onSecondary, style }: {
+  icon?: keyof typeof Ionicons.glyphMap; tone?: Tone; title: string; message?: string | null; actionLabel?: string; onAction?: () => void;
   secondaryLabel?: string; onSecondary?: () => void; style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={[styles.empty, style]}>
-      <View style={styles.emptyIcon}><Ionicons accessible={false} name={icon} size={28} color={colors.primary} /></View>
+      <Medallion icon={icon} tone={tone} />
       <Text accessibilityRole="header" style={styles.emptyTitle}>{title}</Text>
       {message ? <Text style={styles.emptyMessage}>{message}</Text> : null}
       {actionLabel && onAction ? <AppButton label={actionLabel} onPress={onAction} style={styles.emptyAction} /> : null}
@@ -22,7 +36,7 @@ export function EmptyState({ icon = 'sparkles-outline', title, message, actionLa
 export function LoadingState({ message, style }: { message?: string; style?: StyleProp<ViewStyle> }) {
   return (
     <View accessibilityLiveRegion="polite" style={[styles.loading, style]}>
-      <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.loadingRing}><ActivityIndicator size="large" color={colors.primary} /></View>
       {message ? <Text style={styles.loadingText}>{message}</Text> : null}
     </View>
   );
@@ -34,11 +48,13 @@ export function SkeletonBlock({ width = '100%', height, round }: { width?: Dimen
 }
 
 const styles = StyleSheet.create({
+  petal: { position: 'absolute', borderRadius: 999 },
+  core: { alignItems: 'center', justifyContent: 'center', borderWidth: 4 },
   empty: { alignItems: 'center', paddingHorizontal: space.xxl, paddingVertical: space.xxxl, gap: space.sm },
-  emptyIcon: { width: 56, height: 56, borderRadius: radius.pill, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: space.xs },
-  emptyTitle: { ...type.h3, textAlign: 'center' },
+  emptyTitle: { ...type.h2, textAlign: 'center', marginTop: space.sm },
   emptyMessage: { ...type.secondary, textAlign: 'center', maxWidth: 320 },
-  emptyAction: { marginTop: space.sm, alignSelf: 'stretch' },
+  emptyAction: { marginTop: space.md, alignSelf: 'stretch' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xxl },
+  loadingRing: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   loadingText: { ...type.secondary, textAlign: 'center' },
 });

@@ -764,8 +764,8 @@ export class ReportsService {
     return {
       definitions: {
         bookedCount: 'Tất cả lịch được tạo trong kỳ theo ngày hẹn tại múi giờ chi nhánh.',
-        grossCollected: 'Tiền từ giao dịch đã xác minh; không phải giá niêm yết hoặc giá snapshot.',
-        netCollected: 'grossCollected trừ refund/reversal thực tế phát sinh trong kỳ.',
+        grossCollected: 'Tiền đã được xác nhận thanh toán; không tính theo giá niêm yết.',
+        netCollected: 'Tiền đã thu trừ các khoản hoàn trả hoặc điều chỉnh giảm trong kỳ.',
         recognizedServiceRevenue: 'Tiền đã thu ròng được ghi nhận cho lịch hoàn thành, không vượt giá cuối cùng.',
         outstandingAmount: 'Giá cuối cùng còn thiếu trên các lịch không bị hủy/từ chối/hết hạn.',
       },

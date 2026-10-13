@@ -22,13 +22,12 @@ export default function OwnerOperations() {
   const openImpacts = (impacts.data ?? []).filter(item => OPEN_IMPACT.includes(item.status));
   const data: WorkRow[] = [...(requests.data ?? []).map(item => ({ kind: 'request' as const, item })), ...openImpacts.map(item => ({ kind: 'impact' as const, item }))];
   const reload = () => { requests.reload(); impacts.reload(); };
-  return <OperationPage title="Vận hành" subtitle="Việc cần quyết định trong phạm vi chi nhánh đã chọn"><FlatList data={data} keyExtractor={value => `${value.kind}:${value.item.id}`} contentContainerStyle={styles.list}
+  return <OperationPage title="Vận hành"><FlatList data={data} keyExtractor={value => `${value.kind}:${value.item.id}`} contentContainerStyle={styles.list}
     refreshControl={<RefreshControl refreshing={requests.loading || impacts.loading} onRefresh={reload} colors={[colors.primary]} tintColor={colors.primary} />}
     ListHeaderComponent={<View>
       <BranchPicker inset={false} />
       <UnfinishedBookings onOpen={id => navigation.navigate('OwnerBooking', { id })} />
       <Text accessibilityRole="header" style={opStyles.section}>Yêu cầu và ảnh hưởng</Text>
-      <Meta>Mọi ngày còn hiệu lực trong phạm vi chi nhánh đã chọn.</Meta>
       {requests.loading && <OperationState message="Đang cập nhật yêu cầu…" />}
       {requests.error && <OperationState tone="error" message={`Yêu cầu: ${requests.error}`} onRetry={requests.reload} />}
       {impacts.loading && <OperationState message="Đang cập nhật ảnh hưởng…" />}

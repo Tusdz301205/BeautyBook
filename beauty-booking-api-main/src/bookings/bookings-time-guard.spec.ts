@@ -22,10 +22,13 @@ function serviceFor(existing: Record<string, unknown>) {
   const updateMany = jest.fn().mockResolvedValue({ count: 1 });
   const historyCreate = jest.fn().mockResolvedValue({ id: 'history-1' });
   const prisma: any = {
+    $queryRaw: jest.fn().mockResolvedValue([]),
     booking: {
       findUnique: jest.fn()
         .mockResolvedValueOnce(existing)
-        .mockResolvedValue(updatedBooking),
+        .mockImplementation(async (query: { select?: { deletedAt?: boolean } }) =>
+          query.select?.deletedAt ? existing : updatedBooking,
+        ),
       updateMany,
     },
     bookingStatusHistory: { create: historyCreate },
@@ -94,7 +97,7 @@ describe('BookingsService time transition guard', () => {
   });
 
   test('confirmation commits a reserved voucher redemption in the same transaction', async () => {
-    const { service, voucherRedemptionUpdateMany } = serviceFor({
+    const { service, voucherRedemptionUpdateMany, prisma } = serviceFor({
       id: 'booking-1', status: 'PENDING',
       appointmentDate: dateValue('2099-07-20'),
       appointmentStartTime: timeValue(9), appointmentEndTime: timeValue(10),
@@ -118,6 +121,11 @@ describe('BookingsService time transition guard', () => {
       },
       data: { status: 'APPLIED', appliedAt: expect.any(Date) },
     });
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(prisma.booking.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'booking-1' },
+      select: expect.objectContaining({ pendingExpiresAt: true, deletedAt: true }),
+    }));
   });
 
   test('two competing transitions from one state commit exactly once', async () => {

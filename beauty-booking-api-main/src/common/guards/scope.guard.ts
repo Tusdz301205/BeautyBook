@@ -91,11 +91,7 @@ export class ScopeGuard implements CanActivate {
     });
 
     if (!ok) {
-      throw new ForbiddenException(
-        `Yêu cầu scope ${level}` +
-          (tenantId ? ` cho tenant ${tenantId}` : '') +
-          (branchId ? ` / branch ${branchId}` : ''),
-      );
+      throw new ForbiddenException('Bạn không có quyền thực hiện thao tác này.');
     }
     return true;
   }

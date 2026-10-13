@@ -33,3 +33,8 @@ Các lượt QA native đặt/hủy lịch, hồ sơ, lưu dịch vụ và mất
 Hệ token `src/theme`, bộ component `src/ui` và giao diện mới cho Customer/Staff/Owner; không đổi API hay nghiệp vụ. Chi tiết, kết quả kiểm chứng và phần chưa QA trên thiết bị: [REDESIGN-BERRY-CLARITY.md](REDESIGN-BERRY-CLARITY.md).
 
 Đã ghép vào bản chính ngày 11/10/2026, đồng thời giữ các sửa lỗi thông báo và phạm vi phiên/chi nhánh. Kết quả merge, test và các giới hạn: [MERGE-123.md](MERGE-123.md).
+## Hệ thiết kế Berry Bloom — 11/10/2026
+
+Thay bảng màu, chữ và hình ảnh của Berry Clarity: berry tươi cho hành động, mận cho bề mặt thương hiệu, màu cố định theo nhóm dịch vụ và trạng thái, Fraunces + Be Vietnam Pro, ảnh minh họa/biên tập và bìa màu khi thiếu ảnh thật. Đã chạy trên Android emulator với API thật cho Customer, Staff và Owner; iOS, thiết bị thật và TalkBack chưa kiểm. Chi tiết, số liệu tương phản, ảnh chụp và cách dựng môi trường kiểm thử: [REDESIGN-BERRY-BLOOM.md](REDESIGN-BERRY-BLOOM.md).
+
+Đã ghép bản Berry Bloom vào mobile chính ngày 12/10/2026, giữ các sửa lỗi của project. Kết quả native ở đoạn trên thuộc bản bàn giao; kiểm tra thực sự chạy sau merge và giới hạn hiện tại: [MERGE-123-20261012.md](MERGE-123-20261012.md).

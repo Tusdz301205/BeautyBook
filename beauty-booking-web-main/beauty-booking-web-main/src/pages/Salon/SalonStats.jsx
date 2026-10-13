@@ -26,7 +26,7 @@ export function SalonStats() {
   useEffect(() => { void load(); }, [year]);
   const financial = data.financial;
   return <Page>
-    <PageHeader eyebrow="Phân tích" title="Báo cáo vận hành & tài chính" description="Doanh thu chỉ lấy giao dịch đã xác minh; refund và reversal được ghi nhận đúng kỳ, độc lập với giá niêm yết." actions={<Select aria-label="Chọn năm" value={year} onChange={(event) => setYear(Number(event.target.value))}>{[0, 1, 2].map((offset) => { const value = new Date().getFullYear() - offset; return <option key={value}>{value}</option>; })}</Select>} />
+    <PageHeader eyebrow="Phân tích" title="Báo cáo vận hành & tài chính" actions={<Select aria-label="Chọn năm" value={year} onChange={(event) => setYear(Number(event.target.value))}>{[0, 1, 2].map((offset) => { const value = new Date().getFullYear() - offset; return <option key={value}>{value}</option>; })}</Select>} />
     {loading ? <Skeleton rows={8} /> : error ? <Card><ErrorState message={error} onRetry={load} /></Card> : <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={CalendarCheck} label="Lịch đã tạo" value={financial?.bookedCount ?? '—'} title={financial?.definitions?.bookedCount} />

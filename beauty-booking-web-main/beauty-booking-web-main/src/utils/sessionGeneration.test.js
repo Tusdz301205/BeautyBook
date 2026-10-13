@@ -99,8 +99,18 @@ test('pending logout clears locally and late completion cannot clear a newer log
   const h = harness(); const logout = observe(h.store.getState().logout());
   assert.equal(h.store.getState().user, null);
   const login = observe(h.store.getState().login('fixture@example.test', 'fixture-only'));
-  h.reply(1, 200, session('B')); await login; h.reply(0, 200, {}); await logout;
+  h.reply(1, 200, session('B')); await login; h.reply(0, 200, {}); const result = await logout;
+  assert.equal(result.error, undefined);
+  assert.equal(result.value, false);
   assert.equal(h.store.getState().user?.id, 'B');
+});
+
+test('logout retains transport failure when no newer session superseded it', async () => {
+  const h = harness(); const logout = observe(h.store.getState().logout());
+  h.calls[0].reject(new Error('logout transport failed'));
+  const result = await logout;
+  assert.equal(result.error?.message, 'logout transport failed');
+  assert.equal(h.store.getState().user, null);
 });
 
 test('two current-session 401s share one refresh and preserve each POST retry key and scopes', async () => {

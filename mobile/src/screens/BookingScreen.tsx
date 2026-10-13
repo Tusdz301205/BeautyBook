@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { usePreventRemove } from '@react-navigation/native';
 
 import { BookingServiceLine, HomeStackParamList } from '../navigation/HomeStack';
-import { colors, elevation, layout, radius, space, tones, type } from '../theme';
+import { colors, elevation, layout, radius, space, tones, type, fw } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import SelectListSheet from '../components/SelectListSheet';
 import { useBookings } from '../context/BookingsContext';
@@ -256,7 +256,7 @@ export default function BookingScreen({ route, navigation }: Props) {
         .catch((reason) => {
           if (!active) return;
           setPricePreview(null);
-          setPriceError(reason instanceof Error ? reason.message : 'Không tính được giá từ hệ thống');
+          setPriceError(reason instanceof Error ? reason.message : 'Chưa tính được giá. Vui lòng thử lại.');
         })
         .finally(() => {
           if (active) setLoadingPrice(false);
@@ -386,14 +386,14 @@ export default function BookingScreen({ route, navigation }: Props) {
 
   const locked = isSubmitting || isOutcomeUnknown;
   const priceIsServerQuote = Boolean(pricePreview);
-  const blockedReason = !isLoggedIn ? 'Đăng nhập để xem giá chính xác và gửi yêu cầu.'
+  const blockedReason = !isLoggedIn ? (selectedTime ? 'Đăng nhập để xem giá chính xác và gửi yêu cầu.' : 'Chọn giờ trước, rồi đăng nhập để xem giá chính xác và gửi yêu cầu.')
     : isLoadingServiceInfo ? 'Đang kiểm tra dịch vụ…'
       : !variantsComplete ? 'Chọn lựa chọn cho từng dịch vụ để xem giờ trống.'
         : !selectedTime ? 'Chọn giờ để tiếp tục.'
           : policy && !policy.selfBookingAllowed ? 'Tài khoản đang bị hạn chế tự đặt lịch tại cơ sở này.'
             : policy?.acknowledgmentRequired && !acknowledged ? 'Xác nhận cảnh báo chính sách để tiếp tục.'
-              : isLoadingPrice ? 'Đang tính giá từ hệ thống…'
-                : !pricePreview ? 'Chưa có giá từ hệ thống. Kiểm tra kết nối hoặc chọn lại giờ.'
+              : isLoadingPrice ? 'Đang tính giá…'
+                : !pricePreview ? 'Chưa tính được giá. Kiểm tra kết nối hoặc chọn lại giờ.'
                   : null;
 
   return (
@@ -412,7 +412,7 @@ export default function BookingScreen({ route, navigation }: Props) {
       <ScrollView pointerEvents={locked ? 'none' : 'auto'} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.section}>
           <StepTitle index={1} title="Dịch vụ" hint={comboId ? 'Gói dịch vụ áp dụng nguyên gói.' : undefined} />
-          <View style={styles.card}>
+          <View style={[styles.card, styles.summaryCard]}>
             <Text style={styles.serviceName}>{service.name}</Text>
             <Text style={styles.helperText}>{service.duration}</Text>
             <View style={styles.servicePriceRow}>
@@ -536,7 +536,7 @@ export default function BookingScreen({ route, navigation }: Props) {
                     accessibilityRole="button"
                     accessibilityLabel={`${WEEKDAY_LABELS[index]}, ngày ${date.getDate()}/${date.getMonth() + 1}${dateIndex === todayIndex ? ', hôm nay' : ''}`}
                     accessibilityState={{ selected: isSelected, disabled: isDisabled }}
-                    style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                    style={[styles.dayCell, isDisabled && styles.dayCellDisabled, isSelected && styles.dayCellSelected]}
                     disabled={isDisabled}
                     onPress={() => { setSelectedDateIndex(dateIndex); setSelectedTime(null); }}
                   >
@@ -719,14 +719,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xs, paddingBottom: space.xs, backgroundColor: colors.background, borderBottomWidth: 1, borderBottomColor: colors.divider },
   backButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center', minWidth: 0 },
-  headerTitle: { ...type.h3 },
+  headerTitle: { ...type.h3, ...fw.display, fontSize: 19 },
   headerSubtitle: { ...type.caption },
   content: { paddingHorizontal: layout.gutter, paddingTop: space.lg, paddingBottom: space.xxxl },
   section: { marginBottom: space.xxl },
   stepHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, marginBottom: space.md },
-  stepIndex: { width: 28, height: 28, borderRadius: 14, textAlign: 'center', ...type.caption, lineHeight: 28, fontSize: 13, fontWeight: '700', color: colors.onSecondary, backgroundColor: colors.secondary, overflow: 'hidden' },
+  stepIndex: { width: 28, height: 28, borderRadius: 14, textAlign: 'center', ...type.caption, lineHeight: 28, fontSize: 13, ...fw.bold, color: colors.onPrimary, backgroundColor: colors.primary, overflow: 'hidden' },
   stepTitle: { ...type.h3, lineHeight: 28 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: space.lg, gap: space.sm, marginBottom: space.md },
+  summaryCard: { borderLeftWidth: 4, borderLeftColor: colors.primary, backgroundColor: colors.primaryTint },
   serviceName: { ...type.bodyStrong },
   servicePriceRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, flexWrap: 'wrap' },
   servicePrice: { ...type.price, color: colors.primary },
@@ -747,22 +748,23 @@ const styles = StyleSheet.create({
   outlineButtonText: { ...type.button, color: colors.primary },
   chipRow: { gap: space.sm, paddingVertical: space.xs },
   chip: { minHeight: layout.touch - 4, justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: space.lg },
-  chipSelected: { backgroundColor: colors.secondary, borderColor: colors.secondary },
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { ...type.secondaryStrong, color: colors.heading },
-  chipTextSelected: { color: colors.onSecondary },
+  chipTextSelected: { color: colors.onPrimary },
   inlineLoader: { alignSelf: 'flex-start', marginTop: space.sm },
   monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   navButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
   monthLabel: { ...type.secondaryStrong, color: colors.heading, flex: 1, textAlign: 'center' },
-  daysRow: { flexDirection: 'row', gap: space.xs },
-  dayCell: { flex: 1, minHeight: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  dayCellSelected: { backgroundColor: colors.secondary },
-  dayWeekday: { ...type.caption, fontWeight: '600' },
+  daysRow: { flexDirection: 'row', gap: space.xs + 1 },
+  dayCell: { flex: 1, minHeight: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: colors.surfaceMuted },
+  dayCellDisabled: { backgroundColor: 'transparent' },
+  dayCellSelected: { backgroundColor: colors.primary },
+  dayWeekday: { ...type.caption, ...fw.semibold },
   dayNumber: { ...type.clock, fontSize: 17 },
-  dayTextSelected: { color: colors.onSecondary },
+  dayTextSelected: { color: colors.onPrimary },
   dayTextDisabled: { color: colors.disabledText },
   todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary },
-  todayDotSelected: { backgroundColor: colors.onSecondary },
+  todayDotSelected: { backgroundColor: colors.onPrimary },
   slotGroup: { marginBottom: space.sm },
   timeGroupLabel: { ...type.overline, marginBottom: space.sm },
   slotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
@@ -795,7 +797,7 @@ const styles = StyleSheet.create({
   nextButtonDisabled: { backgroundColor: colors.disabledSurface },
   nextButtonText: { ...type.button, color: colors.onPrimary },
   nextButtonTextDisabled: { color: colors.disabledText },
-  reviewBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, elevation: 20, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  reviewBackdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, elevation: 20, shadowColor: 'transparent', backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   reviewDismissArea: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   reviewSheet: { backgroundColor: colors.background, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingHorizontal: layout.gutter + space.xs, paddingTop: space.sm, maxHeight: '88%' },
   reviewHandle: { alignSelf: 'center', width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, marginBottom: space.sm },

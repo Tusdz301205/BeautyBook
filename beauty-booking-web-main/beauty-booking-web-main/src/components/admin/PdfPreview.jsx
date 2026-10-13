@@ -84,7 +84,9 @@ export default function PdfPreview({ blob }) {
     </div>}
     {busy && <p role="status" className="mb-3">Đang đọc nội dung PDF…</p>}
     {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm">{error}</p>}
-    <canvas ref={canvas} hidden={busy || Boolean(error)} role="img" aria-label={`Nội dung tài liệu pháp lý, trang ${page}`} className="max-w-full rounded-lg border border-[var(--bb-border)] bg-white" />
+    {/* Keep the page footprint while rendering; collapsing it toggles the modal
+        scrollbar and retriggers ResizeObserver with alternating widths. */}
+    <canvas ref={canvas} hidden={!document || Boolean(error)} aria-hidden={busy || Boolean(error)} style={{ visibility: busy ? 'hidden' : 'visible' }} role="img" aria-label={`Nội dung tài liệu pháp lý, trang ${page}`} className="max-w-full rounded-lg border border-[var(--bb-border)] bg-white" />
     {!busy && !error && text && <details className="mt-3"><summary className="cursor-pointer text-sm font-semibold">Đọc nội dung dạng văn bản</summary><p className="mt-2 whitespace-pre-wrap break-words text-sm">{text}</p></details>}
   </div>;
 }

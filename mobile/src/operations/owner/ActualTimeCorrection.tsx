@@ -34,7 +34,7 @@ export function ActualTimeCorrection({ booking, item, scope, blocked, run }: {
     try {
       const input = correctionPayload({ startDay, startTime, endDay, endTime, timezone: booking.timezone, unknown, reason, expectedRevision: item.revision ?? 0, serverNow: now });
       setError('');
-      Alert.alert('Lưu hiệu chỉnh thời gian?', `${item.name}. ${unknown ? 'Đánh dấu dịch vụ hoàn tất với thời gian thực tế chưa biết.' : 'Ghi nhận các mốc thực tế bạn đã xác minh.'} Giữ nguyên giờ dự kiến. Máy chủ kiểm tra quyền, xung đột và lưu lịch sử; không tự hoàn thành toàn bộ lịch hoặc xử lý tiền.`, [
+      Alert.alert('Lưu hiệu chỉnh thời gian?', `${item.name}. ${unknown ? 'Đánh dấu dịch vụ hoàn tất với thời gian thực tế chưa biết.' : 'Ghi nhận các mốc thực tế bạn đã xác minh.'} Giờ dự kiến giữ nguyên. Thay đổi được lưu vào lịch sử, không hoàn tất toàn bộ lịch hẹn hoặc xử lý thanh toán.`, [
         { text: 'Quay lại', style: 'cancel' }, { text: 'Lưu hiệu chỉnh', onPress: () => { void run(() => ownerOperationsApi.correctActualTime(scope, booking.id, item.id, input)); } },
       ]);
     } catch (e) { setError(e instanceof Error ? e.message : 'Kiểm tra các trường thời gian.'); }

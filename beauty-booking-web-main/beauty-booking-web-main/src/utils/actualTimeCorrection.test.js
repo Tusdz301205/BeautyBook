@@ -16,7 +16,7 @@ test('known instants convert in branch timezone with strict order, no future and
   assert.deepEqual(actualTimeCorrectionPayload(known(), options), { expectedRevision: 3, actualStartedAt: '2026-10-06T15:00:00.000Z', actualCompletedAt: '2026-10-06T15:30:00.000Z', reason: 'Đã đối chiếu với ghi nhận phục vụ' });
   for (const actualCompletedAt of ['2026-10-06T22:00', '2026-10-06T21:59']) assert.throws(() => actualTimeCorrectionPayload({ ...known(), actualCompletedAt }, options), /phải trước/);
   assert.throws(() => actualTimeCorrectionPayload({ ...known(), actualCompletedAt: '2026-10-06T23:01' }, options), /tương lai/);
-  assert.throws(() => actualTimeCorrectionPayload(known(), { ...options, now: null }), /máy chủ/);
+  assert.throws(() => actualTimeCorrectionPayload(known(), { ...options, now: null }), /giờ hiện tại/);
   assert.throws(() => actualTimeCorrectionPayload(known(), { ...options, timezone: null }), /múi giờ/);
   assert.throws(() => actualTimeCorrectionPayload(known(), { ...options, timezone: 'not-a-timezone' }), /múi giờ/);
 });
@@ -67,5 +67,5 @@ test('conflict refreshes authoritative detail without replaying or optimisticall
   const events = [];
   await submitActualTimeCorrection({ payload: {}, send: async () => { events.push('write acknowledged'); }, refresh: async () => { events.push('read facts'); } });
   assert.deepEqual(events, ['write acknowledged', 'read facts']);
-  await assert.rejects(submitActualTimeCorrection({ payload: {}, send: async () => {}, refresh: async () => { throw new Error('Offline'); } }), /Máy chủ đã ghi nhận/);
+  await assert.rejects(submitActualTimeCorrection({ payload: {}, send: async () => {}, refresh: async () => { throw new Error('Offline'); } }), /Đã lưu hiệu chỉnh/);
 });

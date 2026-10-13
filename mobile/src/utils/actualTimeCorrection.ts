@@ -23,7 +23,7 @@ export function correctionPayload(input: { startDay: string; startTime: string; 
   const start = input.unknown ? null : branchActualInstant(input.startDay, input.startTime, input.timezone);
   const end = input.unknown ? null : branchActualInstant(input.endDay, input.endTime, input.timezone);
   if (!input.unknown && (!start || !end || start >= end)) throw new Error('Nhập giờ thực tế chính xác; bắt đầu phải trước hoàn tất.');
-  if (!Number.isFinite(input.serverNow)) throw new Error('Chưa xác minh giờ máy chủ; tải lại trước khi lưu.');
+  if (!Number.isFinite(input.serverNow)) throw new Error('Chưa xác minh được giờ hiện tại. Tải lại trước khi lưu.');
   if (end && Date.parse(end) > input.serverNow) throw new Error('Không được nhập thời gian thực tế trong tương lai.');
   return { expectedRevision: input.expectedRevision, actualStartedAt: start, actualCompletedAt: end, reason: input.reason.trim() };
 }

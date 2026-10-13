@@ -44,7 +44,7 @@ function screenHarness(file, { create = async () => ({ id: 'saved' }), preview =
     useMemo: callback => callback(), useEffect() {},
   };
   const navigation = {
-    navigate: (...args) => navigations.push(structuredClone(args)), goBack() {}, popToTop() {},
+    navigate: (...args) => navigations.push(structuredClone(args)), goBack() {}, popToTop() {}, reset() {},
     getParent: () => ({ navigate: (...args) => navigations.push(args) }),
   };
   const modules = {
@@ -53,7 +53,9 @@ function screenHarness(file, { create = async () => ({ id: 'saved' }), preview =
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' },
     '@expo/vector-icons': { Ionicons: 'Ionicons' },
     '@react-navigation/native': { usePreventRemove: enabled => { preventRemove = enabled; } },
-    '../constants/colors': { colors: {} }, '../theme': theme, '../utils/bookingClock': bookingClock, '../data/catalogModels': { formatCurrency: value => `${value} đ` },
+    '../constants/colors': { colors: {} }, '../theme': theme, '../utils/bookingClock': bookingClock,
+    // Decorative-only modules of the success screen: gradient veil and bundled editorial art.
+    'expo-linear-gradient': { LinearGradient: 'LinearGradient' }, '../components/editorialArt': { editorial: {} }, '../data/catalogModels': { formatCurrency: value => `${value} đ` },
     '../components/SelectListSheet': { default: 'SelectListSheet' },
     '../context/BookingsContext': { useBookings: () => ({ addBooking: async (body, key) => { calls.push({ body: structuredClone(body), key }); return create(body, key); }, getBooking: () => booking }) },
     '../api/bookings': { bookingsApi: { previewPrice: preview } },

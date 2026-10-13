@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, layout, space, type } from '../theme';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, fw, layout, radius, space, type } from '../theme';
+import BrandGradient from './BrandGradient';
 import IconButton from './IconButton';
 
 type Props = {
@@ -14,9 +15,24 @@ type Props = {
   large?: boolean;
   inset?: boolean;
   backDisabled?: boolean;
+  /** Plum → berry band with white title (customer tab roots). */
+  brand?: boolean;
 };
 
-export default function ScreenHeader({ title, subtitle, onBack, backLabel = 'Quay lại', right, large, inset = true, backDisabled }: Props) {
+export default function ScreenHeader({ title, subtitle, onBack, backLabel = 'Quay lại', right, large, inset = true, backDisabled, brand }: Props) {
+  const insets = useSafeAreaInsets();
+  if (brand) {
+    // Tab roots in the customer shell: compact brand band with white text.
+    return (
+      <BrandGradient decor style={[styles.brand, { paddingTop: (inset ? insets.top : 0) + space.md }]}>
+        <View style={styles.flex}>
+          <Text accessibilityRole="header" style={[styles.largeTitle, styles.onBrand]}>{title}</Text>
+          {subtitle ? <Text style={[styles.subtitle, styles.onBrandSoft]}>{subtitle}</Text> : null}
+        </View>
+        {right ? <View style={styles.rightLarge}>{right}</View> : null}
+      </BrandGradient>
+    );
+  }
   const content = large ? (
     <View style={styles.large}>
       <View style={styles.flex}>
@@ -44,7 +60,10 @@ const styles = StyleSheet.create({
   side: { width: layout.touch + space.xs, alignItems: 'flex-start' },
   sideRight: { alignItems: 'flex-end' },
   center: { flex: 1, alignItems: 'center', paddingHorizontal: space.xs },
-  title: { ...type.h3, textAlign: 'center' },
+  title: { ...type.h3, ...fw.display, fontSize: 19, textAlign: 'center' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: layout.gutter, paddingBottom: space.lg, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl },
+  onBrand: { color: colors.white },
+  onBrandSoft: { color: colors.secondarySoft },
   subtitleCenter: { ...type.caption, textAlign: 'center' },
   large: { minHeight: layout.headerMinHeight, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: layout.gutter, paddingTop: space.sm, paddingBottom: space.md },
   largeTitle: { ...type.h1 },

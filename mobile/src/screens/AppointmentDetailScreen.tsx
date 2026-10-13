@@ -8,7 +8,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 
 import { HoatDongStackParamList } from '../navigation/HoatDongStack';
 import { RootTabParamList } from '../navigation/RootTabs';
-import { colors, layout, radius, space, tones, type } from '../theme';
+import { colors, fw, layout, radius, space, tones, type } from '../theme';
 import { formatCurrency } from '../data/catalogModels';
 import { bookingStatusMeta } from '../data/appointments';
 import { useBookings } from '../context/BookingsContext';
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.xs, paddingBottom: space.xs, backgroundColor: colors.background },
   iconButton: { width: layout.touch, height: layout.touch, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { ...type.h3, flex: 1, textAlign: 'center' },
+  headerTitle: { ...type.h3, ...fw.display, fontSize: 19, flex: 1, textAlign: 'center' },
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.xxl },
   missingText: { ...type.body, textAlign: 'center' },
   content: { paddingHorizontal: layout.gutter, paddingTop: space.sm, paddingBottom: space.xxxl, gap: space.md },

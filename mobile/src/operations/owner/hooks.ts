@@ -5,26 +5,26 @@ import { useOperations } from '../OperationsContext';
 import type { OwnerScope } from '../../types/ownerOperations';
 import { ownerError, ownsBusiness } from './policy';
 
-export function useOwnerScope(fromBookingNotification = false): OwnerScope {
+export function useOwnerScope(fromNotification = false): OwnerScope {
   const { user } = useAuth();
   const operations = useOperations();
   const contextKey = operations.contextKey;
   const generation = getApiSessionGeneration();
-  const identity = `${contextKey}:${operations.businessId}:${generation}:${fromBookingNotification}`;
+  const identity = `${contextKey}:${operations.businessId}:${generation}:${fromNotification}`;
   const current = useRef(identity); current.current = identity;
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   return { userId: user?.id ?? '', workspace: user?.workspace, sessionType: user?.sessionType,
     roles: user?.roles ?? [], scopes: user?.scopes ?? [], businessId: operations.businessId,
-    // Only the explicit booking notification detail uses this transient scope.
+    // Only explicit notification details use this transient scope.
     // The current business, grants and branch allowlist are still authoritative.
-    branches: operations.branches, branchId: fromBookingNotification ? null : operations.branchId,
+    branches: operations.branches, branchId: fromNotification ? null : operations.branchId,
     isCurrent: () => alive.current && current.current === identity && generation === getApiSessionGeneration() };
 }
-export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resource: string, fromBookingNotification = false) {
-  const operations = useOperations(), scope = useOwnerScope(fromBookingNotification);
+export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resource: string, fromNotification = false) {
+  const operations = useOperations(), scope = useOwnerScope(fromNotification);
   const [attempt, setAttempt] = useState(0);
-  const key = `${operations.contextKey}:${getApiSessionGeneration()}:${scope.userId}:${scope.businessId}:${scope.branchId}:${fromBookingNotification}:${resource}`;
+  const key = `${operations.contextKey}:${getApiSessionGeneration()}:${scope.userId}:${scope.businessId}:${scope.branchId}:${fromNotification}:${resource}`;
   const stamp = `${key}:${operations.revision}:${operations.loading}:${operations.error ?? ''}:${attempt}`;
   const latest = useRef(stamp); latest.current = stamp;
   const fetcher = useRef(loader); fetcher.current = loader;
@@ -45,7 +45,7 @@ export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resou
       return;
     }
     if (!ownsBusiness(currentScope.current)) {
-      setState({ key, stamp, loading: false, error: 'Chưa có quyền chủ doanh nghiệp còn hiệu lực trong phiên này. Kiểm tra ngữ cảnh tại Tài khoản.' });
+      setState({ key, stamp, loading: false, error: 'Bạn chưa có quyền quản lý doanh nghiệp này. Kiểm tra doanh nghiệp tại Tài khoản.' });
       return;
     }
     setState(previous => ({ key, stamp, data: previous.key === key ? previous.data : undefined, loading: true, error: null }));
@@ -86,7 +86,7 @@ export function useOwnerMutation(reload: () => void, loaded: boolean) {
     try {
       await action();
       if (alive.current && active.current === key && generation === getApiSessionGeneration()) {
-        setState({ key, busy: false, message: 'Đã xử lý. Đang tải lại trạng thái từ máy chủ.', blocked: true });
+        setState({ key, busy: false, message: 'Đã xử lý. Đang cập nhật trạng thái.', blocked: true });
         return true;
       }
       return false;

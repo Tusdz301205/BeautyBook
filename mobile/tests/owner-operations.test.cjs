@@ -58,7 +58,7 @@ test('Owner overview prioritizes real attention counts and never treats loading 
   assert.ok(!nodes(mod.default()).includes('Không có việc chờ xử lý'));
   const list = nodes(mod.default()).find(n => n?.type === 'FlatList');
   const branchCard = nodes(list.props.renderItem({ item: dashboard.data.branches[0] }));
-  assert.ok(branchCard.some(n => n?.type === 'Meta' && n.children.includes(' hồ sơ nhân viên hoạt động · Không phải số người đang trong ca')));
+  assert.ok(branchCard.some(n => n?.type === 'Meta' && n.children.includes(' hồ sơ nhân viên đang hoạt động')));
   assert.ok(!branchCard.some(n => n?.type === 'Desktop'));
 });
 
@@ -363,7 +363,7 @@ function notificationTreeNodes(tree) {
   return [tree, ...(tree.children ?? []).flatMap(notificationTreeNodes)];
 }
 
-test('Owner notification source marks only booking opens and leaves branch selection and impact routing intact', () => {
+test('Owner notification source marks booking and impact opens without changing branch selection', () => {
   const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }) };
   const navigationCalls = [];
   const navigator = () => ({ Navigator: 'Navigator', Screen: 'Screen' });
@@ -384,8 +384,104 @@ test('Owner notification source marks only booking opens and leaves branch selec
   const notifications = notificationTreeNodes(tabs).find(node => node.props.name === 'ThongBao').props.component();
   notifications.props.onOpenBooking(bookingId); notifications.props.onOpenImpact(impactId);
   assert.deepEqual(navigationCalls.map(args => JSON.parse(JSON.stringify(args))), [
-    ['OwnerBooking', { id: bookingId, fromNotification: true }], ['OwnerImpact', { id: impactId }],
+    ['OwnerBooking', { id: bookingId, fromNotification: true }], ['OwnerImpact', { id: impactId, fromNotification: true }],
   ]);
+});
+
+const notificationImpact = () => ({ id: impactId, businessId: business, branchId: notificationBranch,
+  status: 'OPEN', reason: 'Sự cố tại chi nhánh B', items: [{ id: itemId, bookingId, status: 'PENDING', booking: notificationBooking() }] });
+
+test('impact notification reads owned B while A remains selected; ordinary detail still denies B', async () => {
+  for (const flag of [true, false]) {
+    const h = apiHarness(() => notificationImpact()), modules = notificationModules(h.client);
+    const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.impact(s, impactId), `impact:${impactId}`, flag), modules);
+    host.render(); await settle(); const result = host.render();
+    assert.equal(modules.op.branchId, branch); assert.equal(result.scope.businessId, business);
+    if (flag) { assert.equal(result.data.branchId, notificationBranch); assert.equal(result.error, null); }
+    else { assert.equal(result.data, undefined); assert.ok(result.error); }
+    host.unmount();
+  }
+});
+
+for (const [label, patch] of [['foreign business', { businessId: otherBusiness, branchId: otherBranch }],
+  ['unknown branch', { branchId: id(31) }]]) test(`impact notification rejects ${label}`, async () => {
+  const h = apiHarness(() => ({ ...notificationImpact(), ...patch })), modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.impact(s, impactId), `impact:${impactId}`, true), modules);
+  host.render(); await settle(); assert.equal(host.render().data, undefined); assert.ok(host.render().error);
+  assert.equal(modules.op.branchId, branch); host.unmount();
+});
+
+test('impact notification actions pin B and reject branch drift on both exception and completion', async () => {
+  for (const action of ['exception', 'complete']) {
+    let response = notificationImpact();
+    if (action === 'complete') { response.status = 'READY_TO_COMPLETE'; response.items[0].status = 'RESOLVED'; }
+    const h = apiHarness((_, init) => init.method ? {} : response), modules = notificationModules(h.client);
+    const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.impact(s, impactId), `impact:${impactId}`, true), modules);
+    host.render(); await settle(); const loaded = host.render();
+    const pinned = { ...loaded.scope, branchId: loaded.data.branchId };
+    const write = () => action === 'exception' ? h.ownerOperationsApi.approveException(pinned, impactId, itemId, 'Đã xác minh')
+      : h.ownerOperationsApi.completeImpact(pinned, impactId);
+    await write(); assert.equal(h.calls.filter(c => c.init.method).length, 1);
+    for (const patch of [{ businessId: business, branchId: branch }, { businessId: otherBusiness, branchId: otherBranch }, { branchId: id(31) }]) {
+      response = { ...response, ...patch }; const count = h.calls.filter(c => c.init.method).length;
+      await assert.rejects(write(), error => error.status === 403);
+      assert.equal(h.calls.filter(c => c.init.method).length, count);
+    }
+    host.unmount();
+  }
+});
+
+for (const dimension of ['context', 'business', 'session', 'unmount']) test(`impact notification ${dimension} change during action preflight prevents write`, async () => {
+  let pending = false; const read = deferred();
+  const h = apiHarness(() => pending ? read.promise : notificationImpact()), modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(s => h.ownerOperationsApi.impact(s, impactId), `impact:${impactId}`, true), modules);
+  host.render(); await settle(); const loaded = host.render();
+  pending = true;
+  const action = h.ownerOperationsApi.approveException({ ...loaded.scope, branchId: loaded.data.branchId }, impactId, itemId, 'Đã xác minh');
+  if (dimension === 'context') { modules.op.contextKey = 'next-branch'; host.render(); }
+  if (dimension === 'business') { modules.op.businessId = otherBusiness; host.render(); }
+  if (dimension === 'session') { h.replaceSession(); host.render(); }
+  if (dimension === 'unmount') host.unmount();
+  read.resolve(notificationImpact()); await assert.rejects(action, error => error.status === 409);
+  assert.equal(h.calls.filter(c => c.init.method).length, 0);
+  if (dimension !== 'unmount') host.unmount();
+});
+
+test('actual Impact detail carries notification scope into reads, actions and related booking navigation', async () => {
+  const h = apiHarness(() => {});
+  for (const fromNotification of [true, false]) for (const status of ['OPEN', 'READY_TO_COMPLETE']) {
+    const selectedScope = { ...scope(), branchId: fromNotification ? null : branch };
+    selectedScope.branches.push({ id: notificationBranch, businessId: business, name: 'Chi nhánh B' });
+    const raw = notificationImpact();
+    if (!fromNotification) { raw.branchId = branch; raw.items[0].booking = rawBooking(); }
+    raw.status = status; raw.items[0].status = status === 'OPEN' ? 'PENDING' : 'RESOLVED';
+    const impact = h.projectImpact(raw, selectedScope), reads = [], calls = [], navigations = [];
+    const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
+      useRef: () => ({ current: null }), useState: () => ['Đã xác minh', () => {}] };
+    const mod = load('operations/owner/OwnerDetails.tsx', {
+      react: React, 'react-native': { FlatList: 'FlatList', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'android' }, RefreshControl: 'Refresh', ScrollView: 'Scroll', View: 'View', Text: 'Text', StyleSheet: { create: x => x } },
+      '@expo/vector-icons': { Ionicons: 'Icon' }, '../../theme': load('theme/index.ts'),
+      '../../api/ownerOperations': { ownerOperationsApi: { impact: async () => impact,
+        approveException: async (scope, id) => calls.push({ scope, id }), completeImpact: async (scope, id) => calls.push({ scope, id }) } },
+      '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' }, './policy': policy,
+      './hooks': { useOwnerData(loader, resource, flag) { reads.push({ resource, flag }); void loader(selectedScope); return { data: impact, scope: selectedScope, loading: false, error: null, reload() {} }; },
+        useOwnerMutation: () => ({ busy: false, blocked: false, run: action => action() }) },
+      './OwnerUI': { Body: 'Body', BookingSummary: 'BookingSummary', Card: 'Card', DesktopLink: 'Desktop', Heading: 'Heading', Meta: 'Meta', momentLabel: () => '', Note: 'Note', ReviewAction: 'ReviewAction', StatusTag: 'StatusTag', statusLabel: s => s, styles: {} },
+      '../../hooks/useOperationalTime': { useOperationalTime: () => null }, '../../utils/bookingOperationalTime': { operationalTimeLabel: () => null },
+      '../../utils/bookingTiming': { serviceTimingLines: () => [] }, './ActualTimeCorrection': { ActualTimeCorrection: 'Correction' },
+    });
+    const params = fromNotification ? { id: impactId, fromNotification: true } : { id: impactId };
+    const tree = mod.OwnerImpactDetail({ route: { params }, navigation: { navigate: (...args) => navigations.push(args) } });
+    assert.equal(reads[0].flag, fromNotification);
+    const list = notificationTreeNodes(tree).find(n => n.type === 'FlatList');
+    const itemNodes = notificationTreeNodes(list.props.renderItem({ item: impact.items[0] }));
+    const footerNodes = notificationTreeNodes(list.props.ListFooterComponent);
+    assert.equal(itemNodes.find(n => n.type === 'BookingSummary').props.booking.branchId, impact.branchId);
+    itemNodes.find(n => n.type === 'Button').props.onPress();
+    assert.deepEqual(JSON.parse(JSON.stringify(navigations[0])), ['OwnerBooking', fromNotification ? { id: bookingId, fromNotification: true } : { id: bookingId }]);
+    [...itemNodes, ...footerNodes].filter(n => n.type === 'ReviewAction' && !n.props.disabled).forEach(n => n.props.onConfirm()); await settle();
+    assert.equal(calls.length, 1); assert.equal(calls[0].scope.branchId, impact.branchId); assert.equal(calls[0].scope.businessId, business);
+  }
 });
 
 test('Owner booking source passes explicit notification read scope, displays actual branch and pins every action/correction', async () => {
@@ -401,11 +497,11 @@ test('Owner booking source passes explicit notification read scope, displays act
     const mod = load('operations/owner/OwnerDetails.tsx', {
       react: React, 'react-native': { FlatList: 'FlatList', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'android' }, RefreshControl: 'Refresh', ScrollView: 'Scroll', View: 'View', Text: 'Text', StyleSheet: { create: value => value } },
       '@expo/vector-icons': { Ionicons: 'Icon' }, '../../theme': load('theme/index.ts'),
-      '../../api/ownerOperations': { ownerOperationsApi: { booking(s, id) { reads.push({ scope: s, id }); return Promise.resolve(booking); },
+      '../../api/ownerOperations': { ownerOperationsApi: { requests: async () => [], booking(s, id) { reads.push({ scope: s, id }); return Promise.resolve(booking); },
         bookingAction: async (s, id, action) => calls.push({ scope: s, id, action }) } },
       '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' },
       './policy': policy,
-      './hooks': { useOwnerData(loader, resource, flag) { readArgs.push({ resource, flag }); void loader(selectedScope); return { data: booking, scope: selectedScope, loading: false, error: null, reload() {} }; },
+      './hooks': { useOwnerData(loader, resource, flag) { readArgs.push({ resource, flag }); void loader(selectedScope); return { data: resource.startsWith('booking-requests:') ? [] : booking, scope: selectedScope, loading: false, error: null, reload() {} }; },
         useOwnerMutation: () => ({ busy: false, blocked: false, run: action => action() }) },
       './OwnerUI': { Body: 'Body', BookingSummary: 'BookingSummary', Card: 'Card', DesktopLink: 'Desktop', Heading: 'Heading', Meta: 'Meta', momentLabel: () => '', Note: 'Note', ReviewAction: 'ReviewAction', StatusTag: 'StatusTag', statusLabel: s => s, styles: {} },
       '../../hooks/useOperationalTime': { useOperationalTime: () => null },
@@ -428,4 +524,104 @@ test('Owner booking source passes explicit notification read scope, displays act
       if (!fromNotification) assert.equal(call.scope, selectedScope);
     });
   }
+});
+
+function requestDetailHarness({ fromNotification = true, pending = [], failure = null, loading = false } = {}) {
+  const h = apiHarness(() => {}), request = h.projectRequest({ ...rawRequest(), booking: fromNotification ? notificationBooking() : rawBooking() },
+    { ...scope(), branches: [...scope().branches, { id: notificationBranch, businessId: business, name: 'Chi nhánh B' }], branchId: fromNotification ? null : branch });
+  const selectedScope = { ...scope(), branches: [...scope().branches, { id: notificationBranch, businessId: business, name: 'Chi nhánh B' }], branchId: fromNotification ? null : branch };
+  const reads = [], actions = [], navigations = [];
+  const React = { createElement: (type, props, ...children) => ({ type, props: props || {}, children }), useRef: () => ({ current: null }), useState: () => ['Đã xác minh', () => {}] };
+  const mod = load('operations/owner/OwnerDetails.tsx', {
+    react: React, 'react-native': { FlatList: 'FlatList', KeyboardAvoidingView: 'Keyboard', Platform: { OS: 'android' }, RefreshControl: 'Refresh', ScrollView: 'Scroll', View: 'View', Text: 'Text', StyleSheet: { create: x => x } },
+    '@expo/vector-icons': { Ionicons: 'Icon' }, '../../theme': load('theme/index.ts'),
+    '../../api/ownerOperations': { ownerOperationsApi: { requests: async () => pending,
+      review: async (scope, id, action) => actions.push({ scope, id, action }), booking: async () => request.booking } },
+    '../OperationPrimitives': { OperationPage: 'Page', OperationButton: 'Button', OperationState: 'State' }, './policy': policy,
+    './hooks': { useOwnerData(loader, resource, flag) { reads.push({ loader, resource, flag }); return { data: resource.startsWith('booking-requests:') ? pending : resource.startsWith('booking:') ? request.booking : request,
+      scope: selectedScope, loading: resource.startsWith('booking-requests:') && loading, error: resource.startsWith('booking-requests:') ? failure : null, reload() {} }; },
+      useOwnerMutation: () => ({ busy: false, blocked: false, run: action => action() }) },
+    './OwnerUI': { Body: 'Body', BookingSummary: 'BookingSummary', Card: 'Card', DesktopLink: 'Desktop', Heading: 'Heading', Meta: 'Meta', momentLabel: () => '', viDate: () => '', Note: 'Note', ReviewAction: 'ReviewAction', StatusTag: 'StatusTag', statusLabel: s => s, styles: {} },
+    '../../hooks/useOperationalTime': { useOperationalTime: () => null }, '../../utils/bookingOperationalTime': { operationalTimeLabel: () => null },
+    '../../utils/bookingTiming': { serviceTimingLines: () => [] }, './ActualTimeCorrection': { ActualTimeCorrection: 'Correction' },
+  });
+  return { mod, request, selectedScope, reads, actions, navigation: { navigate: (...args) => navigations.push(args), canGoBack: () => false }, navigations };
+}
+
+test('request reached from notification preserves B through review and return-to-booking; default remains scoped', async () => {
+  for (const fromNotification of [true, false]) {
+    const h = requestDetailHarness({ fromNotification });
+    const params = fromNotification ? { id: requestId, fromNotification: true } : { id: requestId };
+    const nodes = notificationTreeNodes(h.mod.OwnerRequestDetail({ route: { params }, navigation: h.navigation }));
+    assert.equal(h.reads[0].flag, fromNotification);
+    nodes.find(n => n.type === 'Button').props.onPress();
+    assert.deepEqual(JSON.parse(JSON.stringify(h.navigations[0])), ['OwnerBooking', fromNotification ? { id: bookingId, fromNotification: true } : { id: bookingId }]);
+    const actions = nodes.filter(n => n.type === 'ReviewAction' && !n.props.disabled);
+    assert.equal(actions.length, 2);
+    actions.forEach(n => n.props.onConfirm()); await settle();
+    assert.equal(h.actions.length, 2);
+    h.actions.forEach(action => { assert.equal(action.scope.branchId, h.request.booking.branchId); assert.equal(action.scope.businessId, business); });
+  }
+});
+
+test('booking notification exposes only that booking pending requests and routes safe detail', async () => {
+  const seed = requestDetailHarness();
+  const h = requestDetailHarness({ pending: [seed.request] });
+  const nodes = notificationTreeNodes(h.mod.OwnerBookingDetail({ route: { params: { id: bookingId, fromNotification: true } }, navigation: h.navigation }));
+  const queue = h.reads.find(r => r.resource === `booking-requests:${bookingId}`);
+  assert.ok(queue); assert.equal(queue.flag, true);
+  const link = nodes.find(n => n.type === 'Button' && n.props.label === 'Xét duyệt yêu cầu cancel');
+  assert.ok(link); assert.equal(link.props.disabled, false); link.props.onPress();
+  assert.deepEqual(JSON.parse(JSON.stringify(h.navigations[0])), ['OwnerRequest', { id: requestId, fromNotification: true }]);
+  const actual = await queue.loader(h.selectedScope); assert.equal(actual.length, 1); assert.equal(actual[0].id, requestId);
+});
+
+test('request queue loader filters unrelated bookings, terminal and expired requests; ordinary booking makes no queue API read', async () => {
+  const seed = requestDetailHarness();
+  const invalid = [{ ...seed.request, id: id(51), booking: { ...seed.request.booking, id: id(52) } },
+    { ...seed.request, status: 'APPROVED' }, { ...seed.request, expiresAt: '2000-01-01T00:00:00Z' }];
+  const h = requestDetailHarness({ pending: invalid });
+  h.mod.OwnerBookingDetail({ route: { params: { id: bookingId, fromNotification: true } }, navigation: h.navigation });
+  const queue = h.reads.find(r => r.resource.startsWith('booking-requests:'));
+  assert.ok(queue); assert.equal((await queue.loader(h.selectedScope)).length, 0);
+  const ordinary = requestDetailHarness({ fromNotification: false, pending: [seed.request] });
+  const nodes = notificationTreeNodes(ordinary.mod.OwnerBookingDetail({ route: { params: { id: bookingId } }, navigation: ordinary.navigation }));
+  const normalQueue = ordinary.reads.find(r => r.resource.startsWith('booking-requests:'));
+  assert.equal(normalQueue.flag, false); assert.equal((await normalQueue.loader(ordinary.selectedScope)).length, 0);
+  assert.ok(!nodes.some(n => n.type === 'Button' && n.props.label?.startsWith('Xét duyệt yêu cầu')));
+});
+
+test('loading or failed request read never offers stale review action', () => {
+  for (const patch of [{ loading: true }, { failure: 'Mất kết nối' }]) {
+    const seed = requestDetailHarness(), h = requestDetailHarness({ pending: [seed.request], ...patch });
+    const nodes = notificationTreeNodes(h.mod.OwnerBookingDetail({ route: { params: { id: bookingId, fromNotification: true } }, navigation: h.navigation }));
+    assert.ok(!nodes.some(n => n.type === 'Button' && n.props.label?.startsWith('Xét duyệt yêu cầu')));
+    if (patch.failure) assert.ok(nodes.some(n => n.type === 'State' && n.props.message === patch.failure));
+  }
+});
+
+test('notification request action refetch cannot move from pinned B to A or a foreign business', async () => {
+  let response = { ...rawRequest(), booking: notificationBooking() };
+  const h = apiHarness((_, init) => init.method ? {} : [response]), modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(async s => (await h.ownerOperationsApi.requests(s)).find(r => r.id === requestId), `request:${requestId}`, true), modules);
+  host.render(); await settle(); const result = host.render();
+  const pinned = { ...result.scope, branchId: result.data.booking.branchId };
+  await h.ownerOperationsApi.review(pinned, requestId, 'reject', 'Đã xác minh', result.data);
+  assert.equal(h.calls.filter(c => c.init.method).length, 1);
+  for (const booking of [rawBooking(), { ...notificationBooking(), branchId: otherBranch, branch: { id: otherBranch, businessId: otherBusiness } }]) {
+    response = { ...response, booking };
+    await assert.rejects(h.ownerOperationsApi.review(pinned, requestId, 'reject', 'Đã xác minh', result.data), error => error.status === 409);
+    assert.equal(h.calls.filter(c => c.init.method).length, 1);
+  }
+  host.unmount();
+});
+
+test('notification request preflight cannot write after session replacement', async () => {
+  const read = deferred(); let pending = false;
+  const h = apiHarness(() => pending ? read.promise : [{ ...rawRequest(), booking: notificationBooking() }]), modules = notificationModules(h.client);
+  const host = hookHost(hooks => hooks.useOwnerData(async s => (await h.ownerOperationsApi.requests(s))[0], `request:${requestId}`, true), modules);
+  host.render(); await settle(); const loaded = host.render(); pending = true;
+  const action = h.ownerOperationsApi.review({ ...loaded.scope, branchId: loaded.data.booking.branchId }, requestId, 'reject', 'Đã xác minh', loaded.data);
+  h.replaceSession(); host.render(); read.resolve([{ ...rawRequest(), booking: notificationBooking() }]);
+  await assert.rejects(action, error => error.status === 409); assert.equal(h.calls.filter(c => c.init.method).length, 0); host.unmount();
 });

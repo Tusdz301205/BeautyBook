@@ -470,7 +470,7 @@ export default function BusinessOnboarding() {
         }
       }
       toast.error(submittedToServer
-        ? 'Hồ sơ đã gửi đến máy chủ nhưng chưa tải được trạng thái mới. Hãy tải lại trang để kiểm tra.'
+        ? 'Hồ sơ đã được gửi nhưng chưa cập nhật được trạng thái. Hãy tải lại trang để kiểm tra.'
         : toBusinessOnboardingError(requestError));
     } finally {
       setBusy('');
@@ -534,7 +534,7 @@ export default function BusinessOnboarding() {
       <PageHeader
         eyebrow="Xác minh doanh nghiệp"
         title="Đăng ký BeautyBook Business"
-        description="Luồng này chỉ xác minh doanh nghiệp và pháp nhân lần đầu. Chi nhánh, dịch vụ và nhân sự sẽ được thiết lập riêng sau khi doanh nghiệp được duyệt."
+        description="Sau khi doanh nghiệp được duyệt, bạn có thể thiết lập chi nhánh, dịch vụ và nhân sự."
         actions={editable ? (
           <Button variant="secondary" loading={busy === 'save'} disabled={Boolean(busy) || uploadsInProgress > 0} onClick={() => persist()}>
             <Save size={16} />Lưu & tiếp tục sau
@@ -562,7 +562,7 @@ export default function BusinessOnboarding() {
       {awaitingStatus ? (
         <Card className="p-6">
           <h2 className="text-xl font-bold">Hồ sơ đã gửi, đang chờ cập nhật trạng thái</h2>
-          <p className="mt-2 text-sm text-[var(--bb-muted)]">Máy chủ đã nhận hồ sơ. Tải lại trạng thái trước khi thực hiện thao tác tiếp theo.</p>
+          <p className="mt-2 text-sm text-[var(--bb-muted)]">Hồ sơ đã được nhận. Tải lại trạng thái trước khi thực hiện thao tác tiếp theo.</p>
           <Button className="mt-4" onClick={() => load()}>Tải lại trạng thái</Button>
         </Card>
       ) : !editable ? (

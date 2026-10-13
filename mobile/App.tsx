@@ -3,10 +3,16 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import { BeVietnamPro_400Regular } from '@expo-google-fonts/be-vietnam-pro/400Regular';
+import { BeVietnamPro_500Medium } from '@expo-google-fonts/be-vietnam-pro/500Medium';
+import { BeVietnamPro_600SemiBold } from '@expo-google-fonts/be-vietnam-pro/600SemiBold';
+import { BeVietnamPro_700Bold } from '@expo-google-fonts/be-vietnam-pro/700Bold';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces/600SemiBold';
 import RootStack, { RootStackParamList } from './src/navigation/RootStack';
 import { navigationRef } from './src/navigation/navigationRef';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { colors } from './src/theme';
+import { colors, type } from './src/theme';
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['beautybook://'],
@@ -33,11 +39,10 @@ function LogoutRedirect() {
 }
 
 function AppNavigation() {
-  const { isRestoring, isLoggedIn, user } = useAuth();
+  const { isRestoring, user } = useAuth();
   const [routeName, setRouteName] = useState<string>();
-  // Plum surfaces sit behind the status bar only on auth screens and the guest account intro.
-  const authRoutes = ['Login', 'Register', 'ForgotPassword', 'ResetPassword', 'VerifyEmail'];
-  const darkHeader = authRoutes.includes(routeName || '') || (routeName === 'AccountMain' && !isLoggedIn);
+  // Screens whose top edge is a brand gradient or a photo need light status-bar icons.
+  const darkHeader = BRAND_TOP_ROUTES.includes(routeName || '');
   if (isRestoring) {
     return (
       <>
@@ -60,7 +65,19 @@ function AppNavigation() {
   );
 }
 
+const BRAND_TOP_ROUTES = [
+  'Login', 'Register', 'ForgotPassword', 'ResetPassword', 'VerifyEmail',
+  'HomeMain', 'AccountMain', 'VenueDetail', 'ComboDetail', 'BookingSuccess', 'HoatDongMain',
+  // Staff / Owner tab roots sit under the plum operations header.
+  'WorkList', 'Tài khoản', 'TongQuan', 'VanHanh', 'ThongBao', 'TaiKhoan', 'UnsupportedWorkspace',
+];
+
 export default function App() {
+  // Brand typefaces. If loading fails the app still opens with the system font.
+  const [fontsLoaded, fontError] = useFonts({ BeVietnamPro_400Regular, BeVietnamPro_500Medium, BeVietnamPro_600SemiBold, BeVietnamPro_700Bold, Fraunces_600SemiBold });
+  if (!fontsLoaded && !fontError) {
+    return <View style={styles.restoring}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  }
   return (
     <SafeAreaProvider>
       <AuthProvider>
@@ -78,5 +95,5 @@ const styles = StyleSheet.create({
     gap: 14,
     backgroundColor: colors.background,
   },
-  restoringText: { color: colors.secondaryText, fontSize: 15, lineHeight: 22 },
+  restoringText: { ...type.secondary },
 });

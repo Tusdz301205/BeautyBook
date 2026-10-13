@@ -167,7 +167,7 @@ export function toBusinessOnboardingError(error) {
     return message.slice(0, 280);
   }
   if (error?.status === 409) return 'Hồ sơ vừa thay đổi hoặc thông tin đã được sử dụng. Tải lại hồ sơ rồi thử lại.';
-  if (error?.status >= 500 || error?.status || /^HTTP \d+$/.test(message)) return 'Máy chủ chưa thể xử lý yêu cầu. Dữ liệu trên biểu mẫu vẫn được giữ lại.';
+  if (error?.status >= 500 || error?.status || /^HTTP \d+$/.test(message)) return 'Chưa thể xử lý yêu cầu. Thông tin bạn đã nhập vẫn được giữ lại.';
   return 'Chưa thể lưu hồ sơ. Kiểm tra kết nối và thử lại; nội dung đã nhập vẫn được giữ lại.';
 }
 

@@ -101,7 +101,7 @@ export default function BusinessLanding() {
 
         <section className="bb-business-section" id="business-capabilities">
           <header className="bb-business-section__heading">
-            <p className="bb-business-kicker">Từ marketplace tới quầy lễ tân</p>
+            <p className="bb-business-kicker">Từ đặt lịch trực tuyến tới quầy lễ tân</p>
             <h2>Các công cụ cùng nhìn vào một nguồn dữ liệu.</h2>
             <p>Không cần ghép nhiều màn hình rời rạc để biết hôm nay cơ sở đang vận hành như thế nào.</p>
           </header>
@@ -141,7 +141,7 @@ export default function BusinessLanding() {
         <section className="bb-business-cta">
           <p className="bb-business-kicker">BeautyBook Business</p>
           <h2>Sẵn sàng xây không gian đặt lịch của riêng bạn?</h2>
-          <p>Đăng ký miễn phí để bắt đầu hồ sơ. Việc tạo tài khoản không tự động đưa cơ sở lên marketplace.</p>
+          <p>Đăng ký miễn phí để bắt đầu hồ sơ. Cơ sở chỉ hiển thị công khai sau khi hồ sơ được duyệt.</p>
           <Link className="bb-business-button bb-business-button--light" to="/register/business">
             Bắt đầu với BeautyBook Business <ArrowRight size={17} />
           </Link>
