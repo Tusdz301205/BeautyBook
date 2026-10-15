@@ -1,0 +1,12 @@
+{
+  "pages": 38,
+  "diagrams": 19,
+  "erd_diagrams": 2,
+  "usecase_specifications": 27,
+  "tables": 2,
+  "minimum_effective_image_dpi": 457,
+  "visual_qa": "All 38 final pages inspected; overview also inspected at full-page resolution.",
+  "revision_checks": "Overall Database Diagram added on page 29: 36 core tables and 64 declared foreign-key relationships. One A3 landscape page; remaining pages A4 portrait. Existing ERDs and Usecase edits preserved.",
+  "metadata": "Personal author and organization fields cleared.",
+  "file_size_bytes": 3925780
+}

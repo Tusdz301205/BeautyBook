@@ -31,7 +31,7 @@ export async function assertActualTimeCorrectionPermission(db: PermissionReader,
   const now = new Date();
   const roles = await db.userRole.findMany({ where: {
     userId: user.id, businessId: resource.businessId,
-    role: { code: { in: ['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF'] } },
+    role: { code: { in: ['BUSINESS_OWNER', 'RECEPTIONIST'] } },
     AND: [{ OR: [{ branchId: null }, { branchId: resource.branchId }] },
       { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
   }, include: { role: { select: { code: true } } } });
@@ -39,7 +39,7 @@ export async function assertActualTimeCorrectionPermission(db: PermissionReader,
   const scoped = roles.filter(role => role.businessId === resource.businessId &&
     (!role.branchId || role.branchId === resource.branchId) &&
     (!role.expiresAt || role.expiresAt > now) &&
-    ['BUSINESS_OWNER', 'RECEPTIONIST', 'STAFF'].includes(role.role.code));
+    ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(role.role.code));
   if (scoped.some(role => role.role.code === 'BUSINESS_OWNER' && !role.branchId) &&
       canOnResource(user, ACTUAL_TIME_CORRECT_PERMISSION, resource)) return;
   if (!scoped.length) throw new ForbiddenException('Không có vai trò vận hành còn hiệu lực tại chi nhánh');

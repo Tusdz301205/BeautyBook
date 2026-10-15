@@ -50,10 +50,11 @@ export const bookingsApi = {
       body: JSON.stringify({ ...input, source: 'ONLINE_APP' }),
     }),
   mine: async () => {
-    const tabs = await Promise.all(['upcoming', 'completed', 'cancelled'].map((tab) =>
-      apiRequest<{ data: ApiBooking[] }>(withQuery('/bookings/my-appointments', { tab })),
-    ));
-    return tabs.flatMap((response) => response.data);
+    // A single snapshot cannot lose an unchanged check-in crossing into history.
+    const response = await apiRequest<{ data: ApiBooking[]; serverNow?: string }>(
+      withQuery('/bookings/my-appointments', { tab: 'all' }),
+    );
+    return response.data.map(booking => ({ ...booking, serverNow: response.serverNow ?? booking.serverNow }));
   },
   cancel: (id: string, reason?: string) =>
     apiRequest<ApiBooking>(`/bookings/${id}/status`, {

@@ -69,15 +69,15 @@ test('normalization retains server instants/IDs; mixed services and check-in hav
     assert.equal(booking.id, 'uuid');
     assert.equal(booking.services[0].bookingServiceId, 'first');
     assert.equal(booking.services[0].itemStartAt, item.itemStartAt);
-    assert.deepEqual(bookingOperationalLabels(booking, booking.timingAnchor.elapsed), ['Quá giờ dự kiến — cần kiểm tra', 'Đang phục vụ quá giờ dự kiến']);
+    assert.deepEqual(bookingOperationalLabels(booking, booking.timingAnchor.elapsed), status === 'CHECKED_IN' ? ['Đang phục vụ quá giờ dự kiến'] : ['Quá giờ dự kiến — cần kiểm tra', 'Đang phục vụ quá giờ dự kiến']);
     assert.deepEqual(bookingOperationalLabels({ ...booking, timingAnchor: null }, 100), []);
   }
-  assert.equal(SERVICE_STATUS_LABELS.SCHEDULED, 'Chưa bắt đầu');
+  assert.equal(SERVICE_STATUS_LABELS.SCHEDULED, 'Đã lên lịch');
   assert.equal(SERVICE_STATUS_LABELS.IN_PROGRESS, 'Đang thực hiện');
 });
 test('prior-day items stay overdue across midnight; explicit timezone offsets are equivalent', () => {
   const now = Date.parse('2026-10-07T00:01:00+07:00');
-  assert.equal(itemOperationalLabel('CHECKED_IN', item, now), 'Quá giờ dự kiến — cần kiểm tra');
+  assert.equal(itemOperationalLabel('CHECKED_IN', item, now), null);
   assert.equal(itemOperationalLabel('CONFIRMED', { ...item, itemStartAt: '2026-10-06T15:00:00Z', itemEndAt: '2026-10-06T15:30:00Z' }, now), 'Quá giờ dự kiến — cần kiểm tra');
 });
 test('counter slot display and manual exception input use branch timezone across midnight/DST', () => {

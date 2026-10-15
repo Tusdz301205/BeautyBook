@@ -1,3 +1,4 @@
+import { checkedInHistory } from '../../utils/bookingSchedule';
 import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,12 +15,12 @@ const labels: Record<string, string> = { ACTIVE: 'Đang hoạt động', INACTIV
 export const statusLabel = (status: string) => labels[status] ?? 'Trạng thái khác';
 
 /** Lifecycle tone for a booking/item status; text label always accompanies it. */
-export function StatusTag({ status, tone }: { status: string; tone?: Tone }) {
+export function StatusTag({ status, tone, label }: { status: string; tone?: Tone; label?: string }) {
   const look = bookingTone[status];
   const palette = tones[tone ?? look?.tone ?? 'neutral'];
   return <View style={[styles.tag, { backgroundColor: palette.bg }]}>
     {look ? <Ionicons accessible={false} name={look.icon as keyof typeof Ionicons.glyphMap} size={14} color={palette.fg} /> : null}
-    <Text style={[styles.tagText, { color: palette.fg }]}>{statusLabel(status)}</Text>
+    <Text style={[styles.tagText, { color: palette.fg }]}>{label ?? statusLabel(status)}</Text>
   </View>;
 }
 export function Card({ children, tone }: { children: React.ReactNode; tone?: 'request' | 'warning' | 'brand' }) {
@@ -48,7 +49,7 @@ export function BookingSummary({ booking }: { booking: OwnerBooking }) {
   return <View style={styles.summary}>
     <View style={styles.summaryHead}>
       <Text accessibilityRole="header" style={styles.summaryName}>{booking.customerName}</Text>
-      <StatusTag status={booking.status} />
+      <StatusTag status={booking.status} label={checkedInHistory(booking.status, booking) ? 'Đã đến · Lịch đã qua' : undefined} />
     </View>
     <Text selectable style={styles.meta}>Mã lịch {booking.code} · {booking.branchName}</Text>
     <View style={styles.timeRow}>

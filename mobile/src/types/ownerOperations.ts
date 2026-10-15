@@ -1,3 +1,4 @@
+import type { BookingSchedule } from '../utils/bookingSchedule';
 /** Owner projections intentionally omit contact, finance, review and health data. */
 export interface OwnerScope {
   isCurrent?: () => boolean;
@@ -10,7 +11,7 @@ export interface OwnerScope {
   branches: Array<{ id: string; name: string; businessId: string; timezone?: string; status?: string }>;
   branchId: string | null;
 }
-export interface OwnerBooking {
+export interface OwnerBooking extends BookingSchedule {
   id: string;
   code: string;
   businessId: string;

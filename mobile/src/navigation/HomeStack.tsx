@@ -6,6 +6,8 @@ import VenueDetailScreen from '../screens/VenueDetailScreen';
 import BookingScreen from '../screens/BookingScreen';
 import AddServiceScreen from '../screens/AddServiceScreen';
 import BookingSuccessScreen from '../screens/BookingSuccessScreen';
+import ServiceDetailScreen from '../screens/ServiceDetailScreen';
+import StaffDetailScreen from '../screens/StaffDetailScreen';
 
 export interface BookingServiceLine {
   id: string;
@@ -18,6 +20,8 @@ export interface BookingServiceLine {
 export type HomeStackParamList = {
   HomeMain: undefined;
   ComboDetail: { comboId: string };
+  ServiceDetail: { serviceId: string; initialStaffId?: string };
+  StaffDetail: { staffId: string };
   VenueDetail: { venueId: string; serviceId?: string; serviceIds?: string[]; rebooking?: boolean };
   Booking: {
     branchId: string;
@@ -26,6 +30,7 @@ export type HomeStackParamList = {
     service: { id: string; name: string; duration: string; price: number; originalPrice: number };
     serviceIds: string[];
     comboId?: string;
+    initialStaffId?: string;
     staffOptions?: Array<{ id: string; name: string }>;
   };
   AddService: {
@@ -44,6 +49,8 @@ export default function HomeStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
       <Stack.Screen name="ComboDetail" component={ComboDetailScreen} />
+      <Stack.Screen name="ServiceDetail" component={ServiceDetailScreen} />
+      <Stack.Screen name="StaffDetail" component={StaffDetailScreen} />
       <Stack.Screen name="VenueDetail" component={VenueDetailScreen} />
       <Stack.Screen name="Booking" component={BookingScreen} />
       <Stack.Screen name="AddService" component={AddServiceScreen} />

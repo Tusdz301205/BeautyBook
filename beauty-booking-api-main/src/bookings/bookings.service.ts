@@ -50,6 +50,7 @@ import { assertCustomerDirectCancellation } from './customer-cancellation-policy
 import { bookingViolationSummary, recordBookingViolation } from './booking-violation-policy';
 import { assertCustomerSelfBookingAllowed } from './customer-booking-policy';
 import { BOOKING_TIMING_AUDIT_INCLUDE, bookingItemActualTiming, withBookingTiming } from './booking-actual-timing';
+import { attendedHistoryWhere, bookingAttendance } from './booking-attendance';
 import { staffBookingView } from './staff-booking-view';
 import { assertMobileOwnerWithoutFinance } from './mobile-owner-finance-guard';
 import { emitCommittedBookingUpdate, emitCommittedBookingUpdates } from './booking-realtime';
@@ -121,6 +122,7 @@ export class BookingsService {
     status?: string;
     branchId?: string;
     categoryId?: string;
+    canonicalServiceId?: string;
     serviceId?: string;
     businessId?: string;
     customerQuery?: string;
@@ -139,6 +141,7 @@ export class BookingsService {
       status,
       branchId,
       categoryId,
+      canonicalServiceId,
       serviceId,
       businessId,
       customerQuery,
@@ -158,6 +161,7 @@ export class BookingsService {
       await this.expirePendingHolds(branchId);
     }
 
+    const serverNow = new Date();
     const where: any = {
       deletedAt: null,
     };
@@ -176,7 +180,10 @@ export class BookingsService {
       };
       const bookingStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'];
       if (bookingStatuses.includes(status)) where.status = status;
-      else if (status === 'unfinished') where.status = { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] };
+      else if (status === 'unfinished') {
+        where.status = { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] };
+        where.NOT = attendedHistoryWhere(serverNow, this.prisma.booking.fields);
+      }
       else if (statusMap[status]) where.status = statusMap[status];
     }
 
@@ -200,7 +207,19 @@ export class BookingsService {
     if (categoryId) {
       where.AND = [...(where.AND ?? []), { bookingServices: { some: { service: { categoryId } } } }];
     }
-    if (serviceId) {
+    // Canonical groups belong to the business catalog, not ServiceCategory.
+    // Keep historical/inactive offerings visible and resolve merged mappings
+    // using the same one-hop replacement as the public catalog search.
+    if (canonicalServiceId) {
+      where.AND = [...(where.AND ?? []), { bookingServices: { some: {
+        ...(serviceId ? { serviceId } : {}),
+        service: { businessService: { canonicalService: { OR: [
+          { id: canonicalServiceId, status: 'ACTIVE', replacementCanonicalId: null },
+          { replacement: { id: canonicalServiceId, status: 'ACTIVE' } },
+        ] } } },
+      } } }];
+    }
+    if (serviceId && !canonicalServiceId) {
       where.AND = [...(where.AND ?? []), { bookingServices: { some: { serviceId } } }];
     }
     if (staffId) {
@@ -295,16 +314,16 @@ export class BookingsService {
     const statusLabelMap: Record<string, string> = {
       PENDING: 'Mới',
       CONFIRMED: 'Đã xác nhận',
-      CHECKED_IN: 'Đã check-in',
+      CHECKED_IN: 'Khách đã đến',
       IN_PROGRESS: 'Đang thực hiện',
       COMPLETED: 'Hoàn thành',
       CANCELLED: 'Đã huỷ',
       NO_SHOW: 'No-show',
     };
 
-    const serverNow = new Date();
     const data = bookings.map((b) => ({
       serverNow,
+      ...bookingAttendance(b, serverNow),
       id: b.bookingCode,
       bookingId: b.id,
       customer_id: b.customer?.user?.id,
@@ -748,6 +767,12 @@ export class BookingsService {
 
         if (mappedStatus === 'COMPLETED') {
           await this.payments?.redeemPackageEntitlements(id, 'COMPLETED', tx);
+        }
+        if (mappedStatus === 'CHECKED_IN') {
+          // The counter's real arrival confirmation consumes a reserved package
+          // session. It does not complete services or create a payment.
+          await this.payments?.redeemPackageEntitlements(id, 'CHECKED_IN', tx);
+          await this.payments?.ensurePlatformFee(tx, id);
         }
 
         return updated;

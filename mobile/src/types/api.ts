@@ -1,3 +1,4 @@
+import type { BookingSchedule } from '../utils/bookingSchedule';
 export interface ApiCategory {
   id: string;
   name: string;
@@ -38,6 +39,43 @@ export interface ApiServiceVariant {
   status?: string;
 }
 
+export interface ApiStaffDetail extends ApiStaff {
+  experienceYears?: number | null;
+  branch: { id: string; name: string; addressLine?: string | null; business?: { name: string } };
+  images?: Array<{ media: ApiMedia }>;
+  staffServices: Array<{ service: Pick<ApiService, 'id' | 'name' | 'price' | 'durationMinutes'> }>;
+}
+
+export interface ApiPublicRatings {
+  averageRating: number;
+  totalRatings: number;
+  ratings: Array<{
+    rating: number;
+    comment?: string | null;
+    createdAt: string;
+    customerName: string;
+    serviceName?: string;
+    staff?: { id: string; fullName: string } | null;
+  }>;
+}
+
+export interface ApiPromotion {
+  id: string;
+  name: string;
+  description?: string | null;
+  discountType: string;
+  discountValue: number | string;
+  startDate: string;
+  endDate: string;
+  audience: string;
+  autoApply: boolean;
+  stackingAllowed: boolean;
+  maxUsagePerCustomer?: number | null;
+  totalQuantity?: number | null;
+  serviceIds: string[];
+  comboIds: string[];
+}
+
 export interface ApiService {
   id: string;
   branchId: string;
@@ -59,6 +97,7 @@ export interface ApiService {
     id: string;
     name: string;
     businessId: string;
+    addressLine?: string | null;
     business?: { id: string; name: string };
   };
 }
@@ -203,7 +242,8 @@ export interface ApiBookingService {
   staff?: ApiStaff;
 }
 
-export interface ApiBooking {
+export interface ApiBooking extends BookingSchedule {
+  canReview?: boolean;
   id: string;
   bookingCode?: string;
   serverNow?: string;

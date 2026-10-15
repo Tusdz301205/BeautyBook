@@ -10,8 +10,7 @@ const RECEPTIONIST_BRANCH = new Set([
   'package_purchase:create:branch',
 ]);
 const STAFF_BRANCH = new Set([
-  'branch:read:branch', 'booking:read:branch', 'booking:update:branch',
-  'booking:complete:branch', 'booking:read_internal_note:branch',
+  'branch:read:branch', 'booking:read:branch', 'booking:read_internal_note:branch',
 ]);
 const SHARED_SELF = new Set(['user:read:self', 'user:update:self', 'notification:read:self']);
 export const CUSTOMER_ACCOUNT_REQUIRED = 'Tài khoản vận hành chỉ xem nội dung công khai. Vui lòng dùng tài khoản khách hàng riêng để đặt lịch, lưu dịch vụ hoặc đánh giá.';
@@ -93,8 +92,6 @@ export function bookingCapabilities(user, booking) {
   const ctx = { tenantId, branchId };
   const owner = !!tenantId && roleAt(user, 'BUSINESS_OWNER', tenantId);
   const receptionist = !!branchId && roleAt(user, 'RECEPTIONIST', tenantId ?? null, branchId);
-  const staff = !!branchId && roleAt(user, 'STAFF', tenantId ?? null, branchId);
-  const assigned = staff && (booking?.services || []).some((item) => isAssignedItem(user, item));
   const permitted = (action) => (owner && canAt(user, `booking:${action}:tenant`, ctx))
     || (receptionist && canAt(user, `booking:${action}:branch`, ctx));
   return {
@@ -104,24 +101,15 @@ export function bookingCapabilities(user, booking) {
     canCheckIn: permitted('check_in'),
     canCancel: permitted('cancel'),
     canAssign: permitted('assign'),
-    canProvide: (owner && permitted('update')) || (assigned && canAt(user, 'booking:update:branch', ctx)),
-    canComplete: (owner && permitted('update')) || (assigned && canAt(user, 'booking:complete:branch', ctx)),
+    canProvide: false,
+    canComplete: false,
     ctx,
   };
 }
 
-function isAssignedItem(user, item) {
-  return !!user?.id && (item?.staffUserId === user.id
-    || (!!user.staffProfile?.id && item?.staffId === user.staffProfile.id));
-}
-
 export function bookingItemActions(user, booking, item) {
   const rights = bookingCapabilities(user, booking);
-  const assigned = !!booking?.branchId && roleAt(user, 'STAFF', rights.ctx.tenantId ?? null, booking.branchId)
-    && isAssignedItem(user, item) && canAt(user, 'booking:update:branch', rights.ctx);
   const actions = [];
-  if ((rights.owner && rights.canUpdate) || assigned) actions.push('START');
-  if ((rights.owner && rights.canUpdate) || (assigned && canAt(user, 'booking:complete:branch', rights.ctx))) actions.push('COMPLETE');
   if (rights.canCancel) actions.push('REMOVE', 'SKIP');
   if (rights.canAssign) actions.push('REASSIGN');
   if (rights.owner && rights.canUpdate) actions.push('RESIZE', 'REPRICE');

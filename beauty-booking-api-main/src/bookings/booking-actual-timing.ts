@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { bookingAttendance } from './booking-attendance';
 
 // Read only lifecycle audit facts. Never expose reasons, actors or snapshots
 // in the public timing contract, and never infer execution from planned time.
@@ -59,10 +60,12 @@ export function bookingItemActualTiming(item: TimingItem) {
   };
 }
 
-export function withBookingTiming<T extends { bookingServices?: readonly TimingItem[] }>(booking: T, serverNow = new Date()) {
+export function withBookingTiming<T extends { bookingServices?: readonly TimingItem[]; status?: string;
+  appointmentDate?: Date; appointmentStartTime?: Date; appointmentEndTime?: Date }>(booking: T, serverNow = new Date()) {
   return {
     ...booking,
     serverNow,
+    ...bookingAttendance(booking, serverNow),
     bookingServices: (booking.bookingServices ?? []).map((item) => {
       const publicItem = { ...item };
       delete publicItem.refs_BookingServiceAdjustment_bookingServiceId;

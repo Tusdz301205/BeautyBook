@@ -75,7 +75,7 @@ export default function AppointmentCalendar({ visibleMonth, onChangeMonth, selec
             const isSelected = key === selectedDateKey;
             const isToday = isSameDay(day, today);
             const mark = marks[key];
-            const markLabel = mark ? [mark.hasUpcoming && 'có lịch sắp tới', mark.hasCompleted && 'có lịch đã hoàn thành', mark.hasCancelled && 'có lịch đã hủy'].filter(Boolean).join(', ') : 'không có lịch';
+            const markLabel = mark ? [mark.hasUpcoming && 'có lịch sắp tới', mark.hasCompleted && 'có lịch sử lịch hẹn', mark.hasCancelled && 'có lịch đã hủy'].filter(Boolean).join(', ') : 'không có lịch';
             return (
               <Pressable
                 key={key}
@@ -102,7 +102,7 @@ export default function AppointmentCalendar({ visibleMonth, onChangeMonth, selec
       <View style={styles.footer}>
         <View style={styles.legend}>
           <Legend color={DOTS.upcoming} label="Sắp tới" />
-          <Legend color={DOTS.completed} label="Hoàn thành" />
+          <Legend color={DOTS.completed} label="Lịch sử" />
           <Legend color={DOTS.cancelled} label="Đã hủy" />
         </View>
         <AppButton compact variant="ghost" label="Hôm nay" onPress={goToday} />

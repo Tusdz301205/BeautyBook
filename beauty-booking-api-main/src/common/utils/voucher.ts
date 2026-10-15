@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { DiscountType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { attendedVisitWhere } from '../../bookings/booking-attendance';
 
 export interface VoucherApplication {
   voucherId: string;
@@ -90,7 +91,7 @@ export async function applyVoucher(
     select: {
       user: { select: { dateOfBirth: true } },
       bookings: {
-        where: { branch: { businessId: branch.businessId }, status: 'COMPLETED', deletedAt: null },
+        where: { branch: { businessId: branch.businessId }, ...attendedVisitWhere() },
         select: { id: true }, take: 1,
       },
     },

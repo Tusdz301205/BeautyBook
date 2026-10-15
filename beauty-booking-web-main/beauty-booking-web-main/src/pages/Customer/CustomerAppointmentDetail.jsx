@@ -1,3 +1,4 @@
+import { attendanceLabel, reviewEligible } from '../../utils/bookingAffordances';
 import React, { useEffect, useMemo, useState } from 'react';
 import { differenceInMinutes, format } from 'date-fns';
 import {
@@ -27,7 +28,7 @@ import { useCustomerBookingRefresh } from '../../hooks/useCustomerBookingRefresh
 import { useAsyncResource } from '../../hooks/useAsyncResource';
 import { customerCancellationMode, submitCustomerCancellation } from '../../utils/customerCancellation';
 
-const LABELS = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
+const LABELS = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Khách đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
 const TONES = { PENDING: 'warning', CONFIRMED: 'info', CHECKED_IN: 'info', IN_PROGRESS: 'brand', COMPLETED: 'success', CANCELLED: 'danger', NO_SHOW: 'neutral', REJECTED: 'danger', EXPIRED: 'neutral' };
 const ITEM_LABELS = { SCHEDULED: 'Đã lên lịch', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', SKIPPED: 'Đã bỏ qua' };
 const money = (value) => `${Number(value || 0).toLocaleString('vi-VN')}₫`;
@@ -51,7 +52,7 @@ export function CustomerAppointmentDetail() {
   const booking = data?.booking;
   const policy = data?.policy || {};
   const error = requestError?.message || '';
-  useCustomerBookingRefresh(load);
+  useCustomerBookingRefresh(load, booking);
   useEffect(() => { setRescheduleOpen(false); setReviewOpen(false); setCancelOpen(false); setCancelReason(''); }, [userId, id]);
 
   const start = booking?.appointmentStartTime ? combineDateTime(booking.appointmentDate, booking.appointmentStartTime) : null;
@@ -82,7 +83,7 @@ export function CustomerAppointmentDetail() {
   if (error || !booking) return <Page className="max-w-4xl"><Link to="/customer/appointments" className="mb-4 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)]"><ArrowLeft size={16} />Quay lại lịch hẹn</Link><Card><ErrorState message={error || 'Không tìm thấy lịch hẹn'} onRetry={load} /></Card></Page>;
   return <Page className="max-w-6xl">
     <Link to="/customer/appointments" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--bb-brand-strong)] hover:underline"><ArrowLeft size={16} />Lịch hẹn của tôi</Link>
-    <PageHeader eyebrow={`Mã lịch ${booking.bookingCode || '—'}`} title={booking.branch?.business?.name || booking.branch?.name || 'Chi tiết lịch hẹn'} actions={<Badge tone={TONES[booking.status] || 'neutral'}>{LABELS[booking.status] || booking.status}</Badge>} />
+    <PageHeader eyebrow={`Mã lịch ${booking.bookingCode || '—'}`} title={booking.branch?.business?.name || booking.branch?.name || 'Chi tiết lịch hẹn'} actions={<Badge tone={TONES[booking.status] || 'neutral'}>{attendanceLabel(booking, LABELS[booking.status] || booking.status)}</Badge>} />
 
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.8fr)]">
       <div className="space-y-5">
@@ -94,7 +95,7 @@ export function CustomerAppointmentDetail() {
       </div>
 
       <aside className="space-y-5">
-        <Card className="p-5"><h2 className="font-bold">Thao tác</h2><div className="mt-4 grid gap-2">{canChange && policy.allowRescheduleRequests && <Button variant="secondary" className="w-full" onClick={() => setRescheduleOpen(true)}><ArrowRightLeft size={16} />Yêu cầu đổi lịch</Button>}{['direct', 'request'].includes(cancellationMode) && <Button variant="secondary" className="w-full text-[var(--bb-danger)]" onClick={() => { setCancelReason(''); setCancelOpen(true); }}><XCircle size={16} />{cancellationMode === 'request' ? 'Yêu cầu hủy sát giờ' : 'Hủy lịch'}</Button>}{booking.status === 'COMPLETED' && !booking.review && <Button className="w-full" onClick={() => setReviewOpen(true)}><Star size={16} />Viết đánh giá</Button>}{services.length > 0 && <Button variant="secondary" className="w-full" onClick={rebook}><CalendarPlus size={16} />Đặt lại dịch vụ này</Button>}</div></Card>
+        <Card className="p-5"><h2 className="font-bold">Thao tác</h2><div className="mt-4 grid gap-2">{canChange && policy.allowRescheduleRequests && <Button variant="secondary" className="w-full" onClick={() => setRescheduleOpen(true)}><ArrowRightLeft size={16} />Yêu cầu đổi lịch</Button>}{['direct', 'request'].includes(cancellationMode) && <Button variant="secondary" className="w-full text-[var(--bb-danger)]" onClick={() => { setCancelReason(''); setCancelOpen(true); }}><XCircle size={16} />{cancellationMode === 'request' ? 'Yêu cầu hủy sát giờ' : 'Hủy lịch'}</Button>}{reviewEligible(booking) && <Button className="w-full" onClick={() => setReviewOpen(true)}><Star size={16} />Viết đánh giá</Button>}{services.length > 0 && <Button variant="secondary" className="w-full" onClick={rebook}><CalendarPlus size={16} />Đặt lại dịch vụ này</Button>}</div></Card>
         {cancellationMode === 'pending' && <InlineNotice tone="info">Đã gửi yêu cầu thay đổi, đang chờ cơ sở xử lý. Lịch hẹn hiện tại chưa thay đổi.</InlineNotice>}
         <BookingPolicyNotice policy={booking.violationSummary} salon />
         {booking.note && <InlineNotice tone="info"><b>Ghi chú của bạn:</b> {booking.note}</InlineNotice>}

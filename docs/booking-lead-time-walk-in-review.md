@@ -162,3 +162,14 @@ Bằng chứng source/service: `report-output/bugreport-completion-20261012/pend
 ### Bổ sung cùng ngày: gửi yêu cầu sau deadline
 
 RESCHEDULE/STAFF_CHANGE create cũng kiểm deadline sau parent lock và ownership trước mọi request mutation/thông báo; CANCEL giữ rule cũ.16 actual-service tests (6 baseline failures) đạt; full145suites1555tests/type/build đạt. Hai actual customer requests trên lịchQA tự nhiên hết hạn trả409, không tạo request;158domain tables exact và failed audit-only đúngscope. Evidence pending-hold-live/request-create-live.json. Không suy ra native authenticated PASS: Pixel7a mới HOME/Account/login entry, bước nhập lại bị automatic approval review quota chặn.
+
+
+## Luồng check-in thay START/COMPLETE bắt buộc — 13/10/2026
+
+Quyết định mới: lễ tân xác nhận khách đến, Staff chỉ xem lịch; buổi trong gói được ghi dùng ở check-in. Backend chặn mutation Staff, giữ Owner exception/audit/permission correction. Lịch CHECKED_IN qua giờ dự kiến vào HISTORY qua read projection, không tự đổi COMPLETED hoặc điền actual time/ghi đã thanh toán. No-show vẫn dựa vào khách chưa đến và xác nhận thủ công; chưa START không phải no-show.
+
+Đã đồng bộ web/mobile, phân trang/snapshot/timer refresh, quyền đánh giá, khách quay lại, dùng buổi đúng chi nhánh, doanh thu dựa khoản thu ròng và phí điều chỉnh append-only. Browser phát hiện và sửa giá 0 giả ở màn Staff và câu form đánh giá gán nhầm “đã hoàn thành”. Các kết luận START/COMPLETE bắt buộc của lượt cũ được thay thế bằng quyết định này, bằng chứng cũ giữ nguyên.
+
+Backend typecheck/build đạt; 146 suites/1.606 tests đạt, 7 suites/158 integration tests bỏ qua. Web281tests/build đạt; mobile225tests/typecheck đạt. PostgreSQL READ ONLY177lịch/3nhóm phân loại đạt; API thật38checks đạt (quyền Staff, cùng server cutoff, domain hash không đổi). Browser15cases đạt trên Receptionist/Staff/Customer ở375/768/1024/1440, không tràn ngang tại các màn kiểm tra; hai tab Staff/Customer không console error trong cửa sổ kiểm tra. Lint hai file attendance mới đạt, không tuyên bố toàn repo lint sạch.
+
+Chi tiết và giới hạn: [check-in-only-booking-workflow.md](check-in-only-booking-workflow.md). Evidence: report-output/check-in-only-20261013/validation.json + api-live.json + browser-cases.json + PNG. API3000 giữ glowbook_db; QA3014 dùng DB riêng. Không seed/reset/migrate/backfill/xóa lịch sử hoặc ghi tài chính trong demo; browser không ghi booking/review. Native bản này NOT_RUN theo mobile/AGENTS.md; package/payment live mutation chưa nghiệm thu. **wholeProductComplete=false**; không dùng các kết quả này thay nghiệm thu toàn BugReport/native/external/production.

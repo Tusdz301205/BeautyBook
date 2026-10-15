@@ -101,6 +101,37 @@ export class AdminController {
     });
   }
 
+  @Get('booking-filter-services')
+  @Roles('PLATFORM_ADMIN')
+  @RequirePermission('booking:read:platform')
+  async bookingFilterServices(@Query('branchIds') branchIds?: string) {
+    const ids = branchIds?.split(',').filter(Boolean) ?? [];
+    // This is a management menu: inactive/non-bookable offerings still have
+    // appointments. Do not source it from the paginated public service menu.
+    const services = await this.prisma.branchServiceOffering.findMany({
+      where: {
+        deletedAt: null,
+        branchId: { in: ids },
+        branch: { deletedAt: null, business: { deletedAt: null } },
+        businessService: { deletedAt: null },
+      },
+      select: {
+        id: true, name: true,
+        businessService: { select: {
+          name: true,
+          canonicalService: { select: { id: true, replacementCanonicalId: true } },
+        } },
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    return services.map((service) => ({
+      id: service.id,
+      name: service.businessService.name || service.name,
+      canonicalServiceId: service.businessService.canonicalService?.replacementCanonicalId
+        ?? service.businessService.canonicalService?.id ?? null,
+    }));
+  }
+
   @Get('business-directory')
   @Roles('PLATFORM_ADMIN')
   @RequirePermission('branch:read:platform')
@@ -109,12 +140,20 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('page') requestedPage?: string,
     @Query('limit') requestedLimit?: string,
+    @Query('canonicalServiceId') canonicalServiceId?: string,
   ) {
     const page = Math.max(1, Number(requestedPage) || 1);
     const limit = Math.min(50, Math.max(1, Number(requestedLimit) || 10));
     const allowedStatuses = ['DRAFT', 'PENDING', 'PENDING_REVIEW', 'NEED_MORE_INFO', 'APPROVED', 'ACTIVE', 'SUSPENDED', 'REJECTED'];
     const where: Prisma.BusinessWhereInput = {
       deletedAt: null,
+      ...(canonicalServiceId ? { serviceCatalog: { some: {
+        deletedAt: null,
+        canonicalService: { OR: [
+          { id: canonicalServiceId, status: 'ACTIVE', replacementCanonicalId: null },
+          { replacement: { id: canonicalServiceId, status: 'ACTIVE' } },
+        ] },
+      } } } : {}),
       ...(status && allowedStatuses.includes(status) ? { status: status as any } : {}),
       ...(search?.trim() ? {
         OR: [
@@ -182,6 +221,7 @@ export class AdminController {
     @Query('status') status?: string,
     @Query('page') requestedPage?: string,
     @Query('limit') requestedLimit?: string,
+    @Query('canonicalServiceId') canonicalServiceId?: string,
   ) {
     const page = Math.max(1, Number(requestedPage) || 1);
     const limit = Math.min(50, Math.max(1, Number(requestedLimit) || 10));
@@ -189,6 +229,16 @@ export class AdminController {
     const reviewStatuses = ['DRAFT', 'SUBMITTED', 'PENDING_REVIEW', 'NEED_MORE_INFO', 'APPROVED', 'REJECTED'];
     const where: Prisma.BranchWhereInput = {
       deletedAt: null,
+      ...(canonicalServiceId ? { services: { some: {
+        deletedAt: null,
+        businessService: {
+          deletedAt: null,
+          canonicalService: { OR: [
+            { id: canonicalServiceId, status: 'ACTIVE', replacementCanonicalId: null },
+            { replacement: { id: canonicalServiceId, status: 'ACTIVE' } },
+          ] },
+        },
+      } } } : {}),
       ...(status && branchStatuses.includes(status) ? { status: status as any } : {}),
       ...(status && reviewStatuses.includes(status) ? { reviewStatus: status as any } : {}),
       ...(search?.trim() ? {

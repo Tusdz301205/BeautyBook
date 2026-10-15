@@ -1,3 +1,5 @@
+import { nextScheduleRefresh } from '../utils/bookingSchedule';
+import type { BookingSchedule } from '../utils/bookingSchedule';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { io } from 'socket.io-client';
@@ -6,11 +8,13 @@ import { getApiAccessToken, getApiSessionGeneration, refreshAccessToken, subscri
 import { bindBookingSocket, createInvalidationQueue, schedulerOrigin } from '../utils/bookingSync';
 import { bookingsApi, type CreateBookingInput } from '../api/bookings';
 import { mapBooking } from '../mappers/booking';
+import type { ApiBooking } from '../types/api';
 import { useAuth } from './AuthContext';
 
 export type BookingStatus = 'upcoming' | 'completed' | 'cancelled';
 
-export interface ConfirmedBooking {
+export interface ConfirmedBooking extends BookingSchedule {
+  canReview?: boolean;
   id: string;
   bookingCode?: string;
   branchId: string;
@@ -55,6 +59,7 @@ interface BookingsContextValue {
   error: string | null;
   reload: () => Promise<void>;
   addBooking: (booking: CreateBookingInput, idempotencyKey: string) => Promise<ConfirmedBooking>;
+  rememberBookings: (rows: ApiBooking[], generation: number) => void;
   getBooking: (id: string) => ConfirmedBooking | undefined;
   cancelBooking: (id: string, reason?: string) => Promise<void>;
   requestCancellation: (id: string, reason?: string) => Promise<void>;
@@ -74,6 +79,7 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
   const currentUserIdRef = useRef(userId);
   currentUserIdRef.current = userId;
   const queueRef = useRef<ReturnType<typeof createInvalidationQueue<ConfirmedBooking[]>> | null>(null);
+  const scheduleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedRef = useRef(false);
   const ownerRef = useRef<string | null>(null);
   const visibleBookings = dataOwnerId === userId && getApiAccessToken() ? bookings : [];
@@ -85,7 +91,12 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
     const generation = getApiSessionGeneration();
     const ownsSession = () => active && currentUserIdRef.current === userId &&
       generation === getApiSessionGeneration() && Boolean(getApiAccessToken());
+    const clearScheduleTimer = () => {
+      if (scheduleTimer.current !== null) clearTimeout(scheduleTimer.current);
+      scheduleTimer.current = null;
+    };
     const clear = () => {
+      clearScheduleTimer();
       loadedRef.current = false;
       ownerRef.current = null;
       setBookings([]);
@@ -100,9 +111,15 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
       fetch: async () => (await bookingsApi.mine()).map(mapBooking),
       commit: rows => {
         if (!ownsSession()) return;
+        clearScheduleTimer();
+        const delay = nextScheduleRefresh(rows);
+        if (delay !== null) scheduleTimer.current = setTimeout(() => {
+          scheduleTimer.current = null;
+          if (ownsSession()) void queue.invalidate();
+        }, delay);
         loadedRef.current = true;
         ownerRef.current = userId;
-        // Tabs can overlap while a booking transitions between API requests.
+        // Keep one row per booking within the authorized all-tab snapshot.
         setBookings([...new Map(rows.map(row => [row.id, row])).values()]);
         setDataOwnerId(userId);
         setError(null);
@@ -149,6 +166,7 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
     void queue.invalidate();
     return () => {
       active = false;
+      clearScheduleTimer();
       appState.remove();
       sync.dispose();
       queue.dispose();
@@ -173,6 +191,18 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
     return created;
   };
 
+  const rememberBookings = (rows: ApiBooking[], generation: number) => {
+    if (!userId || currentUserIdRef.current !== userId || generation !== getApiSessionGeneration() || !getApiAccessToken()) return;
+    const created = rows.map(mapBooking);
+    const keepCurrent = ownerRef.current === userId;
+    ownerRef.current = userId;
+    loadedRef.current = true;
+    setLoading(false);
+    setDataOwnerId(userId);
+    const createdIds = new Set(created.map(row => row.id));
+    setBookings(current => [...created, ...(keepCurrent ? current.filter(row => !createdIds.has(row.id)) : [])]);
+  };
+
   const getBooking = (id: string) => visibleBookings.find(booking => booking.id === id);
   const cancelBooking = async (id: string, reason?: string) => {
     await bookingsApi.cancel(id, reason);
@@ -184,7 +214,7 @@ export function BookingsProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <BookingsContext.Provider value={{ bookings: visibleBookings, isLoading, isRefreshing, error, reload, addBooking, getBooking, cancelBooking, requestCancellation }}>
+    <BookingsContext.Provider value={{ bookings: visibleBookings, isLoading, isRefreshing, error, reload, addBooking, rememberBookings, getBooking, cancelBooking, requestCancellation }}>
       {children}
     </BookingsContext.Provider>
   );

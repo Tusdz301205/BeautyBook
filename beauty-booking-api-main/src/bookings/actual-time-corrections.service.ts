@@ -185,7 +185,7 @@ export class ActualTimeCorrectionsService {
         if (!branch) throw new BadRequestException('Chi nhánh cấp quyền không thuộc doanh nghiệp');
       }
       const target = await tx.userRole.findFirst({ where: { userId: input.userId, businessId: input.businessId,
-        user: { isActive: true, deletedAt: null }, role: { code: { in: ['RECEPTIONIST', 'STAFF', 'BUSINESS_OWNER'] } },
+        user: { isActive: true, deletedAt: null }, role: { code: { in: ['RECEPTIONIST', 'BUSINESS_OWNER'] } },
         AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
           ...(input.branchId ? [{ OR: [{ branchId: null }, { branchId: input.branchId }] }] : [])] } });
       if (!target) throw new BadRequestException('Người nhận phải có vai trò vận hành còn hiệu lực trong phạm vi');

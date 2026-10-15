@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { DiscountType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { applyVoucher, VoucherApplication } from '../common/utils/voucher';
+import { attendedVisitWhere } from '../bookings/booking-attendance';
 
 export interface PricingPromotionResult {
   id: string;
@@ -61,7 +62,7 @@ export class PricingEngineService {
       select: {
         user: { select: { dateOfBirth: true } },
         bookings: {
-          where: { branch: { businessId: branch.businessId }, status: 'COMPLETED', deletedAt: null },
+          where: { branch: { businessId: branch.businessId }, ...attendedVisitWhere() },
           select: { id: true }, take: 1,
         },
       },

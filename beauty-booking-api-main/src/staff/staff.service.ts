@@ -192,17 +192,20 @@ export class StaffService {
       where: {
         id,
         ...bookableStaffWhere({ publicOnly: true }),
-        branch: { status: 'ACTIVE', deletedAt: null },
+        branch: {
+          status: 'ACTIVE', reviewStatus: 'APPROVED', operationalStatus: 'ACTIVE', deletedAt: null,
+          business: { status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null, deletedAt: null },
+        },
       },
       select: {
         id: true, fullName: true, position: true, bio: true, experienceYears: true,
         branch: { select: { id: true, name: true, addressLine: true, business: { select: { name: true } } } },
-        user: { select: { avatarMedia: { select: { url: true } } } },
+        user: { select: { avatarMedia: { select: { url: true, visibility: true } } } },
         staffServices: {
-          where: { service: { status: 'ACTIVE', deletedAt: null } },
+          where: { service: { status: 'ACTIVE', bookable: true, deletedAt: null, businessService: { status: 'ACTIVE', deletedAt: null } } },
           select: { service: { select: { id: true, name: true, price: true, durationMinutes: true } } },
         },
-        images: { select: { media: { select: { url: true } } }, orderBy: { sortOrder: 'asc' } },
+        images: { where: { media: { visibility: 'PUBLIC', fileType: 'IMAGE' } }, select: { media: { select: { url: true } } }, orderBy: { sortOrder: 'asc' } },
         reviewRatings: {
           where: { review: { status: 'APPROVED', deletedAt: null } },
           select: { rating: true },
@@ -215,7 +218,7 @@ export class StaffService {
       ...profile,
       professionalTitle: professionalTitle(position),
       specialties: profile.staffServices.map((entry) => entry.service.name),
-      avatarUrl: user?.avatarMedia?.url || profile.images[0]?.media?.url || null,
+      avatarUrl: (user?.avatarMedia?.visibility === 'PUBLIC' ? user.avatarMedia.url : null) || profile.images[0]?.media?.url || null,
       ...staffRating(reviewRatings),
     };
   }

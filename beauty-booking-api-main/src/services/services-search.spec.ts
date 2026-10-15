@@ -15,6 +15,19 @@ function compact(sql: Prisma.Sql) {
 // SQL contract assertions inspect the query actually sent to Prisma. They do
 // not execute SQL or establish live database/public API eligibility.
 describe('ServicesService public search projection', () => {
+  test('matches branch and business names in the same query as service names while retaining combined filters', async () => {
+    const { service, queryRaw } = fixture();
+    await service.search({ query: 'Salon Ngọc Tú', location: 'Hà Nội', maxPrice: 500000, page: 2, limit: 10 });
+    const statement = queryRaw.mock.calls[0][0];
+    const sql = compact(statement);
+    expect(sql).toMatch(/OR regexp_replace\(btrim\(translate\(lower\(branch\."name"\)/);
+    expect(sql).toMatch(/OR regexp_replace\(btrim\(translate\(lower\(business\."name"\)/);
+    expect(sql).toContain('offering."price" <=');
+    expect(sql).toContain('branch."deleted_at" IS NULL');
+    expect(statement.values).toContain('%salon ngoc tu%');
+    expect(statement.values.slice(-2)).toEqual([10, 11]);
+  });
+
   test('selects one public image for the exact offering, with deterministic ties and no outer image join', async () => {
     const { service, queryRaw } = fixture();
     await service.search({});

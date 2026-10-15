@@ -73,7 +73,7 @@ describe('Append-only actual-time correction workflow', () => {
     expect(f.tx.bookingService.updateMany).not.toHaveBeenCalled(); expect(f.corrections).toHaveLength(0);
   });
   it('former provider is still excluded when Owner pressed START and assignment later changed', async () => {
-    const staff: AuthUser = { ...receptionist, id: 'former-provider', roles: ['STAFF'], scopes: [{ code: 'STAFF', businessId: 'business', branchId: 'branch' }] };
+    const staff: AuthUser = { ...receptionist, id: 'former-provider', roles: ['RECEPTIONIST'], scopes: [{ code: 'RECEPTIONIST', businessId: 'business', branchId: 'branch' }] };
     const f = fixture(staff); f.grant(); f.item.staff.userId = 'new-provider';
     f.item.refs_BookingServiceAdjustment_bookingServiceId = [{ action: 'START', actorId: owner.id, version: 1, createdAt: new Date(start),
       beforeSnapshot: { status: 'SCHEDULED', staffId: 'old-profile' }, afterSnapshot: { status: 'IN_PROGRESS', staffId: 'old-profile' } }];
@@ -218,6 +218,13 @@ describe('Append-only actual-time correction workflow', () => {
     const f = fixture(receptionist); f.grant();
     await expect(f.service.correct('booking', 'item', receptionist, input)).resolves.toMatchObject({ revision: 4 });
     expect((await f.service.history('booking', 'item', receptionist)).data[0].actorId).toBe('receptionist');
+  });
+  it('retained delegated STAFF grants cannot mutate another provider in the read-only timetable workflow', async () => {
+    const staff: AuthUser = { ...receptionist, id: 'staff-reader', roles: ['STAFF'], scopes: [{ code: 'STAFF', businessId: 'business', branchId: 'branch' }] };
+    const f = fixture(staff); f.grant();
+    await expect(f.service.correct('booking', 'item', staff, input)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(f.item.status).toBe('SCHEDULED');
+    expect(f.corrections).toHaveLength(0);
   });
   it.each([{ businessId: 'foreign' }, { branchId: 'foreign' }, { businessId: null, branchId: null },
     { revokedAt: new Date('2026-10-06T15:00:00Z') }, { expiresAt: new Date('2026-10-06T15:52:00Z') }])(

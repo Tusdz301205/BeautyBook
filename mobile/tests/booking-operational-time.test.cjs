@@ -11,13 +11,13 @@ const start = Date.parse('2026-10-06T15:00:00Z'), end = start + 30 * 60000;
 const pending = { status: 'SCHEDULED', itemStartAt: new Date(start).toISOString(), itemEndAt: new Date(end).toISOString(), actualStartedAt: null };
 test('22:00–22:30 boundaries and 22:52 distinguish due and overdue without execution', () => {
   assert.equal(label(pending, 'CONFIRMED', start - 1), null);
-  assert.equal(label(pending, 'CONFIRMED', start), 'Đã đến giờ — chưa bắt đầu');
-  assert.equal(label(pending, 'CONFIRMED', end), 'Đã đến giờ — chưa bắt đầu');
+  assert.equal(label(pending, 'CONFIRMED', start), 'Đã đến giờ hẹn — kiểm tra khách đến');
+  assert.equal(label(pending, 'CONFIRMED', end), 'Đã đến giờ hẹn — kiểm tra khách đến');
   assert.equal(label(pending, 'CONFIRMED', start + 52 * 60000), 'Quá giờ dự kiến — cần kiểm tra');
   assert.equal(pending.actualStartedAt, null); assert.equal(pending.status, 'SCHEDULED');
 });
 test('check-in does not pretend service started; running overrun is distinct', () => {
-  assert.equal(label(pending, 'CHECKED_IN', end + 1), 'Quá giờ dự kiến — cần kiểm tra');
+  assert.equal(label(pending, 'CHECKED_IN', end + 1), null);
   assert.equal(label({ ...pending, status: 'IN_PROGRESS', actualStartedAt: new Date(start).toISOString() }, 'IN_PROGRESS', end + 1), 'Đang phục vụ quá giờ dự kiến');
 });
 test('terminal bookings/items, missing facts and contradictory recorded start suppress waiting alerts', () => {

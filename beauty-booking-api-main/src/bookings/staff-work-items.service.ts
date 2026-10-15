@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { BOOKING_TIMING_AUDIT_INCLUDE, bookingItemActualTiming } from './booking-actual-timing';
+import { attendedHistoryWhere, bookingAttendance } from './booking-attendance';
 
 const WORK_ITEM_SELECT = {
   id: true, bookingId: true, serviceId: true, staffId: true, serviceNameSnapshot: true,
@@ -55,7 +56,6 @@ export class StaffWorkItemsService {
 
   private view(item: WorkItemRow, serverNow: Date) {
     const booking = item.booking;
-    const terminal = ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(booking.status);
     return {
       id: item.id, bookingId: item.bookingId, bookingCode: booking.bookingCode,
       branchId: booking.branchId, businessId: booking.branch.businessId,
@@ -67,8 +67,10 @@ export class StaffWorkItemsService {
       appointmentDate: booking.appointmentDate, appointmentStartTime: booking.appointmentStartTime,
       appointmentEndTime: booking.appointmentEndTime,
       ...bookingItemActualTiming(item), serverNow,
-      canStart: item.status === 'SCHEDULED' && ['CHECKED_IN', 'IN_PROGRESS'].includes(booking.status),
-      canComplete: item.status === 'IN_PROGRESS' && !terminal,
+      ...bookingAttendance(booking, serverNow),
+      canReview: false,
+      canStart: false,
+      canComplete: false,
       // This view is always the authenticated provider's own work: correction is forbidden.
       canCorrectActualTime: false,
     };
@@ -83,6 +85,7 @@ export class StaffWorkItemsService {
     if (!Number.isSafeInteger(page) || page < 1 || page > 100000 || !Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new BadRequestException('page hoặc limit không hợp lệ');
     }
+    const serverNow = new Date();
     const range: Prisma.BookingServiceWhereInput = { booking: { appointmentDate: { gte: from, lte: to } } };
     const where: Prisma.BookingServiceWhereInput = { staffId,
       staff: { userId: user.id, status: 'ACTIVE', deletedAt: null },
@@ -90,7 +93,7 @@ export class StaffWorkItemsService {
         ...(query.bookingId ? [{ id: query.bookingId }] : [])] },
       ...(from || to ? query.includeUnresolved === 'true' ? { OR: [range, {
         status: { in: ['SCHEDULED', 'IN_PROGRESS'] },
-        booking: { status: { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] } },
+        booking: { status: { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] }, NOT: attendedHistoryWhere(serverNow, this.prisma.booking.fields) },
         OR: [{ itemStartAt: { lte: new Date() } }, { itemStartAt: null, booking: { appointmentDate: { lt: from ?? new Date() } } }],
       }] } : { booking: { AND: [booking, ...(query.branchId ? [{ branchId: query.branchId }] : []),
         ...(query.bookingId ? [{ id: query.bookingId }] : [])], appointmentDate: { gte: from, lte: to } } } : {}) };
@@ -100,7 +103,6 @@ export class StaffWorkItemsService {
         skip: (page - 1) * limit, take: limit }),
       this.prisma.bookingService.count({ where }),
     ]);
-    const serverNow = new Date();
     return { data: items.map((item) => this.view(item, serverNow)), total, page, limit, serverNow };
   }
 

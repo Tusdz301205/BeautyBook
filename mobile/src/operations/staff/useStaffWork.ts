@@ -1,3 +1,4 @@
+import { nextScheduleRefresh } from '../../utils/bookingSchedule';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApiSessionGeneration } from '../../api/client';
 import { useOperations } from '../OperationsContext';
@@ -27,7 +28,7 @@ export function useStaffWork(query: { day?: string | null; itemId?: string; book
       // UI defence in depth; authorization and projection still belong to the backend.
       const ownItems = items.filter(item => item.staffId === ops.staffProfile!.id && item.businessId === ops.businessId && item.branchId === ops.branchId);
       if (query.itemId && !ownItems.length) throw { status: 404 };
-      setSnapshot({ key, items: ownItems, serverNow: Date.parse(result.serverNow), receivedAt: Date.now() });
+      setSnapshot({ key, items: ownItems, serverNow: Date.parse(result.serverNow), receivedAt: performance.now() });
       setVerifiedIdentity(requestIdentity);
       return true;
     } catch (error) {
@@ -40,6 +41,13 @@ export function useStaffWork(query: { day?: string | null; itemId?: string; book
   }, [identity, key, ops.branchId, ops.businessId, ops.canWorkAsStaff, ops.staffProfile?.id, query.day, query.itemId, query.bookingId, query.includeUnresolved]);
   useEffect(() => { void load(); return () => { sequence.current++; }; }, [load]);
   const visible = ops.canWorkAsStaff && snapshot?.key === key ? snapshot : null;
+  useEffect(() => {
+    if (!visible || verifiedIdentity !== identity || loading) return;
+    const delay = nextScheduleRefresh(visible.items, visible.serverNow);
+    if (delay === null) return;
+    const timer = setTimeout(() => { void load(); }, Math.max(0, delay - Math.max(0, performance.now() - visible.receivedAt)));
+    return () => clearTimeout(timer);
+  }, [visible, verifiedIdentity, identity, loading, load]);
   return { ops, items: visible?.items ?? [], serverNow: visible?.serverNow ?? NaN, receivedAt: visible?.receivedAt ?? 0,
     loading, error: errorState?.key === key ? errorState.message : null, fresh: verifiedIdentity === identity && !loading, load, identity };
 }

@@ -6,14 +6,16 @@ import { schedulerSocketUrl } from '../utils/socketEndpoint';
 import { bindSchedulerSocketEvents } from '../utils/schedulerSocketEvents';
 import { useOperationalRefresh } from './useOperationalRefresh';
 import { captureSessionGeneration, isSessionGenerationCurrent } from '../utils/sessionGeneration';
+import { useScheduleHistoryRefresh } from './useScheduleHistoryRefresh';
 
 // Events only invalidate reads. Booking data always comes from the scoped API.
-export function useCustomerBookingRefresh(refresh) {
+export function useCustomerBookingRefresh(refresh, rows) {
   const token = useAuthStore(state => state.accessToken);
   const userId = useAuthStore(state => state.user?.id);
   const latest = useRef(refresh);
   latest.current = refresh;
   useOperationalRefresh(refresh);
+  useScheduleHistoryRefresh(rows, refresh);
   useEffect(() => {
     if (!token || !userId) return undefined;
     const lease = captureSessionGeneration();

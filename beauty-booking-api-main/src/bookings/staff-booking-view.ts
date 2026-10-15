@@ -10,6 +10,9 @@ export function staffBookingView(booking: any, staffId: string) {
     appointment_start: booking.appointment_start, appointment_end: booking.appointment_end,
     customer_name: booking.customer_name, branch_name: booking.branch_name,
     serverNow: booking.serverNow ?? new Date(),
+    attendanceWorkflow: booking.attendanceWorkflow,
+    scheduledStartAt: booking.scheduledStartAt, scheduledEndAt: booking.scheduledEndAt,
+    scheduleElapsed: booking.scheduleElapsed, scheduleBucket: booking.scheduleBucket,
     customer: booking.customer ? { user: { fullName: booking.customer.user?.fullName, email: null, phone: null } } : undefined,
     branch: booking.branch ? { id: booking.branch.id, name: booking.branch.name, timezone: booking.branch.timezone } : undefined,
     bookingServices: (booking.bookingServices ?? []).filter((item: any) => item.staffId === staffId).map((item: any) => ({

@@ -1,5 +1,5 @@
 export const SERVICE_STATUS_LABELS = {
-  SCHEDULED: 'Chưa bắt đầu', IN_PROGRESS: 'Đang thực hiện',
+  SCHEDULED: 'Đã lên lịch', IN_PROGRESS: 'Đang thực hiện',
   COMPLETED: 'Hoàn thành', SKIPPED: 'Đã bỏ qua', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến',
   REJECTED: 'Đã từ chối', EXPIRED: 'Đã hết hạn',
 };
@@ -25,6 +25,7 @@ export function itemOperationalLabel(parentStatus, item, now) {
   if (item?.status === 'IN_PROGRESS') {
     return now > end ? 'Đang phục vụ quá giờ dự kiến' : null;
   }
+  if (parentStatus === 'CHECKED_IN') return null;
   if (item?.status !== 'SCHEDULED' || item.actualStartedAt) return null;
   if (now > end) return 'Quá giờ dự kiến — cần kiểm tra';
   return now >= start ? 'Đã đến giờ — chưa bắt đầu' : null;

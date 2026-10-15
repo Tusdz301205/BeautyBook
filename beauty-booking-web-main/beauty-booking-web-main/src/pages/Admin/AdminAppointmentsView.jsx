@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BarChart3, CalendarDays, List, MapPin, RefreshCw } from 'lucide-react';
 import { branchesApi } from '../../api/apiClient';
+import { loadAllManagedBranches } from '../../api/adminFilterRequests';
 import SchedulerListView from '../../components/admin/scheduler/SchedulerListView';
 import SchedulerStats from '../../components/admin/scheduler/SchedulerStats';
 import SchedulerView from '../../components/admin/scheduler/SchedulerView';
@@ -61,7 +62,7 @@ export function AppointmentCalendarWorkspace({ zone = 'admin', headerAction = nu
     setBranchesLoading(true);
     setBranchesError('');
     try {
-      const data = isPlatform ? await branchesApi.getManage() : await branchesApi.getAccessible();
+      const data = isPlatform ? await loadAllManagedBranches(branchesApi.getManage) : await branchesApi.getAccessible();
       const list = Array.isArray(data) ? data : data?.data || data?.items || [];
       setBranches(list);
       setSelectedBranch((current) => {

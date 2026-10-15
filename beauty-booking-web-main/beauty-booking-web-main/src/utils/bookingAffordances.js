@@ -17,3 +17,26 @@ export function noShowAvailability(booking, capabilities, now = Date.now()) {
   if (booking.raw?.statusHistory?.some((entry) => ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(entry.status))) return false;
   return !(booking.services || []).some((item) => ['IN_PROGRESS', 'COMPLETED'].includes(item.status));
 }
+
+// Schedule history never changes persisted attendance or actual execution facts.
+export function elapsedCheckIn(booking) {
+  return (booking?.statusEnum || booking?.status) === 'CHECKED_IN'
+    && (booking.scheduleElapsed === true || booking.scheduleBucket === 'HISTORY');
+}
+
+export function attendanceLabel(booking, fallback) {
+  if ((booking?.statusEnum || booking?.status) !== 'CHECKED_IN') return fallback;
+  return elapsedCheckIn(booking) ? 'Đã đến · Lịch đã qua' : 'Khách đã đến';
+}
+
+export function reviewEligible(booking) {
+  if (booking?.review) return false;
+  return typeof booking?.canReview === 'boolean' ? booking.canReview
+    : (booking?.statusEnum || booking?.status) === 'COMPLETED';
+}
+
+export function unfinishedBooking(booking) {
+  const status = booking?.statusEnum || booking?.status;
+  if (elapsedCheckIn(booking) || ['COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(status)) return false;
+  return status === 'IN_PROGRESS' || (booking?.services || []).some((item) => ['SCHEDULED', 'IN_PROGRESS'].includes(item.status));
+}

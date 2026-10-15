@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ownerOperationsApi } from '../../api/ownerOperations';
 import { useOperationalTime } from '../../hooks/useOperationalTime';
 import { operationalTimeLabel } from '../../utils/bookingOperationalTime';
+import { nextScheduleRefresh } from '../../utils/bookingSchedule';
 import type { OwnerBooking } from '../../types/ownerOperations';
 import { radius, space, tones, type } from '../../theme';
 import { OperationButton, OperationState, opStyles } from '../OperationPrimitives';
@@ -27,6 +28,19 @@ export function UnfinishedBookings({ onOpen }: { onOpen: (id: string) => void })
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [operations.branchId]);
   const data = useOwnerData(async scope => scope.branchId ? ownerOperationsApi.unfinished(scope, page) : null, `unfinished:${page}`);
+  const stamp = `${operations.contextKey}:${operations.revision}:${operations.branchId}:${data.stamp}`;
+  const current = useRef(stamp); current.current = stamp;
+  useEffect(() => {
+    if (!operations.branchId || operations.loading || operations.error || data.loading || data.error || !data.data ||
+      data.receivedAt === undefined || data.scope.isCurrent?.() === false) return;
+    const delay = nextScheduleRefresh(data.data.data);
+    if (delay === null) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      if (alive && current.current === stamp && data.scope.isCurrent?.() !== false) data.reload();
+    }, Math.max(0, delay - Math.max(0, performance.now() - data.receivedAt)));
+    return () => { alive = false; clearTimeout(timer); };
+  }, [stamp, operations.branchId, operations.loading, operations.error, data.data, data.receivedAt, data.loading, data.error, data.reload]);
   return <View>
     <Text accessibilityRole="header" style={opStyles.section}>Lịch chưa kết thúc</Text>
     <Meta>Bao gồm lịch từ ngày trước. Giờ dự kiến đã qua vẫn cần kiểm tra — không tự kết luận khách vắng mặt.</Meta>

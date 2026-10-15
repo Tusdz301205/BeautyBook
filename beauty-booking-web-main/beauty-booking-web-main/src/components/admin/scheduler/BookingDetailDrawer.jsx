@@ -7,7 +7,7 @@ import { BOOKING_STATUSES } from '../../../constants/status';
 import { useAuthStore } from '../../../store/authStore';
 import { normalizeBooking } from '../../../utils/bookingCalendar.adapter';
 import { bookingCapabilities, bookingItemActions } from '../../../utils/authScope';
-import { counterServicePayload, noShowAvailability } from '../../../utils/bookingAffordances';
+import { attendanceLabel, counterServicePayload, noShowAvailability } from '../../../utils/bookingAffordances';
 import { formatActualServiceTime } from '../../../utils/bookingActualTime';
 import { PENDING_HOLD_EXPIRED_MESSAGE, pendingHoldExpired, pendingHoldItemActions } from '../../../utils/pendingHold';
 import { Button, Dialog, Drawer, Field, Input, Select, Textarea } from '../../ui';
@@ -17,6 +17,7 @@ import ActualTimeCorrection from './ActualTimeCorrection';
 import ActualTimeCorrectionHistory from './ActualTimeCorrectionHistory';
 import OperationalTiming, { OperationalClock, useOperationalElapsed } from './OperationalTiming';
 import { useOperationalRefresh } from '../../../hooks/useOperationalRefresh';
+import { useScheduleHistoryRefresh } from '../../../hooks/useScheduleHistoryRefresh';
 import { anchoredServerNow, itemOperationalLabel, SERVICE_STATUS_LABELS } from '../../../utils/operationalTiming';
 
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
@@ -28,9 +29,8 @@ function ItemOperation({ bookingId, branchId, item, allowedActions, cancelWholeB
   const [staff, setStaff] = useState([]);
   const [busy, setBusy] = useState(false);
   const options = [
-    ...(item.status === 'SCHEDULED' ? [{ value: 'START', label: 'Bắt đầu' }, { value: 'REMOVE', label: cancelWholeBooking ? 'Hủy toàn bộ lịch' : 'Hủy dịch vụ này' }] : []),
+    ...(item.status === 'SCHEDULED' ? [{ value: 'REMOVE', label: cancelWholeBooking ? 'Hủy toàn bộ lịch' : 'Hủy dịch vụ này' }] : []),
     ...(['SCHEDULED', 'IN_PROGRESS'].includes(item.status) ? [{ value: 'SKIP', label: 'Bỏ qua' }, { value: 'REASSIGN', label: 'Đổi nhân viên' }, { value: 'RESIZE', label: 'Đổi thời lượng' }, { value: 'REPRICE', label: 'Điều chỉnh giá' }] : []),
-    ...(item.status === 'IN_PROGRESS' ? [{ value: 'COMPLETE', label: 'Hoàn thành' }] : []),
   ].filter((option) => allowedActions.includes(option.value));
   useEffect(() => {
     if (action !== 'REASSIGN') return;
@@ -123,7 +123,6 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
   const canSeePhone = can('booking:read:branch', capabilities.ctx) || can('booking:read:tenant', capabilities.ctx) || can('booking:read:platform');
   const canUpdate = !platform && capabilities.canUpdate;
   const canCheckIn = !platform && capabilities.canCheckIn;
-  const canProvide = !platform && capabilities.canProvide;
   const canForceCancel = platform && can('booking:cancel:platform');
   const receivesGuests = !platform && capabilities.frontDesk;
 
@@ -149,6 +148,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
     return () => { detailSequence.current += 1; };
   }, [booking, reloadDetail]);
 
+  useScheduleHistoryRefresh(activeBooking, reloadDetail);
   if (!activeBooking) return null;
   const status = BOOKING_STATUSES[activeBooking.status] ?? BOOKING_STATUSES.PENDING;
   const duration = Math.max(0, Math.round((activeBooking.endAt - activeBooking.startAt) / 60000));
@@ -157,8 +157,6 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
   let nextAction = null;
   if (activeBooking.status === 'PENDING' && receivesGuests && canUpdate) nextAction = { status: 'CONFIRMED', label: 'Xác nhận lịch' };
   if (activeBooking.status === 'CONFIRMED' && receivesGuests && canCheckIn) nextAction = { status: 'CHECKED_IN', label: 'Xác nhận khách đã đến' };
-  if (activeBooking.status === 'CHECKED_IN' && canProvide) nextAction = { status: 'IN_PROGRESS', label: 'Bắt đầu dịch vụ' };
-  if (activeBooking.status === 'IN_PROGRESS' && !platform && capabilities.canComplete) nextAction = { status: 'COMPLETED', label: 'Hoàn thành dịch vụ' };
   const timeDecision = nextAction ? activeBooking.raw?.transitionAvailability?.[nextAction.status] : null;
   const blockedActionReason = expiredHold ? PENDING_HOLD_EXPIRED_MESSAGE : timeDecision?.allowed === false ? timeDecision.reason : null;
   const forceCancellable = !['CANCELLED', 'COMPLETED'].includes(activeBooking.status);
@@ -268,7 +266,7 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
   return <>
     <Drawer open={Boolean(activeBooking)} onClose={onClose} title="Chi tiết lịch hẹn" description={activeBooking.bookingCode} footer={footer}>
       <div className="space-y-6">
-        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.color}`}>{status.label}</span>
+        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${status.color}`}>{attendanceLabel(activeBooking, status.label)}</span>
         <OperationalTiming booking={activeBooking} />
         {expiredHold && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{PENDING_HOLD_EXPIRED_MESSAGE}</p>}
         <p className="text-xs text-zinc-600">{activeBooking.raw?.statusHistory?.some((entry) => entry.status === 'CHECKED_IN') || activeBooking.status === 'CHECKED_IN' ? 'Đã ghi nhận check-in' : 'Chưa có ghi nhận check-in'}</p>
@@ -309,10 +307,10 @@ function BookingDetailContent({ booking, onClose, onUpdated }) {
           </div>
           {canUpdate && !expiredHold && ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(activeBooking.status) && <AddItemOperation bookingId={activeBooking.id} branchId={activeBooking.branchId} onDone={refreshDetail} />}
         </section>
-        <section className="grid gap-3 sm:grid-cols-2">
+        {(platform || capabilities.frontDesk) && <section className="grid gap-3 sm:grid-cols-2">
           <Detail icon={Tag} label="Tổng tiền" value={money.format(activeBooking.totalAmount)} />
           <Detail icon={Tag} label="Giảm giá" value={activeBooking.discountAmount ? money.format(activeBooking.discountAmount) : '—'} />
-        </section>
+        </section>}
         <Note title="Ghi chú khách hàng" value={activeBooking.note} />
         <BookingPolicyNotice policy={activeBooking.raw?.violationSummary} salon />
         {canSeeInternalNote && <Note title="Ghi chú nội bộ" value={activeBooking.internalNote} />}

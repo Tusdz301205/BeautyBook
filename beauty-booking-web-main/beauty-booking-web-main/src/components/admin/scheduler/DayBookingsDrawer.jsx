@@ -1,3 +1,4 @@
+import { attendanceLabel } from '../../../utils/bookingAffordances';
 import React from 'react';
 import OperationalTiming from './OperationalTiming';
 import { ArrowRight, CalendarDays } from 'lucide-react';
@@ -24,7 +25,7 @@ export default function DayBookingsDrawer({ date, bookings, onClose, onOpenBooki
                     <span className="block truncate text-sm font-semibold text-zinc-950">{booking.customerName}</span>
                     <span className="mt-0.5 block truncate text-xs text-zinc-500">{booking.serviceNames.join(', ')} · {booking.primaryStaffName || 'Chưa phân công'}</span>
                     <OperationalTiming booking={booking} />
-                    <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.color}`}>{status.label}</span>
+                    <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.color}`}>{attendanceLabel(booking, status.label)}</span>
                   </span>
                 </div>
               </button>

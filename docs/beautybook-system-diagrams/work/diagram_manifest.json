@@ -1,0 +1,92 @@
+[
+  {
+    "name": "01_usecase_nghiep_vu",
+    "width": 960,
+    "height": 1060
+  },
+  {
+    "name": "02_usecase_khach_hang",
+    "width": 960,
+    "height": 1058
+  },
+  {
+    "name": "03_usecase_co_so",
+    "width": 960,
+    "height": 942
+  },
+  {
+    "name": "04_usecase_admin",
+    "width": 960,
+    "height": 594
+  },
+  {
+    "name": "05_usecase_dat_lich",
+    "width": 960,
+    "height": 790
+  },
+  {
+    "name": "06_lop_phan_tich_danh_muc",
+    "width": 960,
+    "height": 1000
+  },
+  {
+    "name": "07_lop_phan_tich_lich_hen",
+    "width": 960,
+    "height": 1080
+  },
+  {
+    "name": "08_lop_thiet_ke_danh_muc",
+    "width": 960,
+    "height": 1130
+  },
+  {
+    "name": "09_lop_thiet_ke_dat_lich",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "10_du_lieu_tai_khoan",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "11_du_lieu_danh_muc",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "12_du_lieu_nhan_su",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "13_du_lieu_lich_hen",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "14_du_lieu_combo_khuyen_mai",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "15_du_lieu_voucher",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "16_du_lieu_danh_gia_thong_bao",
+    "width": 960,
+    "height": 1120
+  },
+  {
+    "name": "17_erd_co_so_dich_vu",
+    "width": 960,
+    "height": 1020
+  },
+  {
+    "name": "18_erd_dat_lich_danh_gia",
+    "width": 960,
+    "height": 1020
+  }
+]

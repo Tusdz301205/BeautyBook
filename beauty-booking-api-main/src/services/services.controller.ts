@@ -11,6 +11,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuditAction } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsBoolean } from 'class-validator';
 import { ServicesService } from './services.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -39,6 +41,13 @@ import {
   UpdateCanonicalServiceDto,
   UpdateServiceDto,
 } from './dto/service.dto';
+
+export class UpdateServicePriceRuleActiveDto {
+  // Preserve the original JSON value despite global implicit conversion.
+  @Transform(({ obj }) => obj.active)
+  @IsBoolean()
+  active!: boolean;
+}
 
 @Controller('services')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -289,6 +298,17 @@ export class ServicesController {
     return this.servicesService.listVariants(id, true);
   }
 
+  @Get(':id/options/manage')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business_service:update:tenant')
+  async optionsForManagement(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({
+      where: { id, deletedAt: null }, select: { branchId: true },
+    });
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
+    return this.servicesService.optionsForManagement(id);
+  }
+
   @Post(':id/variants')
   @Roles('BUSINESS_OWNER')
   @RequirePermission('branch_service_offering:pricing:tenant')
@@ -347,6 +367,41 @@ export class ServicesController {
     const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({ where: { id }, select: { branchId: true } });
     await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
     return this.servicesService.createPriceRule(id, body);
+  }
+
+  @Patch('price-rules/:ruleId')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('branch_service_offering:pricing:tenant')
+  @Audited({ action: AuditAction.UPDATE, entityType: 'ServicePriceRule', idParam: 'ruleId' })
+  async updatePriceRuleActive(
+    @Param('ruleId') ruleId: string,
+    @Body() body: UpdateServicePriceRuleActiveDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const rule = await this.prisma.servicePriceRule.findUniqueOrThrow({
+      where: { id: ruleId }, select: { serviceId: true },
+    });
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({
+      where: { id: rule.serviceId, deletedAt: null }, select: { branchId: true },
+    });
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
+    return this.servicesService.updatePriceRuleActive(ruleId, body);
+  }
+
+  @Delete(':id/dependencies/:dependencyId')
+  @Roles('BUSINESS_OWNER')
+  @RequirePermission('business_service:update:tenant')
+  @Audited({ action: AuditAction.DELETE, entityType: 'ServiceDependency', idParam: 'dependencyId' })
+  async removeDependency(
+    @Param('id') id: string,
+    @Param('dependencyId') dependencyId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const offering = await this.prisma.branchServiceOffering.findUniqueOrThrow({
+      where: { id, deletedAt: null }, select: { branchId: true },
+    });
+    await assertBranchAccess(this.prisma, restrictToRoles(user, ['BUSINESS_OWNER']), offering.branchId);
+    return this.servicesService.removeDependency(id, dependencyId);
   }
 
   @Get(':id')

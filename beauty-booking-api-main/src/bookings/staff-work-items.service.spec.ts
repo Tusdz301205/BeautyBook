@@ -17,7 +17,7 @@ function setup() {
       appointmentStartTime: started, appointmentEndTime: started,
       customer: { note: 'health', user: { fullName: 'Customer', phone: 'secret', email: 'secret' } },
       branch: { id: 'branch', name: 'Branch', businessId: 'business', timezone: 'Asia/Ho_Chi_Minh' } } };
-  const prisma = { staffProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'staff' }) },
+  const prisma = { booking: { fields: { appointmentStartTime: { name: 'appointmentStartTime' } } }, staffProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'staff' }) },
     bookingService: { findMany: jest.fn().mockResolvedValue([row]), findFirst: jest.fn().mockResolvedValue(row),
       count: jest.fn().mockResolvedValue(1) } };
   return { row, started, prisma, service: new StaffWorkItemsService(prisma as any) };
@@ -47,7 +47,7 @@ describe('personal STAFF work contract', () => {
     expect(args.select.booking.select.customer.select.user.select).toEqual({ fullName: true });
     expect(prisma.bookingService.findFirst).not.toHaveBeenCalled();
     expect(result.data[0]).toMatchObject({ id: 'item', revision: 2, actualStartedAt: started,
-      actualCompletedAt: null, actualTimingSource: 'SERVICE_ADJUSTMENT', canStart: false, canComplete: true });
+      actualCompletedAt: null, actualTimingSource: 'SERVICE_ADJUSTMENT', canStart: false, canComplete: false });
     expect(result.data[0].serverNow).toBe(result.serverNow);
     expect(JSON.stringify(result)).not.toMatch(/secret|priceAtBooking|totalAmount|private note|health|beforeSnapshot/);
   });
@@ -118,8 +118,8 @@ describe('personal STAFF work contract', () => {
     const items = { update: jest.fn().mockResolvedValue(booking) };
     const controller = new BookingsController({} as any, access as any, {} as any, {} as any, {} as any,
       {} as any, items as any, { profileId: jest.fn().mockResolvedValue('staff') } as any);
-    expect(await controller.updateBookingItem('booking', 'mine', { action: 'COMPLETE', expectedRevision: 2, reason: 'Complete' }, user))
-      .toEqual(projected);
-    expect(items.update.mock.calls[0][4]).toEqual({ assignedStaffUserId: 'u' });
+    await expect(controller.updateBookingItem('booking', 'mine', { action: 'COMPLETE', expectedRevision: 2, reason: 'Complete' }, user))
+      .rejects.toMatchObject({ status: 403 });
+    expect(items.update).not.toHaveBeenCalled();
   });
 });

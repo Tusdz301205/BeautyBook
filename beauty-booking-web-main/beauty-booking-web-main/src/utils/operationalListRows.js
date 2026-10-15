@@ -17,6 +17,8 @@ export async function operationalListRows(rows, readDetail, isCurrent = () => tr
         if (!isCurrent()) return;
         const detail = normalizeBooking(payload);
         result[index] = { ...row, services: detail.services.map((item, itemIndex) => ({ ...row.services?.[itemIndex], ...item, staff: item.staffName, duration: item.durationMinutes })), statusEnum: detail.status,
+          attendanceWorkflow: detail.attendanceWorkflow, scheduledStartAt: detail.scheduledStartAt, scheduledEndAt: detail.scheduledEndAt,
+          scheduleElapsed: detail.scheduleElapsed, scheduleBucket: detail.scheduleBucket, canReview: detail.canReview,
           timingAnchor: detail.timingAnchor };
       } catch { /* A missing authorized read supplies no evidence of lateness. */ }
     }

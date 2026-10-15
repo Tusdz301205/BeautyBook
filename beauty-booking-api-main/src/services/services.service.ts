@@ -247,8 +247,9 @@ export class ServicesService {
           include: {
             staff: {
               include: {
-                user: { select: { fullName: true, avatarMedia: { select: { url: true } } } },
+                user: { select: { fullName: true, avatarMedia: { select: { url: true, visibility: true } } } },
                 images: {
+                  ...(publicOnly ? { where: { media: { visibility: 'PUBLIC', fileType: 'IMAGE' } } } : {}),
                   select: { media: { select: { url: true } } },
                   orderBy: { sortOrder: 'asc' },
                   take: 1,
@@ -262,6 +263,7 @@ export class ServicesService {
           },
         },
         images: {
+          ...(publicOnly ? { where: { media: { visibility: 'PUBLIC', fileType: 'IMAGE' } } } : {}),
           include: {
             media: { select: { id: true, url: true, fileType: true, originalName: true } },
           },
@@ -301,7 +303,7 @@ export class ServicesService {
             images,
             professionalTitle: professionalTitle(position),
             specialties: [service.businessService.name],
-            avatarUrl: user?.avatarMedia?.url || images[0]?.media?.url || null,
+            avatarUrl: (user?.avatarMedia?.visibility === 'PUBLIC' ? user.avatarMedia.url : null) || images[0]?.media?.url || null,
             ...staffRating(reviewRatings),
           },
         };
@@ -345,6 +347,8 @@ export class ServicesService {
     const queryPredicate = query
       ? Prisma.sql`AND (
           ${foldNameSql(Prisma.sql`bs."name"`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`branch."name"`)} LIKE ${likeQuery}
+          OR ${foldNameSql(Prisma.sql`business."name"`)} LIKE ${likeQuery}
           OR ${foldNameSql(Prisma.sql`COALESCE(bs."description", '')`)} LIKE ${likeQuery}
           OR ${foldNameSql(Prisma.sql`c."name"`)} LIKE ${likeQuery}
           OR ${foldNameSql(Prisma.sql`resolved."name"`)} LIKE ${likeQuery}
@@ -924,6 +928,49 @@ export class ServicesService {
       orderBy: { createdAt: 'asc' },
     });
     return variants.map((variant) => this.serializeVariant(variant));
+  }
+
+  async optionsForManagement(serviceId: string) {
+    const [variants, dependencies, priceRules] = await Promise.all([
+      this.listVariants(serviceId),
+      this.prisma.serviceDependency.findMany({
+        where: { serviceId },
+        include: { ref_requiredServiceId: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.servicePriceRule.findMany({
+        where: { serviceId },
+        include: { ref_variantId: { select: { id: true, name: true } } },
+        orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+      }),
+    ]);
+    return {
+      variants,
+      dependencies: dependencies.map(({ ref_requiredServiceId, ...dependency }) => ({
+        ...dependency, requiredService: ref_requiredServiceId,
+      })),
+      priceRules: priceRules.map(({ ref_variantId, ...rule }) => ({
+        ...rule, adjustmentValue: Number(rule.adjustmentValue), variant: ref_variantId,
+      })),
+    };
+  }
+
+  async updatePriceRuleActive(ruleId: string, data: { active: boolean }) {
+    if (!data || typeof data.active !== 'boolean' || Object.keys(data).some((key) => key !== 'active')) {
+      throw new BadRequestException('Chỉ được cập nhật active bằng giá trị boolean');
+    }
+    const rule = await this.prisma.servicePriceRule.update({
+      where: { id: ruleId }, data: { active: data.active },
+    });
+    return { ...rule, adjustmentValue: Number(rule.adjustmentValue) };
+  }
+
+  async removeDependency(serviceId: string, dependencyId: string) {
+    const result = await this.prisma.serviceDependency.deleteMany({
+      where: { id: dependencyId, serviceId },
+    });
+    if (!result.count) throw new NotFoundException('Quan hệ dịch vụ không tồn tại');
+    return { deleted: true };
   }
 
   async createVariant(serviceId: string, data: {

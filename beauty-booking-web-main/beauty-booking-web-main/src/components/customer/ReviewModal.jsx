@@ -40,7 +40,7 @@ export function ReviewModal({ booking, policy = {}, onClose, onSuccess }) {
     } finally { setSubmitting(false); }
   };
 
-  return <Dialog open onClose={onClose} title="Đánh giá cơ sở, dịch vụ và nhân viên" description={`Lịch hẹn ${booking.bookingCode || ''} đã hoàn thành. Mỗi lịch hẹn chỉ được gửi đánh giá một lần.`} footer={<><Button variant="secondary" onClick={onClose}>Để sau</Button><Button loading={submitting} onClick={submit}>Gửi đánh giá</Button></>}>
+  return <Dialog open onClose={onClose} title="Đánh giá cơ sở, dịch vụ và nhân viên" description={`Lịch hẹn ${booking.bookingCode || ''}`} footer={<><Button variant="secondary" onClick={onClose}>Để sau</Button><Button loading={submitting} onClick={submit}>Gửi đánh giá</Button></>}>
     <fieldset><legend className="text-sm font-bold">Trải nghiệm tổng quan tại cơ sở</legend><Stars value={rating} onChange={setRating} label="Đánh giá tổng quan" /></fieldset>
     <Field label="Nhận xét chung" hint={`${comment.length}/500 ký tự`} className="mt-4"><Textarea maxLength={500} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Chia sẻ điều bạn hài lòng hoặc mong muốn cải thiện" /></Field>
     {policy.reviewMinLength > 0 && <p className="mt-1 text-xs text-[var(--bb-muted)]">Tối thiểu {policy.reviewMinLength} ký tự.</p>}

@@ -66,6 +66,12 @@ export class PromotionsController {
     return this.promotionsService.getActiveForService(serviceId);
   }
 
+  @Get('branch/:branchId')
+  @Public()
+  getPublicForBranch(@Param('branchId') branchId: string) {
+    return this.promotionsService.getPublicForBranch(branchId);
+  }
+
   /**
    * POST /api/promotions
    * Tạo khuyến mãi mới.

@@ -62,6 +62,7 @@ import { StaffWorkItemsService } from './staff-work-items.service';
 import { ActualTimeCorrectionsService } from './actual-time-corrections.service';
 import { ActualTimeCorrectionDto, ActualTimeGrantDto, RevokeActualTimeGrantDto } from './dto/actual-time-correction.dto';
 import { staffBookingView } from './staff-booking-view';
+import { bookingAttendance, customerScheduleWhere } from './booking-attendance';
 
 type CustomerBookingServiceView = Prisma.BookingServiceGetPayload<{
   include: { service: { include: { category: true } }; staff: { include: { user: { select: { id: true; fullName: true; avatarMediaId: true } } } } };
@@ -118,6 +119,7 @@ export class BookingsController {
 
   private customerBookingView(booking: any) {
     return {
+      ...bookingAttendance(booking, booking.serverNow ?? new Date()),
       id: booking.id,
       branchId: booking.branchId,
       bookingCode: booking.bookingCode,
@@ -501,6 +503,7 @@ export class BookingsController {
     @Query('sortOrder') sortOrder?: 'newest' | 'oldest' | 'appointment',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('canonicalServiceId') canonicalServiceId?: string,
   ) {
     const allowedBusinessIds = await resolveBusinessIdsForUser(this.prisma, user);
     const requestedBranchIds = branchIds?.split(',').filter(Boolean);
@@ -527,6 +530,7 @@ export class BookingsController {
         branchId,
         allowedBranchIds: requestedBranchIds,
         categoryId,
+        canonicalServiceId,
         serviceId,
         businessId,
         customerQuery,
@@ -547,6 +551,7 @@ export class BookingsController {
         branchId,
         allowedBranchIds: requestedBranchIds,
         categoryId,
+        canonicalServiceId,
         serviceId,
         businessId,
         customerQuery,
@@ -586,6 +591,7 @@ export class BookingsController {
         : [],
       staffId: ownStaff?.id,
       categoryId,
+      canonicalServiceId,
       serviceId,
       businessId,
       customerQuery: staffOnly ? undefined : customerQuery,
@@ -626,7 +632,7 @@ export class BookingsController {
   @RequirePermission('booking:read:self')
   async myAppointments(
     @CurrentUser() user: AuthUser,
-    @Query('tab') tab: 'upcoming' | 'completed' | 'cancelled' = 'upcoming',
+    @Query('tab') tab: 'upcoming' | 'completed' | 'cancelled' | 'all' = 'upcoming',
   ) {
     const customerProfile = await this.prisma.customerProfile.findFirst({
       where: { userId: user.id },
@@ -635,17 +641,14 @@ export class BookingsController {
       throw new ForbiddenException('Tài khoản không có hồ sơ khách hàng hợp lệ');
     }
 
-    const statusMap = {
-      upcoming: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'],
-      completed: ['COMPLETED'],
-      cancelled: ['CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'],
-    };
+    if (!['upcoming', 'completed', 'cancelled', 'all'].includes(tab)) throw new BadRequestException('Nhóm lịch hẹn không hợp lệ');
+    const serverNow = new Date();
 
     const bookings = await this.prisma.booking.findMany({
       where: {
         customerId: customerProfile.id,
         deletedAt: null,
-        status: { in: statusMap[tab] as any },
+        ...(tab === 'all' ? {} : customerScheduleWhere(tab, serverNow, this.prisma.booking.fields)),
       },
       include: {
         branch: {
@@ -708,8 +711,7 @@ export class BookingsController {
         { appointmentStartTime: tab === 'upcoming' ? 'asc' : 'desc' },
       ],
     });
-    const serverNow = new Date();
-    return { data: bookings.map((booking) => {
+    return { serverNow, data: bookings.map((booking) => {
       const timed = withBookingTiming(booking, serverNow);
       if (!booking.review) return timed;
       const { _count, ...review } = booking.review;
@@ -1328,15 +1330,15 @@ export class BookingsController {
     const actorRoles = this.bookingsAccess.rolesAtResource(user, access);
     const owner = actorRoles.includes('BUSINESS_OWNER');
     const staffOnly = actorRoles.includes('STAFF') && !owner && !actorRoles.includes('RECEPTIONIST');
-    if (staffOnly && !['START', 'COMPLETE'].includes(body.action)) {
-      throw new ForbiddenException('Nhân viên chỉ có thể bắt đầu hoặc hoàn thành dịch vụ được giao');
+    if (staffOnly) {
+      throw new ForbiddenException({ code: 'STAFF_SCHEDULE_READ_ONLY', message: 'Nhân viên chỉ xem lịch được phân công' });
     }
     if (['REPRICE', 'RESIZE'].includes(body.action) && !owner) {
       throw new ForbiddenException('Chỉ chủ doanh nghiệp được điều chỉnh giá hoặc thời lượng dịch vụ');
     }
     const serviceLifecycle = ['START', 'COMPLETE'].includes(body.action);
-    if (serviceLifecycle && !owner && !actorRoles.includes('STAFF')) {
-      throw new ForbiddenException('Chỉ nhân viên được giao hoặc chủ doanh nghiệp được thực hiện dịch vụ');
+    if (serviceLifecycle && !owner) {
+      throw new ForbiddenException('Thao tác dịch vụ cũ chỉ dành cho chủ doanh nghiệp xử lý ngoại lệ');
     }
     const result = await this.bookingItemsService.update(id, itemId, user.id, body,
       serviceLifecycle && !owner ? { assignedStaffUserId: user.id } : undefined);

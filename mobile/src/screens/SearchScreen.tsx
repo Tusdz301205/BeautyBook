@@ -49,7 +49,7 @@ export default function SearchScreen({ navigation, route }: Props) {
   const filters = { query, location, canonicalServiceId, sort, maxPrice, minRating };
   const { rows, venues, isLoading, error, hasMore, isLoadingMore, loadMore, reload } = useServiceSearch(filters);
   const { experts, isLoading: expertsLoading, error: expertError } = useExpertSearch(venues.slice(0, 8), showExperts);
-  const openVenue = (branchId: string, serviceId?: string) => navigation.navigate('DiaDiem', { screen: 'VenueDetail', params: { venueId: branchId, serviceId } });
+  const openService = (serviceId: string) => navigation.navigate('DiaDiem', { screen: 'ServiceDetail', params: { serviceId } });
   const clear = () => { setQuery(''); setCanonicalServiceId(undefined); setSort(undefined); setMaxPrice(undefined); setMinRating(undefined); selectDistrict('Tất cả khu vực'); };
   const filterCount = [sort, maxPrice, minRating, canonicalServiceId].filter((value) => value !== undefined).length;
   const categoryName = categories.find((item) => item.id === canonicalServiceId)?.name ?? 'Loại dịch vụ đã chọn';
@@ -67,7 +67,7 @@ export default function SearchScreen({ navigation, route }: Props) {
     const saved = isFavorite(item.id);
     return (
       <View style={styles.result}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${item.displayName} tại ${item.branchName}, ${Number.isFinite(price) ? formatCurrency(price) : 'liên hệ cơ sở'}, ${item.durationMinutes} phút. Xem cơ sở`} onPress={() => openVenue(item.branchId, item.id)} style={({ pressed }) => [styles.resultMain, pressed && styles.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${item.displayName} tại ${item.branchName}, ${Number.isFinite(price) ? formatCurrency(price) : 'liên hệ cơ sở'}, ${item.durationMinutes} phút. Xem chi tiết dịch vụ`} onPress={() => openService(item.id)} style={({ pressed }) => [styles.resultMain, pressed && styles.pressed]}>
           <View style={styles.thumb}>
             {illustration ? <><Image source={illustration} style={styles.thumbImage} resizeMode="cover" accessibilityLabel={`Ảnh minh họa ${item.categoryName || item.displayName}`} /><Text style={styles.illustration}>Minh họa</Text></> : <ArtCover name={item.categoryName || item.displayName} height={88} />}
           </View>
@@ -117,7 +117,7 @@ export default function SearchScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.list}
           ListHeaderComponent={header}
           renderItem={({ item }) => (
-            <Pressable accessibilityRole="button" accessibilityLabel={`${item.fullName}, ${item.professionalTitle || item.position || 'Chuyên viên'} tại ${item.venue.name}. Xem cơ sở`} onPress={() => openVenue(item.venue.id)} style={({ pressed }) => [styles.expert, pressed && styles.pressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${item.fullName}, ${item.professionalTitle || item.position || 'Chuyên viên'} tại ${item.venue.name}. Xem chi tiết chuyên viên`} onPress={() => navigation.navigate('DiaDiem', { screen: 'StaffDetail', params: { staffId: item.id } })} style={({ pressed }) => [styles.expert, pressed && styles.pressed]}>
               <Avatar uri={item.avatarUrl} name={item.fullName} size={56} familyName={item.specialties?.[0] || item.professionalTitle || item.fullName} />
               <View style={styles.flex}>
                 <Text style={styles.resultName}>{item.fullName}</Text>

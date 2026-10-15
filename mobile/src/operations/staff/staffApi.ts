@@ -1,5 +1,5 @@
 import { apiRequest, withQuery, ApiError } from '../../api/client';
-import type { WorkItem, WorkPage, WorkAction } from './types';
+import type { WorkItem, WorkPage } from './types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
@@ -12,12 +12,7 @@ export const staffApi = {
     return request<WorkPage>(withQuery('/bookings/my-work-items', query));
   },
   detail(itemId: string) { return request<WorkItem>(`/bookings/my-work-items/${encodeURIComponent(itemId)}`); },
-  update(item: WorkItem, action: WorkAction) {
-    return request<unknown>(`/bookings/${encodeURIComponent(item.bookingId)}/items/${encodeURIComponent(item.id)}`, {
-      method: 'PATCH', body: JSON.stringify({ action, expectedRevision: item.revision,
-        reason: action === 'START' ? 'Nhân viên bắt đầu dịch vụ được phân công trên mobile.' : 'Nhân viên hoàn tất dịch vụ được phân công trên mobile.' }),
-    });
-  },
+
 };
 
 /** Complete bounded pagination; never present the first page as the entire workday. */

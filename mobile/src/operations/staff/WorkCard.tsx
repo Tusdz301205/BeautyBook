@@ -4,17 +4,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, layout, radius, space, tones, type, type Tone, fw } from '../../theme';
 import { useOperationalTime } from '../../hooks/useOperationalTime';
 import { operationalTimeLabel } from '../../utils/bookingOperationalTime';
-import { OperationButton } from '../OperationPrimitives';
-import { actionFor, actionLabel, appointmentClock, arrivalLabel, elapsedLabel, elapsedSeconds, statusLabel, type WorkAction, type WorkItem } from './workModel';
+import { appointmentClock, arrivalLabel, elapsedLabel, elapsedSeconds, statusLabel, workArrivalLabel, workStatusLabel, type WorkItem } from './workModel';
 
 function stateLook(item: WorkItem): { label: string; tone: Tone; icon: keyof typeof Ionicons.glyphMap } {
+  if (item.status === 'CANCELLED') return { label: statusLabel(item.status), tone: 'danger', icon: 'close-circle-outline' };
+  if (item.status === 'SKIPPED') return { label: statusLabel(item.status), tone: 'neutral', icon: 'remove-circle-outline' };
+  if (item.status === 'COMPLETED') return { label: statusLabel(item.status), tone: 'success', icon: 'checkmark-done-outline' };
+  if (item.bookingStatus === 'CHECKED_IN') return { label: workStatusLabel(item), tone: 'arrived', icon: 'enter-outline' };
   if (item.status === 'IN_PROGRESS') return { label: 'Đang thực hiện', tone: 'brand', icon: 'play-circle-outline' };
-  if (item.status === 'COMPLETED') return { label: 'Hoàn tất', tone: 'success', icon: 'checkmark-done-outline' };
   if (item.status === 'SCHEDULED') {
     const arrived = ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(item.bookingStatus);
     return arrived
       ? { label: arrivalLabel(item.bookingStatus), tone: 'arrived', icon: 'enter-outline' }
-      : { label: arrivalLabel(item.bookingStatus), tone: ['CANCELLED', 'NO_SHOW', 'REJECTED'].includes(item.bookingStatus) ? 'danger' : 'neutral', icon: 'hourglass-outline' };
+      : { label: ['PENDING', 'CONFIRMED'].includes(item.bookingStatus) ? statusLabel(item.status) : arrivalLabel(item.bookingStatus), tone: ['CANCELLED', 'NO_SHOW', 'REJECTED'].includes(item.bookingStatus) ? 'danger' : 'neutral', icon: 'hourglass-outline' };
   }
   return { label: statusLabel(item.status), tone: 'neutral', icon: 'remove-circle-outline' };
 }
@@ -54,11 +56,11 @@ function PlannedTime({ item, compact = false }: { item: WorkItem; compact?: bool
 
 /** Only active cards tick; the full FlatList does not re-render every second. */
 export function ActualElapsed({ item, serverNow, receivedAt, fresh = true }: { item: WorkItem; serverNow: number; receivedAt: number; fresh?: boolean }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(performance.now());
   useEffect(() => {
-    setNow(Date.now());
+    setNow(performance.now());
     if (!fresh || item.status !== 'IN_PROGRESS' || item.actualTimingSource !== 'SERVICE_ADJUSTMENT' || !item.actualStartedAt) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => setNow(performance.now()), 1000);
     return () => clearInterval(timer);
   }, [fresh, item.id, item.status, item.actualTimingSource, item.actualStartedAt, serverNow, receivedAt]);
   const seconds = elapsedSeconds(item, serverNow, receivedAt, fresh ? now : receivedAt);
@@ -68,35 +70,34 @@ export function ActualElapsed({ item, serverNow, receivedAt, fresh = true }: { i
   </View>;
 }
 
-export default function WorkCard({ item, staffId, serverNow, receivedAt, onOpen, onAction, disabled, busy, variant = 'next', primary = false, fresh = true }:
+export default function WorkCard({ item, staffId, serverNow, receivedAt, onOpen, variant = 'next', primary = false, fresh = true }:
   { item: WorkItem; staffId?: string; serverNow: number; receivedAt: number; onOpen?: () => void;
-    onAction?: (item: WorkItem, action: WorkAction) => void; disabled?: boolean; busy?: boolean;
     variant?: 'current' | 'next' | 'compact' | 'detail'; primary?: boolean; fresh?: boolean }) {
-  const action = actionFor(item, staffId);
   const timeLabel = item.itemStartAt ? `Dự kiến ${serviceClock(item.itemStartAt, item.branch.timezone)}` : `Giờ hẹn ${appointmentClock(item.appointmentStartTime)}`;
+  const arrival = workArrivalLabel(item);
+  const terminal = ['CANCELLED', 'SKIPPED', 'COMPLETED'].includes(item.status);
   if (variant === 'compact') return <Pressable accessibilityRole="button"
-    accessibilityLabel={`${timeLabel}. ${item.customer.fullName}, ${item.serviceNameSnapshot}, ${statusLabel(item.status)}, ${arrivalLabel(item.bookingStatus)}. Xem chi tiết công việc`}
+    accessibilityLabel={`${timeLabel}. ${item.customer.fullName}, ${item.serviceNameSnapshot}, ${workStatusLabel(item)}, ${arrival}. Xem chi tiết công việc`}
     disabled={!onOpen} onPress={onOpen} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
     <View style={styles.timeColumn}><PlannedTime item={item} compact /></View>
     <View style={styles.rowContent}>
       <Text style={styles.rowCustomer}>{item.customer.fullName || 'Khách hàng'}</Text>
       <Text style={styles.rowService}>{item.serviceNameSnapshot}</Text>
       <WorkState item={item} />
+      {terminal && <Text style={styles.meta}>{arrival}</Text>}
       <WorkTimeNotice item={item} serverNow={serverNow} fresh={fresh} />
     </View>
     <Ionicons accessible={false} name="chevron-forward" size={18} color={colors.secondaryText} />
   </Pressable>;
-  const waitingArrival = !action && item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED'].includes(item.bookingStatus);
   return <View style={[styles.card, variant === 'current' && styles.active]}>
     <Text style={[styles.customer, primary && styles.primaryCustomer]}>{item.customer.fullName || 'Khách hàng'}</Text>
     <Text style={styles.service}>{item.serviceNameSnapshot}</Text>
     <View style={styles.badges}><WorkState item={item} /></View>
+    {terminal && <Text style={styles.meta}>{arrival}</Text>}
     <WorkTimeNotice item={item} serverNow={serverNow} fresh={fresh} />
     {variant !== 'detail' && <PlannedTime item={item} />}
     {item.status === 'IN_PROGRESS' && variant !== 'detail' && <ActualElapsed item={item} serverNow={serverNow} receivedAt={receivedAt} fresh={fresh} />}
-    {variant !== 'detail' && waitingArrival && <Text style={styles.meta}>Chờ quầy ghi nhận khách đến trước khi bắt đầu.</Text>}
-    {onAction && action && <OperationButton label={actionLabel(action)} icon={action === 'START' ? 'play-outline' : 'checkmark-done-outline'} onPress={() => onAction(item, action)} busy={busy} disabled={disabled || busy} />}
-    {onOpen && <Pressable accessibilityRole="button" accessibilityLabel={`Xem công việc ${item.serviceNameSnapshot} của ${item.customer.fullName}`}
+    {onOpen && <Pressable accessibilityRole="button" accessibilityLabel={`Xem công việc ${item.serviceNameSnapshot} của ${item.customer.fullName}, ${workStatusLabel(item)}, ${arrival}`}
       style={({ pressed }) => [styles.open, pressed && styles.pressed]} onPress={onOpen}>
       <Text style={styles.link}>Chi tiết công việc</Text>
       <Ionicons accessible={false} name="chevron-forward" size={16} color={colors.primary} />

@@ -5,11 +5,11 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const ts = require('typescript');
 
-function load(file, modules = {}) {
+function load(file, modules = {}, globals = {}) {
   const module = { exports: {} };
   const source = fs.readFileSync(path.join(__dirname, '../src', file), 'utf8');
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, esModuleInterop: true, jsx: ts.JsxEmit.React } }).outputText;
-  vm.runInNewContext(js, { module, exports: module.exports, require(name) { assert.ok(name in modules, `Unexpected import ${name}`); return modules[name]; }, console, setTimeout, clearTimeout, AbortController }, { filename: file });
+  vm.runInNewContext(js, { module, exports: module.exports, require(name) { assert.ok(name in modules, `Unexpected import ${name}`); return modules[name]; }, console, performance, setTimeout, clearTimeout, AbortController, ...globals }, { filename: file });
   return module.exports;
 }
 const policy = load('operations/owner/policy.ts');
@@ -189,13 +189,14 @@ function hookHost(component, modules) {
   const slots = [], effects = []; let cursor = 0, dirty = false, output;
   const equal = (a, b) => a && b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
   const React = {
+    createElement: (type, props, ...children) => ({ type, props: props || {}, children }),
     useState(initial) { const i = cursor++; if (!slots[i]) slots[i] = { value: typeof initial === 'function' ? initial() : initial }; return [slots[i].value, value => { const next = typeof value === 'function' ? value(slots[i].value) : value; if (!Object.is(next, slots[i].value)) { slots[i].value = next; dirty = true; } }]; },
     useRef(initial) { const i = cursor++; if (!slots[i]) slots[i] = { current: initial }; return slots[i]; },
     useCallback(callback, deps) { const i = cursor++; if (!slots[i] || !equal(slots[i].deps, deps)) slots[i] = { value: callback, deps }; return slots[i].value; },
     useEffect(effect, deps) { const i = cursor++; if (!slots[i] || !equal(slots[i].deps, deps)) { const previous = slots[i]; slots[i] = { deps, cleanup: previous?.cleanup }; effects.push(() => { previous?.cleanup?.(); slots[i].cleanup = effect(); }); } },
   };
-  const hooks = load('operations/owner/hooks.ts', { react: React, '../../context/AuthContext': modules.auth, '../../api/client': modules.client, '../OperationsContext': modules.operations, './policy': policy });
-  return { render() { let cycles = 0; do { assert.ok(++cycles < 20); dirty = false; cursor = 0; output = component(hooks); effects.splice(0).forEach(fn => fn()); } while (dirty); return output; }, unmount() { slots.forEach(slot => slot?.cleanup?.()); } };
+  const hooks = load('operations/owner/hooks.ts', { react: React, '../../context/AuthContext': modules.auth, '../../api/client': modules.client, '../OperationsContext': modules.operations, './policy': policy }, modules.globals);
+  return { render() { let cycles = 0; do { assert.ok(++cycles < 20); dirty = false; cursor = 0; output = component(hooks, React); effects.splice(0).forEach(fn => fn()); } while (dirty); return output; }, unmount() { slots.forEach(slot => slot?.cleanup?.()); } };
 }
 function hookModules() {
   const op = { ...scope(), contextKey: 'sessionA', revision: 0, loading: false, error: null, refresh() { this.revision++; } };
@@ -624,4 +625,106 @@ test('notification request preflight cannot write after session replacement', as
   const action = h.ownerOperationsApi.review({ ...loaded.scope, branchId: loaded.data.booking.branchId }, requestId, 'reject', 'Đã xác minh', loaded.data);
   h.replaceSession(); host.render(); read.resolve([{ ...rawRequest(), booking: notificationBooking() }]);
   await assert.rejects(action, error => error.status === 409); assert.equal(h.calls.filter(c => c.init.method).length, 0); host.unmount();
+});
+
+test('Owner keeps server schedule metadata and historical timing without inheriting customer review authority', () => {
+  const h = apiHarness(() => {});
+  const raw = { ...rawBooking(), status: 'CHECKED_IN', attendanceWorkflow: 'CHECK_IN_ONLY', scheduleBucket: 'HISTORY', scheduleElapsed: true,
+    scheduledStartAt: '2026-10-05T03:00:00Z', scheduledEndAt: '2026-10-05T04:00:00Z', canReview: true };
+  raw.bookingServices[0] = { ...raw.bookingServices[0], actualStartedAt: null, actualCompletedAt: null, actualTimingSource: 'UNAVAILABLE', canCorrectActualTime: true };
+  const projected = h.projectBooking(raw, scope());
+  for (const key of ['attendanceWorkflow', 'scheduleBucket', 'scheduleElapsed', 'scheduledStartAt', 'scheduledEndAt']) assert.equal(projected[key], raw[key]);
+  assert.equal(projected.status, 'CHECKED_IN'); assert.equal(projected.canReview, undefined);
+  assert.equal(projected.items[0].actualStartedAt, null); assert.equal(projected.items[0].actualCompletedAt, null);
+  assert.equal(projected.items[0].canCorrectActualTime, true);
+  raw.bookingServices[0].actualStartedAt = '2026-10-05T03:10:00Z'; raw.bookingServices[0].actualCompletedAt = '2026-10-05T03:50:00Z';
+  raw.bookingServices[0].actualTimingSource = 'ACTUAL_TIME_CORRECTION';
+  const corrected = h.projectBooking(raw, scope());
+  assert.equal(corrected.items[0].actualStartedAt, raw.bookingServices[0].actualStartedAt);
+  assert.equal(corrected.items[0].actualCompletedAt, raw.bookingServices[0].actualCompletedAt);
+  assert.equal(corrected.items[0].actualTimingSource, 'ACTUAL_TIME_CORRECTION');
+});
+
+function unfinishedHarness() {
+  const modules = hookModules(); modules.op.branchId = branch;
+  let now = 1000, timerId = 0, screen;
+  const timers = new Map();
+  const globals = { performance: { now: () => now },
+    setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay, due: now + delay }); return id; },
+    clearTimeout(id) { timers.delete(id); } };
+  modules.globals = globals;
+  const booking = { ...rawBooking(), status: 'CHECKED_IN', scheduleBucket: 'UPCOMING', scheduleElapsed: false,
+    serverNow: '2026-10-07T03:59:00Z', scheduledEndAt: '2026-10-07T04:00:00Z' };
+  let response = () => ({ data: [booking], meta: { total: 1 } });
+  const api = apiHarness((...args) => response(...args));
+  const host = hookHost((hooks, React) => {
+    screen ||= load('operations/owner/UnfinishedBookings.tsx', {
+      react: React, 'react-native': { View: 'View', Text: 'Text', StyleSheet: { create: x => x } }, '@expo/vector-icons': { Ionicons: 'Icon' },
+      '../../theme': load('theme/index.ts'), '../../api/ownerOperations': { ownerOperationsApi: api.ownerOperationsApi },
+      '../../hooks/useOperationalTime': { useOperationalTime: () => NaN }, '../../utils/bookingOperationalTime': load('utils/bookingOperationalTime.ts'),
+      '../../utils/bookingSchedule': load('utils/bookingSchedule.ts'), './hooks': hooks, '../OperationsContext': modules.operations,
+      '../OperationPrimitives': { OperationButton: 'Button', OperationState: 'State', opStyles: {} },
+      './OwnerUI': { BookingSummary: 'Summary', Card: 'Card', Meta: 'Meta' },
+    }, globals);
+    return screen.UnfinishedBookings({ onOpen() {} });
+  }, modules);
+  const nodes = tree => tree == null || typeof tree === 'boolean' ? [] : Array.isArray(tree) ? tree.flatMap(nodes)
+    : typeof tree !== 'object' ? [tree] : [tree, ...tree.children.flatMap(nodes)];
+  return { ...host, modules, booking, api, timers, nodes,
+    elapse(ms) { now += ms; },
+    fire(ms) { now += ms; for (const [id, timer] of [...timers]) if (timer.due <= now) { timers.delete(id); timer.fn(); } },
+    response(fn) { response = fn; } };
+}
+
+test('mounted Owner unfinished refresh uses receipt-anchored server end and only the scoped GET', async () => {
+  const h = unfinishedHarness(); h.render(); await settle();
+  // Device wall time is unrelated; thirty seconds since response receipt reduces the delay.
+  h.elapse(30000);
+  let tree = h.nodes(h.render());
+  assert.equal(h.api.calls.length, 1); assert.equal(tree.filter(n => n?.props?.booking).length, 1);
+  assert.equal([...h.timers.values()][0].delay, 30001);
+  h.fire(30000); h.render(); assert.equal(h.api.calls.length, 1);
+  h.response(() => ({ data: [], meta: { total: 0 } }));
+  h.fire(1); h.render(); await settle(); tree = h.nodes(h.render());
+  assert.equal(h.api.calls.length, 2); assert.equal(h.timers.size, 0);
+  assert.equal(tree.filter(n => n?.props?.booking).length, 0);
+  assert.ok(tree.some(n => n?.type === 'State' && n.props.message === 'Không có lịch chưa kết thúc trong chi nhánh này.'));
+  assert.ok(h.api.calls.every(call => call.path.startsWith('/bookings?') && call.path.includes(`branchId=${branch}`) &&
+    call.path.includes('status=unfinished') && call.path.includes('page=1') && !call.init.method && !call.init.body));
+  assert.equal(h.booking.status, 'CHECKED_IN'); h.unmount();
+});
+
+test('Owner schedule refresh cancels/fences old callbacks on revision, branch, context, scope or unmount', async () => {
+  for (const change of ['revision', 'branch', 'context', 'scope', 'unmount']) {
+    const h = unfinishedHarness(); h.render(); await settle(); h.render();
+    const callback = [...h.timers.values()][0].fn;
+    h.response(() => new Promise(() => {}));
+    if (change === 'unmount') h.unmount();
+    else {
+      if (change === 'revision') h.modules.op.revision++;
+      if (change === 'branch') h.modules.op.branchId = null;
+      if (change === 'context') h.modules.replaceSession();
+      if (change === 'scope') { h.modules.auth.useAuth().user.roles = []; h.modules.op.revision++; }
+      h.render();
+    }
+    const count = h.api.calls.length;
+    callback(); if (change !== 'unmount') h.render();
+    assert.equal(h.api.calls.length, count, change); assert.equal(h.timers.size, 0, change);
+    h.unmount();
+  }
+});
+
+test('Owner refresh rejects changed session before rerender and never schedules stale/missing-clock rows', async () => {
+  const h = unfinishedHarness(); h.render(); await settle(); h.render();
+  const callback = [...h.timers.values()][0].fn;
+  h.modules.replaceSession(); callback(); assert.equal(h.api.calls.length, 1); h.unmount();
+  for (const missing of ['serverNow', 'scheduledEndAt']) {
+    const h = unfinishedHarness(); delete h.booking[missing]; h.render(); await settle(); h.render();
+    assert.equal(h.timers.size, 0, missing); h.unmount();
+  }
+  const stale = unfinishedHarness(); stale.render(); await settle(); stale.render();
+  stale.response(() => { throw new ApiError('offline', 0); });
+  stale.modules.op.revision++; stale.render(); await settle();
+  assert.equal(stale.nodes(stale.render()).filter(n => n?.props?.booking).length, 1);
+  assert.equal(stale.timers.size, 0); stale.unmount();
 });

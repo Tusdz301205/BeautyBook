@@ -2,6 +2,7 @@ import { bookingItemActualTiming, withBookingTiming } from './booking-actual-tim
 import { BookingItemsService } from './booking-items.service';
 import { ConflictException } from '@nestjs/common';
 import { BookingsController } from './bookings.controller';
+import { customerScheduleWhere } from './booking-attendance';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 
 const startAt = new Date('2026-10-04T16:58:00Z');
@@ -112,13 +113,15 @@ describe('Customer appointments keep execution states visible in the correct tab
   ] as const)('%s is scoped to the authenticated customer and includes its full state set', async (tab, expected) => {
     const all = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED']
       .map(status => ({ id: status, status, bookingServices: [], branch: { timezone: 'Asia/Ho_Chi_Minh' } }));
-    const findMany = jest.fn(({ where }: { where: { status: { in: string[] } } }) => Promise.resolve(all.filter(row => where.status.in.includes(row.status))));
-    const prisma = { customerProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'own-customer' }) }, booking: { findMany } };
+    const findMany = jest.fn().mockResolvedValue(all.filter(row => expected.includes(row.status as never)));
+    const fields = { appointmentStartTime: { name: 'appointmentStartTime' } as never };
+    const prisma = { customerProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'own-customer' }) }, booking: { findMany, fields } };
     const controller = new BookingsController({} as never, {} as never, prisma as never, {} as never, {} as never, {} as never, {} as never);
     const user: AuthUser = { id: 'own-user', email: 'own@example.test', roles: ['CUSTOMER'], scopes: [{ code: 'CUSTOMER' }], sessionType: 'customer' };
     const result = await controller.myAppointments(user, tab);
     expect(result.data.map(row => row.id)).toEqual(expected);
     expect(findMany.mock.calls[0][0].where).toMatchObject({ customerId: 'own-customer', deletedAt: null });
     expect(result.data.every(row => row.serverNow instanceof Date)).toBe(true);
+    expect(findMany.mock.calls[0][0].where).toEqual({ customerId: 'own-customer', deletedAt: null, ...customerScheduleWhere(tab, result.data[0].serverNow, fields) });
   });
 });

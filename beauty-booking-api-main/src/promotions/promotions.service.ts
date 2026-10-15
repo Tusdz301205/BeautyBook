@@ -10,6 +10,7 @@ import {
 import { can } from '../common/utils/policy';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { bookableStaffWhere } from '../staff/bookable-staff';
 
 @Injectable()
 export class PromotionsService {
@@ -332,6 +333,59 @@ export class PromotionsService {
         endDate: true,
       },
     });
+  }
+
+  /** Public campaign information; individual eligibility and quotas are rechecked at checkout. */
+  async getPublicForBranch(branchId: string) {
+    const now = new Date();
+    const branch = await this.prisma.branch.findFirst({
+      where: {
+        id: branchId, deletedAt: null, status: 'ACTIVE', reviewStatus: 'APPROVED', operationalStatus: 'ACTIVE',
+        business: { deletedAt: null, status: { in: ['APPROVED', 'ACTIVE'] }, bookingRestrictedAt: null },
+        staff: { some: bookableStaffWhere({ publicOnly: true }) },
+      },
+      select: {
+        businessId: true,
+        services: {
+          where: { deletedAt: null, status: 'ACTIVE', bookable: true, businessService: { deletedAt: null, status: 'ACTIVE' } },
+          select: { id: true },
+        },
+        combos: {
+          where: { deletedAt: null, status: 'ACTIVE', AND: [
+            { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+            { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+          ] },
+          select: { id: true },
+        },
+      },
+    });
+    if (!branch || !branch.services.length) throw new NotFoundException('Chi nhánh chưa công khai hoặc không nhận lịch');
+    const serviceIds = branch.services.map(service => service.id);
+    const comboIds = branch.combos.map(combo => combo.id);
+    const promotions = await this.prisma.promotion.findMany({
+      where: {
+        deletedAt: null, status: 'ACTIVE', startDate: { lte: now }, endDate: { gte: now },
+        AND: [
+          { OR: [{ createdByPlatform: true }, { businessId: branch.businessId }, { businessLinks: { some: { businessId: branch.businessId } } }] },
+          { OR: [{ branchLinks: { none: {} } }, { branchLinks: { some: { branchId } } }] },
+          { OR: [{ serviceLinks: { none: {} } }, { serviceLinks: { some: { serviceId: { in: serviceIds } } } }] },
+          { OR: [{ comboLinks: { none: {} } }, { comboLinks: { some: { comboId: { in: comboIds } } } }] },
+        ],
+      },
+      select: {
+        id: true, name: true, description: true, discountType: true, discountValue: true,
+        startDate: true, endDate: true, audience: true, autoApply: true, stackingAllowed: true,
+        maxUsagePerCustomer: true, totalQuantity: true,
+        serviceLinks: { where: { serviceId: { in: serviceIds } }, select: { serviceId: true } },
+        comboLinks: { where: { comboId: { in: comboIds } }, select: { comboId: true } },
+      },
+      orderBy: [{ endDate: 'asc' }, { id: 'asc' }],
+    });
+    return promotions.map(({ serviceLinks, comboLinks, discountValue, ...promotion }) => ({
+      ...promotion, discountValue: Number(discountValue),
+      serviceIds: serviceLinks.map(link => link.serviceId),
+      comboIds: comboLinks.map(link => link.comboId),
+    }));
   }
 
   private async assertExists(id: string) {

@@ -139,8 +139,24 @@ describe('RecurringService creation saga', () => {
     const { service, bookings, prisma } = fixture();
     bookings.create.mockRejectedValueOnce(new Error('post-commit read failed'));
     prisma.booking.findMany.mockResolvedValue([{ id: 'committed-but-not-returned' }]);
-    await expect(service.create(input, CUSTOMER)).rejects.toThrow('post-commit read failed');
+    const failure = await service.create(input, CUSTOMER).catch(error => error);
+    expect(failure.getStatus()).toBe(500);
+    expect(failure.getResponse()).toMatchObject({ code: 'RECURRING_CREATE_ROLLED_BACK', recurringPlanId: 'plan-1' });
     expect(bookings.compensateCreatedBookings).toHaveBeenCalledWith(['committed-but-not-returned'], expect.any(String));
+  });
+
+  test('reports settled quota rejection, and never marks incomplete compensation as settled', async () => {
+    const settled = fixture();
+    settled.bookings.create.mockRejectedValue(new ConflictException('Combo đã hết lượt sử dụng'));
+    const failure = await settled.service.create(input, CUSTOMER).catch(error => error);
+    expect(failure.getStatus()).toBe(409);
+    expect(failure.getResponse()).toMatchObject({ code: 'RECURRING_CREATE_ROLLED_BACK', message: 'Combo đã hết lượt sử dụng' });
+    const unresolved = fixture();
+    unresolved.bookings.create.mockRejectedValue(new ConflictException('Combo đã hết lượt sử dụng'));
+    unresolved.bookings.compensateCreatedBookings.mockRejectedValue(new Error('offline'));
+    const partial = await unresolved.service.create(input, CUSTOMER).catch(error => error);
+    expect(partial.getResponse()).not.toHaveProperty('code', 'RECURRING_CREATE_ROLLED_BACK');
+    expect(partial.message).toMatch(/chưa thể hoàn tác đầy đủ/);
   });
 
   test.each(['CREATING', 'FAILED', 'CANCELLED', 'COMPLETED'])('cannot resume a %s plan', async (status) => {

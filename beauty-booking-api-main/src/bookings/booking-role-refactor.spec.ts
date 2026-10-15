@@ -56,7 +56,7 @@ describe('Booking responsibilities without Manager', () => {
     mixed.roles.push('RECEPTIONIST');
     mixed.scopes.push({ code: 'RECEPTIONIST', businessId: 'business', branchId: 'branch-b' });
     await expect(accessFixture(false).assertWrite(mixed, 'booking')).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(accessFixture(true).assertWrite(mixed, 'booking', 'complete')).resolves.toMatchObject({ staffUserId: 'actor' });
+    await expect(accessFixture(true).assertWrite(mixed, 'booking', 'complete')).rejects.toBeInstanceOf(ForbiddenException);
     expect(accessFixture().rolesAtResource(mixed, { businessId: 'business', branchId: 'branch-a' })).toEqual(['STAFF']);
   });
 
@@ -142,7 +142,7 @@ describe('Booking responsibilities without Manager', () => {
     expect(bookings.getStatsForBranches).toHaveBeenCalledWith(['owner-branch']);
   });
 
-  test.each(['START', 'COMPLETE'] as const)('controller preserves exact staff authorization for %s', async (action) => {
+  test.each(['START', 'COMPLETE'] as const)('controller denies read-only staff %s even with an unrelated owner role', async (action) => {
     const mixed = principal('STAFF');
     mixed.roles.push('BUSINESS_OWNER');
     mixed.scopes.push({ code: 'BUSINESS_OWNER', businessId: 'other-business', branchId: null });
@@ -151,9 +151,8 @@ describe('Booking responsibilities without Manager', () => {
       {} as never, {} as never, {} as never, items as never,
       { profileId: jest.fn().mockResolvedValue('provider') } as never);
     const body = { action, expectedRevision: 1, reason: 'Service lifecycle' };
-    await controller.updateBookingItem('booking', 'item', body, mixed);
-    expect(items.update).toHaveBeenCalledWith('booking', 'item', 'actor', body, { assignedStaffUserId: 'actor' });
-    items.update.mockClear();
+    await expect(controller.updateBookingItem('booking', 'item', body, mixed)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(items.update).not.toHaveBeenCalled();
     await expect(controller.updateBookingItem('booking', 'item', body, principal('RECEPTIONIST')))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(items.update).not.toHaveBeenCalled();
@@ -185,19 +184,19 @@ describe('Assigned service item authorization under transaction lock', () => {
     await expect(service.update('booking', 'item', 'actor',
       { action: 'COMPLETE', expectedRevision: 1, reason: 'Done' }, { assignedStaffUserId: 'actor' }))
       .rejects.toBeInstanceOf(ForbiddenException);
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
-    expect(tx.$queryRaw.mock.calls[0][0].join('')).toContain('FROM bookings');
-    expect(tx.$queryRaw.mock.calls[1][0].join('')).toContain('FROM booking_services');
-    expect(tx.staffProfile.findFirst).toHaveBeenCalledWith({
-      where: { id: 'provider', userId: 'actor', status: 'ACTIVE', deletedAt: null }, select: { id: true },
-    });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.staffProfile.findFirst).not.toHaveBeenCalled();
     expect(tx.bookingService.updateMany).not.toHaveBeenCalled();
   });
 
-  test('assigned staff can complete with optimistic revision check preserved', async () => {
+  test('assigned staff cannot complete; owner exception keeps optimistic revision checks', async () => {
     const { service, tx } = fixture(true);
     await expect(service.update('booking', 'item', 'actor',
       { action: 'COMPLETE', expectedRevision: 1, reason: 'Done' }, { assignedStaffUserId: 'actor' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.bookingService.updateMany).not.toHaveBeenCalled();
+    await expect(service.update('booking', 'item', 'owner',
+      { action: 'COMPLETE', expectedRevision: 1, reason: 'Historical exception' }))
       .resolves.toEqual({ id: 'booking' });
     expect(tx.bookingService.updateMany).toHaveBeenCalledWith({
       where: { id: 'item', bookingId: 'booking', revision: 1 }, data: { revision: { increment: 1 }, status: 'COMPLETED' },

@@ -38,6 +38,10 @@ export function projectBooking(value: unknown, scope: OwnerScope): OwnerBooking 
     customerName: str(row(customer.user).fullName) || str(customer.fullName) || str(raw.customer_name) || 'Khách hàng',
     status: str(raw.statusEnum) || str(raw.status), date: (str(raw.appointmentDate) || str(raw.appointment_time)).slice(0, 10),
     start: nullable(raw.appointmentStartTime) || nullable(raw.appointment_start), end: nullable(raw.appointmentEndTime) || nullable(raw.appointment_end), note: nullable(raw.note),
+    attendanceWorkflow: raw.attendanceWorkflow === 'CHECK_IN_ONLY' ? 'CHECK_IN_ONLY' : undefined,
+    scheduledStartAt: nullable(raw.scheduledStartAt), scheduledEndAt: nullable(raw.scheduledEndAt),
+    scheduleElapsed: typeof raw.scheduleElapsed === 'boolean' ? raw.scheduleElapsed : undefined,
+    scheduleBucket: ['UPCOMING', 'HISTORY', 'CANCELLED'].includes(str(raw.scheduleBucket)) ? raw.scheduleBucket as OwnerBooking['scheduleBucket'] : undefined,
     serverNow: typeof raw.serverNow === 'string' ? raw.serverNow : undefined,
     items: rows(raw.bookingServices ?? raw.services).map(value => { const item = row(value), staff = row(item.staff); return {
       id: str(item.bookingServiceId) || str(item.id), name: str(row(item.service).name) || str(item.serviceName) || str(item.name) || 'Dịch vụ',

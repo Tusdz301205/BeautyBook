@@ -25,15 +25,16 @@ const meta = (label: string, tone: Tone, icon: string): StatusMeta => ({ label, 
 
 export const STATUS_META: Record<AppointmentStatus, StatusMeta> = {
   upcoming: meta('Sắp tới', 'info', 'calendar-outline'),
-  completed: meta('Hoàn thành', bookingTone.COMPLETED.tone, bookingTone.COMPLETED.icon),
+  completed: meta('Lịch sử', bookingTone.COMPLETED.tone, bookingTone.COMPLETED.icon),
   cancelled: meta('Đã hủy', bookingTone.CANCELLED.tone, bookingTone.CANCELLED.icon),
 };
 
 const RAW_LABELS: Record<string, string> = {
   PENDING: 'Chờ cơ sở xác nhận',
   CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã đến cơ sở',
+  CHECKED_IN: 'Khách đã đến',
   IN_PROGRESS: 'Đang thực hiện',
+  COMPLETED: 'Hoàn thành',
   EXPIRED: 'Hết hạn xác nhận',
   REJECTED: 'Cơ sở từ chối',
   NO_SHOW: 'Không đến',
@@ -41,6 +42,7 @@ const RAW_LABELS: Record<string, string> = {
 
 /** Every backend status keeps a distinct label; tone and icon repeat the meaning for non-colour readers. */
 export function bookingStatusMeta(status: AppointmentStatus, rawStatus?: string): StatusMeta {
+  if (rawStatus === 'CHECKED_IN' && status === 'completed') return meta('Đã đến · Lịch đã qua', 'arrived', 'enter-outline');
   const label = rawStatus ? RAW_LABELS[rawStatus] : undefined;
   const look = rawStatus ? bookingTone[rawStatus] : undefined;
   return label && look ? meta(label, look.tone, look.icon) : STATUS_META[status];

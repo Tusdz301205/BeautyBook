@@ -22,6 +22,7 @@ import {
 } from '../common/utils/multi-tenancy';
 import { auditLog } from '../common/utils/audit';
 import { PrismaService } from '../prisma/prisma.service';
+import { ATTENDED_BOOKING_STATUSES, hasRecordedVisit } from '../bookings/booking-attendance';
 import {
   prismaErrorCode,
   withSerializableTransaction,
@@ -328,8 +329,8 @@ export class PaymentsService {
           })) {
             throw new ForbiddenException('Không có quyền thu tiền tại chi nhánh này');
           }
-          if (booking.status !== 'COMPLETED') {
-            throw new ConflictException('Chỉ thu tiền khi booking đã hoàn thành');
+          if (!['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status)) {
+            throw new ConflictException('Chỉ thu tiền tại quầy khi khách đã đến hoặc lịch đã hoàn thành');
           }
           if (
             booking.payments.some((payment) =>
@@ -339,7 +340,7 @@ export class PaymentsService {
             throw new ConflictException('Booking đã được thanh toán');
           }
 
-          return tx.payment.create({
+          const paid = await tx.payment.create({
             data: {
               bookingId,
               amount: booking.finalAmount ?? booking.totalAmount,
@@ -349,6 +350,8 @@ export class PaymentsService {
               transactionRef: null,
             },
           });
+          await this.ensurePlatformFee(tx, bookingId);
+          return paid;
         },
         { conflictMessage: 'Booking vừa được thu tiền bởi yêu cầu khác' },
       );
@@ -955,15 +958,17 @@ export class PaymentsService {
     bookingId: string,
   ) {
     if (!(tx as any).platformFeeEntry) return null;
+    await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${bookingId} FOR UPDATE`;
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
       include: {
         branch: true,
         paymentTransactions: true,
+        statusHistory: { where: { status: { in: [...ATTENDED_BOOKING_STATUSES] } }, take: 1, select: { status: true } },
         payments: { include: { transactions: true, refundRequests: { where: { status: 'REFUNDED' } } } },
       },
     });
-    if (!booking || booking.status !== 'COMPLETED') return null;
+    if (!booking || !hasRecordedVisit(booking)) return null;
     const verified = booking.paymentTransactions
       .filter((item) => item.status === 'VERIFIED')
       .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -1013,6 +1018,21 @@ export class PaymentsService {
         idempotencyKey: `LEDGER:PLATFORM_FEE:${fee.id}`,
       },
     });
+    // Preserve the original assessed fee; subsequent commercial changes use
+    // append-only adjustments under the same booking lock, including refund credits.
+    const adjustments = await tx.platformFeeAdjustment.aggregate({ where: { platformFeeId: fee.id }, _sum: { amount: true } });
+    const assessed = Number(fee.feeAmount) + Number(adjustments._sum.amount ?? 0);
+    const target = Number((baseAmount * Number(fee.feeRate) / 100).toFixed(2));
+    const delta = Number((target - assessed).toFixed(2));
+    if (delta !== 0) {
+      const adjustment = await tx.platformFeeAdjustment.create({ data: { platformFeeId: fee.id,
+        businessId: fee.businessId, branchId: fee.branchId, amount: delta,
+        reason: `Đối soát phí lịch ${bookingId}: giá trị ${baseAmount}; phí ${assessed} → ${target}` } });
+      await tx.financialLedgerEntry.upsert({ where: { idempotencyKey: `LEDGER:PLATFORM_FEE_ADJUSTMENT:${adjustment.id}` }, update: {},
+        create: { businessId: fee.businessId, branchId: fee.branchId, bookingId, type: 'PLATFORM_FEE_ADJUSTMENT',
+          direction: delta > 0 ? 'DEBIT' : 'CREDIT', amount: Math.abs(delta), sourceType: 'PLATFORM_FEE_ADJUSTMENT', sourceId: adjustment.id,
+          idempotencyKey: `LEDGER:PLATFORM_FEE_ADJUSTMENT:${adjustment.id}` } });
+    }
     return fee;
   }
 
@@ -1058,6 +1078,7 @@ export class PaymentsService {
         idempotencyKey: `LEDGER:PLATFORM_FEE_ADJUSTMENT:${adjustment.id}`,
       },
     });
+    if (refund.payment.bookingId) await this.ensurePlatformFee(tx, refund.payment.bookingId);
     return adjustment;
   }
 
@@ -1591,14 +1612,12 @@ export class PaymentsService {
     body: ReservePackageSessionDto,
   ) {
     return withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${body.bookingId} FOR UPDATE`;
       const purchase = await tx.packagePurchase.findUnique({
         where: { id: purchaseId },
         include: { customer: { select: { userId: true } } },
       });
       if (!purchase) throw new NotFoundException('Giao dịch gói không tồn tại');
-      if (purchase.status !== 'ACTIVE' || purchase.expiresAt <= new Date()) {
-        throw new ConflictException('Gói chưa hoạt động hoặc đã hết hạn');
-      }
       const context = {
         tenantId: purchase.businessId,
         branchId: purchase.branchId || undefined,
@@ -1615,22 +1634,43 @@ export class PaymentsService {
         where: {
           id: body.bookingServiceId,
           bookingId: body.bookingId,
+          status: { in: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'] },
           booking: {
             customerId: purchase.customerId,
+            deletedAt: null,
+            status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'] },
             branch: { businessId: purchase.businessId },
           },
         },
-        select: { id: true, bookingId: true },
+        select: { id: true, bookingId: true, booking: { select: { status: true, branchId: true } } },
       });
       if (!bookingService) {
         throw new BadRequestException('Dịch vụ đặt lịch không thuộc khách hàng và doanh nghiệp của gói');
+      }
+      const bookingScope = { ...context, branchId: bookingService.booking.branchId };
+      if (!['package_purchase:create:self', 'package_purchase:create:branch', 'package_purchase:create:tenant'].some(permission => can(user, permission, bookingScope))) {
+        throw new ForbiddenException('Không có quyền sử dụng buổi gói tại chi nhánh của lịch hẹn');
+      }
+      const existing = await tx.packageSessionEntitlement.findFirst({ where: {
+        purchaseId, bookingId: body.bookingId, redeemedBookingServiceId: body.bookingServiceId,
+        status: { in: ['RESERVED', 'REDEEMED'] },
+      } });
+      if (existing) {
+        if (existing.status === 'RESERVED' && ['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(bookingService.booking.status)) {
+          await this.redeemPackageEntitlements(body.bookingId, 'CHECKED_IN', tx);
+          return tx.packageSessionEntitlement.findUniqueOrThrow({ where: { id: existing.id } });
+        }
+        return existing;
+      }
+      if (purchase.status !== 'ACTIVE' || purchase.expiresAt <= new Date()) {
+        throw new ConflictException('Gói chưa hoạt động hoặc đã hết hạn');
       }
       const entitlement = await tx.packageSessionEntitlement.findFirst({
         where: { purchaseId, status: 'AVAILABLE' },
         orderBy: { sequence: 'asc' },
       });
       if (!entitlement) throw new ConflictException('Gói không còn lượt sử dụng');
-      return tx.packageSessionEntitlement.update({
+      const reserved = await tx.packageSessionEntitlement.update({
         where: { id: entitlement.id },
         data: {
           status: 'RESERVED',
@@ -1639,22 +1679,31 @@ export class PaymentsService {
           reservedAt: new Date(),
         },
       });
+      if (['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'].includes(bookingService.booking.status)) {
+        await this.redeemPackageEntitlements(body.bookingId, 'CHECKED_IN', tx);
+        return tx.packageSessionEntitlement.findUniqueOrThrow({ where: { id: reserved.id } });
+      }
+      return reserved;
     });
   }
 
   async redeemPackageEntitlements(
     bookingId: string,
-    status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW',
+    status: 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW',
     client: PrismaService | Prisma.TransactionClient = this.prisma,
   ) {
     const reserved = await client.packageSessionEntitlement.findMany({
       where: { bookingId, status: 'RESERVED' },
-      select: { id: true, purchaseId: true },
+      select: { id: true, purchaseId: true, redeemedBookingService: { select: { status: true } } },
     });
     if (!reserved.length) return;
-    if (status === 'COMPLETED') {
-      await client.packageSessionEntitlement.updateMany({
-        where: { id: { in: reserved.map((item) => item.id) }, status: 'RESERVED' },
+    if (status === 'CHECKED_IN' || status === 'COMPLETED') {
+      const unused = reserved.filter(item => !item.redeemedBookingService || ['SKIPPED', 'CANCELLED'].includes(item.redeemedBookingService.status));
+      if (unused.length) await client.packageSessionEntitlement.updateMany({ where: { id: { in: unused.map(item => item.id) }, status: 'RESERVED' },
+        data: { status: 'AVAILABLE', bookingId: null, redeemedBookingServiceId: null, reservedAt: null } });
+      const usable = reserved.filter(item => item.redeemedBookingService && !['SKIPPED', 'CANCELLED'].includes(item.redeemedBookingService.status));
+      if (usable.length) await client.packageSessionEntitlement.updateMany({
+        where: { id: { in: usable.map((item) => item.id) }, status: 'RESERVED' },
         data: { status: 'REDEEMED', redeemedAt: new Date() },
       });
     } else {

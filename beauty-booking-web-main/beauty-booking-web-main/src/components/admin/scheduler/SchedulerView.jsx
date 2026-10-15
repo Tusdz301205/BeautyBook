@@ -1,3 +1,4 @@
+import { unfinishedBooking } from '../../../utils/bookingAffordances';
 import { schedulerSocketUrl } from '../../../utils/socketEndpoint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
@@ -28,6 +29,7 @@ import SchedulerWeekView from './SchedulerWeekView';
 import { Select } from '../../ui';
 import { OperationalClock } from './OperationalTiming';
 import { useOperationalRefresh } from '../../../hooks/useOperationalRefresh';
+import { useScheduleHistoryRefresh } from '../../../hooks/useScheduleHistoryRefresh';
 
 const VIEW_OPTIONS = [
   { id: 'day', label: 'Ngày', icon: Rows3 },
@@ -92,7 +94,11 @@ export default function SchedulerView({
   const fetchData = useCallback(async ({ silent = false } = {}) => {
     const scopedBranchIds = branchKey ? branchKey.split(',') : [];
     const requestId = ++requestSequence.current;
-    if (scopedBranchIds.length === 0) {
+    const lease = captureSessionGeneration();
+    const current = () => requestId === requestSequence.current && isSessionGenerationCurrent(lease)
+      && useAuthStore.getState().accessToken === accessToken;
+    if (!current()) return;
+    if (!accessToken || scopedBranchIds.length === 0) {
       setStaffList([]);
       setBookings([]);
       setLoading(false);
@@ -104,12 +110,14 @@ export default function SchedulerView({
       const payloads = scopedBranchIds.length > 1
         ? await bookingsApi.getSchedulerBatch(scopedBranchIds, range.start.toISOString(), range.end.toISOString())
         : [{ branchId: scopedBranchIds[0], payload: await bookingsApi.getScheduler(scopedBranchIds[0], range.start.toISOString(), range.end.toISOString()) }];
-      if (requestId !== requestSequence.current) return;
+      if (!current()) return;
       const multiBranch = scopedBranchIds.length > 1;
       const staffById = new Map();
       const bookingById = new Map();
       payloads.forEach(({ branchId: scopedBranchId, payload }) => {
-        const normalized = normalizeSchedulerResponse(payload);
+        const normalized = normalizeSchedulerResponse({ ...payload, bookings: (payload.bookings || []).map(booking => ({
+          ...booking, status: booking.statusEnum || booking.status, serverNow: booking.serverNow ?? payload.serverNow,
+        })) });
         const branchName = branchNames.get(scopedBranchId) || 'Chi nhánh';
         normalized.staff.forEach((staff) => staffById.set(staff.id, {
           ...staff,
@@ -127,15 +135,16 @@ export default function SchedulerView({
       setSelectedBooking((current) => current ? bookingById.get(current.id) || current : null);
       setSelectedDay((current) => current ? { ...current, bookings: current.bookings.map((item) => bookingById.get(item.id)).filter(Boolean) } : null);
     } catch (requestError) {
-      if (requestId !== requestSequence.current) return;
+      if (!current()) return;
       setError(toUserFacingRequestError(requestError, 'Không thể tải dữ liệu lịch hẹn'));
     } finally {
-      if (!silent && requestId === requestSequence.current) setLoading(false);
+      if (!silent && current()) setLoading(false);
     }
   }, [accessToken, branchKey, branchNames, range.end, range.start, refreshKey]);
 
   useEffect(() => {
     fetchData();
+    return () => { requestSequence.current += 1; };
   }, [fetchData]);
 
   useEffect(() => {
@@ -218,6 +227,7 @@ export default function SchedulerView({
 
   const refreshVisible = useCallback(() => fetchData({ silent: true }), [fetchData]);
   useOperationalRefresh(refreshVisible);
+  useScheduleHistoryRefresh(bookings, refreshVisible);
 
   const serviceOptions = useMemo(() => {
     const services = new Map();
@@ -230,7 +240,7 @@ export default function SchedulerView({
   const filteredBookings = useMemo(() => {
     const ownIds = new Set(staffList.filter((staff) => staff.userId === user?.id).map((staff) => staff.id));
     const visible = staffOnly ? bookings.filter((booking) => booking.services.some((item) => item.staffUserId === user?.id || ownIds.has(item.staffId))) : bookings;
-    return filterBookings(visible, filters).filter((booking) => !filters.unfinished || (!['COMPLETED', 'CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(booking.status) && booking.services.some((item) => ['SCHEDULED', 'IN_PROGRESS'].includes(item.status))));
+    return filterBookings(visible, filters).filter((booking) => !filters.unfinished || unfinishedBooking(booking));
   }, [bookings, filters, staffList, staffOnly, user]);
   const stats = useMemo(() => computeBookingStats(filteredBookings), [filteredBookings]);
   const platformWorkspace = user?.workspace === 'PLATFORM' || roleCodes.has('PLATFORM_ADMIN');

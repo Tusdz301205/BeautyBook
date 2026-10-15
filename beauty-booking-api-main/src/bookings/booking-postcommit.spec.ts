@@ -93,6 +93,18 @@ describe('Committed booking changes always invalidate subscribers', () => {
     expect(f.commitStates).toEqual([true]);
     expect(payments.ensurePlatformFee).toHaveBeenCalledTimes(1);
   });
+  test('counter check-in consumes the package once inside its transaction without START, completion or payment creation', async () => {
+    const f = fixture(); f.row.status = 'CONFIRMED'; f.row.appointmentDate = new Date('2020-01-03T00:00:00Z');
+    const payments = { redeemPackageEntitlements: jest.fn().mockResolvedValue(undefined), ensurePlatformFee: jest.fn().mockResolvedValue(null) };
+    const service = new BookingsService(f.prisma as never, f.mail as never, f.gateway as never, {} as never, {} as never, payments as never);
+    await expect(service.updateStatus('booking', 'CHECKED_IN', 'desk', undefined, 'SALON', ['RECEPTIONIST']))
+      .resolves.toMatchObject({ status: 'CHECKED_IN' });
+    expect(payments.redeemPackageEntitlements).toHaveBeenCalledWith('booking', 'CHECKED_IN', f.tx);
+    expect(payments.ensurePlatformFee).toHaveBeenCalledWith(f.tx, 'booking');
+    expect(f.tx.bookingService.updateMany).not.toHaveBeenCalled();
+    await expect(service.updateStatus('booking', 'CHECKED_IN', 'desk', undefined, 'SALON', ['RECEPTIONIST'])).rejects.toThrow();
+    expect(payments.redeemPackageEntitlements).toHaveBeenCalledTimes(1);
+  });
   test('move notification failure preserves the committed move and emits', async () => {
     const f = fixture();
     f.prisma.booking.findFirst = jest.fn().mockResolvedValue(null);

@@ -185,13 +185,15 @@ describe('BookingsAccessService — cross-tenant blocking', () => {
     await expect(service.assertCustomerCreate(OWNER_T1, 'br-3')).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  test('a second assigned provider can update a multi-provider booking', async () => {
+  test('a second assigned provider has read-only access to a multi-provider booking', async () => {
     const booking: FakeBooking = {
       id: 'bk-1', branchId: 'br-1', customerId: 'cp-1', deletedAt: null,
       customer: { userId: 'cust-user-1' }, branch: { businessId: 'biz-1' },
       bookingServices: [{ staffId: 'staff-profile-1' }, { staffId: 'staff-profile-2' }],
     };
     await expect(new BookingsAccessService(fakePrisma(booking)).assertWrite(OTHER_STAFF, 'bk-1'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(new BookingsAccessService(fakePrisma(booking)).loadAndAssert(OTHER_STAFF, 'bk-1', 'booking:read:branch'))
       .resolves.toMatchObject({ staffUserId: 'staff-user-2' });
   });
 
@@ -211,13 +213,15 @@ describe('BookingsAccessService — cross-tenant blocking', () => {
     });
   });
 
-  test('staff can update an assigned booking', async () => {
+  test('staff can read but cannot update an assigned booking', async () => {
     const booking: FakeBooking = {
       id: 'bk-1', branchId: 'br-1', customerId: 'cp-1', deletedAt: null,
       customer: { userId: 'cust-user-1' }, branch: { businessId: 'biz-1' },
       bookingServices: [{ staffId: 'staff-profile-1' }],
     };
     await expect(new BookingsAccessService(fakePrisma(booking)).assertWrite(STAFF, 'bk-1'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(new BookingsAccessService(fakePrisma(booking)).loadAndAssert(STAFF, 'bk-1', 'booking:read:branch'))
       .resolves.toMatchObject({ staffUserId: 'staff-user-1' });
   });
 

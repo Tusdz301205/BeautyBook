@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps, NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, layout, radius, space, tones, type, fw } from '../../theme';
+import { colors, layout, radius, space, type, fw } from '../../theme';
 import { IconButton } from '../../ui';
 import { formatServiceTimestamp, serviceTimingLines } from '../../utils/bookingTiming';
-import { BranchPicker, OperationButton, OperationPage, OperationState, opStyles } from '../OperationPrimitives';
+import { BranchPicker, OperationButton, OperationPage, OperationState } from '../OperationPrimitives';
 import { useOperations } from '../OperationsContext';
 import { useStaffWork } from './useStaffWork';
-import { useWorkActions } from './useWorkActions';
 import WorkCard, { ActualElapsed } from './WorkCard';
-import { actionFor, actionLabel, allWorkCompleted, appointmentClock, branchDate, shiftDate, todayRows, type TodayRow } from './workModel';
+import { appointmentClock, branchDate, shiftDate, todayRows, type TodayRow } from './workModel';
 
 export type StaffWorkStackParams = {
   WorkList: undefined; WorkDetail: { itemId: string }; BookingWork: { bookingId: string };
@@ -53,19 +52,14 @@ export function StaffListScreen({ navigation, agenda = false, bookingId }: { nav
   const day = agenda ? ops.date : today;
   const work = useStaffWork({ day, bookingId, includeUnresolved: !agenda && !bookingId });
   useEffect(() => { if (Number.isFinite(work.serverNow)) setAnchor({ server: work.serverNow, local: performance.now(), key: ops.contextKey }); }, [work.serverNow, work.receivedAt, ops.contextKey]);
-  const actions = useWorkActions({ identity: work.identity, fresh: work.fresh && !ops.loading && !ops.error, staffId: ops.staffProfile?.id, reload: work.load, refresh: ops.refresh });
-  const planning = agenda || !!bookingId;
-  const rows = useMemo<TodayRow[]>(() => planning ? [...work.items].sort((a, b) =>
-    (a.itemStartAt ?? appointmentClock(a.appointmentStartTime)).localeCompare(b.itemStartAt ?? appointmentClock(b.appointmentStartTime)) || a.id.localeCompare(b.id))
-    .map(item => ({ item, kind: 'later' })) : todayRows(work.items, ops.staffProfile?.id), [work.items, planning, ops.staffProfile?.id]);
-  const activeCount = work.items.filter(item => item.status === 'IN_PROGRESS').length;
+  const rows = useMemo<TodayRow[]>(() => todayRows(work.items), [work.items]);
   const unavailable = ops.loading || !ops.canWorkAsStaff || !ops.branchId;
   const title = bookingId ? 'Dịch vụ trong lịch hẹn' : agenda ? 'Lịch của tôi' : 'Hôm nay';
   return <OperationPage title={title} subtitle={day ? `${dayLabel(day)} · giờ chi nhánh` : undefined} inStack={!!bookingId}>
     <View style={local.context}><BranchPicker inset={false} /></View>
     <View style={local.gutter}><AccessState /></View>
     {!unavailable && <FlatList data={rows} keyExtractor={row => row.item.id} contentContainerStyle={local.list}
-      refreshing={work.loading} onRefresh={() => { void actions.reconcile(); }}
+      refreshing={work.loading} onRefresh={() => { void work.load(); }}
       ListHeaderComponent={<View style={local.header}>
         {today && agenda && <View style={local.planner}>
           <View style={local.weekNav}>
@@ -88,20 +82,15 @@ export function StaffListScreen({ navigation, agenda = false, bookingId }: { nav
           {ops.date !== today && <OperationButton label="Về hôm nay" secondary icon="today-outline" onPress={() => ops.setDate(today)} />}
           <Text style={local.meta}>Giờ hiện tại tại chi nhánh: {formatServiceTimestamp(new Date(liveNow).toISOString(), branch?.timezone)}</Text>
         </View>}
-        {!agenda && !bookingId && <Text style={local.meta}>Gồm cả công việc chưa xử lý từ ngày trước. Quá giờ không có nghĩa khách không đến — kiểm tra tại quầy trước khi thao tác.</Text>}
+        {!agenda && !bookingId && <Text style={local.meta}>Lịch dự kiến theo giờ chi nhánh. Quầy ghi nhận khách đến; lịch đã qua không xác nhận thời gian thực tế.</Text>}
         {!today && <OperationState tone="warning" message="Chưa có múi giờ chi nhánh hợp lệ. Không thể xác định ngày làm việc; hãy liên hệ quản lý." />}
         {work.loading && <Text style={local.meta} accessibilityLiveRegion="polite">Đang cập nhật công việc…</Text>}
-        {work.error && <OperationState tone="error" message={work.error} onRetry={() => { void actions.reconcile(); }} />}
-        {actions.message && <OperationState tone={actions.blocked ? 'warning' : 'neutral'} message={actions.message} onRetry={actions.blocked ? () => { void actions.reconcile(); } : undefined} />}
-        {!planning && activeCount > 1 && <View style={local.parallel}><Text style={local.parallelText}>{activeCount} dịch vụ đang thực hiện song song</Text></View>}
-        {!planning && allWorkCompleted(work.items, work.fresh && !ops.loading && !ops.error) && <View style={local.done}><Text accessibilityRole="header" style={local.doneTitle}>Bạn đã hoàn thành công việc hôm nay</Text></View>}
+        {work.error && <OperationState tone="error" message={work.error} onRetry={() => { void work.load(); }} />}
       </View>}
       ListEmptyComponent={!work.loading && !work.error && day ? <OperationState message={bookingId ? 'Không có dịch vụ được giao cho bạn trong lịch này.' : agenda ? 'Bạn chưa có dịch vụ được phân công trong ngày này.' : 'Hôm nay bạn chưa có dịch vụ được phân công.'} /> : null}
       renderItem={({ item: row }) => <View>
-        {row.heading && <Text accessibilityRole="header" style={opStyles.section}>{row.heading}</Text>}
         <WorkCard item={row.item} staffId={ops.staffProfile?.id} serverNow={work.serverNow} receivedAt={work.receivedAt}
-          variant={planning || row.kind === 'later' || row.kind === 'finished' ? 'compact' : row.kind} primary={row.primary} fresh={work.fresh && !ops.error}
-          disabled={!work.fresh || actions.blocked || unavailable || !!ops.error} busy={actions.busyId === row.item.id} onAction={actions.action}
+          variant="compact" fresh={work.fresh && !ops.error}
           onOpen={() => navigation.navigate('WorkDetail', { itemId: row.item.id })} />
       </View>} />}
   </OperationPage>;
@@ -109,14 +98,11 @@ export function StaffListScreen({ navigation, agenda = false, bookingId }: { nav
 
 export function StaffDetailScreen({ route }: NativeStackScreenProps<StaffWorkStackParams, 'WorkDetail'>) {
   const work = useStaffWork({ itemId: route.params.itemId });
-  const actions = useWorkActions({ identity: work.identity, fresh: work.fresh && !work.ops.loading && !work.ops.error, staffId: work.ops.staffProfile?.id, reload: work.load, refresh: work.ops.refresh });
   const item = work.items[0];
-  const action = item ? actionFor(item, work.ops.staffProfile?.id) : null;
   return <OperationPage title="Chi tiết công việc" inStack><View style={local.gutter}><AccessState /></View>
     <ScrollView contentContainerStyle={local.list}>
       {work.loading && <OperationState message="Đang đọc lại công việc…" />}
-      {work.error && <OperationState tone="error" message={work.error} onRetry={() => { void actions.reconcile(); }} />}
-      {actions.message && <OperationState tone={actions.blocked ? 'warning' : 'neutral'} message={actions.message} onRetry={actions.blocked ? () => { void actions.reconcile(); } : undefined} />}
+      {work.error && <OperationState tone="error" message={work.error} onRetry={() => { void work.load(); }} />}
       {item && <>
         <WorkCard item={item} variant="detail" primary serverNow={work.serverNow} receivedAt={work.receivedAt} fresh={work.fresh && !work.ops.error} />
         <View style={local.detailBlock}><Text accessibilityRole="header" style={local.blockTitle}>Thời gian dự kiến</Text>
@@ -129,10 +115,8 @@ export function StaffDetailScreen({ route }: NativeStackScreenProps<StaffWorkSta
           <Text selectable style={local.line}>Mã lịch: {item.bookingCode}</Text>
           <Text style={local.line}>Ngày tại chi nhánh: {dayLabel(item.appointmentDate.slice(0, 10))}</Text>
           <Text style={local.line}>Giờ hẹn: {appointmentClock(item.appointmentStartTime)} – {appointmentClock(item.appointmentEndTime)}</Text></View>
-        {action && <OperationButton label={actionLabel(action)} icon={action === 'START' ? 'play-outline' : 'checkmark-done-outline'} onPress={() => actions.action(item, action)} disabled={!work.fresh || actions.blocked || work.ops.loading || !!work.ops.error} busy={!!actions.busyId} />}
-        {!action && item.status === 'SCHEDULED' && ['PENDING', 'CONFIRMED'].includes(item.bookingStatus) && <OperationState message="Chờ quầy xác nhận khách đã đến để bắt đầu dịch vụ." />}
       </>}
-      {!item && !work.loading && !work.error && work.ops.canWorkAsStaff && <OperationState message="Công việc không còn khả dụng cho tài khoản này." onRetry={() => { void actions.reconcile(); }} />}
+      {!item && !work.loading && !work.error && work.ops.canWorkAsStaff && <OperationState message="Công việc không còn khả dụng cho tài khoản này." onRetry={() => { void work.load(); }} />}
     </ScrollView>
   </OperationPage>;
 }
@@ -153,10 +137,6 @@ const local = StyleSheet.create({
   daySelectedText: { color: colors.onPrimary },
   todayDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.primary },
   todayDotSelected: { backgroundColor: colors.onPrimary },
-  parallel: { alignSelf: 'flex-start', borderRadius: radius.pill, backgroundColor: tones.brand.bg, paddingHorizontal: space.md, paddingVertical: space.xs },
-  parallelText: { ...type.secondaryStrong, color: tones.brand.fg },
-  done: { padding: space.lg, gap: space.xs, backgroundColor: tones.success.bg, borderRadius: radius.lg },
-  doneTitle: { ...type.h3, color: tones.success.fg },
   detailBlock: { backgroundColor: colors.surface, padding: space.lg, borderRadius: radius.lg, marginBottom: space.md, borderWidth: 1, borderColor: colors.border, gap: space.xs },
   blockTitle: { ...type.h3, marginBottom: space.xs },
   line: { ...type.body },

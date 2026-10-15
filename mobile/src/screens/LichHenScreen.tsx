@@ -15,6 +15,8 @@ import { Appointment, apptTimestamp, bookingStatusMeta, formatGroupHeader, getCo
 import AppointmentCard from '../components/AppointmentCard';
 import { useBookings } from '../context/BookingsContext';
 import { AppButton, BrandGradient, EmptyState, LoadingState, Notice, ScreenHeader, Segmented, StatusPill } from '../ui';
+import SelectListSheet from '../components/SelectListSheet';
+import { filterHistory, historySummary, historyYears } from '../utils/bookingHistory';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<HoatDongStackParamList, 'HoatDongMain'>,
@@ -25,7 +27,7 @@ type SubTab = 'upcoming' | 'history';
 
 const SUB_TAB_EMPTY: Record<SubTab, { icon: 'calendar-outline' | 'time-outline'; title: string; subtitle: string }> = {
   upcoming: { icon: 'calendar-outline', title: 'Chưa có lịch hẹn sắp tới', subtitle: 'Tìm dịch vụ phù hợp và đặt lịch chỉ trong vài bước.' },
-  history: { icon: 'time-outline', title: 'Chưa có lịch sử lịch hẹn', subtitle: 'Lịch đã hoàn thành, đã hủy hoặc quá giờ chưa được cập nhật sẽ xuất hiện ở đây.' },
+  history: { icon: 'time-outline', title: 'Chưa có lịch sử lịch hẹn', subtitle: 'Các lịch đã qua hoặc đã hủy xuất hiện ở đây.' },
 };
 
 export default function LichHenScreen({ navigation }: Props) {
@@ -33,20 +35,27 @@ export default function LichHenScreen({ navigation }: Props) {
   const { isLoading, isRefreshing, error, reload } = useBookings();
   const [isPullRefreshing, setPullRefreshing] = useState(false);
   const [subTab, setSubTab] = useState<SubTab>('upcoming');
+  const [historyMonth, setHistoryMonth] = useState<number | null>(null);
+  const [historyYear, setHistoryYear] = useState<number | null>(null);
+  const [periodPicker, setPeriodPicker] = useState<'month' | 'year' | null>(null);
 
   useFocusEffect(useCallback(() => {
     void reload();
   }, [reload]));
 
+  const history = useMemo(() => appointments.filter(item => item.status !== 'upcoming' || isPastUpcoming(item)), [appointments]);
+  const filteredHistory = useMemo(() => filterHistory(history, { month: historyMonth, year: historyYear }), [history, historyMonth, historyYear]);
+  const summary = useMemo(() => historySummary(filteredHistory), [filteredHistory]);
+  const years = useMemo(() => historyYears(history, new Date().getFullYear()), [history]);
+  const monthLabel = historyMonth === null ? 'Tất cả tháng' : `Tháng ${historyMonth}`;
+  const yearLabel = historyYear === null ? 'Tất cả năm' : `Năm ${historyYear}`;
   const subAppointments = useMemo(() => {
-    const filtered = appointments.filter((item) =>
-      subTab === 'upcoming'
-        ? item.status === 'upcoming' && !isPastUpcoming(item)
-        : item.status !== 'upcoming' || isPastUpcoming(item)
-    );
+    const filtered = subTab === 'upcoming'
+      ? appointments.filter(item => item.status === 'upcoming' && !isPastUpcoming(item))
+      : filteredHistory;
     const sorted = [...filtered].sort((a, b) => apptTimestamp(a) - apptTimestamp(b));
     return subTab === 'upcoming' ? sorted : sorted.reverse();
-  }, [appointments, subTab]);
+  }, [appointments, subTab, filteredHistory]);
 
   const heroItem = subTab === 'upcoming' ? subAppointments[0] : undefined;
   const restItems = subTab === 'upcoming' ? subAppointments.slice(1) : subAppointments;
@@ -73,11 +82,27 @@ export default function LichHenScreen({ navigation }: Props) {
     <View style={styles.screen}>
       <ScreenHeader brand title="Lịch hẹn" right={<AppButton compact variant="onDark" icon="calendar-number-outline" label="Theo lịch" accessibilityLabel="Xem lịch hẹn theo tháng" onPress={() => navigation.navigate('CalendarView')} />} />
       <Segmented style={styles.segment} value={subTab} onChange={setSubTab} options={[{ key: 'upcoming', label: 'Sắp tới' }, { key: 'history', label: 'Lịch sử' }]} />
+      {subTab === 'history' && <View style={styles.historyPanel}>
+        <View style={styles.historyFilters}>
+          <AppButton compact variant="outline" icon="calendar-outline" label={monthLabel} accessibilityLabel={`Lọc lịch sử: ${monthLabel}`} onPress={() => setPeriodPicker('month')} style={styles.flex} />
+          <AppButton compact variant="outline" icon="chevron-down" label={yearLabel} accessibilityLabel={`Lọc lịch sử: ${yearLabel}`} onPress={() => setPeriodPicker('year')} style={styles.flex} />
+        </View>
+        {!isLoading && (!error || appointments.length > 0) && <>
+          <View style={styles.historyStats} accessibilityLiveRegion="polite">
+            {[{ label: 'Tổng số lịch', value: summary.total, color: colors.primary }, { label: 'Đã hoàn thành', value: summary.completed, color: colors.success }, { label: 'Đã hủy', value: summary.cancelled, color: colors.error }].map(stat => (
+              <View key={stat.label} accessible accessibilityLabel={`${stat.label}: ${stat.value}`} style={styles.historyStat}>
+                <Text style={[styles.statNumber, { color: stat.color }]}>{stat.value}</Text><Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.historyHint}>Thống kê theo ngày hẹn. Lịch chỉ qua giờ chưa được tính là hoàn thành.</Text>
+        </>}
+      </View>}
 
       {isLoading && appointments.length === 0 ? <LoadingState message="Đang tải lịch hẹn…" /> : subAppointments.length === 0 ? (
         error
           ? <EmptyState icon="cloud-offline-outline" tone="warning" title="Không tải được lịch hẹn" message={error} actionLabel="Thử lại" onAction={() => void reload()} />
-          : <EmptyState icon={empty.icon} tone={subTab === 'upcoming' ? 'request' : 'neutral'} title={empty.title} message={empty.subtitle} actionLabel={subTab === 'upcoming' ? 'Tìm dịch vụ' : undefined} onAction={() => navigation.navigate('TimKiem')} />
+          : <EmptyState icon={empty.icon} tone={subTab === 'upcoming' ? 'request' : 'neutral'} title={subTab === 'history' && (historyMonth !== null || historyYear !== null) ? 'Không có lịch trong kỳ đã chọn' : empty.title} message={empty.subtitle} actionLabel={subTab === 'upcoming' ? 'Tìm dịch vụ' : undefined} onAction={() => navigation.navigate('TimKiem')} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -96,6 +121,15 @@ export default function LichHenScreen({ navigation }: Props) {
           ))}
         </ScrollView>
       )}
+      <SelectListSheet visible={periodPicker !== null} title={periodPicker === 'month' ? 'Chọn tháng' : 'Chọn năm'}
+        options={periodPicker === 'month' ? ['Tất cả tháng', ...Array.from({ length: 12 }, (_, i) => `Tháng ${i + 1}`)] : ['Tất cả năm', ...years.map(year => `Năm ${year}`)]}
+        selectedValue={periodPicker === 'month' ? monthLabel : yearLabel} onClose={() => setPeriodPicker(null)} columns={2}
+        onSelect={label => {
+          const value = Number(label.split(' ')[1]);
+          if (periodPicker === 'month') setHistoryMonth(Number.isFinite(value) ? value : null);
+          else setHistoryYear(Number.isFinite(value) ? value : null);
+          setPeriodPicker(null);
+        }} />
     </View>
   );
 }
@@ -129,6 +163,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   segment: { marginHorizontal: layout.gutter, marginTop: space.lg, marginBottom: space.sm },
+  historyPanel: { paddingHorizontal: layout.gutter, paddingBottom: space.md, gap: space.sm },
+  historyFilters: { flexDirection: 'row', gap: space.sm },
+  historyStats: { flexDirection: 'row', gap: space.sm },
+  historyStat: { flex: 1, minWidth: 0, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space.sm, paddingVertical: space.md, alignItems: 'center', gap: space.xs },
+  statNumber: { ...type.h1, fontVariant: ['tabular-nums'] },
+  statLabel: { ...type.caption, textAlign: 'center' },
+  historyHint: { ...type.caption },
   content: { paddingHorizontal: layout.gutter, paddingTop: space.md, paddingBottom: TAB_BAR_CLEARANCE + space.lg },
   notice: { marginBottom: space.md },
   hero: { borderRadius: radius.xl, marginBottom: space.xxl },

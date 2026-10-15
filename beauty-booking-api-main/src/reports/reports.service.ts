@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FinancialMetricsService } from '../payments/financial-metrics.service';
+import { ATTENDED_BOOKING_STATUSES, hasRecordedVisit } from '../bookings/booking-attendance';
 
 export interface ReportScope {
   businessIds?: string[];
@@ -324,6 +325,7 @@ export class ReportsService {
           branchId: true,
           appointmentDate: true,
           status: true,
+          statusHistory: { where: { status: { in: [...ATTENDED_BOOKING_STATUSES] } }, take: 1, select: { status: true } },
           voucherDiscountAmount: true,
           paymentTransactions: { select: { amount: true, status: true } },
           payments: {
@@ -336,6 +338,7 @@ export class ReportsService {
           },
           bookingServices: {
             select: {
+              status: true,
               priceAtBooking: true,
               comboId: true,
               service: { select: { id: true, name: true } },
@@ -577,11 +580,11 @@ export class ReportsService {
         .filter((payment) => payment.transactions.length === 0 && ['PAID', 'PARTIALLY_REFUNDED', 'REFUNDED'].includes(payment.status))
         .reduce((sum, payment) => sum + Number(payment.amount) - payment.refundRequests.reduce((refundSum, item) => refundSum + Number(item.amount), 0), 0);
       netByBooking.set(booking.id, transactionNet + legacyNet);
-      const itemSubtotal = booking.bookingServices.reduce((sum, item) => sum + Number(item.priceAtBooking), 0) || 1;
-      const recognizedForBooking = booking.status === 'COMPLETED' ? Math.max(0, netByBooking.get(booking.id) ?? 0) : 0;
+      const itemSubtotal = booking.bookingServices.filter(item => !['SKIPPED', 'CANCELLED'].includes(item.status)).reduce((sum, item) => sum + Number(item.priceAtBooking), 0) || 1;
+      const recognizedForBooking = hasRecordedVisit(booking) ? Math.max(0, netByBooking.get(booking.id) ?? 0) : 0;
       for (const item of booking.bookingServices) {
         const price = Number(item.priceAtBooking);
-        const recognizedItemRevenue = recognizedForBooking * price / itemSubtotal;
+        const recognizedItemRevenue = ['SKIPPED', 'CANCELLED'].includes(item.status) ? 0 : recognizedForBooking * price / itemSubtotal;
         const service = serviceMap.get(item.service.id) ?? {
           id: item.service.id,
           name: item.service.name,

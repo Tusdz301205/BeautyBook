@@ -2,6 +2,17 @@ import type { PrismaService } from '../prisma/prisma.service';
 import { PricingEngineService } from './pricing-engine.service';
 
 describe('PricingEngineService quote', () => {
+  it.each(['NEW_CUSTOMER', 'RETURNING_CUSTOMER'])('actual prior check-in determines %s promotion eligibility without fake completion', async audience => {
+    const findCustomer = jest.fn(async ({ select }) => ({ user: { dateOfBirth: null },
+      bookings: (select.bookings.where.OR[0].status.in ?? []).includes('CHECKED_IN') ? [{ id: 'prior-visit' }] : [] }));
+    const prisma = { branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'business' }) },
+      promotion: { findMany: jest.fn().mockResolvedValue([{ id: 'promo', name: 'Offer', version: 1, audience, discountType: 'FIXED_AMOUNT', discountValue: 10,
+        totalQuantity: 100, maxUsagePerCustomer: 2, stackingAllowed: false, startDate: new Date('2026-08-01'), endDate: new Date('2026-09-01'), branchLinks: [], comboLinks: [], serviceLinks: [] }]) },
+      customerProfile: { findUnique: findCustomer }, customerBusinessSegment: { findMany: jest.fn().mockResolvedValue([]) }, promotionRedemption: { count: jest.fn().mockResolvedValue(0) } };
+    const quote = await new PricingEngineService(prisma as never).quote({ customerId: 'customer', branchId: 'branch', serviceIds: ['service'], subtotal: 100, at: new Date('2026-08-22T00:00:00Z') });
+    expect(Boolean(quote.promotion)).toBe(audience === 'RETURNING_CUSTOMER');
+    expect(quote.finalAmount).toBe(audience === 'RETURNING_CUSTOMER' ? 90 : 100);
+  });
   it('applies a service-scoped promotion only to the eligible line value', async () => {
     const prisma = {
       branch: { findUnique: jest.fn().mockResolvedValue({ businessId: 'business-1' }) },

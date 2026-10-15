@@ -16,7 +16,7 @@ export interface ServiceSearchFilters {
 
 export const servicesApi = {
   list: (branchId?: string) => apiRequest<ApiService[]>(withQuery('/services', { branchId, limit: 100 })),
-  detail: (id: string) => apiRequest<ApiService | null>(`/services/${id}`),
+  detail: (id: string) => apiRequest<ApiService | null>(`/services/${encodeURIComponent(id)}`),
   categories: () => apiRequest<ApiCategory[]>('/services/categories'),
   search: (filters: ServiceSearchFilters = {}) =>
     apiRequest<ApiSearchResponse>(withQuery('/services/search', filters)),

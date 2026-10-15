@@ -1,3 +1,4 @@
+import { attendanceLabel, reviewEligible } from '../../utils/bookingAffordances';
 import React, { useEffect, useState } from 'react';
 import { differenceInHours, differenceInMinutes, format } from 'date-fns';
 import { ArrowRight, ArrowRightLeft, Building2, CalendarCheck, CalendarPlus, CheckCircle2, Clock3, Compass, Eye, MapPin, Pause, Play, Repeat2, Star, XCircle } from 'lucide-react';
@@ -14,8 +15,8 @@ import { Badge, Button, Card, Dialog, ErrorState, Field, InlineNotice, Page, Pag
 import { combineDateTime } from '../../utils/bookingCalendar.adapter';
 import { customerCancellationMode, submitCustomerCancellation } from '../../utils/customerCancellation';
 
-const TABS = [['upcoming', 'Sắp tới', CalendarCheck], ['completed', 'Hoàn thành', CheckCircle2], ['cancelled', 'Đã hủy', XCircle]];
-const labels = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
+const TABS = [['upcoming', 'Sắp tới', CalendarCheck], ['completed', 'Lịch sử', CheckCircle2], ['cancelled', 'Đã hủy', XCircle]];
+const labels = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', CHECKED_IN: 'Khách đã đến', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', NO_SHOW: 'Không đến', REJECTED: 'Đã từ chối', EXPIRED: 'Hết hạn giữ chỗ' };
 const tones = { PENDING: 'warning', CONFIRMED: 'info', CHECKED_IN: 'info', IN_PROGRESS: 'brand', COMPLETED: 'success', CANCELLED: 'danger', NO_SHOW: 'neutral', REJECTED: 'danger', EXPIRED: 'neutral' };
 const requestLabels = { PENDING: 'Đang chờ duyệt', APPROVED: 'Đã chấp nhận', REJECTED: 'Bị từ chối', EXPIRED: 'Đã hết hạn' };
 
@@ -45,7 +46,7 @@ export function CustomerAppointments() {
   const loading = resource.loading;
   const error = resource.error?.message || '';
   const load = resource.reload;
-  useCustomerBookingRefresh(load);
+  useCustomerBookingRefresh(load, bookings);
   useEffect(() => { setReschedule(null); setReview(null); setCancel(null); setPlanCancel(null); setReason(''); }, [userId]);
   useEffect(() => {
     let active = true;
@@ -110,7 +111,7 @@ function AppointmentEmpty({ tab, recommendations, recommendationsLoading, recomm
   const content = tab === 'upcoming'
     ? { title: 'Dành chỗ cho lần chăm sóc tiếp theo', description: 'Bạn chưa có lịch sắp tới. Chọn cơ sở, dịch vụ và thời gian phù hợp để đặt lịch.' }
     : tab === 'completed'
-      ? { title: 'Hành trình làm đẹp của bạn sẽ hiện ở đây', description: 'Khi một lịch được cơ sở hoàn thành, bạn có thể xem lại chi tiết, đặt lại dịch vụ và gửi đánh giá tại trang này.' }
+      ? { title: 'Hành trình làm đẹp của bạn sẽ hiện ở đây', description: 'Các lịch đã qua hiện ở đây. Bạn có thể xem chi tiết, đặt lại và đánh giá khi đủ điều kiện.' }
       : { title: 'Không có lịch hẹn bị hủy', description: 'Đây là một trạng thái tốt. Bạn có thể tiếp tục khám phá cơ sở hoặc bắt đầu một lịch hẹn mới.' };
   return <section className="bb-appointment-empty" aria-labelledby="appointment-empty-title">
     <div className="bb-appointment-empty__layout">
@@ -151,10 +152,10 @@ function BookingCard({ booking, tab, policy, onCancel, onReschedule, onReview, o
   const canReschedule = policy.allowRescheduleRequests && !rescheduleLimitReached && tab === 'upcoming' && hours >= 1 && latestRequest?.status !== 'PENDING';
   const cancellationMode = customerCancellationMode(booking);
   const canCancel = tab === 'upcoming' && ['direct', 'request'].includes(cancellationMode);
-  const canReview = tab === 'completed' && booking.status === 'COMPLETED' && !booking.review;
+  const canReview = tab === 'completed' && reviewEligible(booking);
   const duration = start && end ? Math.max(0, differenceInMinutes(end, start)) : services.reduce((sum, item) => sum + Number(item.service?.durationMinutes || 0), 0);
   return <Card as="article" className="bb-appointment-card flex flex-col overflow-hidden">
-    <div className="flex items-start justify-between gap-3 border-b border-[var(--bb-border)] p-5"><div className="min-w-0"><h2 className="truncate font-bold">{booking.branch?.business?.name || booking.branch?.name || 'Cơ sở làm đẹp'}</h2><p className="mt-1 flex items-start gap-1 text-xs text-[var(--bb-muted)]"><MapPin size={13} className="mt-0.5 shrink-0" />{booking.branch?.addressLine || 'Chưa cập nhật địa chỉ'}</p></div><Badge tone={tones[booking.status] || 'neutral'}>{labels[booking.status] || booking.status || '—'}</Badge></div>
+    <div className="flex items-start justify-between gap-3 border-b border-[var(--bb-border)] p-5"><div className="min-w-0"><h2 className="truncate font-bold">{booking.branch?.business?.name || booking.branch?.name || 'Cơ sở làm đẹp'}</h2><p className="mt-1 flex items-start gap-1 text-xs text-[var(--bb-muted)]"><MapPin size={13} className="mt-0.5 shrink-0" />{booking.branch?.addressLine || 'Chưa cập nhật địa chỉ'}</p></div><Badge tone={tones[booking.status] || 'neutral'}>{attendanceLabel(booking, labels[booking.status] || booking.status || '—')}</Badge></div>
     <div className="flex-1 p-5"><div className="flex items-start gap-3 rounded-xl bg-[var(--bb-surface-subtle)] p-3"><CalendarCheck size={18} className="mt-0.5 text-[var(--bb-brand-strong)]" /><div><p className="text-sm font-bold">{start ? format(start, 'dd/MM/yyyy · HH:mm') : '—'}</p><p className="mt-1 text-xs text-[var(--bb-muted)]">{end ? `Kết thúc ${format(end, 'HH:mm')}` : 'Chưa có giờ kết thúc'}</p></div></div>
       <div className="mt-4 divide-y divide-[var(--bb-border)]">{services.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span>{item.service?.name || 'Dịch vụ'}{item.staff && <small className="block text-[var(--bb-muted)]">{item.staff.user?.fullName || item.staff.fullName}</small>}</span><strong>{Number(item.priceAtBooking || 0).toLocaleString('vi-VN')}₫</strong></div>)}</div>
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--bb-muted)]">{booking.bookingCode && <span>Mã lịch <span className="bb-mono font-semibold text-[var(--bb-ink)]">{booking.bookingCode}</span></span>}{duration > 0 && <Badge>{duration} phút</Badge>}</div>

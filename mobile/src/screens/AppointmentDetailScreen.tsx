@@ -18,6 +18,7 @@ import { platformSettingsApi } from '../api/platformSettings';
 import { serviceTimingLines } from '../utils/bookingTiming';
 import { useOperationalTime } from '../hooks/useOperationalTime';
 import { operationalTimeLabel } from '../utils/bookingOperationalTime';
+import { buildReviewInput, type ServiceReviewDrafts } from '../utils/reviewForm';
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<HoatDongStackParamList, 'AppointmentDetail'>,
@@ -51,6 +52,8 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
   const [reviewMinLength, setReviewMinLength] = useState(0);
   const rawStatus = booking?.rawStatus;
   const operationalNow = useOperationalTime(booking?.serverNow, !isLoading && !error);
+  const canReview = isReal && !isLoading && !error && booking?.canReview === true && !booking.reviewed &&
+    (rawStatus === 'COMPLETED' || (rawStatus === 'CHECKED_IN' && currentStatus === 'completed'));
   const meta = bookingStatusMeta(currentStatus, rawStatus);
 
   useFocusEffect(useCallback(() => {
@@ -68,7 +71,9 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
           ? ['Lịch hẹn được ghi nhận là không đến.']
           : rawStatus === 'CANCELLED'
             ? ['Lịch hẹn đã hủy. Bạn có thể đặt lịch mới nếu cần.']
-            : currentStatus === 'completed'
+            : rawStatus === 'CHECKED_IN' && currentStatus === 'completed'
+              ? ['Cơ sở đã ghi nhận bạn đến; lịch dự kiến đã qua. Các mốc thực tế được hiển thị theo dữ liệu đã ghi nhận.']
+            : rawStatus === 'COMPLETED'
               ? ['Lịch hẹn đã hoàn thành. Bạn có thể đánh giá trải nghiệm của mình.']
               : rawStatus === 'CHECKED_IN'
                 ? ['Cơ sở đã ghi nhận bạn đến. Vui lòng chờ chuyên viên tiếp nhận.']
@@ -141,19 +146,13 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
     );
   };
 
-  const handleSubmitReview = async (score: number, text: string) => {
+  const handleSubmitReview = async (score: number, text: string, serviceReviews: ServiceReviewDrafts) => {
+    if (!canReview || isSubmittingReview) return;
+    const input = buildReviewInput(id, score, text, booking.bookingServices, serviceReviews, reviewMinLength);
+    if (!input) return;
     setSubmittingReview(true);
     try {
-      await reviewsApi.create({
-        bookingId: id,
-        overallRating: score,
-        comment: text || undefined,
-        serviceRatings: booking?.bookingServices.map((item) => ({
-          bookingServiceId: item.id,
-          staffId: item.staffId,
-          rating: score,
-        })),
-      });
+      await reviewsApi.create(input);
       setReviewVisible(false);
       await reload();
       Alert.alert('Đã gửi đánh giá', 'Cảm ơn bạn đã chia sẻ trải nghiệm.');
@@ -223,7 +222,7 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
             {operationalTimeLabel(item, rawStatus ?? '', operationalNow) && <View style={styles.warningRow}>
               <Ionicons name="warning-outline" size={18} color={tones.warning.fg} />
               <Text style={styles.warningText}>
-                {item.status === 'IN_PROGRESS' ? 'Thời gian phục vụ đang vượt giờ dự kiến.' : 'Giờ dự kiến đã đến; chưa có ghi nhận bắt đầu. Bạn có thể liên hệ cơ sở để được hỗ trợ.'}
+                {item.status === 'IN_PROGRESS' ? 'Thời gian phục vụ đang vượt giờ dự kiến.' : 'Giờ dự kiến đã đến. Bạn có thể liên hệ cơ sở để được hỗ trợ.'}
               </Text>
             </View>}
             {serviceTimingLines(item, booking.branchTimezone).map(line => (
@@ -251,19 +250,19 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
         )}
 
         <View style={styles.actions}>
-          {isReal && currentStatus === 'completed' && !booking?.reviewed && (
+          {canReview && (
             <TouchableOpacity accessibilityRole="button" style={styles.primaryButton} onPress={() => setReviewVisible(true)}>
               <Ionicons name="star-outline" size={20} color={colors.onPrimary} />
               <Text style={styles.primaryButtonText}>Viết đánh giá</Text>
             </TouchableOpacity>
           )}
           {isReal && booking && currentStatus !== 'upcoming' && (
-            <TouchableOpacity accessibilityRole="button" style={currentStatus === 'completed' && !booking.reviewed ? styles.outlineButton : styles.primaryButton} onPress={() => {
+            <TouchableOpacity accessibilityRole="button" style={canReview ? styles.outlineButton : styles.primaryButton} onPress={() => {
               if (!booking.branchId) { Alert.alert('Chọn lại cơ sở', 'Lịch cũ không còn thông tin cơ sở. Hãy tìm dịch vụ để đặt lịch mới.'); navigation.navigate('TimKiem'); return; }
               navigation.navigate('DiaDiem', { screen: 'VenueDetail', params: { venueId: booking.branchId, serviceIds: booking.serviceIds, rebooking: true } });
             }}>
-              <Ionicons name="refresh-outline" size={20} color={currentStatus === 'completed' && !booking.reviewed ? colors.primary : colors.onPrimary} />
-              <Text style={currentStatus === 'completed' && !booking.reviewed ? styles.outlineButtonText : styles.primaryButtonText}>Đặt lại dịch vụ</Text>
+              <Ionicons name="refresh-outline" size={20} color={canReview ? colors.primary : colors.onPrimary} />
+              <Text style={canReview ? styles.outlineButtonText : styles.primaryButtonText}>Đặt lại dịch vụ</Text>
             </TouchableOpacity>
           )}
           {canChange && allowReschedule && hoursUntilAppointment >= 1 && (
@@ -305,7 +304,7 @@ export default function AppointmentDetailScreen({ route, navigation }: Props) {
         </View>
       </ScrollView>
 
-      <WriteReviewSheet visible={isReviewVisible} onClose={() => setReviewVisible(false)} onSubmit={handleSubmitReview} isSubmitting={isSubmittingReview} minLength={reviewMinLength} />
+      <WriteReviewSheet key={id} services={booking.bookingServices} visible={isReviewVisible && canReview} onClose={() => setReviewVisible(false)} onSubmit={handleSubmitReview} isSubmitting={isSubmittingReview} minLength={reviewMinLength} />
     </View>
   );
 }

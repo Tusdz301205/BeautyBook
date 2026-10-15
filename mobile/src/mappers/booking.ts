@@ -1,8 +1,9 @@
+import { checkedInHistory, type BookingSchedule } from '../utils/bookingSchedule';
 import type { ApiBooking } from '../types/api';
 import type { ConfirmedBooking, BookingStatus } from '../context/BookingsContext';
 
-export function mapBookingStatus(status: string): BookingStatus {
-  if (status === 'COMPLETED') return 'completed';
+export function mapBookingStatus(status: string, schedule: BookingSchedule = {}): BookingStatus {
+  if (status === 'COMPLETED' || checkedInHistory(status, schedule)) return 'completed';
   if (['CANCELLED', 'NO_SHOW', 'REJECTED', 'EXPIRED'].includes(status)) return 'cancelled';
   return 'upcoming';
 }
@@ -47,7 +48,13 @@ export function mapBooking(booking: ApiBooking): ConfirmedBooking {
     serverNow: booking.serverNow,
     branchTimezone: booking.branch?.timezone,
     totalPrice: Number(booking.finalAmount ?? booking.totalAmount ?? 0),
-    status: mapBookingStatus(booking.status),
+    status: mapBookingStatus(booking.status, booking),
+    attendanceWorkflow: booking.attendanceWorkflow,
+    scheduledStartAt: booking.scheduledStartAt,
+    scheduledEndAt: booking.scheduledEndAt,
+    scheduleElapsed: booking.scheduleElapsed,
+    scheduleBucket: booking.scheduleBucket,
+    canReview: booking.canReview,
     rawStatus: booking.status,
     reviewed: Boolean(booking.review),
     hasPendingCancellationRequest: Boolean(pendingCancellationRequest),

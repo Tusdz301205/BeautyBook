@@ -170,10 +170,8 @@ export class BookingsAccessService {
         const writeCode = `booking:${writeAction}:${scope}`;
         const actorRoles = this.rolesAtResource(user, info);
         const counter = actorRoles.some((role) => ['BUSINESS_OWNER', 'RECEPTIONIST'].includes(role));
-        if (scope === 'branch' && !counter && actorRoles.includes('STAFF')) {
-          if (info.staffUserId !== user.id || !['update', 'complete'].includes(action)) {
-            throw new ForbiddenException('Nhân viên chỉ được thao tác dịch vụ được phân công cho mình');
-          }
+        if (!counter && actorRoles.includes('STAFF')) {
+          throw new ForbiddenException({ code: 'STAFF_SCHEDULE_READ_ONLY', message: 'Nhân viên chỉ xem lịch được phân công; quầy tiếp nhận ghi nhận khách đã đến' });
         }
         ensureCanOnResource(user, writeCode, {
           businessId: info.businessId,
@@ -183,6 +181,8 @@ export class BookingsAccessService {
         });
         return info;
       } catch (e) {
+        if (e instanceof ForbiddenException && typeof e.getResponse() === 'object' &&
+          (e.getResponse() as { code?: string }).code === 'STAFF_SCHEDULE_READ_ONLY') throw e;
         lastErr = e;
       }
     }

@@ -28,7 +28,7 @@ export const BOOKING_STATUSES = {
   },
   CHECKED_IN: {
     enum: 'CHECKED_IN',
-    label: 'Đã đến',
+    label: 'Khách đã đến',
     color: 'bg-cyan-100 text-cyan-800 border-cyan-200',
     icon: 'UserCheck',
     event: 'bg-cyan-50 text-cyan-950 border-cyan-300',

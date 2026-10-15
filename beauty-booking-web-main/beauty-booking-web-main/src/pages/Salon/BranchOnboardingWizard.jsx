@@ -146,7 +146,7 @@ function valueOrEmpty(value) {
 
 function splitAreas(value) {
   return String(value || '')
-    .split(',')
+    .split(/[,;\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
@@ -344,9 +344,6 @@ export default function BranchOnboardingWizard() {
     directions: form.directions.trim() || undefined,
     serviceMode: form.serviceMode,
     serviceAreas: splitAreas(form.serviceAreas),
-    serviceRadiusKm: Number(form.serviceRadiusKm) || undefined,
-    travelFee: Number(form.travelFee) || 0,
-    excludedServiceAreas: splitAreas(form.excludedServiceAreas),
     timezone: form.timezone,
     bookingStartDate: form.bookingStartDate || undefined,
     bookingConfirmationMode: form.bookingConfirmationMode,
@@ -387,7 +384,6 @@ export default function BranchOnboardingWizard() {
         draftData: {
           wizardVersion: WIZARD_VERSION,
           serviceAreas: form.serviceAreas,
-          excludedServiceAreas: form.excludedServiceAreas,
         },
         ...(step === 4 ? { workingHours: form.openingHours } : {}),
         ...(step === 8 ? {
@@ -677,12 +673,9 @@ export default function BranchOnboardingWizard() {
                   </div>
                 )}
                 {form.serviceMode !== 'AT_LOCATION' && (
-                  <div className="grid gap-4 rounded-xl border border-[var(--bb-border)] p-4 sm:grid-cols-2">
-                    <Field label="Khu vực phục vụ" required hint="Ngăn cách bằng dấu phẩy"><Input value={form.serviceAreas} onChange={set('serviceAreas')} /></Field>
-                    <Field label="Bán kính (km)"><Input type="number" min="1" value={form.serviceRadiusKm} onChange={set('serviceRadiusKm')} /></Field>
-                    <Field label="Phí di chuyển"><Input type="number" min="0" value={form.travelFee} onChange={set('travelFee')} /></Field>
-                    <Field label="Khu vực không hỗ trợ"><Input value={form.excludedServiceAreas} onChange={set('excludedServiceAreas')} /></Field>
-                  </div>
+                  <Field label="Khu vực nhận dịch vụ tại nhà" required hint="Mỗi khu vực một dòng. Ví dụ: Quận 1, Quận 3." className="min-w-0">
+                    <Textarea rows={3} value={form.serviceAreas} onChange={set('serviceAreas')} placeholder={'Quận 1\nQuận 3'} />
+                  </Field>
                 )}
               </div>
             )}

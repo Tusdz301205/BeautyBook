@@ -1,0 +1,2289 @@
+{
+  "name": "19_database_diagram_tong_quat",
+  "tables": 36,
+  "relationships": 64,
+  "width": 2500,
+  "height": 1470,
+  "source_sha256": "b1807ab08872a70dc9923bc09b1200433749139dc98c8f33c17170bd1ba6981d",
+  "nodes": {
+    "Role": {
+      "name": "roles",
+      "model": "Role",
+      "x": 54,
+      "y": 36,
+      "w": 324,
+      "h": 88,
+      "keys": [
+        "id"
+      ],
+      "attrs": [
+        "PK  id"
+      ]
+    },
+    "UserRole": {
+      "name": "user_roles",
+      "model": "UserRole",
+      "x": 468,
+      "y": 36,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "userId",
+        "roleId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  userId",
+        "FK  roleId"
+      ]
+    },
+    "User": {
+      "name": "users",
+      "model": "User",
+      "x": 882,
+      "y": 36,
+      "w": 324,
+      "h": 88,
+      "keys": [
+        "id"
+      ],
+      "attrs": [
+        "PK  id"
+      ]
+    },
+    "BusinessOwnerProfile": {
+      "name": "business_owner_profiles",
+      "model": "BusinessOwnerProfile",
+      "x": 1296,
+      "y": 36,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "userId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK UQ  userId"
+      ]
+    },
+    "Business": {
+      "name": "businesses",
+      "model": "Business",
+      "x": 1710,
+      "y": 36,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "ownerId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  ownerId"
+      ]
+    },
+    "ServiceCategory": {
+      "name": "service_categories",
+      "model": "ServiceCategory",
+      "x": 2124,
+      "y": 36,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "businessId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId"
+      ]
+    },
+    "Notification": {
+      "name": "notifications",
+      "model": "Notification",
+      "x": 54,
+      "y": 270,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "userId",
+        "relatedBookingId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  userId",
+        "FK  relatedBookingId?"
+      ]
+    },
+    "CustomerProfile": {
+      "name": "customer_profiles",
+      "model": "CustomerProfile",
+      "x": 468,
+      "y": 270,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "userId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK UQ  userId"
+      ]
+    },
+    "BookingContact": {
+      "name": "booking_contacts",
+      "model": "BookingContact",
+      "x": 882,
+      "y": 270,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "bookingId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK UQ  bookingId"
+      ]
+    },
+    "Branch": {
+      "name": "branches",
+      "model": "Branch",
+      "x": 1296,
+      "y": 270,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "businessId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId"
+      ]
+    },
+    "BusinessService": {
+      "name": "business_services",
+      "model": "BusinessService",
+      "x": 1710,
+      "y": 270,
+      "w": 324,
+      "h": 160,
+      "keys": [
+        "id",
+        "businessId",
+        "categoryId",
+        "canonicalServiceId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId",
+        "FK  categoryId",
+        "FK  canonicalServiceId?"
+      ]
+    },
+    "CanonicalService": {
+      "name": "canonical_services",
+      "model": "CanonicalService",
+      "x": 2124,
+      "y": 270,
+      "w": 324,
+      "h": 88,
+      "keys": [
+        "id"
+      ],
+      "attrs": [
+        "PK  id"
+      ]
+    },
+    "CustomerVoucher": {
+      "name": "customer_vouchers",
+      "model": "CustomerVoucher",
+      "x": 54,
+      "y": 504,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "customerId",
+        "voucherId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  customerId",
+        "FK  voucherId"
+      ]
+    },
+    "Voucher": {
+      "name": "vouchers",
+      "model": "Voucher",
+      "x": 468,
+      "y": 504,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "businessId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId?"
+      ]
+    },
+    "Booking": {
+      "name": "bookings",
+      "model": "Booking",
+      "x": 882,
+      "y": 504,
+      "w": 324,
+      "h": 184,
+      "keys": [
+        "id",
+        "customerId",
+        "branchId",
+        "recurringPlanId",
+        "voucherId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  customerId",
+        "FK  branchId",
+        "FK  recurringPlanId?",
+        "FK  voucherId?"
+      ]
+    },
+    "StaffProfile": {
+      "name": "staff_profiles",
+      "model": "StaffProfile",
+      "x": 1296,
+      "y": 504,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "branchId",
+        "userId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  branchId",
+        "FK UQ  userId?"
+      ]
+    },
+    "BranchServiceOffering": {
+      "name": "services",
+      "model": "BranchServiceOffering",
+      "x": 1710,
+      "y": 504,
+      "w": 324,
+      "h": 160,
+      "keys": [
+        "id",
+        "branchId",
+        "businessServiceId",
+        "categoryId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  branchId",
+        "FK  businessServiceId",
+        "FK  categoryId"
+      ]
+    },
+    "ServiceVariant": {
+      "name": "service_variants",
+      "model": "ServiceVariant",
+      "x": 2124,
+      "y": 504,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "serviceId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  serviceId"
+      ]
+    },
+    "VoucherRedemption": {
+      "name": "voucher_redemptions",
+      "model": "VoucherRedemption",
+      "x": 54,
+      "y": 738,
+      "w": 324,
+      "h": 160,
+      "keys": [
+        "id",
+        "bookingId",
+        "voucherId",
+        "customerVoucherId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  bookingId",
+        "FK  voucherId",
+        "FK  customerVoucherId?"
+      ]
+    },
+    "Payment": {
+      "name": "payments",
+      "model": "Payment",
+      "x": 468,
+      "y": 738,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "bookingId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  bookingId"
+      ]
+    },
+    "RecurringBookingPlan": {
+      "name": "recurring_booking_plans",
+      "model": "RecurringBookingPlan",
+      "x": 882,
+      "y": 738,
+      "w": 324,
+      "h": 184,
+      "keys": [
+        "id",
+        "customerId",
+        "branchId",
+        "staffId",
+        "comboId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  customerId",
+        "FK  branchId",
+        "FK  staffId?",
+        "FK  comboId?"
+      ]
+    },
+    "BookingService": {
+      "name": "booking_services",
+      "model": "BookingService",
+      "x": 1296,
+      "y": 738,
+      "w": 324,
+      "h": 184,
+      "keys": [
+        "id",
+        "bookingId",
+        "serviceId",
+        "staffId",
+        "comboId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  bookingId",
+        "FK  serviceId",
+        "FK  staffId?",
+        "FK  comboId?"
+      ]
+    },
+    "StaffService": {
+      "name": "staff_services",
+      "model": "StaffService",
+      "x": 1710,
+      "y": 738,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "staffId",
+        "serviceId"
+      ],
+      "attrs": [
+        "PK FK  staffId",
+        "PK FK  serviceId"
+      ]
+    },
+    "PromotionService": {
+      "name": "promotion_services",
+      "model": "PromotionService",
+      "x": 2124,
+      "y": 738,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "promotionId",
+        "serviceId"
+      ],
+      "attrs": [
+        "PK FK  promotionId",
+        "PK FK  serviceId"
+      ]
+    },
+    "PricingSnapshot": {
+      "name": "pricing_snapshots",
+      "model": "PricingSnapshot",
+      "x": 54,
+      "y": 972,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "bookingId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK UQ  bookingId"
+      ]
+    },
+    "Review": {
+      "name": "reviews",
+      "model": "Review",
+      "x": 468,
+      "y": 972,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "bookingId",
+        "customerId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK UQ  bookingId",
+        "FK  customerId"
+      ]
+    },
+    "ReviewServiceRating": {
+      "name": "review_service_ratings",
+      "model": "ReviewServiceRating",
+      "x": 882,
+      "y": 972,
+      "w": 324,
+      "h": 160,
+      "keys": [
+        "id",
+        "reviewId",
+        "bookingServiceId",
+        "staffId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  reviewId",
+        "FK UQ  bookingServiceId",
+        "FK  staffId?"
+      ]
+    },
+    "Combo": {
+      "name": "combos",
+      "model": "Combo",
+      "x": 1296,
+      "y": 972,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "businessId",
+        "branchId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId",
+        "FK  branchId"
+      ]
+    },
+    "ComboService": {
+      "name": "combo_services",
+      "model": "ComboService",
+      "x": 1710,
+      "y": 972,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "comboId",
+        "serviceId"
+      ],
+      "attrs": [
+        "PK FK  comboId",
+        "PK FK  serviceId"
+      ]
+    },
+    "Promotion": {
+      "name": "promotions",
+      "model": "Promotion",
+      "x": 2124,
+      "y": 972,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "businessId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  businessId?"
+      ]
+    },
+    "BookingStatusHistory": {
+      "name": "booking_status_histories",
+      "model": "BookingStatusHistory",
+      "x": 54,
+      "y": 1206,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "id",
+        "bookingId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  bookingId"
+      ]
+    },
+    "AppointmentChangeRequest": {
+      "name": "appointment_change_requests",
+      "model": "AppointmentChangeRequest",
+      "x": 468,
+      "y": 1206,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "bookingId",
+        "proposedStaffId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  bookingId",
+        "FK  proposedStaffId?"
+      ]
+    },
+    "StaffBranchAssignment": {
+      "name": "staff_branch_assignments",
+      "model": "StaffBranchAssignment",
+      "x": 882,
+      "y": 1206,
+      "w": 324,
+      "h": 136,
+      "keys": [
+        "id",
+        "staffId",
+        "branchId"
+      ],
+      "attrs": [
+        "PK  id",
+        "FK  staffId",
+        "FK  branchId"
+      ]
+    },
+    "PromotionBusiness": {
+      "name": "promotion_businesses",
+      "model": "PromotionBusiness",
+      "x": 1296,
+      "y": 1206,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "promotionId",
+        "businessId"
+      ],
+      "attrs": [
+        "PK FK  promotionId",
+        "PK FK  businessId"
+      ]
+    },
+    "PromotionBranch": {
+      "name": "promotion_branches",
+      "model": "PromotionBranch",
+      "x": 1710,
+      "y": 1206,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "promotionId",
+        "branchId"
+      ],
+      "attrs": [
+        "PK FK  promotionId",
+        "PK FK  branchId"
+      ]
+    },
+    "PromotionCombo": {
+      "name": "promotion_combos",
+      "model": "PromotionCombo",
+      "x": 2124,
+      "y": 1206,
+      "w": 324,
+      "h": 112,
+      "keys": [
+        "promotionId",
+        "comboId"
+      ],
+      "attrs": [
+        "PK FK  promotionId",
+        "PK FK  comboId"
+      ]
+    }
+  },
+  "edges": [
+    {
+      "source": "BookingContact",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          360
+        ],
+        [
+          864,
+          360
+        ],
+        [
+          864,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "BusinessService",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          360
+        ],
+        [
+          2052,
+          360
+        ],
+        [
+          2052,
+          102
+        ],
+        [
+          2034,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Booking",
+      "field": "recurringPlanId",
+      "target": "RecurringBookingPlan",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          642
+        ],
+        [
+          864,
+          642
+        ],
+        [
+          864,
+          804
+        ],
+        [
+          882,
+          804
+        ]
+      ]
+    },
+    {
+      "source": "StaffProfile",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          594
+        ],
+        [
+          1638,
+          594
+        ],
+        [
+          1638,
+          336
+        ],
+        [
+          1620,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "BranchServiceOffering",
+      "field": "businessServiceId",
+      "target": "BusinessService",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          618
+        ],
+        [
+          2049,
+          618
+        ],
+        [
+          2049,
+          336
+        ],
+        [
+          2034,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "VoucherRedemption",
+      "field": "customerVoucherId",
+      "target": "CustomerVoucher",
+      "reference": "id",
+      "points": [
+        [
+          54,
+          876
+        ],
+        [
+          36,
+          876
+        ],
+        [
+          36,
+          570
+        ],
+        [
+          54,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "BookingService",
+      "field": "staffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          876
+        ],
+        [
+          1635,
+          876
+        ],
+        [
+          1635,
+          570
+        ],
+        [
+          1620,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "BookingService",
+      "field": "comboId",
+      "target": "Combo",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          900
+        ],
+        [
+          1638,
+          900
+        ],
+        [
+          1638,
+          1038
+        ],
+        [
+          1620,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "StaffService",
+      "field": "serviceId",
+      "target": "BranchServiceOffering",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          828
+        ],
+        [
+          2052,
+          828
+        ],
+        [
+          2052,
+          570
+        ],
+        [
+          2034,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "PromotionService",
+      "field": "promotionId",
+      "target": "Promotion",
+      "reference": "id",
+      "points": [
+        [
+          2448,
+          804
+        ],
+        [
+          2466,
+          804
+        ],
+        [
+          2466,
+          1038
+        ],
+        [
+          2448,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "PromotionCombo",
+      "field": "promotionId",
+      "target": "Promotion",
+      "reference": "id",
+      "points": [
+        [
+          2448,
+          1272
+        ],
+        [
+          2466,
+          1272
+        ],
+        [
+          2466,
+          1038
+        ],
+        [
+          2448,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "UserRole",
+      "field": "userId",
+      "target": "User",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          126
+        ],
+        [
+          810,
+          126
+        ],
+        [
+          810,
+          102
+        ],
+        [
+          882,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "UserRole",
+      "field": "roleId",
+      "target": "Role",
+      "reference": "id",
+      "points": [
+        [
+          468,
+          150
+        ],
+        [
+          450,
+          150
+        ],
+        [
+          450,
+          102
+        ],
+        [
+          378,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "BusinessOwnerProfile",
+      "field": "userId",
+      "target": "User",
+      "reference": "id",
+      "points": [
+        [
+          1296,
+          126
+        ],
+        [
+          1278,
+          126
+        ],
+        [
+          1278,
+          102
+        ],
+        [
+          1206,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Business",
+      "field": "ownerId",
+      "target": "BusinessOwnerProfile",
+      "reference": "id",
+      "points": [
+        [
+          1710,
+          126
+        ],
+        [
+          1692,
+          126
+        ],
+        [
+          1692,
+          102
+        ],
+        [
+          1620,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "ServiceCategory",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          2124,
+          126
+        ],
+        [
+          2106,
+          126
+        ],
+        [
+          2106,
+          102
+        ],
+        [
+          2034,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "BusinessService",
+      "field": "canonicalServiceId",
+      "target": "CanonicalService",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          408
+        ],
+        [
+          2106,
+          408
+        ],
+        [
+          2106,
+          336
+        ],
+        [
+          2124,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "CustomerVoucher",
+      "field": "voucherId",
+      "target": "Voucher",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          618
+        ],
+        [
+          396,
+          618
+        ],
+        [
+          396,
+          570
+        ],
+        [
+          468,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "Booking",
+      "field": "voucherId",
+      "target": "Voucher",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          666
+        ],
+        [
+          810,
+          666
+        ],
+        [
+          810,
+          570
+        ],
+        [
+          792,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "ServiceVariant",
+      "field": "serviceId",
+      "target": "BranchServiceOffering",
+      "reference": "id",
+      "points": [
+        [
+          2124,
+          594
+        ],
+        [
+          2106,
+          594
+        ],
+        [
+          2106,
+          570
+        ],
+        [
+          2034,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "ReviewServiceRating",
+      "field": "reviewId",
+      "target": "Review",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          1062
+        ],
+        [
+          864,
+          1062
+        ],
+        [
+          864,
+          1038
+        ],
+        [
+          792,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "ComboService",
+      "field": "comboId",
+      "target": "Combo",
+      "reference": "id",
+      "points": [
+        [
+          1710,
+          1038
+        ],
+        [
+          1620,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "ComboService",
+      "field": "serviceId",
+      "target": "BranchServiceOffering",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          1062
+        ],
+        [
+          2052,
+          1062
+        ],
+        [
+          2052,
+          570
+        ],
+        [
+          2034,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "CustomerProfile",
+      "field": "userId",
+      "target": "User",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          360
+        ],
+        [
+          810,
+          360
+        ],
+        [
+          810,
+          102
+        ],
+        [
+          882,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Branch",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          360
+        ],
+        [
+          1695,
+          360
+        ],
+        [
+          1695,
+          102
+        ],
+        [
+          1710,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "BusinessService",
+      "field": "categoryId",
+      "target": "ServiceCategory",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          384
+        ],
+        [
+          2109,
+          384
+        ],
+        [
+          2109,
+          102
+        ],
+        [
+          2124,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "CustomerVoucher",
+      "field": "customerId",
+      "target": "CustomerProfile",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          594
+        ],
+        [
+          393,
+          594
+        ],
+        [
+          393,
+          336
+        ],
+        [
+          468,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "Booking",
+      "field": "customerId",
+      "target": "CustomerProfile",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          594
+        ],
+        [
+          813,
+          594
+        ],
+        [
+          813,
+          336
+        ],
+        [
+          792,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "Booking",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          618
+        ],
+        [
+          1224,
+          618
+        ],
+        [
+          1224,
+          336
+        ],
+        [
+          1296,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "BranchServiceOffering",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1710,
+          594
+        ],
+        [
+          1638,
+          594
+        ],
+        [
+          1638,
+          336
+        ],
+        [
+          1620,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "VoucherRedemption",
+      "field": "voucherId",
+      "target": "Voucher",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          852
+        ],
+        [
+          396,
+          852
+        ],
+        [
+          396,
+          570
+        ],
+        [
+          468,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "Payment",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          828
+        ],
+        [
+          867,
+          828
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "RecurringBookingPlan",
+      "field": "staffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          876
+        ],
+        [
+          1278,
+          876
+        ],
+        [
+          1278,
+          570
+        ],
+        [
+          1296,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "RecurringBookingPlan",
+      "field": "comboId",
+      "target": "Combo",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          900
+        ],
+        [
+          1224,
+          900
+        ],
+        [
+          1224,
+          1038
+        ],
+        [
+          1296,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "BookingService",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          1296,
+          828
+        ],
+        [
+          1227,
+          828
+        ],
+        [
+          1227,
+          570
+        ],
+        [
+          1206,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "BookingService",
+      "field": "serviceId",
+      "target": "BranchServiceOffering",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          852
+        ],
+        [
+          1695,
+          852
+        ],
+        [
+          1695,
+          570
+        ],
+        [
+          1710,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "StaffService",
+      "field": "staffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          1710,
+          804
+        ],
+        [
+          1635,
+          804
+        ],
+        [
+          1635,
+          570
+        ],
+        [
+          1620,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "PromotionService",
+      "field": "serviceId",
+      "target": "BranchServiceOffering",
+      "reference": "id",
+      "points": [
+        [
+          2124,
+          828
+        ],
+        [
+          2106,
+          828
+        ],
+        [
+          2106,
+          570
+        ],
+        [
+          2034,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "ReviewServiceRating",
+      "field": "bookingServiceId",
+      "target": "BookingService",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          1086
+        ],
+        [
+          1281,
+          1086
+        ],
+        [
+          1281,
+          804
+        ],
+        [
+          1296,
+          804
+        ]
+      ]
+    },
+    {
+      "source": "PromotionBranch",
+      "field": "promotionId",
+      "target": "Promotion",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          1272
+        ],
+        [
+          2106,
+          1272
+        ],
+        [
+          2106,
+          1038
+        ],
+        [
+          2124,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "Review",
+      "field": "customerId",
+      "target": "CustomerProfile",
+      "reference": "id",
+      "points": [
+        [
+          468,
+          1086
+        ],
+        [
+          450,
+          1086
+        ],
+        [
+          450,
+          336
+        ],
+        [
+          468,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "Combo",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          1086
+        ],
+        [
+          1632,
+          1086
+        ],
+        [
+          1632,
+          336
+        ],
+        [
+          1620,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "StaffProfile",
+      "field": "userId",
+      "target": "User",
+      "reference": "id",
+      "points": [
+        [
+          1296,
+          618
+        ],
+        [
+          1281,
+          618
+        ],
+        [
+          1281,
+          102
+        ],
+        [
+          1206,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "BranchServiceOffering",
+      "field": "categoryId",
+      "target": "ServiceCategory",
+      "reference": "id",
+      "points": [
+        [
+          2034,
+          642
+        ],
+        [
+          2109,
+          642
+        ],
+        [
+          2109,
+          102
+        ],
+        [
+          2124,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "RecurringBookingPlan",
+      "field": "customerId",
+      "target": "CustomerProfile",
+      "reference": "id",
+      "points": [
+        [
+          882,
+          828
+        ],
+        [
+          864,
+          828
+        ],
+        [
+          864,
+          807
+        ],
+        [
+          807,
+          807
+        ],
+        [
+          807,
+          336
+        ],
+        [
+          792,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "RecurringBookingPlan",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          852
+        ],
+        [
+          1224,
+          852
+        ],
+        [
+          1224,
+          336
+        ],
+        [
+          1296,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "Review",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          1062
+        ],
+        [
+          810,
+          1062
+        ],
+        [
+          810,
+          1065
+        ],
+        [
+          867,
+          1065
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "ReviewServiceRating",
+      "field": "staffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          1110
+        ],
+        [
+          1221,
+          1110
+        ],
+        [
+          1221,
+          855
+        ],
+        [
+          1278,
+          855
+        ],
+        [
+          1278,
+          570
+        ],
+        [
+          1296,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "Notification",
+      "field": "userId",
+      "target": "User",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          360
+        ],
+        [
+          396,
+          360
+        ],
+        [
+          396,
+          186
+        ],
+        [
+          864,
+          186
+        ],
+        [
+          864,
+          102
+        ],
+        [
+          882,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Notification",
+      "field": "relatedBookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          384
+        ],
+        [
+          396,
+          384
+        ],
+        [
+          396,
+          492
+        ],
+        [
+          864,
+          492
+        ],
+        [
+          864,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "VoucherRedemption",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          828
+        ],
+        [
+          456,
+          828
+        ],
+        [
+          456,
+          630
+        ],
+        [
+          867,
+          630
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "PromotionBusiness",
+      "field": "promotionId",
+      "target": "Promotion",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          1272
+        ],
+        [
+          1638,
+          1272
+        ],
+        [
+          1638,
+          1098
+        ],
+        [
+          2106,
+          1098
+        ],
+        [
+          2106,
+          1038
+        ],
+        [
+          2124,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "PromotionCombo",
+      "field": "comboId",
+      "target": "Combo",
+      "reference": "id",
+      "points": [
+        [
+          2124,
+          1296
+        ],
+        [
+          2046,
+          1296
+        ],
+        [
+          2046,
+          1101
+        ],
+        [
+          1641,
+          1101
+        ],
+        [
+          1641,
+          1038
+        ],
+        [
+          1620,
+          1038
+        ]
+      ]
+    },
+    {
+      "source": "AppointmentChangeRequest",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          1296
+        ],
+        [
+          867,
+          1296
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "StaffBranchAssignment",
+      "field": "staffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          1296
+        ],
+        [
+          1221,
+          1296
+        ],
+        [
+          1221,
+          855
+        ],
+        [
+          1278,
+          855
+        ],
+        [
+          1278,
+          570
+        ],
+        [
+          1296,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "PricingSnapshot",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          1062
+        ],
+        [
+          396,
+          1062
+        ],
+        [
+          396,
+          864
+        ],
+        [
+          867,
+          864
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "Combo",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          1062
+        ],
+        [
+          1698,
+          1062
+        ],
+        [
+          1698,
+          102
+        ],
+        [
+          1710,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Promotion",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          2124,
+          1062
+        ],
+        [
+          2112,
+          1062
+        ],
+        [
+          2112,
+          99
+        ],
+        [
+          2052,
+          99
+        ],
+        [
+          2052,
+          102
+        ],
+        [
+          2034,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "StaffBranchAssignment",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1206,
+          1320
+        ],
+        [
+          1218,
+          1320
+        ],
+        [
+          1218,
+          336
+        ],
+        [
+          1296,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "PromotionBranch",
+      "field": "branchId",
+      "target": "Branch",
+      "reference": "id",
+      "points": [
+        [
+          1710,
+          1296
+        ],
+        [
+          1632,
+          1296
+        ],
+        [
+          1632,
+          336
+        ],
+        [
+          1620,
+          336
+        ]
+      ]
+    },
+    {
+      "source": "BookingStatusHistory",
+      "field": "bookingId",
+      "target": "Booking",
+      "reference": "id",
+      "points": [
+        [
+          378,
+          1296
+        ],
+        [
+          396,
+          1296
+        ],
+        [
+          396,
+          864
+        ],
+        [
+          867,
+          864
+        ],
+        [
+          867,
+          570
+        ],
+        [
+          882,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "AppointmentChangeRequest",
+      "field": "proposedStaffId",
+      "target": "StaffProfile",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          1320
+        ],
+        [
+          870,
+          1320
+        ],
+        [
+          870,
+          936
+        ],
+        [
+          1278,
+          936
+        ],
+        [
+          1278,
+          570
+        ],
+        [
+          1296,
+          570
+        ]
+      ]
+    },
+    {
+      "source": "PromotionBusiness",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          1620,
+          1296
+        ],
+        [
+          1638,
+          1296
+        ],
+        [
+          1638,
+          1275
+        ],
+        [
+          1698,
+          1275
+        ],
+        [
+          1698,
+          102
+        ],
+        [
+          1710,
+          102
+        ]
+      ]
+    },
+    {
+      "source": "Voucher",
+      "field": "businessId",
+      "target": "Business",
+      "reference": "id",
+      "points": [
+        [
+          792,
+          594
+        ],
+        [
+          813,
+          594
+        ],
+        [
+          813,
+          597
+        ],
+        [
+          870,
+          597
+        ],
+        [
+          870,
+          162
+        ],
+        [
+          1695,
+          162
+        ],
+        [
+          1695,
+          102
+        ],
+        [
+          1710,
+          102
+        ]
+      ]
+    }
+  ],
+  "crossing_bridges": 70
+}

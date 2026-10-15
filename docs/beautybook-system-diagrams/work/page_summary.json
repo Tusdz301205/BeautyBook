@@ -1,0 +1,268 @@
+[
+  {
+    "page": 1,
+    "words": 57,
+    "start": "Hệ thống đặt lịch dịch vụ làm đẹp | Usecase nghiệp vụ và hệ thống | Đặc tả Usecase",
+    "end": "Sơ đồ lớp phân tích và thiết kế | Sơ đồ ERD và mô hình dữ liệu | Tài liệu phục vụ báo cáo đồ án | Phiên bản ngày 15 tháng 10 năm 2026",
+    "images": 0
+  },
+  {
+    "page": 2,
+    "words": 281,
+    "start": "MỤC LỤC | 1 PHÂN TÍCH HỆ THỐNG ................................................................................... 5 | 1.1 Phạm vi và tác nhân ...................................................................................... 5",
+    "end": "1.5.13 Xem báo cáo cơ sở ............................................................................. 20 | 1.5.14 Duyệt và quản lý cơ sở ...................................................................... 20 | 1.5.15 Quản lý tài khoản và vai trò ............................................................... 20 | 1.5.16 Quản lý danh mục và nội dung .......................................................... 21",
+    "images": 0
+  },
+  {
+    "page": 3,
+    "words": 262,
+    "start": "1.5.17 Thống kê và tra cứu toàn hệ thống .................................................... 21 | 1.5.18 Xem lịch được phân công .................................................................. 21 | 1.5.19 Kiểm tra giờ trống .............................................................................. 22",
+    "end": "2.6.2 Điều kiện đánh giá ............................................................................... 38 | 2.6.3 Hủy và thay đổi lịch ............................................................................. 38 | 2.6.4 Vai trò và phạm vi ............................................................................... 38 | 2.6.5 Giới hạn của các mô hình .................................................................... 38",
+    "images": 0
+  },
+  {
+    "page": 4,
+    "words": 264,
+    "start": "DANH MỤC HÌNH VÀ BẢNG | Danh mục hình | Hình 1  Usecase nghiệp vụ BeautyBook ................................................................ 6",
+    "end": "Hình 19  Dữ liệu đánh giá và thông báo ............................................................... 36 | Danh mục bảng | Bảng 1  Các tác nhân tham gia hệ thống ................................................................ 5 | Bảng 2  Các quy tắc liên kết dữ liệu cốt lõi .......................................................... 37",
+    "images": 0
+  },
+  {
+    "page": 5,
+    "words": 361,
+    "start": "1 PHÂN TÍCH HỆ THỐNG | 1.1 Phạm vi và tác nhân | Trong đồ án BeautyBook, em xây dựng mô hình hệ thống theo hai góc nhìn: hoạt",
+    "end": "Trong sơ đồ nghiệp vụ, “Cơ sở làm đẹp” đại diện cho tổ chức cung cấp dịch vụ; | khi chuyển sang sơ đồ hệ thống, tác nhân này được tách thành chủ cơ sở, lễ tân và | chuyên viên. Quyền truy cập còn phụ thuộc vào doanh nghiệp và chi nhánh được cấp, | không chỉ dựa trên tên vai trò.",
+    "images": 0
+  },
+  {
+    "page": 6,
+    "words": 89,
+    "start": "1.2 Sơ đồ Usecase nghiệp vụ | Các Usecase nghiệp vụ mô tả kết quả mà khách hàng, cơ sở và nền tảng cần đạt | được. Hình 1 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "được. Hình 1 thể hiện các đối tượng và quan hệ trong phạm vi này. | Hình 1  Usecase nghiệp vụ BeautyBook | Các đường nối biểu diễn sự tham gia vào nghiệp vụ, không biểu diễn trình tự | thực hiện. Công việc phục vụ trực tiếp tại cơ sở có thể diễn ra ngoài phần mềm.",
+    "images": 1
+  },
+  {
+    "page": 7,
+    "words": 307,
+    "start": "1.3 Đặc tả Usecase nghiệp vụ | 1.3.1 Tìm nơi làm đẹp phù hợp | Mục tiêu: Lựa chọn được cơ sở và dịch vụ đáp ứng nhu cầu về địa điểm, giá và",
+    "end": "3. Lịch đơn hoặc chuỗi lịch được ghi nhận và thông báo đến các bên. | Ngoại lệ và nhánh khác: Nếu hết chỗ hoặc một số kỳ xung đột, khách đổi lựa chọn. | Khi có sự cố, cơ sở trao đổi và xử lý yêu cầu điều chỉnh. | Điều kiện sau: Các bên có lịch phục vụ và trạng thái phản hồi rõ ràng.",
+    "images": 0
+  },
+  {
+    "page": 8,
+    "words": 329,
+    "start": "1.3.3 Tiếp nhận khách tại cơ sở | Mục tiêu: Ghi nhận khách đến và giúp chuyên viên nắm công việc được phân công. | Tác nhân: Khách hàng; chủ cơ sở, lễ tân và chuyên viên thuộc cơ sở làm đẹp.",
+    "end": "3. Quản trị xem xét báo cáo hoặc khiếu nại khi phát sinh. | Ngoại lệ và nhánh khác: Nội dung không đủ điều kiện hoặc yêu cầu đang được xử lý | sẽ không tạo lặp. Quyết định kiểm duyệt phải gắn với nội dung và lý do phù hợp. | Điều kiện sau: Phản hồi hoặc kết quả xử lý được lưu và có thể tra cứu.",
+    "images": 0
+  },
+  {
+    "page": 9,
+    "words": 328,
+    "start": "1.3.5 Duy trì thông tin kinh doanh | Mục tiêu: Duy trì hồ sơ, dịch vụ, nhân sự và ưu đãi để khách có thể tiếp cận thông tin | phù hợp.",
+    "end": "phù hợp. | Ngoại lệ và nhánh khác: Khi chưa có dữ liệu, hệ thống trả kết quả rỗng. Số lịch đã | qua giờ không được xem là số dịch vụ đã hoàn thành thực tế. | Điều kiện sau: Người quản lý có số liệu và căn cứ để điều hành.",
+    "images": 0
+  },
+  {
+    "page": 10,
+    "words": 99,
+    "start": "1.4 Sơ đồ Usecase hệ thống | Các chức năng trên kênh khách hàng được nhóm theo mục tiêu sử dụng. Hình 2 | thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 2  Usecase hệ thống dành cho khách hàng | Khách hàng có thể tra cứu thông tin công khai trước khi đăng nhập. Các chức | năng đặt lịch và quản lý dữ liệu cá nhân yêu cầu tài khoản phù hợp. Đăng nhập được | xem là tiền điều kiện, không nối include từ mọi Usecase.",
+    "images": 1
+  },
+  {
+    "page": 11,
+    "words": 98,
+    "start": "1.4.1 Chức năng vận hành tại cơ sở | Nhóm chức năng vận hành phân biệt quyền của chủ cơ sở, lễ tân và chuyên viên. | Hình 3 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 3  Usecase hệ thống dành cho cơ sở | Chuyên viên chỉ xem lịch được phân công. Chủ cơ sở và lễ tân thực hiện check - | in trong Usecase Tiếp nhận và xử lý lịch hẹn. Các chức năng đăng nhập dùng chung | được lược khỏi hình này.",
+    "images": 1
+  },
+  {
+    "page": 12,
+    "words": 109,
+    "start": "1.4.2 Chức năng quản trị nền tảng | Quản trị hệ thống thực hiện xét duyệt, quản trị dữ liệu và giám sát trong phạm vi | quyền được cấp. Hình 4 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 4  Usecase hệ thống dành cho quản trị | Quản lý danh mục và nội dung bao gồm danh mục dịch vụ chuẩn và nội dung cần | kiểm duyệt. Thống kê và tra cứu toàn hệ thống hỗ trợ xem cơ sở theo nhóm dịch vụ, | người dùng và lịch hẹn theo các tiêu chí phù hợp.",
+    "images": 1
+  },
+  {
+    "page": 13,
+    "words": 103,
+    "start": "1.4.3 Phân rã chức năng đặt lịch | Đặt lịch hẹn luôn cần kiểm tra giờ trống, tính giá và ghi nhận lịch. Hình 5 thể | hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 5  Phân rã Usecase đặt lịch hẹn | Mũi tên nét đứt «include» hướng từ Đặt lịch hẹn đến hành vi bắt buộc được sử | dụng. Áp dụng voucher là lựa chọn bên trong bước tính giá; đánh giá là mục tiêu độc | lập với đặt lịch, vì vậy không nối extend giữa hai chức năng này.",
+    "images": 1
+  },
+  {
+    "page": 14,
+    "words": 385,
+    "start": "1.5 Đặc tả Usecase hệ thống | Mỗi đặc tả nêu mục tiêu, tác nhân, điều kiện trước, luồng chính, ngoại lệ và điều | kiện sau. Các Usecase được gọi trực tiếp bằng tên chức năng. Ba đặc tả Kiểm tra giờ",
+    "end": "Ngoại lệ và nhánh khác: Không có kết quả thì đổi tiêu chí; nội dung không công khai | không được hiển thị. Khách đã đăng nhập có thể lưu dịch vụ quan tâm; thao tác lưu | không giữ giá hoặc giữ chỗ. | Điều kiện sau: Người dùng nhận được thông tin để tiếp tục đặt lịch.",
+    "images": 0
+  },
+  {
+    "page": 15,
+    "words": 353,
+    "start": "1.5.3 Đặt lịch hẹn | Mục tiêu: Tạo một lịch hẹn cho dịch vụ lẻ, nhiều dịch vụ hoặc combo. | Tác nhân: Khách hàng.",
+    "end": "chừng được xử lý bằng hoàn tác các lịch đã tạo; nếu kết quả chưa rõ, cần đối chiếu lại | cùng yêu cầu. App hiện chưa áp dụng voucher hoặc biến thể dịch vụ cho lịch định kỳ. | Điều kiện sau: Chuỗi lịch và từng lịch thành phần được ghi nhận hoặc trả kết quả thất | bại rõ ràng.",
+    "images": 0
+  },
+  {
+    "page": 16,
+    "words": 341,
+    "start": "1.5.5 Hủy và đề nghị đổi lịch | Mục tiêu: Điều chỉnh lịch thuộc khách trong điều kiện cho phép. | Tác nhân: Khách hàng; chủ cơ sở hoặc lễ tân xử lý yêu cầu cần phối hợp.",
+    "end": "COMPLETED; NO_SHOW, REJECTED và EXPIRED cũng không cộng vào số | CANCELLED. | Điều kiện sau: Danh sách và số liệu dùng cùng kỳ lọc, phản ánh đúng trạng thái lưu | trữ.",
+    "images": 0
+  },
+  {
+    "page": 17,
+    "words": 338,
+    "start": "1.5.7 Gửi đánh giá | Mục tiêu: Ghi nhận đánh giá tổng thể và nhận xét riêng cho từng dịch vụ đã đặt. | Tác nhân: Khách hàng.",
+    "end": "3. Khi đạt điều kiện, chủ cơ sở thiết lập giờ hoạt động và công bố chi nhánh. | Ngoại lệ và nhánh khác: Hồ sơ bị yêu cầu bổ sung phải được chỉnh sửa và gửi lại. | Duyệt doanh nghiệp không tự động duyệt mọi chi nhánh trực thuộc. | Điều kiện sau: Hồ sơ được lưu ở trạng thái phù hợp và có lịch sử xử lý.",
+    "images": 0
+  },
+  {
+    "page": 18,
+    "words": 338,
+    "start": "1.5.9 Quản lý dịch vụ và ưu đãi | Mục tiêu: Cập nhật danh mục phục vụ và điều kiện ưu đãi của cơ sở. | Tác nhân: Chủ cơ sở.",
+    "end": "Ngoại lệ và nhánh khác: Nhân viên có thể chưa liên kết tài khoản; hồ sơ cung cấp | dịch vụ không tự tạo quyền đăng nhập. Ngừng nhận lịch hoặc chuyển chi nhánh phải | xem xét lịch bị ảnh hưởng. | Điều kiện sau: Hồ sơ nhân viên và phạm vi làm việc được lưu hợp lệ.",
+    "images": 0
+  },
+  {
+    "page": 19,
+    "words": 344,
+    "start": "1.5.11 Tiếp nhận và xử lý lịch hẹn | Mục tiêu: Điều phối lịch tại chi nhánh và ghi nhận khách đến. | Tác nhân: Chủ cơ sở, lễ tân.",
+    "end": "Ngoại lệ và nhánh khác: Nếu mất kết nối, người dùng tải lại thông tin; không dựa | vào thông báo cũ để quyết định trạng thái mới. Nội dung trao đổi và dữ liệu lịch phải | đúng phạm vi truy cập. | Điều kiện sau: Các bên nhận được thông tin và yêu cầu liên quan được theo dõi.",
+    "images": 0
+  },
+  {
+    "page": 20,
+    "words": 414,
+    "start": "1.5.13 Xem báo cáo cơ sở | Mục tiêu: Theo dõi tình hình hoạt động thuộc quyền quản lý. | Tác nhân: Chủ cơ sở.",
+    "end": "3. Hệ thống xác thực thay đổi và lưu dữ liệu quản trị. | Ngoại lệ và nhánh khác: Thay đổi vượt quyền hoặc dữ liệu không hợp lệ bị từ chối. | Vai trò vận hành phải gắn với phạm vi doanh nghiệp, chi nhánh phù hợp. | Điều kiện sau: Tài khoản và quyền truy cập được cập nhật có kiểm soát.",
+    "images": 0
+  },
+  {
+    "page": 21,
+    "words": 451,
+    "start": "1.5.16 Quản lý danh mục và nội dung | Mục tiêu: Duy trì nhóm dịch vụ chung và xử lý nội dung cần kiểm duyệt. | Tác nhân: Quản trị hệ thống.",
+    "end": "Ngoại lệ và nhánh khác: Không có phân công thì hiển thị danh sách rỗng; mất quyền | thì dừng truy cập. Chuyên viên không được check-in, hủy, sửa hoặc cập nhật bắt | đầu/hoàn thành lịch trong luồng này. | Điều kiện sau: Chuyên viên xem được thông tin công việc của mình.",
+    "images": 0
+  },
+  {
+    "page": 22,
+    "words": 432,
+    "start": "1.5.19 Kiểm tra giờ trống | Mục tiêu: Xác định khung giờ có thể tiếp nhận yêu cầu đặt lịch. | Tác nhân: Khách hàng thông qua Usecase Đặt lịch hẹn; hệ thống thực hiện kiểm tra.",
+    "end": "3. Hệ thống trả mã lịch, trạng thái và phát sự kiện thông báo. | Ngoại lệ và nhánh khác: Nếu có xung đột hoặc lỗi ghi dữ liệu thì không báo tạo | thành công. Yêu cầu gửi lại cần đối chiếu khóa idempotency. | Điều kiện sau: Lịch mới có mã định danh, chi tiết dịch vụ và trạng thái hợp lệ.",
+    "images": 0
+  },
+  {
+    "page": 23,
+    "words": 159,
+    "start": "1.6 Sơ đồ lớp phân tích | Ở mức phân tích, em sử dụng tên lớp theo nghiệp vụ và chỉ giữ các đặc điểm cần | để hiểu đối tượng. Hai hình dưới đây cùng mô tả một mô hình; lớp Nhân viên xuất",
+    "end": "Hình 6  Lớp phân tích về cơ sở và danh mục | Quan hệ nhiều–nhiều giữa Nhân viên và Dịch vụ tại chi nhánh biểu diễn năng lực | được gán. Khi thiết kế dữ liệu, quan hệ này được tách bằng bảng liên kết | staff_services.",
+    "images": 1
+  },
+  {
+    "page": 24,
+    "words": 104,
+    "start": "1.6.1 Các lớp liên quan đến lịch hẹn | Lịch hẹn kết nối nhu cầu của khách với các dịch vụ và chuyên viên phục vụ. | Hình 7 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 7  Lớp phân tích về lịch hẹn và đánh giá | Một lịch được tạo hợp lệ phải có ít nhất một dòng dịch vụ. Lịch đơn không bắt | buộc thuộc kế hoạch định kỳ. Một dòng dịch vụ có thể chưa được gán chuyên viên, | còn mỗi lịch có tối đa một đánh giá.",
+    "images": 1
+  },
+  {
+    "page": 25,
+    "words": 142,
+    "start": "2 THIẾT KẾ HỆ THỐNG | 2.1 Sơ đồ lớp thiết kế | Phần thiết kế chuyển các nhiệm vụ nghiệp vụ thành lớp tiếp nhận yêu cầu, lớp xử",
+    "end": "đối tượng và quan hệ trong phạm vi này. | Hình 8  Lớp thiết kế quản lý cơ sở và danh mục | Các Service truy vấn dữ liệu qua PrismaService. StaffService là lớp xử lý nghiệp | vụ; staff_services là bảng liên kết nhân viên với dịch vụ.",
+    "images": 1
+  },
+  {
+    "page": 26,
+    "words": 119,
+    "start": "2.1.1 Các lớp xử lý đặt lịch | RecurringService sử dụng BookingsService để tạo từng kỳ; BookingsService sử | dụng PricingEngineService để xử lý giá. Hình 9 thể hiện các đối tượng và quan hệ",
+    "end": "PrismaService kế thừa PrismaClient. Hình chỉ vẽ một số đường phụ thuộc chính; | các lớp còn phối hợp với phân quyền, thiết lập nền tảng, thông báo và xử lý thay đổi | lịch. Chuỗi lịch được tạo từng kỳ và có cơ chế hoàn tác khi lỗi, không được coi là một | giao dịch cơ sở dữ liệu duy nhất.",
+    "images": 1
+  },
+  {
+    "page": 27,
+    "words": 169,
+    "start": "2.2 Sơ đồ thực thể quan hệ ERD | Em chia ERD cốt lõi thành hai phần liên kết qua Dịch vụ tại chi nhánh và Nhân | viên. Hình chữ nhật biểu diễn thực thể, hình thoi biểu diễn quan hệ; bội số ghi ở mỗi",
+    "end": "Hình 10  ERD cơ sở và dịch vụ | Một doanh nghiệp có nhiều chi nhánh và dịch vụ trong danh mục. Mỗi dịch vụ | tại chi nhánh thuộc một chi nhánh và một dịch vụ doanh nghiệp. Quan hệ nhiều –nhiều | giữa nhân viên và dịch vụ được triển khai bằng bảng staff_services.",
+    "images": 1
+  },
+  {
+    "page": 28,
+    "words": 116,
+    "start": "2.2.1 ERD đặt lịch và đánh giá | Phần thứ hai mô tả quan hệ giữa khách hàng, lịch hẹn, dịch vụ, người thực hiện | và đánh giá. Hình 11 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 11  ERD đặt lịch và đánh giá | Mỗi lịch hợp lệ có ít nhất một chi tiết dịch vụ và tối đa một đánh giá. Mỗi chi tiết | gắn với một dịch vụ tại chi nhánh, có thể chưa được gán nhân viên. Ký hiệu 1 là đúng | một; 0..1 là tối đa một; 0..* là không hoặc nhiều; 1..* là ít nhất một.",
+    "images": 1
+  },
+  {
+    "page": 29,
+    "words": 94,
+    "start": "2.3 Database Diagram tổng quát | Em đặt nhóm lịch hẹn ở trung tâm để liên kết khách hàng, cơ sở, dịch vụ và kết quả phục vụ. Sơ đồ chọn 36 bảng và 64 FK chính ; các FK bổ sung xem ở phần chi tiết. Tên bảng theo cơ sở dữ liệu, | tên thuộc tính theo mô hình Prisma. Hình 12 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "2.3 Database Diagram tổng quát | Em đặt nhóm lịch hẹn ở trung tâm để liên kết khách hàng, cơ sở, dịch vụ và kết quả phục vụ. Sơ đồ chọn 36 bảng và 64 FK chính ; các FK bổ sung xem ở phần chi tiết. Tên bảng theo cơ sở dữ liệu, | tên thuộc tính theo mô hình Prisma. Hình 12 thể hiện các đối tượng và quan hệ trong phạm vi này. | Hình 12  Database Diagram tổng quát các bảng cốt lõi",
+    "images": 1
+  },
+  {
+    "page": 30,
+    "words": 161,
+    "start": "2.4 Mô hình dữ liệu | Bảy hình sau sử dụng tên bảng vật lý và tên thuộc tính theo mô hình Prisma. PK | là khóa chính; FK là khóa ngoại; UQ là ràng buộc duy nhất; “?” là trường có thể để",
+    "end": "Hình 13  Dữ liệu tài khoản và doanh nghiệp | Một tài khoản có tối đa một hồ sơ khách hàng và một hồ sơ chủ cơ sở. user_roles | lưu vai trò theo phạm vi doanh nghiệp hoặc chi nhánh; đây là liên kết cấp quyền, | không phải quan hệ kế thừa giữa các loại tài khoản.",
+    "images": 1
+  },
+  {
+    "page": 31,
+    "words": 108,
+    "start": "2.4.2 Dữ liệu chi nhánh và danh mục dịch vụ | Dịch vụ được tổ chức theo danh mục doanh nghiệp và dịch vụ thực tế ở chi | nhánh. Hình 14 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "canonical_services là nhóm dịch vụ chuẩn của nền tảng; business_services là | danh mục doanh nghiệp; services là dịch vụ được cung cấp tại chi nhánh. Cặp | branchId và businessServiceId trong services là duy nhất. service_variants lưu các lựa | chọn của dịch vụ tại chi nhánh.",
+    "images": 1
+  },
+  {
+    "page": 32,
+    "words": 104,
+    "start": "2.4.3 Dữ liệu nhân viên và khả năng phục vụ | Nhân viên có hồ sơ, năng lực dịch vụ và phạm vi chi nhánh. Hình 15 thể hiện các | đối tượng và quan hệ trong phạm vi này.",
+    "end": "staff_profiles.userId có thể để trống và là duy nhất khi có giá trị. | staff_branch_assignments ghi phân công chi nhánh theo thời gian. staff_services có | khóa chính ghép staffId và serviceId; bảng này không thay thế việc phân công người | thực hiện cho từng lịch hẹn.",
+    "images": 1
+  },
+  {
+    "page": 33,
+    "words": 125,
+    "start": "2.4.4 Dữ liệu lịch hẹn và chuỗi định kỳ | bookings là dữ liệu lịch hẹn; booking_services lưu từng dòng dịch vụ trong lịch. | Hình 16 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "branches. Mỗi lịch có tối đa một booking_contacts và có thể có nhiều payments. Mỗi | lịch được tạo hợp lệ có ít nhất một booking_services, dù quan hệ cơ sở dữ liệu cho | phép 0..*. serviceIds trong kế hoạch định kỳ là JSON; variantId trong dòng lịch là | tham chiếu logic, không phải FK được khai báo.",
+    "images": 1
+  },
+  {
+    "page": 34,
+    "words": 97,
+    "start": "2.4.5 Dữ liệu combo và khuyến mãi | Combo liên kết nhiều dịch vụ, còn khuyến mãi có phạm vi áp dụng riêng. Hình | 17 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "combo_services liên kết combos với services và lưu số lượng, thứ tự. Các bảng | promotion_branches, promotion_services và promotion_combos có khóa chính ghép. | businessId của promotions thể hiện doanh nghiệp sở hữu; phạm vi áp dụng theo doanh | nghiệp được lưu riêng ở promotion_businesses.",
+    "images": 1
+  },
+  {
+    "page": 35,
+    "words": 116,
+    "start": "2.4.6 Dữ liệu voucher và kết quả tính giá | Voucher cấp cho khách và lượt sử dụng được lưu thành các bản ghi riêng. Hình | 18 thể hiện các đối tượng và quan hệ trong phạm vi này.",
+    "end": "lượt sử dụng theo lịch. pricing_snapshots lưu kết quả tính giá tại lúc đặt và có tối đa | một bản ghi cho mỗi lịch. usedBookingId trong customer_vouchers là tham chiếu | logic. promotion_businesses nối promotions với businesses và được đặt cùng hình để | hoàn thiện nhóm phạm vi ưu đãi.",
+    "images": 1
+  },
+  {
+    "page": 36,
+    "words": 92,
+    "start": "2.4.7 Dữ liệu đánh giá và thông báo | Đánh giá chi tiết gắn với dòng dịch vụ thực tế trong lịch. Hình 19 thể hiện các | đối tượng và quan hệ trong phạm vi này.",
+    "end": "Hình 19  Dữ liệu đánh giá và thông báo | Một booking có tối đa một review; một booking_service có tối đa một | review_service_rating. staffId của điểm đánh giá có thể để trống. notifications thuộc | về một user và có thể liên kết với một booking qua relatedBookingId.",
+    "images": 1
+  },
+  {
+    "page": 37,
+    "words": 385,
+    "start": "2.5 Quy tắc liên kết và toàn vẹn dữ liệu | Nội dung được tổng hợp trong Bảng 2. | Bảng 2  Các quy tắc liên kết dữ liệu cốt lõi",
+    "end": "đồ tổng quát thể hiện quan hệ với lịch hẹn và chuyên viên được đề nghị. Các bảng ảnh | liên kết đối tượng với media_files. Nhóm audit, ảnh, phân quyền chi tiết và phạm vi | voucher được lược khỏi các hình dữ liệu để tập trung vào cấu trúc cốt lõi; việc lược | hình không thay đổi vai trò của chúng trong hệ thống.",
+    "images": 0
+  },
+  {
+    "page": 38,
+    "words": 301,
+    "start": "2.6 Các quy ước nghiệp vụ cần thống nhất | 2.6.1 Tiếp nhận và lịch sử | Luồng thông thường ghi nhận khách đến bằng CHECKED_IN. Khi đã qua giờ",
+    "end": "Các hình mô tả cấu trúc và hành vi cốt lõi của BeautyBook tại thời điểm lập tài | liệu. Cổng thanh toán trực tuyến không được đưa thành tác nhân trong bộ Usecase; | phần dữ liệu payments thể hiện khả năng lưu giao dịch, không khẳng định đã tích hợp | cổng thanh toán hoặc đã triển khai đầy đủ giao diện tài chính.",
+    "images": 0
+  }
+]

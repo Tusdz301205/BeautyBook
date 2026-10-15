@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useState } from 'react';
 import { Building2, ChevronLeft, ChevronRight, Eye, MapPin, Search, Star, Store } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { adminApi } from '../../api/apiClient';
+import { adminApi, servicesApi } from '../../api/apiClient';
 import { HomeMedia } from '../../components/public/HomeMedia';
 import { Badge, Card, EmptyState, ErrorState, Field, Input, PageHeader, Select, Skeleton } from '../../components/ui';
 import { getBranchFallbackMedia, getBusinessFallbackMedia } from '../../config/homeMedia';
@@ -105,6 +105,9 @@ function Directory() {
   const [search, setSearch] = useState('');
   const deferredSearch = useDeferredValue(search);
   const [status, setStatus] = useState('');
+  const [canonicalServiceId, setCanonicalServiceId] = useState('');
+  const [canonicalGroups, setCanonicalGroups] = useState([]);
+  const [groupsError, setGroupsError] = useState('');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
@@ -115,13 +118,21 @@ function Directory() {
     setLoading(true); setError('');
     try {
       const request = entity === 'business' ? adminApi.getBusinessDirectory : adminApi.getBranchDirectory;
-      const response = await request({ search: deferredSearch.trim(), status, page, limit: 10 });
+      const response = await request({ search: deferredSearch.trim(), status, canonicalServiceId, page, limit: 10 });
       setRows(response?.data || []);
       setPagination(response?.pagination || { page, total: 0, totalPages: 1 });
     } catch (requestError) {
       setError(requestError.message || 'Không thể tải danh sách quản trị.');
     } finally { setLoading(false); }
-  }, [deferredSearch, entity, page, status]);
+  }, [deferredSearch, entity, page, status, canonicalServiceId]);
+
+  useEffect(() => {
+    let active = true;
+    servicesApi.getCategories().then((groups) => {
+      if (active) setCanonicalGroups(Array.isArray(groups) ? groups : []);
+    }).catch(() => { if (active) setGroupsError('Không thể tải nhóm dịch vụ. Vui lòng tải lại trang.'); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => { load(); }, [load]);
   const filters = entity === 'business' ? BUSINESS_FILTERS : BRANCH_FILTERS;
@@ -140,7 +151,8 @@ function Directory() {
       <button type="button" role="tab" aria-selected={entity === 'business'} onClick={() => changeEntity('business')} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold ${entity === 'business' ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}><Building2 size={16} />Doanh nghiệp</button>
       <button type="button" role="tab" aria-selected={entity === 'branch'} onClick={() => changeEntity('branch')} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-bold ${entity === 'branch' ? 'bg-zinc-950 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}><Store size={16} />Chi nhánh</button>
     </div>
-    <Card className="p-4"><div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_260px_auto]"><Field label={entity === 'business' ? 'Tìm doanh nghiệp hoặc chủ sở hữu' : 'Tìm chi nhánh, doanh nghiệp hoặc địa chỉ'}><div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-[var(--bb-muted)]" /><Input className="pl-10" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={entity === 'business' ? 'Tên doanh nghiệp, email...' : 'Tên chi nhánh, khu vực...'} /></div></Field><Field label="Trạng thái"><Select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>{filters.map(([value, label]) => <option key={value || 'all'} value={value}>{label}</option>)}</Select></Field><div className="flex items-end"><p className="min-h-11 rounded-lg bg-[var(--bb-surface-subtle)] px-4 py-3 text-sm font-semibold text-[var(--bb-muted)]">{Number(pagination.total || 0).toLocaleString('vi-VN')} hồ sơ</p></div></div></Card>
+    <Card className="p-4"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_220px_220px_auto]"><Field label={entity === 'business' ? 'Tìm doanh nghiệp hoặc chủ sở hữu' : 'Tìm chi nhánh, doanh nghiệp hoặc địa chỉ'}><div className="relative"><Search size={17} className="pointer-events-none absolute left-3 top-3.5 text-[var(--bb-muted)]" /><Input className="pl-10" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={entity === 'business' ? 'Tên doanh nghiệp, email...' : 'Tên chi nhánh, khu vực...'} /></div></Field><Field label="Trạng thái"><Select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>{filters.map(([value, label]) => <option key={value || 'all'} value={value}>{label}</option>)}</Select></Field><Field label="Nhóm dịch vụ"><Select value={canonicalServiceId} onChange={(event) => { setCanonicalServiceId(event.target.value); setPage(1); }}><option value="">Tất cả nhóm</option>{canonicalGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</Select></Field><div className="flex items-end"><p className="min-h-11 rounded-lg bg-[var(--bb-surface-subtle)] px-4 py-3 text-sm font-semibold text-[var(--bb-muted)]">{Number(pagination.total || 0).toLocaleString('vi-VN')} hồ sơ</p></div></div></Card>
+    {groupsError && <p role="alert" className="text-sm text-red-700">{groupsError}</p>}
     <Card className="overflow-hidden">{loading ? <div className="p-5"><Skeleton rows={8} /></div> : error ? <ErrorState message={error} onRetry={load} /> : !rows.length ? <EmptyState icon={entity === 'business' ? Building2 : Store} title="Không có hồ sơ phù hợp" description="Thử đổi từ khóa hoặc trạng thái lọc." /> : <>{entity === 'business' ? <><BusinessCards rows={rows} /><BusinessTable rows={rows} /></> : <><BranchCards rows={rows} /><BranchTable rows={rows} /></>}<Pagination pagination={pagination} onChange={setPage} /></>}</Card>
   </div>;
 }

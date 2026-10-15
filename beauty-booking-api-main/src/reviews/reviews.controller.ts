@@ -102,7 +102,7 @@ export class ReviewsController {
 
   /**
    * POST /api/reviews
-   * Customer tạo đánh giá (chỉ sau booking COMPLETED).
+   * Customer đánh giá lịch đã hoàn thành hoặc đã đến và qua khung giờ dự kiến.
    */
   @Post()
   @Roles('CUSTOMER')

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { assertNoOverlap, validateStaffForService } from '../bookings/bookings.validation';
@@ -41,12 +41,13 @@ export class RecurringService {
     const preview = await this.preview(input, user);
     if (preview.conflictCount > 0 && !input.skipConflicts) {
       throw new ConflictException({
+        code: 'RECURRING_PREVIEW_CONFLICT',
         message: 'Một số kỳ bị trùng lịch. Hãy đổi giờ hoặc chọn bỏ qua các kỳ xung đột.',
         occurrences: preview.occurrences,
       });
     }
     const candidates = preview.occurrences.filter((item) => item.available);
-    if (candidates.length === 0) throw new ConflictException('Không có kỳ nào còn chỗ');
+    if (candidates.length === 0) throw new ConflictException({ code: 'RECURRING_NO_AVAILABILITY', message: 'Không có kỳ nào còn chỗ' });
     const plan = await this.prisma.recurringBookingPlan.create({
       data: {
         customerId,
@@ -138,7 +139,19 @@ export class RecurringService {
           'Tạo chuỗi thất bại và hệ thống chưa thể hoàn tác đầy đủ; mã chuỗi cần được kiểm tra thủ công',
         );
       }
-      throw error;
+      // A client can safely unlock checkout only after compensation is settled.
+      // Keep the original public rejection/status while distinguishing it from
+      // a partial series that still requires reconciliation.
+      const response = error instanceof HttpException ? error.getResponse() : null;
+      const details = response && typeof response === 'object' ? response : {};
+      const body = {
+        ...details,
+        message: error instanceof HttpException ? error.message : 'Không thể tạo chuỗi lịch. Các kỳ đã tạo đã được hoàn tác; vui lòng thử lại.',
+        code: 'RECURRING_CREATE_ROLLED_BACK',
+        recurringPlanId: plan.id,
+      };
+      if (error instanceof ConflictException) throw new ConflictException(body);
+      throw new HttpException(body, error instanceof HttpException ? error.getStatus() : 500);
     }
     return this.prisma.recurringBookingPlan.findUnique({
       where: { id: plan.id },

@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { assertCustomerPrincipal } from '../auth/account-separation';
+import { bookingAttendance } from '../bookings/booking-attendance';
+import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import {
   resolveBusinessIdsForUser,
   restrictToRoles,
@@ -296,7 +298,7 @@ export class ReviewsService {
   }
 
   /**
-   * Tạo đánh giá (customer, chỉ sau khi booking COMPLETED).
+   * Đánh giá lịch đã hoàn thành hoặc đã check-in và qua khung giờ dự kiến.
    */
   async create(data: {
     bookingId: string;
@@ -321,69 +323,72 @@ export class ReviewsService {
     if (data.isAnonymous && !policy.allowAnonymousReview) {
       throw new BadRequestException('Nền tảng hiện không cho phép đánh giá ẩn danh.');
     }
-    // Verify booking exists, is COMPLETED, belongs to this customer, not yet reviewed
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: data.bookingId },
-      include: {
-        review: { select: { id: true } },
-        customer: { select: { userId: true } },
-        bookingServices: { select: { id: true, staffId: true } },
-      },
-    });
+    // Check arrival/schedule eligibility without recording service completion or payment.
+    return withSerializableTransaction(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT id FROM bookings WHERE id = ${data.bookingId} FOR UPDATE`;
+      const booking = await tx.booking.findUnique({
+        where: { id: data.bookingId },
+        include: {
+          review: { select: { id: true } },
+          customer: { select: { userId: true } },
+          bookingServices: { select: { id: true, staffId: true } },
+        },
+      });
 
-    if (!booking) throw new NotFoundException('Booking không tồn tại');
-    if (booking.customerId !== data.customerId || booking.customer.userId !== actor.id) {
-      throw new ForbiddenException('Bạn không có quyền đánh giá booking này');
-    }
-    if (booking.status !== 'COMPLETED') {
-      throw new BadRequestException('Chỉ có thể đánh giá sau khi dịch vụ hoàn thành');
-    }
-    if (booking.review) {
-      throw new BadRequestException('Booking này đã được đánh giá');
-    }
-    if (data.serviceRatings?.length) {
-      const bookingServices = new Map(booking.bookingServices.map((item) => [item.id, item]));
-      const seen = new Set<string>();
-      for (const rating of data.serviceRatings) {
-        const bookingService = bookingServices.get(rating.bookingServiceId);
-        if (!bookingService || seen.has(rating.bookingServiceId)) {
-          throw new BadRequestException('Dịch vụ đánh giá không thuộc booking hoặc bị trùng');
-        }
-        if (rating.rating < 1 || rating.rating > 5) {
-          throw new BadRequestException('Điểm dịch vụ phải từ 1 đến 5');
-        }
-        if (rating.staffId && rating.staffId !== bookingService.staffId) {
-          throw new BadRequestException('Nhân viên đánh giá không khớp booking');
-        }
-        seen.add(rating.bookingServiceId);
+      if (!booking) throw new NotFoundException('Booking không tồn tại');
+      if (booking.customerId !== data.customerId || booking.customer.userId !== actor.id) {
+        throw new ForbiddenException('Bạn không có quyền đánh giá booking này');
       }
-    }
+      if (!bookingAttendance(booking).canReview) {
+        throw new BadRequestException('Chỉ có thể đánh giá lịch đã đến sau khung giờ dự kiến hoặc lịch đã hoàn thành');
+      }
+      if (booking.review) {
+        throw new BadRequestException('Booking này đã được đánh giá');
+      }
+      if (data.serviceRatings?.length) {
+        const bookingServices = new Map(booking.bookingServices.map((item) => [item.id, item]));
+        const seen = new Set<string>();
+        for (const rating of data.serviceRatings) {
+          const bookingService = bookingServices.get(rating.bookingServiceId);
+          if (!bookingService || seen.has(rating.bookingServiceId)) {
+            throw new BadRequestException('Dịch vụ đánh giá không thuộc booking hoặc bị trùng');
+          }
+          if (rating.rating < 1 || rating.rating > 5) {
+            throw new BadRequestException('Điểm dịch vụ phải từ 1 đến 5');
+          }
+          if (rating.staffId && rating.staffId !== bookingService.staffId) {
+            throw new BadRequestException('Nhân viên đánh giá không khớp booking');
+          }
+          seen.add(rating.bookingServiceId);
+        }
+      }
 
-    return this.prisma.review.create({
-      data: {
-        bookingId: data.bookingId,
-        customerId: data.customerId,
-        overallRating: data.overallRating,
-        comment: comment || null,
-        isAnonymous: Boolean(data.isAnonymous),
-        status: 'APPROVED',
-        serviceRatings: data.serviceRatings?.length
-          ? {
-              createMany: {
-                data: data.serviceRatings.map((sr) => ({
-                  bookingServiceId: sr.bookingServiceId,
-                  staffId: sr.staffId ?? null,
-                  rating: sr.rating,
-                  comment: sr.comment ?? null,
-                })),
-              },
-            }
-          : undefined,
-      },
-      include: {
-        serviceRatings: true,
-      },
-    });
+      return tx.review.create({
+        data: {
+          bookingId: data.bookingId,
+          customerId: data.customerId,
+          overallRating: data.overallRating,
+          comment: comment || null,
+          isAnonymous: Boolean(data.isAnonymous),
+          status: 'APPROVED',
+          serviceRatings: data.serviceRatings?.length
+            ? {
+                createMany: {
+                  data: data.serviceRatings.map((sr) => ({
+                    bookingServiceId: sr.bookingServiceId,
+                    staffId: sr.staffId ?? null,
+                    rating: sr.rating,
+                    comment: sr.comment ?? null,
+                  })),
+                },
+              }
+            : undefined,
+        },
+        include: {
+          serviceRatings: true,
+        },
+      });
+    }, { conflictMessage: 'Lịch hẹn hoặc đánh giá vừa thay đổi; vui lòng tải lại' });
   }
 
   async report(reviewId: string, reporterId: string, input: { reason: string; category?: string; severity?: string }) {

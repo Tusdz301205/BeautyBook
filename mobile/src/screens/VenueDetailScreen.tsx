@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import VenueMap from '../components/VenueMap';
+import BranchPromotions from '../components/BranchPromotions';
 
 import { HomeStackParamList } from '../navigation/HomeStack';
 import { colors, elevation, families, familyOf, fw, layout, radius, space, tones, type, type Tone } from '../theme';
@@ -185,6 +186,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
                             <Text style={styles.servicePrice}>{servicePriceLabel(item)}</Text>
                           </View>
                         </Pressable>
+                        <IconButton icon="information-circle-outline" label={`Xem chi tiết ${item.name}`} onPress={() => navigation.push('ServiceDetail', { serviceId: item.id })} />
                         <IconButton icon={saved ? 'heart' : 'heart-outline'} label={saved ? `Bỏ lưu ${item.name}` : `Lưu ${item.name}`} selected={saved} color={colors.primary} onPress={() => void toggleFavorite(item.id)} />
                       </View>
                     );
@@ -210,13 +212,13 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
                   <Text accessibilityRole="header" style={styles.subTitle}>Đội ngũ chuyên viên</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.staffRail} style={styles.staffScroll}>
                     {staff.map((person) => (
-                      <View key={person.id} accessible accessibilityLabel={`${person.name}${person.title ? `, ${person.title}` : ''}${person.ratingCount ? `, đánh giá ${(person.rating ?? 0).toFixed(1)}` : ''}`} style={styles.staffCard}>
+                      <Pressable key={person.id} accessibilityRole="button" onPress={() => navigation.push('StaffDetail', { staffId: person.id })} accessibilityLabel={`${person.name}${person.title ? `, ${person.title}` : ''}. Xem chi tiết chuyên viên`} style={styles.staffCard}>
                         <Avatar uri={person.avatarUrl} name={person.name} size={56} familyName={person.specialties?.[0] || person.title || person.name} />
                         <Text style={styles.staffName} numberOfLines={2}>{person.name}</Text>
                         {person.title ? <Text style={styles.staffMeta} numberOfLines={1}>{person.title}</Text> : null}
                         {person.specialties?.length ? <Text style={styles.staffMeta} numberOfLines={2}>{person.specialties.slice(0, 3).join(' · ')}</Text> : null}
                         {person.ratingCount ? <RatingPill value={person.rating ?? 0} count={person.ratingCount} style={styles.staffRating} /> : null}
-                      </View>
+                      </Pressable>
                     ))}
                   </ScrollView>
                 </>
@@ -231,13 +233,19 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
           )}
 
           {activeTab === 'offers' && (
+            <View style={styles.offerList}>
+              <BranchPromotions branchId={venue.id} services={allServices} combos={similarCombos.map(combo => ({ id: combo.id, name: combo.title }))} onService={id => navigation.push('ServiceDetail', { serviceId: id })} onCombo={id => navigation.push('ComboDetail', { comboId: id })} />
+              <Text accessibilityRole="header" style={styles.subTitle}>Combo dịch vụ</Text>
+              {
             similarCombos.length > 0
               ? <View style={styles.offerList}>{similarCombos.map((combo) => <ComboCard key={combo.id} combo={combo} width="100%" onPress={() => navigation.push('ComboDetail', { comboId: combo.id })} />)}</View>
               : <EmptyState icon="gift-outline" title="Chưa có gói ưu đãi" message="Cơ sở chưa có gói dịch vụ đang áp dụng." />
+              }
+            </View>
           )}
 
           {activeTab === 'reviews' && (
-            reviews.length === 0 ? <EmptyState icon="chatbubbles-outline" title="Chưa có đánh giá" message="Bạn có thể đánh giá sau khi lịch hẹn hoàn thành." /> : (
+            reviews.length === 0 ? <EmptyState icon="chatbubbles-outline" title="Chưa có đánh giá" message="Bạn có thể đánh giá từ lịch hẹn của mình." /> : (
               <View>
                 <View style={styles.reviewSummary}>
                   <View style={styles.reviewScore}>
@@ -257,7 +265,7 @@ export default function VenueDetailScreen({ route, navigation }: Props) {
                     })}
                   </View>
                 </View>
-                <Text style={styles.caption}>{reviewTotal > reviews.length ? `Phân bố và nội dung bên dưới là ${reviews.length} đánh giá gần đây nhất đã tải. ` : ''}Đánh giá được gửi sau lịch hẹn đã hoàn thành.</Text>
+                {reviewTotal > reviews.length && <Text style={styles.caption}>{`Phân bố và nội dung bên dưới là ${reviews.length} đánh giá gần đây nhất đã tải.`}</Text>}
                 {reviews.map((review) => (
                   <View key={review.id} style={styles.reviewCard}>
                     <View style={styles.reviewHead}>

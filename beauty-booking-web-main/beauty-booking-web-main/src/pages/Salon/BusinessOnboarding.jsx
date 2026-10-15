@@ -650,10 +650,6 @@ export default function BusinessOnboarding() {
 
             {step === 2 && (
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <InlineNotice tone="info">Loại chủ thể pháp lý độc lập với loại dịch vụ. Đúng định dạng không đồng nghĩa đã xác minh danh tính hoặc đăng ký thuế.</InlineNotice>
-                  {business && !draft.legalSubjectType && <p className="mt-2 text-sm">Hồ sơ cũ chưa có phân loại pháp lý. Thông tin đã lưu được giữ nguyên; hãy chọn đúng loại trước khi gửi lại hồ sơ.</p>}
-                </div>
                 <Field label="Loại chủ thể pháp lý" required error={validationErrors.legalSubjectType}>
                   <Select id="onboarding-legalSubjectType" value={draft.legalSubjectType} onChange={updateRegistration('legalSubjectType')} disabled={busy === 'submit'}>
                     <option value="">Chọn theo giấy tờ đăng ký</option>

@@ -59,7 +59,7 @@ describe('BookingsService time transition guard', () => {
       branch: { businessId: 'business-1' },
     });
     await expect(
-      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['STAFF']),
+      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['BUSINESS_OWNER']),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(updateMany).not.toHaveBeenCalled();
   });
@@ -73,7 +73,7 @@ describe('BookingsService time transition guard', () => {
       voucherId: null, bookingServices: [],
     });
     await expect(
-      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['STAFF']),
+      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['BUSINESS_OWNER']),
     ).resolves.toMatchObject({ status: 'COMPLETED' });
     expect(updateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: 'COMPLETED' }),
@@ -92,7 +92,7 @@ describe('BookingsService time transition guard', () => {
     updateMany.mockResolvedValueOnce({ count: 0 });
 
     await expect(
-      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['STAFF']),
+      service.updateStatus('booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['BUSINESS_OWNER']),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -157,10 +157,10 @@ describe('BookingsService time transition guard', () => {
 
     const outcomes = await Promise.allSettled([
       service.updateStatus(
-        'booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['STAFF'],
+        'booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['BUSINESS_OWNER'],
       ),
       service.updateStatus(
-        'booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['STAFF'],
+        'booking-1', 'COMPLETED', 'staff-1', undefined, 'SALON', ['BUSINESS_OWNER'],
       ),
     ]);
 

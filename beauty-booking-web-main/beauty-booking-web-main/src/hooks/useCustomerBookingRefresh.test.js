@@ -13,7 +13,7 @@ function harness() {
   const ctx={captureSessionGeneration:()=>generation,isSessionGenerationCurrent:lease=>lease===generation,
     useAuthStore:store,useRef:v=>{const i=refIndex++;return refs[i]??(refs[i]={current:v});},
     useEffect:(fn,deps)=>{const key=JSON.stringify(deps);if(key!==previous){previous=key;effect=fn;}},
-    useOperationalRefresh:()=>{},schedulerSocketUrl:()=>'/qa',bindSchedulerSocketEvents,
+    useOperationalRefresh:()=>{},useScheduleHistoryRefresh:()=>{},schedulerSocketUrl:()=>'/qa',bindSchedulerSocketEvents,
     refreshSession:()=>new Promise((resolve,reject)=>recoveries.push({resolve,reject})),
     io:()=>{const s=new EventEmitter();s.disconnect=()=>{s.closed=true;};sockets.push(s);return s;}};
   const source=readFileSync(new URL('./useCustomerBookingRefresh.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export function','function');

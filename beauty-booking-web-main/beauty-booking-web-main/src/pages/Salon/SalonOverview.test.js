@@ -1,3 +1,4 @@
+import * as bookingAffordances from '../../utils/bookingAffordances.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -51,7 +52,7 @@ function harness(initialUser = owner(), finance = FINANCE_WORKSPACE_ENABLED, now
   };
   const jsx = (type, props) => ({ type, props });
   const names = new Proxy({}, { get: (_, name) => name });
-  const modules = {
+  const modules = { '../../utils/bookingAffordances': bookingAffordances,
     react, 'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' }, 'date-fns': dates,
     'lucide-react': names, recharts: names, 'react-router-dom': { Link: 'Link' },
     '../../api/apiClient': api, '../../components/ui': names, '../../store/authStore': { useAuthStore },

@@ -509,9 +509,12 @@ export const servicesApi = {
 
   getById: (id) => request(`/services/${id}`),
   getVariants: (id) => request(`/services/${id}/variants`),
+  getOptionsManage: (id) => request(`/services/${id}/options/manage`),
   createVariant: (id, data) => request(`/services/${id}/variants`, { method: 'POST', body: JSON.stringify(data) }),
   updateVariant: (id, data) => request(`/services/variants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   addDependency: (id, data) => request(`/services/${id}/dependencies`, { method: 'POST', body: JSON.stringify(data) }),
+  removeDependency: (id, dependencyId) => request(`/services/${id}/dependencies/${dependencyId}`, { method: 'DELETE' }),
+  updatePriceRule: (id, data) => request(`/services/price-rules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   createPriceRule: (id, data) => request(`/services/${id}/price-rules`, { method: 'POST', body: JSON.stringify(data) }),
 
   create: (data) =>
@@ -787,6 +790,7 @@ export const reviewsApi = {
 
 // ======================== ADMIN ========================
 export const adminApi = {
+  getBookingFilterServices: (branchIds) => request(`/admin/booking-filter-services?${new URLSearchParams({ branchIds }).toString()}`),
   getSettings: () => request('/admin/settings'),
   updateSettings: (settings) => request('/admin/settings', { method: 'PATCH', body: JSON.stringify({ settings }) }),
   resetSettings: () => request('/admin/settings/reset', { method: 'POST' }),

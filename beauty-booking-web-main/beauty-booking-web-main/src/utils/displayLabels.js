@@ -19,7 +19,7 @@ export const STATUS_LABELS = {
   UNMAPPED: 'Chưa phân loại',
   SUGGESTED: 'Đang đề xuất phân loại',
   CONFIRMED: 'Đã xác nhận',
-  CHECKED_IN: 'Đã đến',
+  CHECKED_IN: 'Khách đã đến',
   IN_PROGRESS: 'Đang thực hiện',
   COMPLETED: 'Hoàn thành',
   CANCELLED: 'Đã hủy',

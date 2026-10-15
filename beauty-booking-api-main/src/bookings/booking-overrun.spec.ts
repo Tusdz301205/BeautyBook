@@ -167,7 +167,7 @@ function fixture(options: { item?: Partial<ItemState>; bookingStatus?: string; c
   jest.spyOn(bookings, 'expirePendingHolds').mockResolvedValue(0);
   const start = (expectedRevision = 3, assignedStaffUserId = 'assigned-user') => items.update(
     'booking', 'item', assignedStaffUserId,
-    { action: 'START', reason: ' Start after arrival ', expectedRevision }, { assignedStaffUserId },
+    { action: 'START', reason: ' Start after arrival ', expectedRevision }, assignedStaffUserId === 'assigned-user' ? undefined : { assignedStaffUserId },
   );
   const slots = (staffId: string | null = 'staff') => bookings.getAvailableSlots({
     branchId: 'branch', staffId, serviceIds: ['service'], date: '2026-10-06',
@@ -182,7 +182,7 @@ function expectNoWrites(f: ReturnType<typeof fixture>) {
   expect(f.snapshot().bookingServices[0]).toMatchObject({ status: 'SCHEDULED', revision: 3 });
 }
 
-describe('Overdue service START keeps the planned schedule and validates actual remaining work', () => {
+describe('Historical owner service START keeps the planned schedule and validates actual remaining work', () => {
   beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(lateNow); });
   afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
 
@@ -207,7 +207,7 @@ describe('Overdue service START keeps the planned schedule and validates actual 
       afterSnapshot: { status: 'IN_PROGRESS', itemStartAt: plannedStart, itemEndAt: plannedEnd } });
     expect(audit).not.toHaveProperty('createdAt');
     expect(f.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({ isolationLevel: 'Serializable' }));
-    expect(f.tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(f.tx.staffProfile.findFirst.mock.invocationCallOrder[0]);
+    expect(f.tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(f.tx.staffProfile.findUnique.mock.invocationCallOrder[0]);
   });
 
   test.each([15, 32, 42])('late START conflicts with next booking at +%i minutes (duration/transition/buffer)', async offset => {
@@ -284,9 +284,7 @@ describe('Overdue service START keeps the planned schedule and validates actual 
     const f = fixture();
     await expect(f.start(3, 'unassigned-user')).rejects.toBeInstanceOf(ForbiddenException);
     expectNoWrites(f);
-    expect(f.tx.staffProfile.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({
-      id: 'staff', userId: 'unassigned-user',
-    }) as unknown }));
+    expect(f.tx.staffProfile.findFirst).not.toHaveBeenCalled();
   });
 
   test.each([-60, 60])('same-booking running sibling blocks START regardless of planned interval offset %i', async offset => {
@@ -346,7 +344,7 @@ describe('Overdue service START keeps the planned schedule and validates actual 
     jest.setSystemTime(minutes(lateNow, 60));
     const result = await f.items.update('booking', 'item', 'assigned-user', {
       action: 'COMPLETE', expectedRevision: 4, reason: 'Completed service',
-    }, { assignedStaffUserId: 'assigned-user' }) as BookingResult;
+    }) as BookingResult;
     expect(result).toMatchObject({ status: 'IN_PROGRESS', readyToComplete: true, bookingServices: [{
       status: 'COMPLETED', revision: 5, itemStartAt: plannedStart, itemEndAt: plannedEnd,
       actualStartedAt: new Date(lateNow.getTime() + 123), actualCompletedAt: new Date(minutes(lateNow, 60).getTime() + 123),

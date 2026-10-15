@@ -22,13 +22,13 @@ describe('booking status authorization', () => {
     ).toThrow(BadRequestException);
   });
 
-  test('staff starts checked-in work and completes in-progress work', () => {
+  test('staff timetable authority cannot start or complete work', () => {
     expect(() =>
       assertActorStatusTransition(['STAFF'], 'CHECKED_IN', 'IN_PROGRESS'),
-    ).not.toThrow();
+    ).toThrow(BadRequestException);
     expect(() =>
       assertActorStatusTransition(['STAFF'], 'IN_PROGRESS', 'COMPLETED'),
-    ).not.toThrow();
+    ).toThrow(BadRequestException);
   });
 
   test('customer may cancel but cannot confirm their own booking', () => {

@@ -1,1 +1,1 @@
-export type { WorkItem, WorkPage, WorkAction } from './workModel';
+export type { WorkItem, WorkPage } from './workModel';

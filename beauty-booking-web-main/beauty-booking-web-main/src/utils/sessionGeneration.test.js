@@ -1,3 +1,6 @@
+import { normalizeSchedulerResponse } from './bookingCalendar.adapter.js';
+import { operationalListRows } from './operationalListRows.js';
+import { unfinishedBooking } from './bookingAffordances.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
@@ -280,5 +283,85 @@ for (const file of ['SchedulerView.jsx', 'SchedulerListView.jsx']) {
       assert.equal(h.transport[0].lease, 0);
       assert.equal(h.calls.find(call => call[0] === method)?.[1], 0);
     }
+  });
+}
+
+
+function scheduleBoundaryScheduler(file) {
+  const source = readFileSync(new URL(`../components/admin/scheduler/${file}`, import.meta.url), 'utf8');
+  const calendar = file === 'SchedulerView.jsx', name = calendar ? 'fetchData' : 'load';
+  const start = source.indexOf(`  const ${name} = useCallback`), end = source.indexOf('\n  useEffect', start);
+  let generation = 0, cleanup, state = { accessToken: 'A', user: { id: 'A' } }, rows = [];
+  const reads = [], errors = [], timers = new Map();
+  const store = selector => selector(state); store.getState = () => state;
+  const defer = (kind, args) => new Promise((resolve, reject) => reads.push({ kind, args, resolve, reject }));
+  const context = { accessToken: 'A', branchKey: 'branch-a', branchId: 'branch-a', branchNames: new Map(), refreshKey: 0,
+    range: { start: new Date('2026-10-13T00:00:00Z'), end: new Date('2026-10-13T23:59:59Z') }, filters: { status: 'unfinished' }, pagination: { page: 1 },
+    requestSequence: { current: 0 }, useCallback: fn => fn, useMemo: fn => fn(),
+    captureSessionGeneration: () => generation, isSessionGenerationCurrent: lease => lease === generation, useAuthStore: store,
+    bookingsApi: { getScheduler: (...args) => defer('calendar', args), getSchedulerBatch: (...args) => defer('batch', args), getAll: (...args) => defer('list', args), getById: () => { throw Error('Unexpected detail read'); } },
+    normalizeSchedulerResponse, operationalListRows, toUserFacingRequestError: error => error.message,
+    setBookings: value => { rows = value; }, setStaffList() {}, setSelectedBooking() {}, setSelectedDay() {}, setSelected() {}, setPagination() {}, setLoading() {}, setError: error => { if (error) errors.push(error); },
+    useEffect: fn => { cleanup?.(); cleanup = fn(); }, setTimeout: (fn, delay) => { timers.set(fn, delay); return fn; }, clearTimeout: fn => timers.delete(fn),
+  };
+  vm.createContext(context);
+  vm.runInContext(source.slice(start, end) + `;this.read=${name};`, context);
+  const rootHook = readFileSync(new URL('../hooks/useScheduleHistoryRefresh.js', import.meta.url), 'utf8').replace(/^import .*;\r?\n/gm, '').replaceAll('export function', 'function');
+  vm.runInContext(rootHook + ';this.arm=useScheduleHistoryRefresh;', context);
+  const response = (row, serverNow = '2026-10-13T03:00:00Z') => calendar ? { bookings: [row], staff: [], serverNow } : { data: [row], serverNow, meta: { page: 1, total: 1 } };
+  const arm = () => {
+    context.bookings = rows;
+    if (calendar) {
+      const wiring = source.slice(source.indexOf('  const refreshVisible ='), source.indexOf('  const serviceOptions ='));
+      vm.runInContext(wiring.replace('  useOperationalRefresh(refreshVisible);', ''), context);
+    } else {
+      const wiring = source.slice(source.indexOf('  const scheduleRows ='), source.indexOf('  useEffect', source.indexOf('  const scheduleRows =')));
+      vm.runInContext(wiring, context);
+    }
+  };
+  return { reads, errors, timers, response, arm, read: context.read, rows: () => rows,
+    switchScope: () => { generation++; state = { accessToken: 'B', user: { id: 'B' } }; },
+    unmount: () => { cleanup?.(); context.requestSequence.current++; } };
+}
+
+const boundaryRow = { id: 'arrival', bookingId: 'arrival', branchId: 'branch-a', statusEnum: 'CHECKED_IN', status: 'Khách đã đến',
+  appointmentDate: '2026-10-13', appointmentStartTime: '03:00:00', appointmentEndTime: '03:01:00', scheduledEndAt: '2026-10-13T03:00:01Z',
+  scheduleBucket: 'UPCOMING', scheduleElapsed: false, services: [{ id: 'service', status: 'SCHEDULED', itemStartAt: '2026-10-13T03:00:00Z', itemEndAt: '2026-10-13T03:00:01Z' }] };
+
+for (const file of ['SchedulerView.jsx', 'SchedulerListView.jsx']) {
+  test(`${file} actual GET and root boundary hook refresh unfinished attendance without a socket event`, async () => {
+    const h = scheduleBoundaryScheduler(file), read = h.read();
+    h.reads[0].resolve(h.response(boundaryRow)); await read; h.arm();
+    assert.equal(h.timers.size, 1); assert.equal([...h.timers.values()][0], 1001);
+    const before = h.rows()[0];
+    assert.equal(unfinishedBooking(before), true);
+    const boundary = [...h.timers.keys()][0]();
+    assert.equal(h.reads.length, 2);
+    h.reads[1].resolve(h.response({ ...boundaryRow, scheduleElapsed: true, scheduleBucket: 'HISTORY' }, '2026-10-13T03:00:01.001Z'));
+    await boundary; await settle();
+    assert.equal(unfinishedBooking(h.rows()[0]), false);
+    assert.equal(h.rows()[0].statusEnum || h.rows()[0].status, 'CHECKED_IN');
+    assert.equal(h.rows()[0].services[0].actualCompletedAt ?? null, null);
+    assert.deepEqual(h.errors, []);
+    if (file === 'SchedulerListView.jsx') assert.equal(h.reads[1].args[0].branchId, 'branch-a');
+    else assert.equal(h.reads[1].args[0], 'branch-a');
+    h.unmount(); assert.equal(h.timers.size, 0);
+  });
+  test(`${file} boundary timer and late GET responses are fenced on account change and unmount`, async () => {
+    for (const mode of ['account', 'unmount']) for (const failure of [false, true]) {
+      const h = scheduleBoundaryScheduler(file), initial = h.read();
+      h.reads[0].resolve(h.response(boundaryRow)); await initial; h.arm();
+      const timer = [...h.timers.keys()][0], pending = h.read();
+      if (mode === 'account') { h.switchScope(); timer(); } else { h.unmount(); assert.equal(h.timers.size, 0); }
+      assert.equal(h.reads.length, 2);
+      if (failure) h.reads[1].reject(Error('stale read')); else h.reads[1].resolve(h.response({ ...boundaryRow, id: 'foreign' }));
+      await pending; assert.equal(h.rows()[0].id, 'arrival'); assert.deepEqual(h.errors, []);
+    }
+  });
+  test(`${file} newer scheduler GET wins when reads resolve in reverse order`, async () => {
+    const h = scheduleBoundaryScheduler(file), older = h.read(), newer = h.read();
+    h.reads[1].resolve(h.response({ ...boundaryRow, id: 'new', bookingId: 'new' })); await newer;
+    h.reads[0].resolve(h.response(boundaryRow)); await older;
+    assert.equal(h.rows()[0].id, 'new');
   });
 }

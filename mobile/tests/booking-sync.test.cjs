@@ -176,7 +176,7 @@ test('timing uses branch timezone across day boundary; invalid timestamps are un
   assert.equal(timing.formatServiceTimestamp('2026-10-07T18:00:00Z', 'bad-zone'), '2026-10-07T18:00:00.000Z (UTC)');
 });
 test('mapper preserves server clock, branch zone, planned fields, lifecycle status and nullable actual audit points', () => {
-  const mapper = load('mappers/booking.ts');
+  const mapper = load('mappers/booking.ts', { '../utils/bookingSchedule': load('utils/bookingSchedule.ts') });
   const raw = { id: 'booking', status: 'CHECKED_IN', appointmentDate: '2026-10-07', appointmentStartTime: '10:00', serverNow: '2026-10-07T03:00:00Z', branch: { id: 'branch', timezone: 'Asia/Ho_Chi_Minh' }, bookingServices: [{ id: 'item', durationMinutes: 30, status: 'IN_PROGRESS', itemStartAt: 'planned', itemEndAt: 'planned-end', actualStartedAt: 'actual', actualCompletedAt: null, actualStoppedAt: null, actualTimingSource: 'SERVICE_ADJUSTMENT' }] };
   const mapped = mapper.mapBooking(raw); assert.equal(mapped.serverNow, raw.serverNow); assert.equal(mapped.branchTimezone, raw.branch.timezone);
   for (const key of ['durationMinutes', 'status', 'itemStartAt', 'itemEndAt', 'actualStartedAt', 'actualCompletedAt', 'actualStoppedAt', 'actualTimingSource']) assert.equal(mapped.bookingServices[0][key], raw.bookingServices[0][key]);
@@ -197,24 +197,48 @@ function hooks() {
   };
   return { react: { ...React, default: React }, render(fn, props) { index = 0; const tree = fn(props); const pending = effects; effects = []; pending.forEach(fn => fn()); return tree; }, dispose() { slots.forEach(slot => slot?.cleanup?.()); } };
 }
-function providerHarness() {
-  const c = clock(), hook = hooks(), sockets = [], subscribers = new Set(); let token = 'account-a-token', generation = 1, appListener, rows = [], pending, calls = 0;
+function providerHarness({ singleSnapshot = false } = {}) {
+  const c = clock(), hook = hooks(), sockets = [], subscribers = new Set(), paths = []; let token = 'account-a-token', generation = 1, appListener, rows = [], pending, calls = 0, serverNow;
   const auth = { user: { id: 'account-a' }, isRestoring: false };
   const clientMock = { getApiAccessToken: () => token, getApiSessionGeneration: () => generation, refreshAccessToken: async () => token, subscribeApiAccessToken(fn) { subscribers.add(fn); return () => subscribers.delete(fn); } };
+  const read = async () => { calls++; if (pending) { const d = pending; pending = null; return d.promise; } return rows; };
+  const snapshotApi = singleSnapshot ? load('api/bookings.ts', { './client': {
+    withQuery: (path, query) => path + '?' + new URLSearchParams(query),
+    apiRequest: async (path, init) => { paths.push({ path, init }); return { data: await read(), serverNow }; },
+  } }).bookingsApi : { mine: read, create: async () => ({ id: 'local', status: 'PENDING' }) };
+  const mapper = singleSnapshot ? load('mappers/booking.ts', { '../utils/bookingSchedule': load('utils/bookingSchedule.ts') }).mapBooking : x => x;
   const provider = load('context/BookingsContext.tsx', {
     react: hook.react,
     'react-native': { AppState: { currentState: 'active', addEventListener(event, fn) { appListener = fn; return { remove() { appListener = null; } }; } } },
     'socket.io-client': { io(origin, config) { assert.equal(origin, 'http://qa'); assert.equal(config.autoConnect, false); const s = socket(); sockets.push(s); return s; } },
     '../config/api': { API_BASE_URL: 'http://qa/api/v1' }, '../api/client': clientMock,
     '../utils/bookingSync': load('utils/bookingSync.ts', {}, c),
-    '../api/bookings': { bookingsApi: { mine: async () => { calls++; if (pending) { const d = pending; pending = null; return d.promise; } return rows; }, create: async () => ({ id: 'local', status: 'PENDING' }) } },
-    '../mappers/booking': { mapBooking: x => x }, './AuthContext': { useAuth: () => auth },
-  });
+    '../utils/bookingSchedule': load('utils/bookingSchedule.ts'),
+    '../api/bookings': { bookingsApi: snapshotApi },
+    '../mappers/booking': { mapBooking: mapper }, './AuthContext': { useAuth: () => auth },
+  }, c);
   let tree;
   const render = () => { tree = hook.render(provider.BookingsProvider, { children: 'child' }); return tree.props.value; };
   render();
-  return { render, c, sockets, get calls() { return calls; }, rows(value) { rows = value; }, pending(value) { pending = value; }, app(state) { appListener?.(state); }, account(id) { generation++; token = id ? `${id}-token` : null; [...subscribers].forEach(fn => fn(token)); auth.user = id ? { id } : null; }, dispose: hook.dispose };
+  return { render, c, sockets, paths, get calls() { return calls; }, rows(value) { rows = value; }, serverNow(value) { serverNow = value; }, pending(value) { pending = value; }, app(state) { appListener?.(state); }, account(id) { generation++; token = id ? `${id}-token` : null; [...subscribers].forEach(fn => fn(token)); auth.user = id ? { id } : null; }, dispose: hook.dispose };
 }
+
+test('series creation seeds bookings immediately and fences stale account/session responses', async () => {
+  const h = providerHarness();
+  await h.c.tick();
+  const value = h.render();
+  value.rememberBookings([{ id: 'series-1', status: 'PENDING' }, { id: 'series-2', status: 'PENDING' }], 1);
+  assert.equal(h.render().getBooking('series-1').status, 'PENDING');
+  assert.equal(h.render().bookings.length, 2);
+  h.render().rememberBookings([{ id: 'series-1', status: 'CONFIRMED' }], 1);
+  assert.equal(h.render().getBooking('series-1').status, 'CONFIRMED');
+  assert.equal(h.render().bookings.length, 2);
+  h.account('account-b');
+  value.rememberBookings([{ id: 'late-private-a' }], 1);
+  assert.equal(h.render().getBooking('late-private-a'), undefined);
+  assert.equal(h.render().bookings.length, 0);
+  h.dispose();
+});
 
 test('provider integrates ONE socket: held list and details update via authorized API; duplicates coalesce; background refresh keeps data/loading stable', async () => {
   const h = providerHarness(); h.rows([{ id: 'first', status: 'upcoming' }]); await h.c.tick(); let value = h.render();
@@ -252,7 +276,7 @@ test('real detail never displays old route summary when shared booking disappear
     'react-native-safe-area-context': { SafeAreaView: 'SafeAreaView' }, '@expo/vector-icons': { Ionicons: 'Icon' },
     '@react-navigation/native': { useFocusEffect() {} }, '../constants/colors': { colors: {} }, '../data/catalogModels': { formatCurrency: String }, '../data/appointments': { bookingStatusMeta: () => ({}) },
     '../context/BookingsContext': { useBookings: () => ({ getBooking: () => booking, reload: async () => {}, isLoading: false }) },
-    '../components/WriteReviewSheet': { default: 'Review' }, '../api/reviews': { reviewsApi: {} }, '../api/platformSettings': { platformSettingsApi: { publicPolicy: async () => ({}) } }, '../utils/bookingTiming': timing,
+    '../components/WriteReviewSheet': { default: 'Review' }, '../utils/reviewForm': load('utils/reviewForm.ts'), '../api/reviews': { reviewsApi: {} }, '../api/platformSettings': { platformSettingsApi: { publicPolicy: async () => ({}) } }, '../utils/bookingTiming': timing,
     // Without a server clock the overdue hint stays hidden; the timing lines are what this test checks.
     '../hooks/useOperationalTime': { useOperationalTime: () => NaN }, '../utils/bookingOperationalTime': load('utils/bookingOperationalTime.ts'), '../theme': load('theme/index.ts'),
   };
@@ -278,4 +302,42 @@ test('AuthContext clears user/token synchronously before pending network logout;
   value = render(); assert.equal(value.user, null); assert.equal(token, null); assert.equal(value.isSubmitting, false);
   login.resolve({ user: { id: 'late' }, accessToken: 'late-token' }); await attempt; assert.equal(render().user, null); assert.equal(token, null);
   logout.resolve({ ok: true }); await exit; assert.equal(cleared, 1); hook.dispose();
+});
+
+test('booking end refresh reads server history without a lifecycle event and clears on logout', async () => {
+  const h = providerHarness();
+  const row = { id: 'arrived', rawStatus: 'CHECKED_IN', status: 'upcoming', attendanceWorkflow: 'CHECK_IN_ONLY',
+    scheduledEndAt: '2026-10-07T04:00:00Z', serverNow: '2026-10-07T03:59:00Z', scheduleBucket: 'UPCOMING', canReview: false };
+  h.rows([row]); await h.c.tick();
+  assert.equal(h.render().getBooking('arrived').status, 'upcoming');
+  assert.equal(h.c.size, 1);
+  h.rows([{ ...row, status: 'completed', scheduleBucket: 'HISTORY', scheduleElapsed: true, canReview: true }]);
+  await h.c.tick(); await h.c.tick();
+  const history = h.render().getBooking('arrived');
+  assert.equal(h.calls, 2); assert.equal(history.status, 'completed'); assert.equal(history.rawStatus, 'CHECKED_IN');
+  assert.equal(history.canReview, true); assert.equal(h.c.size, 0);
+  h.sockets[0].emit('booking_updated'); h.rows([row]); await h.c.tick(); h.render(); assert.equal(h.c.size, 1);
+  h.account(null); h.render(); await h.c.tick(); assert.equal(h.calls, 3); assert.equal(h.render().bookings.length, 0);
+  h.dispose();
+});
+
+test('single all-tab snapshot never loses unchanged CHECKED_IN at the history boundary', async () => {
+  const h = providerHarness({ singleSnapshot: true });
+  const row = { id: 'arrived', status: 'CHECKED_IN', appointmentDate: '2026-10-07', appointmentStartTime: '10:00', attendanceWorkflow: 'CHECK_IN_ONLY',
+    scheduledEndAt: '2026-10-07T04:00:00Z', scheduleElapsed: false, scheduleBucket: 'UPCOMING', canReview: false,
+    serverNow: 'ignored-row-clock', bookingServices: [{ id: 'service', status: 'SCHEDULED', actualStartedAt: null, actualCompletedAt: null }] };
+  h.rows([row]); h.serverNow('2026-10-07T03:59:00Z'); await h.c.tick();
+  const before = h.render().getBooking(row.id);
+  assert.equal(before.status, 'upcoming'); assert.equal(before.serverNow, '2026-10-07T03:59:00Z'); assert.equal(h.calls, 1);
+  h.rows([{ ...row, scheduleBucket: 'HISTORY', scheduleElapsed: true, canReview: true }]); h.serverNow('2026-10-07T04:00:01Z');
+  await h.c.tick(); assert.equal(h.render().getBooking(row.id).id, row.id);
+  await h.c.tick();
+  const after = h.render().getBooking(row.id);
+  assert.equal(h.calls, 2); assert.equal(h.render().bookings.length, 1);
+  assert.equal(after.status, 'completed'); assert.equal(after.rawStatus, before.rawStatus); assert.equal(after.rawStatus, 'CHECKED_IN');
+  assert.equal(after.serverNow, '2026-10-07T04:00:01Z'); assert.equal(after.canReview, true);
+  assert.equal(after.bookingServices[0].actualStartedAt, null); assert.equal(after.bookingServices[0].actualCompletedAt, null);
+  assert.ok(h.paths.every(call => call.path === '/bookings/my-appointments?tab=all' && !call.init));
+  assert.equal(row.status, 'CHECKED_IN'); assert.equal(row.serverNow, 'ignored-row-clock');
+  h.dispose();
 });

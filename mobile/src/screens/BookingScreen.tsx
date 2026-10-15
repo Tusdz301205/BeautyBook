@@ -11,7 +11,10 @@ import { formatCurrency } from '../data/catalogModels';
 import SelectListSheet from '../components/SelectListSheet';
 import { useBookings } from '../context/BookingsContext';
 import { bookingsApi, type CreateBookingInput, type SelfBookingPolicy } from '../api/bookings';
-import { ApiError, createIdempotencyKey } from '../api/client';
+import { ApiError, createIdempotencyKey, getApiSessionGeneration, subscribeApiAccessToken } from '../api/client';
+import { recurringApi, type CreateRecurringInput, type RecurringFrequency, type RecurringPreview, type RecurringStaffMode } from '../api/recurring';
+import BookingRecurrence from '../components/BookingRecurrence';
+import { recurringInput, recurringPreviewReady, validOccurrenceCount } from '../utils/bookingRecurrence';
 import { servicesApi } from '../api/services';
 import { staffApi } from '../api/staff';
 import type { ApiAvailableSlot, ApiPricePreview, ApiService, ApiStaff } from '../types/api';
@@ -58,10 +61,17 @@ function StepTitle({ index, title, hint }: { index: number; title: string; hint?
 
 export default function BookingScreen({ route, navigation }: Props) {
   const { branchId, shopName, addresses, service, serviceIds, comboId, staffOptions: routeStaff = [] } = route.params;
-  const { addBooking } = useBookings();
+  const { addBooking, reload, rememberBookings } = useBookings();
   const { isLoggedIn, user } = useAuth();
   const currentUserIdRef = useRef(user?.id);
   currentUserIdRef.current = user?.id;
+  const [sessionEpoch, setSessionEpoch] = useState(getApiSessionGeneration);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    const unsubscribe = subscribeApiAccessToken(() => setSessionEpoch(getApiSessionGeneration()));
+    return () => { mountedRef.current = false; unsubscribe(); };
+  }, []);
   const [addedServices, setAddedServices] = useState<BookingServiceLine[]>([]);
   const [publicStaff, setPublicStaff] = useState<ApiStaff[]>(
     routeStaff.map((staff) => ({ id: staff.id, fullName: staff.name })),
@@ -78,7 +88,7 @@ export default function BookingScreen({ route, navigation }: Props) {
       return { id: person.id, label: labels.filter((value) => value === base).length > 1 ? `${base} (${occurrence})` : base };
     });
   }, [publicStaff]);
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(route.params.initialStaffId ?? null);
   const selectedStaffLabel = staffChoices.find((choice) => choice.id === selectedStaffId)?.label || ANY_STAFF;
 
   const today = useMemo(() => {
@@ -110,7 +120,7 @@ export default function BookingScreen({ route, navigation }: Props) {
   const [isSubmitting, setSubmitting] = useState(false);
   const submitLockRef = useRef(false);
   const [isReviewVisible, setReviewVisible] = useState(false);
-  const checkoutAttemptRef = useRef<{ input: CreateBookingInput; key: string; userId: string } | null>(null);
+  const checkoutAttemptRef = useRef<({ kind: 'single'; input: CreateBookingInput } | { kind: 'recurring'; input: CreateRecurringInput }) & { key: string; userId: string } | null>(null);
   const [isOutcomeUnknown, setOutcomeUnknown] = useState(false);
   const [selectedApiServices, setSelectedApiServices] = useState<ApiService[]>([]);
   const [isLoadingServiceInfo, setLoadingServiceInfo] = useState(true);
@@ -124,6 +134,14 @@ export default function BookingScreen({ route, navigation }: Props) {
   const [policy, setPolicy] = useState<SelfBookingPolicy | null>(null);
   const [policyError, setPolicyError] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [frequency, setFrequency] = useState<RecurringFrequency>('WEEKLY');
+  const [occurrenceCount, setOccurrenceCount] = useState('4');
+  const [staffMode, setStaffMode] = useState<RecurringStaffMode>('ANY_AVAILABLE');
+  const [skipConflicts, setSkipConflicts] = useState(false);
+  const [recurringResult, setRecurringResult] = useState<{ key: object; preview: RecurringPreview } | null>(null);
+  const [recurringFailure, setRecurringFailure] = useState<{ key: object; message: string } | null>(null);
+  const [recurringRefreshKey, setRecurringRefreshKey] = useState(0);
 
   const weekDays = allDays.slice(weekIndex * 7, weekIndex * 7 + 7);
   const selectedDate = allDays[selectedDateIndex];
@@ -132,20 +150,52 @@ export default function BookingScreen({ route, navigation }: Props) {
   const variantsComplete = Boolean(comboId) || (selectedApiServices.every((item) =>
     !item.variants?.length || Boolean(variantSelections[item.id]),
   ) && selectedApiServices.length === selectedServiceIds.length);
+  const recurrenceUnsupported = Object.keys(variantSelections).length > 0
+    || (!comboId && selectedApiServices.some((item) => Boolean(item.variants?.length)));
+  const count = validOccurrenceCount(occurrenceCount);
+  const recurringPayload = selectedTime && count !== null ? recurringInput({
+    branchId, serviceIds: selectedServiceIds, comboId, slot: selectedTime,
+    staffId: selectedStaffId || undefined, staffMode, frequency, occurrenceCount: count,
+  }) : null;
+  const recurringSignature = recurringEnabled && isLoggedIn && !recurrenceUnsupported && !isLoadingServiceInfo && recurringPayload
+    ? JSON.stringify([user?.id, sessionEpoch, recurringPayload, recurringRefreshKey]) : null;
+  // Identity also changes when returning to an earlier selection: never reuse its old availability.
+  const recurringKey = useMemo(() => recurringSignature ? { signature: recurringSignature } : null, [recurringSignature]);
+  const recurringPreview = recurringKey && recurringResult?.key === recurringKey ? recurringResult.preview : null;
+  const recurringError = recurringKey && recurringFailure?.key === recurringKey ? recurringFailure.message : null;
+  const previewingRecurring = Boolean(recurringKey && !recurringPreview && !recurringError);
+  const recurringReady = !recurringEnabled || Boolean(recurringKey && recurringPreviewReady(recurringPreview, skipConflicts));
+
+  useEffect(() => {
+    if (!selectedStaffId) setStaffMode('ANY_AVAILABLE');
+  }, [selectedStaffId]);
+
+  useEffect(() => {
+    if (!recurringKey || !recurringPayload) return;
+    let active = true;
+    const generation = getApiSessionGeneration();
+    recurringApi.preview(recurringPayload).then((preview) => {
+      if (active && generation === getApiSessionGeneration()) setRecurringResult({ key: recurringKey, preview });
+    }).catch((reason) => {
+      if (active && generation === getApiSessionGeneration()) setRecurringFailure({ key: recurringKey, message: reason instanceof Error ? reason.message : 'Không kiểm tra được chuỗi lịch.' });
+    });
+    return () => { active = false; };
+  }, [recurringKey]);
 
   useEffect(() => {
     if (!isLoggedIn) { setPolicy(null); return; }
     let active = true;
+    const generation = getApiSessionGeneration();
     setPolicy(null);
     setPolicyError(null);
     setAcknowledged(false);
     bookingsApi.selfBookingPolicy(branchId).then((result) => {
-      if (active) setPolicy(result);
+      if (active && generation === getApiSessionGeneration()) setPolicy(result);
     }).catch((reason) => {
-      if (active) setPolicyError(reason instanceof Error ? reason.message : 'Không kiểm tra được chính sách đặt lịch');
+      if (active && generation === getApiSessionGeneration()) setPolicyError(reason instanceof Error ? reason.message : 'Không kiểm tra được chính sách đặt lịch');
     });
     return () => { active = false; };
-  }, [branchId, isLoggedIn]);
+  }, [branchId, isLoggedIn, user?.id, sessionEpoch]);
 
   useEffect(() => {
     setVariantSelections((current) => Object.fromEntries(
@@ -240,6 +290,7 @@ export default function BookingScreen({ route, navigation }: Props) {
       };
     }
     setLoadingPrice(true);
+    const generation = getApiSessionGeneration();
     setPriceError(null);
     const timer = setTimeout(() => {
       bookingsApi.previewPrice({
@@ -248,13 +299,13 @@ export default function BookingScreen({ route, navigation }: Props) {
         comboId,
         appointmentDate: selectedTime,
         variantSelections,
-        voucherCode: voucherCode.trim() || undefined,
+        voucherCode: recurringEnabled ? undefined : voucherCode.trim() || undefined,
       })
         .then((result) => {
-          if (active) setPricePreview(result);
+          if (active && generation === getApiSessionGeneration()) setPricePreview(result);
         })
         .catch((reason) => {
-          if (!active) return;
+          if (!active || generation !== getApiSessionGeneration()) return;
           setPricePreview(null);
           setPriceError(reason instanceof Error ? reason.message : 'Chưa tính được giá. Vui lòng thử lại.');
         })
@@ -266,7 +317,7 @@ export default function BookingScreen({ route, navigation }: Props) {
       active = false;
       clearTimeout(timer);
     };
-  }, [isLoggedIn, selectedTime, variantsComplete, branchId, selectedServiceKey, comboId, voucherCode, JSON.stringify(variantSelections)]);
+  }, [isLoggedIn, user?.id, sessionEpoch, selectedTime, variantsComplete, branchId, selectedServiceKey, comboId, voucherCode, recurringEnabled, JSON.stringify(variantSelections)]);
 
   // Slots are instants from the backend booking zone; group and label them in that zone.
   const slotGroups = [
@@ -285,6 +336,7 @@ export default function BookingScreen({ route, navigation }: Props) {
     && !isLoadingServiceInfo
     && !isSubmitting
     && !isOutcomeUnknown
+    && (!isLoggedIn || recurringReady)
     && (!isLoggedIn || (pricePreview && !isLoadingPrice && policy?.selfBookingAllowed
       && (!policy.acknowledgmentRequired || acknowledged))),
   );
@@ -310,11 +362,14 @@ export default function BookingScreen({ route, navigation }: Props) {
       Alert.alert('Tài khoản đã thay đổi', 'Vui lòng đăng nhập lại tài khoản đã gửi yêu cầu và kiểm tra Lịch hẹn.');
       return;
     }
-    if (!previousAttempt && (!selectedTime || !pricePreview)) return;
+    if (!previousAttempt && !canContinue) return;
+    const generation = getApiSessionGeneration();
+    const ownsSession = () => mountedRef.current && currentUserIdRef.current === user.id && generation === getApiSessionGeneration();
     submitLockRef.current = true;
     setSubmitting(true);
     let submitted = false;
     let bookingId: string | undefined;
+    let createdSeries = false;
     try {
       if (!previousAttempt) {
         if (!selectedTime || !pricePreview) return;
@@ -324,8 +379,9 @@ export default function BookingScreen({ route, navigation }: Props) {
           comboId,
           appointmentDate: selectedTime,
           variantSelections,
-          voucherCode: voucherCode.trim() || undefined,
+          voucherCode: recurringEnabled ? undefined : voucherCode.trim() || undefined,
         });
+        if (!ownsSession()) return;
         if (Number(freshPrice.finalAmount) !== Number(pricePreview.finalAmount)) {
           setPricePreview(freshPrice);
           setReviewVisible(false);
@@ -344,27 +400,75 @@ export default function BookingScreen({ route, navigation }: Props) {
           violationAcknowledged: acknowledged,
         };
         // Snapshot the body as well as the key: an uncertain retry must replay the same request.
+        const attemptBody = recurringEnabled && recurringPayload
+          ? { kind: 'recurring' as const, input: JSON.parse(JSON.stringify({ ...recurringPayload, skipConflicts, note: note.trim() || undefined, violationAcknowledged: acknowledged })) as CreateRecurringInput }
+          : { kind: 'single' as const, input: JSON.parse(JSON.stringify(checkoutInput)) as CreateBookingInput };
         checkoutAttemptRef.current = {
-          input: JSON.parse(JSON.stringify(checkoutInput)) as CreateBookingInput,
+          ...attemptBody,
           key: createIdempotencyKey('mobile-booking'),
           userId: user.id,
         };
       }
       const attempt = checkoutAttemptRef.current!;
-      if (attempt.userId !== currentUserIdRef.current) {
+      if (!ownsSession() || attempt.userId !== currentUserIdRef.current) {
         throw new ApiError('Tài khoản đã thay đổi. Vui lòng kiểm tra Lịch hẹn.', 401);
       }
       submitted = true;
-      const booking = await addBooking(attempt.input, attempt.key);
-      bookingId = booking.id;
+      if (attempt.kind === 'recurring') {
+        const plan = await recurringApi.create(attempt.input, attempt.key);
+        if (!ownsSession()) {
+          if (mountedRef.current) setOutcomeUnknown(true);
+          return;
+        }
+        createdSeries = true;
+        bookingId = plan.bookings?.[0]?.id;
+        // Creation is settled before refreshing the list. Refresh failure must never replay it.
+        checkoutAttemptRef.current = null;
+        setOutcomeUnknown(false);
+        setReviewVisible(false);
+        rememberBookings(plan.bookings ?? [], generation);
+        void reload().catch(() => {});
+        const created = plan.bookings?.length ?? plan.createdOccurrenceCount ?? 0;
+        Alert.alert('Đã tạo chuỗi lịch', `Đã tạo ${created} lịch hẹn · bỏ qua ${Math.max(0, attempt.input.occurrenceCount - created)} kỳ.`);
+      } else {
+        const booking = await addBooking(attempt.input, attempt.key);
+        if (!ownsSession()) {
+          if (mountedRef.current) setOutcomeUnknown(true);
+          return;
+        }
+        bookingId = booking.id;
+      }
       checkoutAttemptRef.current = null;
       setOutcomeUnknown(false);
       setReviewVisible(false);
     } catch (reason) {
-      if (previousAttempt || (submitted && (!(reason instanceof ApiError) || reason.status === 0 || reason.status >= 500 || reason.status === 408
-        || (reason.status === 409 && /idempotency|request trùng đang được xử lý/i.test(reason.message))))) {
+      if (!ownsSession()) {
+        // A request may have reached the server before a session replacement.
+        if (submitted && mountedRef.current) { setOutcomeUnknown(true); setReviewVisible(false); }
+        return;
+      }
+      const failureCode = reason instanceof ApiError ? (reason.payload as { code?: string } | undefined)?.code : undefined;
+      const settledRecurringFailure = checkoutAttemptRef.current?.kind === 'recurring' && failureCode
+        && ['RECURRING_CREATE_ROLLED_BACK', 'RECURRING_PREVIEW_CONFLICT', 'RECURRING_NO_AVAILABILITY'].includes(failureCode);
+      if (settledRecurringFailure) {
+        checkoutAttemptRef.current = null;
+        setOutcomeUnknown(false);
+        setReviewVisible(false);
+        setRecurringRefreshKey(value => value + 1);
+        Alert.alert('Không thể tạo chuỗi lịch', failureCode === 'RECURRING_CREATE_ROLLED_BACK'
+          ? `${(reason as ApiError).message}\nCác kỳ đã tạo đã được hoàn tác. Bạn có thể điều chỉnh rồi thử lại.`
+          : (reason as ApiError).message);
+      } else if (previousAttempt || (submitted && (!(reason instanceof ApiError) || reason.status === 0 || reason.status >= 500 || reason.status === 408
+        || (reason.status === 409 && (/idempotency|request trùng đang được xử lý/i.test(reason.message)
+          || (checkoutAttemptRef.current?.kind === 'recurring' && !/Một số kỳ bị trùng lịch|Không có kỳ nào còn chỗ/i.test(reason.message))))))) {
         setOutcomeUnknown(true);
         setReviewVisible(false);
+      } else if (checkoutAttemptRef.current?.kind === 'recurring' && reason instanceof ApiError && reason.status === 409) {
+        checkoutAttemptRef.current = null;
+        setOutcomeUnknown(false);
+        setReviewVisible(false);
+        setRecurringRefreshKey((value) => value + 1);
+        Alert.alert('Chuỗi lịch cần kiểm tra lại', reason.message);
       } else if (isSlotConflict(reason)) {
         checkoutAttemptRef.current = null;
         setOutcomeUnknown(false);
@@ -379,9 +483,12 @@ export default function BookingScreen({ route, navigation }: Props) {
       }
     } finally {
       submitLockRef.current = false;
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
-    if (bookingId) navigation.navigate('BookingSuccess', { bookingId });
+    if (ownsSession()) {
+      if (bookingId) navigation.navigate('BookingSuccess', { bookingId });
+      else if (createdSeries) navigation.getParent()?.navigate('LichHen');
+    }
   };
 
   const locked = isSubmitting || isOutcomeUnknown;
@@ -390,6 +497,9 @@ export default function BookingScreen({ route, navigation }: Props) {
     : isLoadingServiceInfo ? 'Đang kiểm tra dịch vụ…'
       : !variantsComplete ? 'Chọn lựa chọn cho từng dịch vụ để xem giờ trống.'
         : !selectedTime ? 'Chọn giờ để tiếp tục.'
+          : recurringEnabled && recurrenceUnsupported ? 'Lựa chọn dịch vụ này chưa hỗ trợ lịch lặp. Hãy tắt lịch lặp.'
+            : recurringEnabled && count === null ? 'Nhập số kỳ từ 2 đến 52.'
+              : recurringEnabled && !recurringReady ? (previewingRecurring ? 'Đang kiểm tra chuỗi lịch…' : recurringError || 'Kiểm tra chuỗi lịch và chọn bỏ qua xung đột, hoặc đổi ngày/giờ.')
           : policy && !policy.selfBookingAllowed ? 'Tài khoản đang bị hạn chế tự đặt lịch tại cơ sở này.'
             : policy?.acknowledgmentRequired && !acknowledged ? 'Xác nhận cảnh báo chính sách để tiếp tục.'
               : isLoadingPrice ? 'Đang tính giá…'
@@ -588,6 +698,16 @@ export default function BookingScreen({ route, navigation }: Props) {
           </View>
         </View>
 
+        {isLoggedIn && <BookingRecurrence
+          enabled={recurringEnabled} onEnabled={setRecurringEnabled}
+          frequency={frequency} onFrequency={setFrequency}
+          count={occurrenceCount} onCount={setOccurrenceCount}
+          staffMode={staffMode} onStaffMode={setStaffMode} hasStaff={Boolean(selectedStaffId)}
+          skipConflicts={skipConflicts} onSkipConflicts={setSkipConflicts}
+          preview={recurringPreview} loading={previewingRecurring} error={recurringError}
+          onRetry={() => setRecurringRefreshKey((value) => value + 1)} unsupported={recurrenceUnsupported}
+        />}
+
         <View style={styles.section}>
           <StepTitle index={5} title="Ưu đãi và ghi chú" />
           <Text style={styles.fieldLabel}>Mã voucher <Text style={styles.helperText}>· không bắt buộc</Text></Text>
@@ -596,11 +716,12 @@ export default function BookingScreen({ route, navigation }: Props) {
             style={styles.input}
             value={voucherCode}
             onChangeText={setVoucherCode}
-            editable={!locked}
+            editable={!locked && !recurringEnabled}
             autoCapitalize="characters"
             placeholder="Nhập mã nếu có"
             placeholderTextColor={colors.disabledText}
           />
+          {recurringEnabled && <Text style={styles.helperText}>Voucher không áp dụng cho chuỗi lịch.</Text>}
           {isLoadingPrice && <ActivityIndicator color={colors.primary} style={styles.inlineLoader} />}
           {!!priceError && <Text style={styles.errorText}>{priceError}</Text>}
           {!!pricePreview?.promotionDiscount && <Text style={styles.discountText}>Khuyến mãi tự động: -{formatCurrency(pricePreview.promotionDiscount)}</Text>}
@@ -645,7 +766,7 @@ export default function BookingScreen({ route, navigation }: Props) {
         </View>}
         <View style={styles.totalRow}>
           <View style={styles.flex}>
-            <Text style={styles.totalLabel}>{priceIsServerQuote ? 'Tổng dự kiến' : 'Tạm tính'}</Text>
+            <Text style={styles.totalLabel}>{recurringEnabled ? 'Dự kiến kỳ đầu tiên' : priceIsServerQuote ? 'Tổng dự kiến' : 'Tạm tính'}</Text>
             {totalSavings > 0 && <Text style={styles.savingsText}>Tiết kiệm {formatCurrency(totalSavings)}</Text>}
           </View>
           <Text style={styles.totalValue}>{formatCurrency(totalPrice)}</Text>
@@ -686,13 +807,20 @@ export default function BookingScreen({ route, navigation }: Props) {
             <Text style={styles.reviewLabel}>Dịch vụ</Text><Text style={styles.reviewValue}>{selectedApiServices.map((item) => item.name).join(', ') || service.name}</Text>
             <View style={styles.reviewDivider} />
             <Text style={styles.reviewLabel}>Thời gian</Text><Text style={styles.reviewValue}>{selectedTime ? `${slotDate(selectedTime)} · ${slotClock(selectedTime)}` : ''}</Text>
-            <Text style={styles.reviewSubvalue}>Chuyên viên: {selectedStaffLabel}</Text>
+            <Text style={styles.reviewSubvalue}>Chuyên viên: {recurringEnabled && staffMode === 'ANY_AVAILABLE' ? 'Bất kỳ người phù hợp cho từng kỳ' : selectedStaffLabel}</Text>
+            {recurringEnabled && <>
+              <View style={styles.reviewDivider} />
+              <Text style={styles.reviewLabel}>Chuỗi lịch · {frequency === 'WEEKLY' ? 'Mỗi tuần' : frequency === 'BIWEEKLY' ? 'Mỗi 2 tuần' : 'Mỗi tháng'}</Text>
+              <Text style={styles.reviewValue}>{occurrenceCount} kỳ · {recurringPreview?.availableCount ?? 0} còn chỗ · {recurringPreview?.conflictCount ?? 0} xung đột{skipConflicts ? ' sẽ bỏ qua' : ''}</Text>
+              <Text style={styles.reviewSubvalue}>{staffMode === 'SAME_STAFF' ? `Giữ cùng chuyên viên: ${selectedStaffLabel}` : 'Bất kỳ chuyên viên phù hợp cho từng kỳ'}</Text>
+            </>}
             <View style={styles.reviewDivider} />
-            <Text style={styles.reviewLabel}>Giá dự kiến</Text><Text style={styles.reviewPrice}>{formatCurrency(pricePreview?.finalAmount ?? totalPrice)}</Text>
+            <Text style={styles.reviewLabel}>{recurringEnabled ? 'Giá dự kiến kỳ đầu tiên' : 'Giá dự kiến'}</Text><Text style={styles.reviewPrice}>{formatCurrency(pricePreview?.finalAmount ?? totalPrice)}</Text>
+            {recurringEnabled && <Text style={styles.reviewNote}>Giá từng kỳ được xác định khi tạo chuỗi lịch. Voucher không áp dụng.</Text>}
             <Text style={styles.reviewNote}>Cơ sở có thể cần xác nhận trước khi lịch có hiệu lực. Giá được kiểm tra lại khi bạn gửi.</Text>
           </ScrollView>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Xác nhận gửi đặt lịch" style={[styles.nextButton, isSubmitting && styles.nextButtonDisabled]} disabled={isSubmitting} onPress={() => void submitBooking()}>
-            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>Xác nhận đặt lịch</Text>}
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel={recurringEnabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận gửi đặt lịch'} style={[styles.nextButton, !canContinue && styles.nextButtonDisabled]} disabled={!canContinue} onPress={() => void submitBooking()}>
+            {isSubmitting ? <ActivityIndicator color={colors.white} /> : <Text style={styles.nextButtonText}>{recurringEnabled ? 'Xác nhận chuỗi lịch' : 'Xác nhận đặt lịch'}</Text>}
           </TouchableOpacity>
         </SafeAreaView>
       </View>}

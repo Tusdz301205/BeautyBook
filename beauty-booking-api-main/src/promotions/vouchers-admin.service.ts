@@ -4,6 +4,7 @@ import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { ALL_TENANTS, assertBusinessAccess, resolveBusinessIdsForUser, restrictToRoles } from '../common/utils/multi-tenancy';
 import { isPlatformRole } from '../common/utils/scope-helpers';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
+import { ATTENDED_BOOKING_STATUSES, hasRecordedVisit } from '../bookings/booking-attendance';
 
 @Injectable()
 export class VouchersAdminService {
@@ -380,7 +381,8 @@ export class VouchersAdminService {
       where: { id: customerId },
       select: {
         user: { select: { dateOfBirth: true } },
-        bookings: { where: { deletedAt: null }, select: { status: true, branch: { select: { businessId: true } } } },
+        bookings: { where: { deletedAt: null }, select: { status: true, branch: { select: { businessId: true } },
+          statusHistory: { where: { status: { in: [...ATTENDED_BOOKING_STATUSES] } }, take: 1, select: { status: true } } } },
       },
     });
     if (!customer) return;
@@ -391,7 +393,7 @@ export class VouchersAdminService {
       ...customer.bookings.map((booking) => booking.branch.businessId),
       ...segments.map((segment) => segment.businessId),
     ]);
-    const completedByBusiness = new Set(customer.bookings.filter((booking) => booking.status === 'COMPLETED').map((booking) => booking.branch.businessId));
+    const completedByBusiness = new Set(customer.bookings.filter(hasRecordedVisit).map((booking) => booking.branch.businessId));
     const vouchers = await this.prisma.voucher.findMany({
       where: {
         autoIssue: true, status: 'ACTIVE', deletedAt: null, startDate: { lte: now }, endDate: { gte: now },

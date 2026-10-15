@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertNoOverlap, validateStaffForService, BOOKING_TIME_RULES } from './bookings.validation';
-import { toBookingInterval } from '../common/utils/booking-datetime';
+import { appointmentTimeFromInstant, toBookingInterval } from '../common/utils/booking-datetime';
 import { withSerializableTransaction } from '../common/utils/serializable-transaction';
 import { assertItemDuration, assertItemPrice, MAX_BOOKING_ITEM_PRICE } from './booking-item-values';
 import { BOOKING_TIMING_AUDIT_INCLUDE, withBookingTiming } from './booking-actual-timing';
@@ -10,12 +10,14 @@ import { SchedulerGateway } from '../scheduler/scheduler.gateway';
 import { emitCommittedBookingUpdates } from './booking-realtime';
 import { queueProviderReassignment } from './booking-provider-notifications';
 import { assertPendingHoldAllowsScheduling } from './pending-hold-guard';
+import { PaymentsService } from '../payments/payments.service';
 
 type ItemAction = 'REMOVE' | 'SKIP' | 'REASSIGN' | 'START' | 'COMPLETE' | 'RESIZE' | 'REPRICE';
 
 @Injectable()
 export class BookingItemsService {
-  constructor(private readonly prisma: PrismaService, @Optional() private readonly schedulerGateway?: SchedulerGateway) {}
+  constructor(private readonly prisma: PrismaService, @Optional() private readonly schedulerGateway?: SchedulerGateway,
+    @Optional() private readonly payments?: PaymentsService) {}
 
   async add(bookingId: string, actorId: string, input: {
     serviceId: string;
@@ -82,7 +84,7 @@ export class BookingItemsService {
       await this.applyAmountDelta(tx, booking, created.id, actorId, price, input.reason);
       await tx.booking.update({
         where: { id: bookingId },
-        data: { appointmentEndTime: itemEndAt },
+        data: { appointmentEndTime: appointmentTimeFromInstant(itemEndAt) },
       });
       return this.detail(tx, bookingId);
     }, { conflictMessage: 'Lịch vừa được chỉnh sửa; vui lòng tải lại và thử lại' });
@@ -98,6 +100,7 @@ export class BookingItemsService {
     durationMinutes?: number;
     price?: number;
   }, authorization?: { assignedStaffUserId: string }) {
+    if (authorization) throw new ForbiddenException({ code: 'STAFF_SCHEDULE_READ_ONLY', message: 'Nhân viên chỉ xem lịch được phân công' });
     if (typeof input.reason !== 'string' || !input.reason.trim()) throw new BadRequestException('Lý do thay đổi là bắt buộc');
     if (input.action === 'REPRICE') assertItemPrice(input.price);
     if (input.action === 'RESIZE') assertItemDuration(input.durationMinutes);
@@ -112,17 +115,6 @@ export class BookingItemsService {
         include: { booking: true, staff: { select: { userId: true } } },
       });
       if (!item) throw new NotFoundException('Không tìm thấy dịch vụ trong lịch hẹn');
-      // Check the exact item after its row lock, so a concurrent reassignment
-      // cannot let a provider operate another provider's service.
-      if (authorization) {
-        const assigned = item.staffId && await tx.staffProfile.findFirst({
-          where: { id: item.staffId, userId: authorization.assignedStaffUserId, status: 'ACTIVE', deletedAt: null },
-          select: { id: true },
-        });
-        if (!assigned || !['START', 'COMPLETE'].includes(input.action)) {
-          throw new ForbiddenException('Nhân viên chỉ được bắt đầu hoặc hoàn thành dịch vụ được giao cho mình');
-        }
-      }
       if (item.revision !== input.expectedRevision) {
         throw new ConflictException('Dịch vụ vừa được người khác chỉnh sửa; vui lòng tải lại');
       }
@@ -247,7 +239,7 @@ export class BookingItemsService {
         await tx.booking.update({
           where: { id: bookingId },
           data: {
-            appointmentEndTime: nextBookingEnd,
+            appointmentEndTime: appointmentTimeFromInstant(nextBookingEnd),
           },
         });
       }
@@ -337,6 +329,7 @@ export class BookingItemsService {
         appliedAt: new Date(),
       },
     });
+    await this.payments?.ensurePlatformFee(tx, booking.id);
   }
 
   private async detail(tx: Prisma.TransactionClient, bookingId: string) {

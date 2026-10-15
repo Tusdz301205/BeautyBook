@@ -29,7 +29,7 @@ export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resou
   const latest = useRef(stamp); latest.current = stamp;
   const fetcher = useRef(loader); fetcher.current = loader;
   const currentScope = useRef(scope); currentScope.current = scope;
-  const [state, setState] = useState<{ key: string; stamp: string; data?: T; loading: boolean; error: string | null }>({ key: '', stamp: '', loading: true, error: null });
+  const [state, setState] = useState<{ key: string; stamp: string; data?: T; receivedAt?: number; loading: boolean; error: string | null }>({ key: '', stamp: '', loading: true, error: null });
   const sequence = useRef(0);
   const reload = useCallback(() => { setAttempt(value => value + 1); if (operations.error) operations.refresh(); }, [operations.error, operations.refresh]);
   useEffect(() => {
@@ -48,19 +48,22 @@ export function useOwnerData<T>(loader: (scope: OwnerScope) => Promise<T>, resou
       setState({ key, stamp, loading: false, error: 'Bạn chưa có quyền quản lý doanh nghiệp này. Kiểm tra doanh nghiệp tại Tài khoản.' });
       return;
     }
-    setState(previous => ({ key, stamp, data: previous.key === key ? previous.data : undefined, loading: true, error: null }));
+    setState(previous => ({ key, stamp, data: previous.key === key ? previous.data : undefined,
+      receivedAt: previous.key === key ? previous.receivedAt : undefined, loading: true, error: null }));
     void fetcher.current(currentScope.current).then(data => {
-      if (valid()) setState({ key, stamp, data, loading: false, error: null });
+      if (valid()) setState({ key, stamp, data, receivedAt: performance.now(), loading: false, error: null });
     }, error => {
       if (valid()) setState(previous => {
         const offline = error && typeof error === 'object' && 'status' in error && error.status === 0;
         const cached = offline && previous.key === key ? previous.data : undefined;
-        return { key, stamp, data: cached, loading: false, error: ownerError(error) + (cached ? ' Dữ liệu đang hiển thị là bản đã tải trước đó; cần tải lại trước khi thao tác.' : '') };
+        return { key, stamp, data: cached, receivedAt: cached ? previous.receivedAt : undefined, loading: false,
+          error: ownerError(error) + (cached ? ' Dữ liệu đang hiển thị là bản đã tải trước đó; cần tải lại trước khi thao tác.' : '') };
       });
     });
     return () => { alive = false; };
   }, [key, stamp]);
   return { data: state.key === key ? state.data : undefined,
+    receivedAt: state.key === key ? state.receivedAt : undefined,
     loading: state.stamp !== stamp || state.loading,
     error: state.stamp === stamp ? state.error : null, reload, stamp, scope };
 }

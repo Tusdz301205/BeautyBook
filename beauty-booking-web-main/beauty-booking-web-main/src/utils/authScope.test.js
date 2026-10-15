@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { attendanceLabel, elapsedCheckIn, reviewEligible, unfinishedBooking } from './bookingAffordances.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeContextFor, activeScopes, bookingCapabilities, bookingItemActions, canAt, isCustomerAccount, roleAt, sessionState } from './authScope.js';
+import { activeContextFor, activeScopes, bookingCapabilities, bookingItemActions, canAt, CUSTOMER_ACCOUNT_REQUIRED, isCustomerAccount, roleAt, sessionState } from './authScope.js';
 import { counterServicePayload, rowsInBranches, noShowAvailability } from './bookingAffordances.js';
 import { normalizeBooking } from './bookingCalendar.adapter.js';
 
@@ -96,9 +98,9 @@ test('Receptionist item actions exclude provider and commercial overrides', () =
   assert.deepEqual(bookingItemActions(user, { ...booking, branchId: 'branch-b' }, booking.services[0]), []);
 });
 
-test('Staff may start or complete only the exact assigned item', () => {
+test('Staff timetable is read-only even for the exact assigned item', () => {
   const user = actor([scope('STAFF', 'business-a', 'branch-a')], branchPermissions);
-  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), ['START', 'COMPLETE']);
+  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), []);
   assert.deepEqual(bookingItemActions(user, booking, booking.services[1]), []);
   assert.deepEqual(bookingItemActions(user, { ...booking, branchId: 'branch-b' }, booking.services[0]), []);
   assert.equal(bookingCapabilities(user, { ...booking, services: [booking.services[1]] }).canProvide, false);
@@ -111,13 +113,13 @@ test('Staff role without current permission cannot operate an assigned item', ()
 
 test('Owner item overrides stay within owned business', () => {
   const user = actor([scope('BUSINESS_OWNER')], ownerPermissions);
-  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), ['START', 'COMPLETE', 'REMOVE', 'SKIP', 'REASSIGN', 'RESIZE', 'REPRICE']);
+  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), ['REMOVE', 'SKIP', 'REASSIGN', 'RESIZE', 'REPRICE']);
   assert.deepEqual(bookingItemActions(user, { ...booking, businessId: 'business-b' }, booking.services[0]), []);
 });
 
 test('mixed Owner and Staff cannot carry owner actions to Staff-only branch', () => {
   const user = actor([scope('BUSINESS_OWNER', 'business-b'), scope('STAFF', 'business-a', 'branch-a')], [...ownerPermissions, ...branchPermissions]);
-  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), ['START', 'COMPLETE']);
+  assert.deepEqual(bookingItemActions(user, booking, booking.services[0]), []);
 });
 
 test('active context ignores retired/Customer scopes and prefers a valid Owner tenant', () => {
@@ -168,4 +170,59 @@ test('booking normalization retains actual business and staff-user scope', () =>
   const normalized = normalizeBooking({ id: 'booking-a', branch: { id: 'branch-a', businessId: 'business-a' }, bookingServices: [{ id: 'item-a', staff: { id: 'staff-a', user: { id: 'user-a' } }, service: { id: 'service-a' } }] });
   assert.equal(normalized.businessId, 'business-a');
   assert.equal(normalized.services[0].staffUserId, 'user-a');
+});
+
+
+test('check-in-only contract preserves attendance, unknown actual timing and commercial facts', () => {
+  const raw = { status: 'CHECKED_IN', attendanceWorkflow: 'CHECK_IN_ONLY', scheduledStartAt: '2026-10-13T03:00:00Z', scheduledEndAt: '2026-10-13T04:00:00Z', scheduleElapsed: true, scheduleBucket: 'HISTORY', canReview: true, finalAmount: 123,
+    bookingServices: [{ status: 'SCHEDULED', actualStartedAt: null, actualCompletedAt: null, actualTimingStatus: 'UNKNOWN', canCorrectActualTime: true }] };
+  const value = normalizeBooking(raw);
+  for (const key of ['attendanceWorkflow', 'scheduledStartAt', 'scheduledEndAt', 'scheduleElapsed', 'scheduleBucket', 'canReview']) assert.equal(value[key], raw[key]);
+  assert.equal(value.status, 'CHECKED_IN');
+  assert.equal(value.totalAmount, 123);
+  assert.equal(value.services[0].status, 'SCHEDULED');
+  assert.equal(value.services[0].actualStartedAt, null);
+  assert.equal(value.services[0].actualCompletedAt, null);
+  assert.equal(value.services[0].canCorrectActualTime, true);
+  assert.equal(value.raw, raw);
+  assert.equal(elapsedCheckIn(value), true);
+  assert.equal(attendanceLabel(value), 'Đã đến · Lịch đã qua');
+  assert.equal(unfinishedBooking(value), false);
+  assert.equal(reviewEligible(value), true);
+  assert.equal(attendanceLabel({ status: 'CHECKED_IN' }), 'Khách đã đến');
+  assert.equal(unfinishedBooking({ ...value, status: 'IN_PROGRESS' }), true);
+  assert.equal(reviewEligible({ status: 'COMPLETED', canReview: false }), false);
+  assert.equal(reviewEligible({ status: 'COMPLETED' }), true);
+  assert.equal(reviewEligible({ status: 'CHECKED_IN' }), false);
+  assert.equal(reviewEligible({ ...raw, review: {} }), false);
+});
+
+test('normal drawer exposes no START/COMPLETE paths while retaining reception and exceptional audit', () => {
+  const source = readFileSync(new URL('../components/admin/scheduler/BookingDetailDrawer.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /value: '(START|COMPLETE)'|nextAction = \{ status: '(IN_PROGRESS|COMPLETED)'/);
+  assert.match(source, /receivesGuests && canCheckIn/);
+  assert.match(source, /noShowAvailability/);
+  assert.match(source, /service.canCorrectActualTime.*ActualTimeCorrection/);
+  assert.match(source, /ActualTimeCorrectionHistory/);
+  for (const role of ['STAFF', 'BUSINESS_OWNER', 'RECEPTIONIST']) {
+    const user = actor([scope(role, 'business-a', 'branch-a')], [...branchPermissions, ...ownerPermissions]);
+    assert.equal(bookingCapabilities(user, booking).canProvide, false);
+    assert.equal(bookingCapabilities(user, booking).canComplete, false);
+    assert.ok(!bookingItemActions(user, booking, booking.services[0]).some(action => ['START', 'COMPLETE'].includes(action)));
+    if (role === 'STAFF') {
+      assert.equal(canAt(user, 'booking:update:branch'), false);
+      assert.equal(canAt(user, 'booking:complete:branch'), false);
+    }
+  }
+});
+
+
+test('customer account restriction is valid Vietnamese UTF-8 across assigned workflow source files', () => {
+  assert.equal(CUSTOMER_ACCOUNT_REQUIRED, 'Tài khoản vận hành chỉ xem nội dung công khai. Vui lòng dùng tài khoản khách hàng riêng để đặt lịch, lưu dịch vụ hoặc đánh giá.');
+  const files = ['./authScope.js', '../pages/Customer/CustomerReviews.jsx', '../pages/Admin/AdminAppointmentsView.jsx',
+    '../components/admin/scheduler/SchedulerListView.jsx', '../components/admin/scheduler/SchedulerView.jsx'];
+  for (const file of files) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /Ã|Â|áº|á»|â€|ï¿½|�/, file);
+  }
 });

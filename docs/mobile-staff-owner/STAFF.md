@@ -1,62 +1,67 @@
-# STAFF mobile implementation
+# STAFF mobile: check-in-only timetable
 
-Assigned ownership: `mobile/src/operations/staff/**`, `mobile/tests/staff-work.test.cjs`, and this document. Auth, providers, shared primitives, account, notifications, and backend remain with their respective owners.
+## Approved scope and workflow
 
-## Shipped interface
+This change owns `mobile/src/**`, `mobile/tests/**` and this document only. Root owns backend and web. Existing navigation, dependencies and design tokens are retained. Read `mobile/AGENTS.md` and the exact [Expo 57 docs](https://docs.expo.dev/versions/v57.0.0/) before editing.
 
-`StaffTabs.tsx` exports the default four-tab shell: **Hôm nay / Lịch / Thông báo / Tài khoản**. Work and notification tabs own native navigation stacks so detail back behavior stays local.
+The desk records arrival. Staff reads the personal timetable and item details; Staff does **no START or COMPLETE**. `staffApi` exposes only personal list and detail reads. The lifecycle mutation API, `useWorkActions` hook, confirmation dialogs and lifecycle buttons were removed, including for older responses with `canStart` or `canComplete` set to true. A linked Owner entering personal-work mode also gets only this read-only assigned-item view.
 
-Today groups **Đang thực hiện → Tiếp theo → Còn lại hôm nay → Đã kết thúc**. Every in-progress BookingService stays visible and actionable; the first gets stronger emphasis. Next prefers an eligible assigned service, then the earliest scheduled service with a nonterminal booking; ties resolve by item ID. Completed/cancelled/skipped siblings stay below as compact rows. The CTA **Nhận khách** still sends START; **Hoàn tất** still sends COMPLETE with the existing confirmation naming the customer and service. No check-in, reassignment, booking completion, finance, contact information, or customer-profile menus are exposed.
+All work rows sort chronologically by planned item start, scheduled booking start or explicitly labelled appointment context, with item ID as a stable tie breaker. No action eligibility or lifecycle rank promotes an overdue service. Today and agenda retain every returned assigned item, including historical and legacy actual-audit rows.
 
-Agenda uses the branch date and a seven-day strip with previous/next week and Today controls. ISO service timestamps are formatted in the branch timezone. Appointment date/time remains explicitly labelled appointment context, never invented item timing. Missing timezone blocks automatic Today calculation. Lists use FlatList; detail uses ScrollView. Font scaling remains enabled; work targets are at least 48dp; native headings and accessible labels are present.
+Terminal service states (CANCELLED, SKIPPED and historical COMPLETED) take priority over the parent arrival state in item badges. Their cards retain separate arrival/history text and accessible labels; active and terminal siblings remain visible together.
 
-## Screen / API / state mapping
+Labels:
 
-| Surface | Safe API | State and authority |
+- SCHEDULED: **Đã lên lịch**.
+- CHECKED_IN: **Khách đã đến**.
+- Elapsed CHECKED_IN history: **Đã đến · Lịch đã qua**.
+
+A past scheduled booking end is a projection into history. Persisted booking status stays CHECKED_IN, service status is not synthesized and actual times remain null/unknown unless separately recorded. No schedule time is copied into actual fields. Legacy actual audit and permission-based exceptional correction/history remain visible.
+
+## Contract and mobile consumers
+
+Booking and personal-work responses may include `attendanceWorkflow: CHECK_IN_ONLY`, `scheduledStartAt`, `scheduledEndAt`, `scheduleElapsed` and `scheduleBucket: UPCOMING | HISTORY | CANCELLED`. These fields are optional for rolling deployment. `checkedInHistory` accepts server HISTORY/elapsed metadata only for CHECKED_IN, excluding a CANCELLED projection. Missing metadata conservatively keeps check-in upcoming.
+
+Customer booking mapping retains all metadata, raw status and server `canReview`. `bookingsApi.mine` uses one `GET /bookings/my-appointments?tab=all` and applies its envelope `serverNow` to every row. Independent tab reads are removed so an unchanged CHECKED_IN cannot disappear across the planned-end boundary. The all-tab snapshot includes upcoming bookings even when a customer history/detail surface is mounted, allowing the shared end timer to discover newly eligible history/reviews. The existing `completed` wire/navigation group now represents **Lịch sử**; an elapsed CHECKED_IN joins that group without receiving a COMPLETED label. The activity history, monthly calendar and rebooking paths consume the mapped group. Home's next-appointment selection already requires an upcoming future appointment and therefore excludes these history projections. No new Home layout or copy is needed.
+
+Customer review visibility and submission require server `canReview === true`, an unreviewed authorized booking, and COMPLETED or CHECKED_IN in the projected history group. Missing/false permission, cancellation and legacy IN_PROGRESS expose no review action, even if old data places them in a history-like context. The sheet closes visually when eligibility disappears. Historical timing uses the existing SERVICE_ADJUSTMENT / ACTUAL_TIME_CORRECTION audit display.
+
+A read-only refresh is scheduled at the earliest future CHECKED_IN **booking scheduled end**, based on `serverNow`; no device wall clock or individual service end determines history. Customer refresh uses the existing invalidation queue and its background/session fences. Staff refresh uses the existing personal read hook, its context fences and a monotonic response-receipt anchor. Missing valid server clock/end disables this automatic refresh. Offline or failed reads remain stale until a successful reload/foreground refresh; the client never invents completion or review permission.
+
+Owner unfinished lists continue calling Root's scoped `/bookings?status=unfinished&sortOrder=appointment` query. Root excludes elapsed check-in rows and owns totals/pagination; mobile does not locally rewrite those counts. The mounted unfinished list schedules its earliest future CHECKED_IN end from current row `serverNow` and the successful read's monotonic `receivedAt`. It refetches the same scoped GET at that boundary; context key, revision, branch, request stamp, live scope and unmount guards reject obsolete callbacks. Loading, failed/stale reads and missing timing facts arm no timer. Owner projections retain schedule fields and audit/correction permission while omitting customer review authority. CHECKED_IN suppresses warnings demanding service start/completion. Essential check-in, arrival, no-show, cancellation and exceptional permission controls are unchanged.
+
+## Authorization and API boundaries
+
+| Surface | API | Mobile authority |
 | --- | --- | --- |
-| Today / agenda | `GET /bookings/my-work-items?branchId&dateFrom&dateTo&page&limit` | Linked active profile, root valid STAFF scope, exact business/branch and own assignment |
-| Item detail | `GET /bookings/my-work-items/:itemId` | Drops cached item on 401/403/404 |
-| START / COMPLETE | `PATCH /bookings/:bookingId/items/:itemId` | Item UUID, booking UUID, expectedRevision, stable truthful reason; server eligibility plus own assignment |
-| After lifecycle request | Restricted item detail, then safe current list/detail reload | Always reads even after timeout/conflict; holds retry while read remains unsuccessful |
-| Booking notification | `GET /bookings/my-work-items?branchId&bookingId&page&limit` | Own items only; empty or reassigned target explains unavailability |
-| Notifications / account | Root shared operations components | Shared notification paging/read/UUID-target validation; root profile/account/mode/logout behavior |
+| Today / agenda | GET /bookings/my-work-items?branchId&dateFrom&dateTo&page&limit | Active linked profile, valid STAFF work scope, exact business/branch, own assignment |
+| Item detail | GET /bookings/my-work-items/:itemId | Own item only; drops cached data on 401/403/404 |
+| Booking notification | GET /bookings/my-work-items?branchId&bookingId&page&limit | Personal items only; no Owner navigation from Staff |
+| Lifecycle | None | No staff mutation API, hook or button |
+| Owner unfinished | Root booking list with status=unfinished | Owner-scoped server query, server pagination |
 
-Pagination reads pages of 50 sequentially, bounded at 100 pages. It verifies page metadata, complete unique-item count against total, and rejects incomplete/changing data rather than labelling the first page a full workday. No N+1 detail requests are used for list cards.
+Pagination remains sequential, bounded at 100 pages of 50 and verifies metadata plus the complete unique count. `useStaffWork` still fences context key, branch/date/target, revision, profile identity, request sequence and API session generation. Context changes immediately hide prior data. Authorization loss removes cached work; offline failure retains only same-context stale data. Root retains socket ownership and reconnect/foreground invalidation.
 
-`useStaffWork` fences reads by contextKey, selected branch/date/target, context revision, staff identity, latest request sequence and API session generation. Old context data is immediately hidden. Root owns the only socket and bumps revision for invalidation/reconnect/foreground. Failed network refresh retains same-context cached data with explicit stale feedback and disables actions; authorization loss removes data. No queued offline writes or optimistic lifecycle success.
+Actual elapsed audit uses persisted actual points and the response server clock with a monotonic receipt anchor. Stale values freeze at receipt; completed/stopped rows use recorded end points. These display clocks perform no lifecycle or schedule mutation.
 
-Timers use actualStartedAt and SERVICE_ADJUSTMENT only, together with serverNow anchored at response receipt. Only active card counters tick each second; the list clock updates each minute for branch-date rollover. Stale counters stop at the last server response and say “Lúc cập nhật”; actions remain disabled. Completed/stopped services use persisted end timestamps; missing/UNAVAILABLE timing stays unknown. Neither reopening nor background time restarts the timer. Timers never mutate lifecycle or scheduling.
+## Changed paths
 
-Agenda is a chronological compact list with date/week controls; lifecycle actions remain in item detail. Detail order is customer/service/state, planned timing, actual audit timing, booking context, then the eligible action. Long operational names wrap naturally. Operational tabs use wrapping labels and a height adjusted for font scale and safe-area inset. Empty-day and all-completed copy are intentional; all-completed feedback requires a fresh nonempty list containing only COMPLETED items.
+- `mobile/src/utils/bookingSchedule.ts` (new), `bookingOperationalTime.ts`.
+- `mobile/src/operations/staff/StaffWorkScreen.tsx`, `WorkCard.tsx`, `staffApi.ts`, `types.ts`, `useStaffWork.ts`, `workModel.ts`; removed `useWorkActions.ts`.
+- `mobile/src/types/api.ts`, `ownerOperations.ts`; `mobile/src/api/ownerOperations.ts`, `mobile/src/api/bookings.ts`.
+- `mobile/src/context/BookingsContext.tsx`, `mobile/src/mappers/booking.ts`, `mobile/src/data/appointments.ts`.
+- `mobile/src/components/AppointmentCalendar.tsx`, `mobile/src/screens/AppointmentDetailScreen.tsx`, `mobile/src/operations/owner/OwnerUI.tsx`, `UnfinishedBookings.tsx`, `hooks.ts`.
+- `mobile/tests/check-in-workflow.test.cjs` (new), `staff-work.test.cjs`, `booking-sync.test.cjs`, `booking-operational-time.test.cjs`, `owner-operations.test.cjs`.
+- `docs/mobile-staff-owner/STAFF.md`.
 
-## Contract and authorization evidence
+## Validation and limitations
 
-Backend owner implemented the minimal personal endpoint; frontend does not use broad scheduler/list/customer booking responses. Source read and coordinated contract:
+Commands run from `mobile`:
 
-- `beauty-booking-api-main/src/bookings/staff-work-items.service.ts`: `scope` restricts salon workspace and live resource scopes; `profileId` requires active linked profile; `list`/`detail` restrict own assigned items; explicit `WORK_ITEM_SELECT`/`view` omit contact, finance and profile notes. `bookingId` filtering supports safe notification routing.
-- `beauty-booking-api-main/src/bookings/bookings.controller.ts`: static `my-work-items` routes delegate to the personal service.
-- `beauty-booking-api-main/src/bookings/booking-items.service.ts`: item action checks own assignment after row lock, revision and START check-in/COMPLETE lifecycle guards. The backend remains the final authority.
-- Root `OperationsContext.tsx` requires an active own profile within the current accessible business. Work mode accepts a valid STAFF branch scope or the current-business Owner grant with that own profile; Owner without a profile cannot enter personal work.
+- `node node_modules/typescript/bin/tsc --noEmit`: passed.
+- `node --test --test-isolation=none tests/*.test.cjs`: 225 passing tests. Node's default child-process test isolation is unavailable in this sandbox (spawn EPERM); in-process isolation runs the complete suite without escalation.
+- Scoped `git diff --check`: passed.
 
-Allowed UI actions are limited to START of eligible own SCHEDULED item after arrival and COMPLETE of eligible own IN_PROGRESS item. Staff cannot check-in, assign, reschedule, approve requests, adjust duration/price or access finance from this subtree. A linked Owner in personal-work mode still reads and acts only on items assigned to the account's own profile.
+Tests cover read-only API/cards with legacy eligibility flags, chronological timetable, server metadata/history grouping, review visibility and submit authority, null actuals and historical corrections, one-read all-tab no-disappearance boundary, customer and mounted Owner scheduled-end refresh without a lifecycle event, revision/branch/scope/unmount timer fencing, mixed active/skipped/cancelled siblings, logout timer cleanup, complete pagination, stale reads, reassignment and existing owner/customer/session/notification fences. Obsolete START/COMPLETE expectations were intentionally replaced; authorization and scope regressions were retained.
 
-The projection contains no authorized booking notes or colleague handoff information, so this UI does not invent those sections. Unsupported notification impact targets show the shared safe notification content; Staff never routes to Owner screens. Push is outside this implementation.
-
-## Skills and design decisions
-
-Read the entire `ee890929-cc68-47a3-bb3c-c01e26a002f1/Pasted text.txt`, `mobile/AGENTS.md`, and the required project skills before edits:
-
-- `skills/SKILL.md`: work hierarchy, concrete recovery feedback, brand tokens and scoped edits.
-- `skills/mobile-app-design/SKILL.md` plus accessibility/performance references: labelled native controls, 48dp targets, preserved font scaling, virtualized workday lists and cleaned display timers.
-- `skills/ux-pattern-research/SKILL.md` and the relevant awesome-ux pattern index: evaluate the personal-work question against the actual BeautyBook lifecycle. No copied interface or unsupported claim of user research.
-
-The project taste skill was inspected and explicitly excludes multi-step product UI; no extra web/landing-page design system was applied to this native work scope. Missing optional `skills/references` files did not block the required skills. Expo 57 versioned official docs were read before edits: https://docs.expo.dev/versions/v57.0.0/. Existing React Navigation, RN and tokens are retained without dependency changes.
-
-## Validation
-
-- `node --test tests/staff-work.test.cjs` (mobile): 15 passing behavioral tests covering own-item eligibility, multi-service ordering, timezone rollover, actual-time continuity/unknown timing, UUID/revision mutation payload, complete pagination/stale request, double-tap, timeout reconciliation lock, conflicts, reassignment/lost scope, real hook context/revision fencing, cached offline reads, context changes while COMPLETE confirmation is open, and restricted detail/list refetch after lifecycle timeout.
-- `npm run typecheck` (mobile): passed after native-stack prop and nullable-timezone fixes.
-- Scoped whitespace check: `git diff --check -- mobile/src/operations/staff mobile/tests/staff-work.test.cjs docs/mobile-staff-owner/STAFF.md`.
-- Android native: **NOT_RUN**. iOS native: **NOT_RUN**. Web runtime: **NOT_RUN**. Android export: **NOT_RUN** by staff owner. No emulator/Metro/restart/push or live API mutation was performed under the narrower assigned task constraints. Root owns integration/export and native QA.
-
-Run the scoped suite from `mobile` with `node --test tests/staff-work.test.cjs`. Real-role QA still needs separate QA accounts for Staff A/B, a linked multi-role owner, missing/inactive profiles, expired branch scopes, check-in, multi-service bookings, reassignment, timeout and foreground/reconnect. Use existing API configuration; record no credentials here. Passing mocked tests and TypeScript are not native acceptance or a production-readiness claim.
+Android native: **NOT_RUN**. iOS native: **NOT_RUN**. Emulator, Metro, native export and live API writes: **NOT_RUN**, following `mobile/AGENTS.md` and this task's narrower constraints. Backend projection integration and native acceptance need Root's QA with the new backend contract; mocked tests and TypeScript do not verify native rendering or live timing.
